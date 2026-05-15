@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createCalendarEvent, CalendarServiceError, listCalendarEvents } from "@/server/calendar/calendar-service";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
+import { requireOwnerApiSession } from "@/server/auth/owner";
 
 const dateSchema = z
   .string()
@@ -78,6 +79,9 @@ function toApiError(error: unknown) {
 }
 
 export async function GET(request: Request) {
+  const authResponse = await requireOwnerApiSession();
+  if (authResponse) return authResponse;
+
   const url = new URL(request.url);
   const parsed = listEventsSchema.safeParse({
     limit: url.searchParams.get("limit") ?? undefined,
@@ -105,6 +109,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const authResponse = await requireOwnerApiSession();
+  if (authResponse) return authResponse;
+
   const body = await request.json().catch(() => null);
   const parsed = createEventSchema.safeParse(body);
 

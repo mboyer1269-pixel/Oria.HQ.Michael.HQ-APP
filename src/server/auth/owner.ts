@@ -1,5 +1,6 @@
 import "server-only";
 
+import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { serverEnv } from "@/lib/server-env";
@@ -70,4 +71,19 @@ export async function requireOwnerAccess(nextPath = "/hq"): Promise<OwnerAccess>
     status: "authorized",
     user,
   };
+}
+
+/** Pour les Route Handlers : même barrière que le HQ, sans redirect HTML. */
+export async function requireOwnerApiSession(): Promise<NextResponse | null> {
+  const user = await getCurrentAuthUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  }
+
+  if (!isOwnerUser(user)) {
+    return NextResponse.json({ error: "Accès réservé au propriétaire." }, { status: 403 });
+  }
+
+  return null;
 }

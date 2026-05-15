@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireOwnerApiSession } from "@/server/auth/owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
@@ -10,6 +11,9 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const authResponse = await requireOwnerApiSession();
+  if (authResponse) return authResponse;
+
   const body = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(body);
 
