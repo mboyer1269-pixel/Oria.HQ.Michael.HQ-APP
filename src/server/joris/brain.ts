@@ -1,5 +1,6 @@
 import type { CommandResult, JorisIntent } from "@/features/hq/types";
 import { chooseModel } from "@/server/ai/model-router";
+import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
 import { CalendarServiceError, createCalendarEvent } from "@/server/calendar/calendar-service";
 import { checkPermission } from "@/server/permissions/permissions";
@@ -23,6 +24,16 @@ function detectIntent(message: string): JorisIntent {
     return "opportunity.score";
   }
 
+  if (
+    lower.includes("brief") ||
+    lower.includes("résumé") ||
+    lower.includes("resume") ||
+    lower.includes("priorité") ||
+    lower.includes("priorite")
+  ) {
+    return "brief.generate";
+  }
+
   return "chat";
 }
 
@@ -44,6 +55,18 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
     message,
     highImpact: intent === "board.consult" || intent === "opportunity.score",
   });
+
+  if (intent === "brief.generate") {
+    const brief = await buildCeoBriefSnapshot();
+
+    return {
+      intent,
+      summary: `${brief.headline} ${brief.focusLine}`,
+      modelId: route.model.id,
+      costMode: route.mode,
+      requiresConfirmation: false,
+    };
+  }
 
   if (intent === "calendar.book") {
     const calendarIntent = parseCalendarIntent(message);

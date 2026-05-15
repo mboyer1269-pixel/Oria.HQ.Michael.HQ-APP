@@ -13,9 +13,15 @@ export type CreateContactLeadInput = {
   status?: ContactLeadStatus;
 };
 
+export type ListContactLeadsInput = {
+  limit?: number;
+  status?: ContactLeadStatus;
+};
+
 export type ContactLeadRepository = {
   mode: ContactLeadStorageMode;
   create(input: CreateContactLeadInput): Promise<ContactLead>;
+  listRecent(input?: ListContactLeadsInput): Promise<ContactLead[]>;
 };
 
 export class ContactLeadRepositoryError extends Error {
@@ -55,6 +61,18 @@ function mapContactLeadRow(row: ContactLeadRow, storageMode: ContactLeadStorageM
   };
 }
 
+function sortLeadsByCreatedAt(leads: ContactLead[]) {
+  return [...leads].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+function filterLeads(leads: ContactLead[], input: ListContactLeadsInput = {}) {
+  const limit = input.limit ?? 10;
+
+  return sortLeadsByCreatedAt(
+    leads.filter((lead) => (input.status ? lead.status === input.status : true)),
+  ).slice(0, limit);
+}
+
 function createLocalContactLeadRepository(): ContactLeadRepository {
   return {
     mode: "local",
@@ -75,6 +93,9 @@ function createLocalContactLeadRepository(): ContactLeadRepository {
       localContactLeads.push(lead);
 
       return lead;
+    },
+    async listRecent(input) {
+      return filterLeads(localContactLeads, input);
     },
   };
 }
@@ -108,6 +129,22 @@ function createSupabaseContactLeadRepository(): ContactLeadRepository {
       }
 
       return mapContactLeadRow(data, "supabase");
+    },
+    async listRecent(input = {}) {
+      const limit = input.limit ?? 10;
+      let query = supabase.from("contact_leads").select().order("created_at", { ascending: false }).limit(limit);
+
+      if (input.status) {
+        query = query.eq("status", input.status);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw new ContactLeadRepositoryError(error.message, "CONTACT_LEAD_WRITE_FAILED");
+      }
+
+      return (data ?? []).map((row) => mapContactLeadRow(row, "supabase"));
     },
   };
 }

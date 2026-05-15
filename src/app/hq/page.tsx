@@ -15,6 +15,7 @@ import { AgendaPanel } from "@/features/hq/components/agenda-panel";
 import { CommandCenter } from "@/features/hq/components/command-center";
 import { ModuleCard } from "@/features/hq/components/module-card";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
+import { CeoBriefSection } from "@/features/hq/components/ceo-brief-section";
 import { PrivateHqOverview } from "@/features/hq/components/private-hq-overview";
 import { billionaireBoard, hqModules, modelProfiles, permissionRules } from "@/features/hq/seed";
 import { signOutAction } from "@/server/auth/actions";
@@ -23,6 +24,10 @@ import { requireOwnerAccess } from "@/server/auth/owner";
 export const dynamic = "force-dynamic";
 
 const privateLinks = [
+  {
+    label: "CEO Brief",
+    href: "#ceo-brief",
+  },
   {
     label: "Command Center",
     href: "#command-center",
@@ -124,6 +129,8 @@ export default async function HqPage() {
       </header>
 
       <PrivateHqOverview />
+
+      <CeoBriefSection />
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <CommandCenter />

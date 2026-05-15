@@ -94,3 +94,40 @@ export type CommandResult = {
   storageMode?: CalendarStorageMode;
   requiresConfirmation?: boolean;
 };
+
+export type CeoBriefAgendaItem = {
+  id: string;
+  title: string;
+  dateISO: string;
+  startTime: string;
+  endTime: string;
+  source: CalendarEventSource;
+};
+
+export type CeoBriefLeadItem = {
+  id: string;
+  name: string;
+  email: string;
+  company: string | null;
+  status: string;
+  createdAt: string;
+};
+
+export type CeoBriefSnapshot = {
+  generatedAt: string;
+  headline: string;
+  focusLine: string;
+  agenda: {
+    upcomingCount: number;
+    items: CeoBriefAgendaItem[];
+  };
+  leads: {
+    newCount: number;
+    items: CeoBriefLeadItem[];
+  };
+  documents: {
+    totalCount: number;
+    byHat: Record<string, number>;
+    recentFilenames: string[];
+  };
+};
