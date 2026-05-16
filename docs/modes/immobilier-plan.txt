@@ -1,0 +1,3 @@
+Ceci est un document de test pour le mode immobilier.
+Il represente un futur pack metier Oria, pas le systeme central.
+Action: definir les workflows courtier apres la fondation Workspace + Mode metier.

@@ -1,0 +1,20 @@
+{
+  "name": "Oria | Michael HQ",
+  "short_name": "Oria",
+  "description": "Assistant personnel et professionnel avec workspace prive, Joris et modes metier.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "lang": "fr-CA",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
