@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Michael HQ",
-  description: "HQ personnel de Michael et agent IA Joris.",
+  title: "Oria | Michael HQ",
+  description: "Assistant personnel et professionnel avec workspace prive, Joris et modes metier.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",

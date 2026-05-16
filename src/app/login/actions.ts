@@ -93,7 +93,7 @@ export async function signInAction(previousState: LoginFormState, formData: Form
     await supabase.auth.signOut();
 
     return {
-      error: "Accès réservé. Ce compte ne peut pas ouvrir Michael HQ.",
+      error: "Accès réservé. Ce compte ne peut pas ouvrir ce workspace Oria.",
       email: parsed.data.email,
       nextPath,
     };

@@ -156,7 +156,7 @@ function main() {
   const missing: EnvRequirement[] = [];
   const warnings: string[] = [];
 
-  console.log("Michael HQ Supabase configuration check");
+  console.log("Oria / Michael HQ Supabase configuration check");
   console.log("No secret values are printed by this script.\n");
 
   for (const requirement of requirements) {

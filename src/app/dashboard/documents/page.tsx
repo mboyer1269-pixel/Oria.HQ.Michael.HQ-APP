@@ -61,11 +61,12 @@ export default async function DocumentsDashboard() {
     return acc;
   }, {});
 
-  const hats = ["suivia", "mcl", "hq", "personal"];
+  const hats = ["personal", "hq", "finance", "real-estate"];
   const hatLabels: Record<string, string> = {
-    suivia: "Suivia",
+    "real-estate": "Immobilier",
+    finance: "Conseiller financier",
     mcl: "MCL",
-    hq: "HQ",
+    hq: "Michael HQ",
     personal: "Personnel",
   };
 
@@ -80,7 +81,7 @@ export default async function DocumentsDashboard() {
                 className="inline-flex items-center gap-2 text-sm font-semibold text-amber-300 transition hover:text-amber-200"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Retour au HQ privé
+                Retour à Michael HQ
               </Link>
               <div className="mt-5 flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10 text-amber-300">
@@ -90,7 +91,7 @@ export default async function DocumentsDashboard() {
                   <p className="text-xs font-semibold uppercase text-neutral-500">Documents</p>
                   <h1 className="mt-1 text-3xl font-bold text-white">Coffre documentaire privé</h1>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">
-                    Notes, décisions, SOPs et fichiers utiles à Joris. Accès réservé au propriétaire de Michael HQ.
+                    Notes, décisions, SOPs et fichiers utiles à Joris dans le workspace actif.
                   </p>
                 </div>
               </div>
@@ -141,7 +142,7 @@ export default async function DocumentsDashboard() {
               <div>
                 <p className="font-semibold text-white">Aucun document pour le moment.</p>
                 <p className="mt-1 max-w-md text-sm leading-6 text-neutral-500">
-                  Quand Joris traite une note, une décision ou une SOP, elle va apparaître ici avec son projet.
+                  Quand Joris traite une note, une décision ou une SOP, elle va apparaître ici avec son mode.
                 </p>
               </div>
             </div>
@@ -151,7 +152,7 @@ export default async function DocumentsDashboard() {
                 <thead className="bg-neutral-900 text-xs font-bold uppercase text-neutral-500">
                   <tr>
                     <th className="px-5 py-4">Nom du fichier</th>
-                    <th className="px-5 py-4">Projet</th>
+                    <th className="px-5 py-4">Mode</th>
                     <th className="px-5 py-4">Date de traitement</th>
                     <th className="px-5 py-4 text-right">Statut</th>
                   </tr>

@@ -1,3 +1,0 @@
-Ceci est un plan pour le projet Suivia.
-Il contient des actions importantes à faire.
-Action: Finaliser le dashboard.

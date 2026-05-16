@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <div className="flex items-start justify-between gap-4">
             <div className="inline-flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
               <Sparkles className="h-3.5 w-3.5" />
-              HQ privé
+              Oria privé
             </div>
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-neutral-800 bg-neutral-900 text-amber-300">
               <LockKeyhole className="h-5 w-5" />
@@ -37,17 +37,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
 
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase text-neutral-500">Michael HQ</p>
-            <h1 className="text-2xl font-bold text-white sm:text-4xl">Connexion Michael HQ</h1>
+            <p className="text-xs font-semibold uppercase text-neutral-500">Oria · Michael HQ</p>
+            <h1 className="text-2xl font-bold text-white sm:text-4xl">Connexion au workspace</h1>
             <p className="text-sm leading-6 text-neutral-400">
-              Accès réservé. Entre ton email et ton mot de passe pour ouvrir le HQ.
+              Accès réservé. Entre ton email et ton mot de passe pour ouvrir Michael HQ.
             </p>
           </div>
 
           <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm leading-6 text-emerald-100">
             <div className="flex items-start gap-2">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-              <p>Session privée, réservée au propriétaire de Michael HQ.</p>
+              <p>Session privée, réservée au workspace Michael HQ.</p>
             </div>
           </div>
         </div>

@@ -44,8 +44,8 @@ function toUserError(error: unknown) {
 }
 
 const bookingExamples = [
-  "Joris, book un rendez-vous banque demain à 18:00",
-  "Joris, book un suivi Suivia vendredi à 9:30",
+  "Joris, book un rendez-vous dentiste pour les enfants demain à 18:00",
+  "Joris, book un suivi avec Eric vendredi à 9:30",
 ];
 
 export function CommandCenter() {
@@ -98,10 +98,10 @@ export function CommandCenter() {
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-400">Command Center</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Command Center</h2>
+          <h2 className="mt-2 text-2xl font-semibold text-white">Parler à Joris</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-neutral-400">
-            Donne une commande claire à Joris. Quand Joris Book comprend un rendez-vous, le booking est confirmé ici
-            et l&apos;agenda se met à jour.
+            Donne une commande claire à Joris dans le contexte Michael HQ. Les modes métier viendront ensuite cadrer
+            les demandes finance, immobilier et autres niches.
           </p>
         </div>
         <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
@@ -135,9 +135,10 @@ export function CommandCenter() {
         <div className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">Prêt pour Joris Book</p>
+              <p className="text-sm font-semibold text-white">Prêt pour le workspace Michael HQ</p>
               <p className="mt-1 text-sm leading-6 text-neutral-400">
-                Commence avec un booking simple. Joris va te montrer le résultat dès que l&apos;agenda est mis à jour.
+                Commence avec un booking simple. Joris montre le résultat et journalise l&apos;action quand l&apos;agenda
+                est mis à jour.
               </p>
             </div>
             <span className="w-fit rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200">
@@ -182,7 +183,7 @@ export function CommandCenter() {
                       Rendez-vous booké
                     </p>
                     <p className="mt-1 font-medium text-white">{result.calendarEvent.title}</p>
-                    <p className="mt-1 text-sm text-neutral-300">Ajouté à l&apos;agenda Michael HQ.</p>
+                    <p className="mt-1 text-sm text-neutral-300">Ajouté à l&apos;agenda du workspace Michael HQ.</p>
                   </div>
                 </div>
                 <span className="w-fit rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-300">

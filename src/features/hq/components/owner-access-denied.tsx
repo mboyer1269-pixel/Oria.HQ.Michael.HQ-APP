@@ -15,7 +15,7 @@ export function OwnerAccessDenied({ email }: OwnerAccessDeniedProps) {
         <p className="text-xs font-semibold uppercase text-red-300">Accès réservé</p>
         <h1 className="mt-3 text-2xl font-bold text-white">Accès refusé</h1>
         <p className="mt-3 text-sm leading-6 text-neutral-400">
-          Ce compte{email ? ` (${email})` : ""} est connecté, mais il ne peut pas ouvrir Michael HQ.
+          Ce compte{email ? ` (${email})` : ""} est connecté, mais il ne peut pas ouvrir ce workspace Oria.
         </p>
         <form action={signOutAction} className="mt-6">
           <button

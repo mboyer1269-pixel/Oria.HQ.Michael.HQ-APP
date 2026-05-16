@@ -191,7 +191,7 @@ Calendrier:
 
 Contact:
 
-1. Soumettre le formulaire Suivia.
+1. Soumettre le formulaire Oria.
 2. Resultat attendu: reponse `201`, `storageMode` vaut `supabase`.
 3. Verifier dans Supabase que la ligne existe dans `contact_leads`.
 4. Verifier via REST anon/authenticated que la table reste illisible et non inserable directement.

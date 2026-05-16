@@ -115,7 +115,7 @@ export function CeoBriefPanel({ brief }: CeoBriefPanelProps) {
         />
 
         <BriefCard
-          title="Leads Suivia"
+          title="Leads / demandes"
           icon={UsersRound}
           count={brief.leads.newCount}
           badgeLabel={brief.leads.newCount > 0 ? "nouveaux" : undefined}

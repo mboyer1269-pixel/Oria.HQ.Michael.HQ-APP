@@ -40,16 +40,20 @@ const privateLinks = [
     label: "Documents",
     href: "/dashboard/documents",
   },
+  {
+    label: "Modes métier",
+    href: "#modes-metier",
+  },
 ];
 
 const comingSoonModules = [
   {
-    title: "Leads",
-    text: "Un tableau privé pour qualifier les demandes Suivia sans mélanger le cockpit Joris.",
+    title: "Mode conseiller financier",
+    text: "Préparation de rendez-vous, suivis clients, contenu éducatif et garde-fous de conformité pour Eric.",
   },
   {
-    title: "Permissions",
-    text: "Un écran dédié pour ajuster les confirmations avant les actions sensibles.",
+    title: "Mode immobilier",
+    text: "Listings, suivis acheteurs/vendeurs, contenu local et workflow courtier comme pack métier.",
   },
 ];
 
@@ -66,14 +70,14 @@ export default async function HqPage() {
         <div className="min-w-0">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
             <Sparkles className="h-3.5 w-3.5" />
-            Michael HQ · privé
+            Oria · Michael HQ
           </div>
           <h1 className="mt-4 text-[2.55rem] font-bold leading-[0.98] text-white sm:text-5xl md:text-6xl">
-            Ton entrée privée commence ici.
+            Ton workspace privé, sans mélange de contexte.
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400 md:text-lg">
-            Le cockpit propriétaire pour piloter Joris, les prochains bookings, les documents et les permissions
-            d&apos;autonomie, sans exposer la logique privée sur la page publique.
+            Michael HQ valide le coeur d&apos;Oria: Joris, agenda, documents, permissions, briefs et premiers modes
+            métier avant de vendre le système à des courtiers et conseillers financiers.
           </p>
           <nav className="mt-5 flex flex-col gap-3 sm:flex-row" aria-label="Navigation privée Michael HQ">
             {privateLinks.map((link, index) => {
@@ -102,15 +106,15 @@ export default async function HqPage() {
               <div className="mt-3 space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-emerald-300">
                   <CheckCircle2 className="h-4 w-4" />
-                  Accès propriétaire actif
+                  Workspace Michael HQ actif
                 </div>
                 <div className="flex items-center gap-2 text-amber-300">
                   <Bot className="h-4 w-4" />
-                  Command Center branché à Joris
+                  Joris branché au contexte actif
                 </div>
                 <div className="flex items-center gap-2 text-neutral-400">
                   <CalendarCheck className="h-4 w-4" />
-                  Agenda prêt pour Joris Book
+                  Modes métier en préparation
                 </div>
               </div>
             </div>
@@ -137,12 +141,12 @@ export default async function HqPage() {
         <AgendaPanel />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+      <section id="modes-metier" className="grid scroll-mt-6 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Architecture</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Modules prioritaires</h2>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Core et modes métier</h2>
             </div>
             <ShieldCheck className="h-6 w-6 text-emerald-400" />
           </div>
@@ -171,7 +175,7 @@ export default async function HqPage() {
 
           <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500">À venir</p>
-            <h2 className="mt-2 text-xl font-semibold text-white">Accès futurs</h2>
+            <h2 className="mt-2 text-xl font-semibold text-white">Packs vendables</h2>
             <div className="mt-4 space-y-3">
               {comingSoonModules.map((module) => (
                 <article key={module.title} className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/40 p-4">

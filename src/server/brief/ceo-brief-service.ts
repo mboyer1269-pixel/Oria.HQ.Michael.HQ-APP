@@ -44,8 +44,8 @@ function buildHeadline(input: {
   if (input.newLeadCount > 0) {
     parts.push(
       input.newLeadCount === 1
-        ? "1 lead Suivia à traiter"
-        : `${input.newLeadCount} leads Suivia à traiter`,
+        ? "1 demande à traiter"
+        : `${input.newLeadCount} demandes à traiter`,
     );
   }
 
@@ -73,7 +73,7 @@ function buildFocusLine(input: {
     return `Priorité commerciale: revenir à ${input.newestLeadName} en premier.`;
   }
 
-  return "Priorité du jour: choisir une seule action qui fait avancer Suivia ou le Venture.";
+  return "Priorité du jour: choisir une seule action qui fait avancer Michael HQ ou un futur mode métier.";
 }
 
 export async function buildCeoBriefSnapshot(): Promise<CeoBriefSnapshot> {

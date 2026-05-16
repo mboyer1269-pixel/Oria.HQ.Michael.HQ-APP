@@ -13,10 +13,10 @@ import {
 
 const hqZones = [
   {
-    title: "Joris Book",
-    text: "Crée les rendez-vous en langage naturel et confirme le booking dans le Command Center.",
+    title: "Joris Core",
+    text: "Agent relationnel par défaut, prêt à être personnalisé sans changer le moteur.",
     href: "#command-center",
-    cta: "Créer un booking",
+    cta: "Parler à Joris",
     status: "Actif",
     icon: BookOpenCheck,
   },
@@ -37,15 +37,15 @@ const hqZones = [
     icon: CalendarClock,
   },
   {
-    title: "Leads Suivia",
-    text: "Le tableau de suivi privé arrive bientôt, sans exposer un lien cassé.",
+    title: "Modes métier",
+    text: "Personnel, professionnel, conseiller financier et immobilier seront séparés par contexte.",
     cta: "À venir",
     status: "À venir",
     icon: UsersRound,
   },
   {
     title: "Documents",
-    text: "Le coffre privé pour notes, décisions, SOPs et documents utiles à Joris.",
+    text: "Le coffre privé pour notes, décisions, SOPs et documents utiles au workspace actif.",
     href: "/dashboard/documents",
     cta: "Ouvrir documents",
     status: "Privé",
@@ -61,9 +61,9 @@ const hqZones = [
 ];
 
 const permissionNotes = [
-  "Actions internes simples: Joris peut préparer sans te déranger.",
-  "Bookings personnels: permis quand c'est clair et réversible.",
-  "Messages externes, dépenses ou changements sensibles: confirmation avant action.",
+  "Actions internes simples: Joris peut préparer dans le workspace actif.",
+  "Bookings personnels: permis quand c'est clair, réversible et journalisé.",
+  "Messages externes, dépenses, conformité ou changements sensibles: confirmation avant action.",
 ];
 
 export function PrivateHqOverview() {
@@ -74,12 +74,12 @@ export function PrivateHqOverview() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
               <LockKeyhole className="h-3.5 w-3.5" />
-              HQ privé
+              Michael HQ
             </div>
-            <h2 className="mt-4 text-2xl font-semibold text-white md:text-3xl">Ce que ton HQ couvre.</h2>
+            <h2 className="mt-4 text-2xl font-semibold text-white md:text-3xl">Le premier workspace sur Oria.</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-400">
-              Un espace propriétaire pour piloter Joris, tes bookings, les leads Suivia, les documents et les
-              permissions sans mélanger les responsabilités.
+              Un espace propriétaire pour piloter Joris, tes bookings, les documents, les permissions et les futurs
+              modes métier sans mélanger les responsabilités.
             </p>
           </div>
 
@@ -149,7 +149,7 @@ export function PrivateHqOverview() {
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
           <div>
-            <h3 className="font-semibold text-emerald-50">Permissions et autonomie de Joris</h3>
+            <h3 className="font-semibold text-emerald-50">Permissions, contexte et autonomie de Joris</h3>
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               {permissionNotes.map((note) => (
                 <p key={note} className="rounded-lg border border-emerald-500/15 bg-neutral-950/50 p-3 text-sm leading-6 text-emerald-100">

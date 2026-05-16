@@ -5,23 +5,23 @@ import { ArrowRight, Bot, CalendarCheck, FileText, LockKeyhole, ShieldCheck, Spa
 const pillars = [
   {
     icon: Bot,
-    title: "Joris",
-    text: "Command Center, bookings et intelligence stratégique, gardés derrière l'accès propriétaire.",
+    title: "Agent relationnel",
+    text: "Joris pilote les demandes, les bookings et les décisions dans le bon contexte.",
   },
   {
     icon: CalendarCheck,
-    title: "Agenda",
-    text: "Les prochains rendez-vous restent dans le HQ privé, prêts pour Joris Book.",
+    title: "Vie + travail",
+    text: "Rendez-vous personnels, suivis professionnels et priorités restent dans un espace isolé.",
   },
   {
     icon: FileText,
-    title: "Documents",
-    text: "Notes, décisions et SOPs accessibles seulement après connexion.",
+    title: "Mémoire privée",
+    text: "Documents, décisions, SOPs et contexte utilisateur restent attachés au workspace actif.",
   },
   {
     icon: UsersRound,
-    title: "Leads",
-    text: "Le suivi privé arrive sans casser l'entrée publique actuelle.",
+    title: "Modes métier",
+    text: "Immobilier, conseiller financier et autres niches deviennent des couches spécialisées.",
   },
 ];
 
@@ -32,21 +32,21 @@ export default function Home() {
         <section className="min-w-0">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
             <Sparkles className="h-3.5 w-3.5" />
-            Michael HQ
+            Oria · Michael HQ
           </div>
           <h1 className="mt-4 text-[2.55rem] font-bold leading-[0.98] text-white sm:text-5xl md:text-6xl">
-            Une entrée publique simple. Un HQ privé derrière.
+            Un assistant personnel, professionnel et extensible par métier.
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400 md:text-lg">
-            Michael HQ reste sobre côté public. Le vrai cockpit, lui, s&apos;ouvre après connexion propriétaire:
-            Command Center, agenda, documents, permissions et prochains modules.
+            Oria est le système central. Michael HQ est le premier workspace privé: Joris, agenda, documents,
+            permissions et modes métier sans mélange de contexte.
           </p>
           <nav className="mt-6 flex flex-col gap-3 sm:flex-row" aria-label="Accès Michael HQ">
             <Link
               href={"/hq" as Route}
               className="inline-flex min-h-11 items-center justify-center rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400"
             >
-              Ouvrir le HQ
+              Ouvrir Michael HQ
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
             <Link
@@ -61,11 +61,11 @@ export default function Home() {
         <aside className="rounded-3xl border border-neutral-800 bg-neutral-950/85 p-5 shadow-2xl shadow-amber-950/10">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Entrée privée</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Owner-only par design.</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Workspace privé</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Michael HQ reste isolé.</h2>
               <p className="mt-3 text-sm leading-6 text-neutral-400">
-                La page publique ne demande aucune session. Les modules opérationnels passent par `/hq`, protégé côté
-                serveur avec le guard propriétaire.
+                La page publique présente Oria. Les modules opérationnels passent par `/hq`, protégé côté serveur
+                avec le guard propriétaire.
               </p>
             </div>
             <LockKeyhole className="h-6 w-6 shrink-0 text-amber-300" />

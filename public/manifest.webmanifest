@@ -1,7 +1,7 @@
 {
-  "name": "Michael HQ",
-  "short_name": "HQ",
-  "description": "HQ personnel de Michael avec Joris.",
+  "name": "Oria | Michael HQ",
+  "short_name": "Oria",
+  "description": "Assistant personnel et professionnel avec workspace prive, Joris et modes metier.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

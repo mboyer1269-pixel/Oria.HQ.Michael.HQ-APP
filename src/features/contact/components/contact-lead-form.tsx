@@ -70,8 +70,8 @@ export function ContactLeadForm() {
     >
       <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">Contact Suivia</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Parle-nous de ton besoin.</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300">Contact Oria</p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">Parle-nous du workspace ou du mode métier.</h2>
           <p className="mt-2 text-sm leading-6 text-neutral-400">
             Une demande claire, un suivi humain, et les infos restent traitées côté serveur.
           </p>
@@ -142,7 +142,7 @@ export function ContactLeadForm() {
             maxLength={4000}
             rows={5}
             className="w-full resize-none rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
-            placeholder="Explique ce que tu veux automatiser, vendre ou clarifier."
+            placeholder="Explique le besoin: assistant personnel, conseiller financier, immobilier ou autre métier."
           />
         </label>
 

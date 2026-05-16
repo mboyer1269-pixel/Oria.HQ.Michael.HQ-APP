@@ -2,6 +2,13 @@ import type { BoardFigure, HqModule, ModelProfile, PermissionRule } from "./type
 
 export const hqModules: HqModule[] = [
   {
+    id: "workspace-modes",
+    title: "Workspace & Modes",
+    subtitle: "Sépare Michael HQ, les clients et les modes personnel, pro, finance et immobilier.",
+    status: "planned",
+    autonomyLevel: 2,
+  },
+  {
     id: "command-center",
     title: "Command Center",
     subtitle: "Une entrée rapide pour parler, booker, noter, analyser et créer.",
@@ -46,7 +53,21 @@ export const hqModules: HqModule[] = [
   {
     id: "knowledge-vault",
     title: "Knowledge Vault",
-    subtitle: "Documents, décisions, SOPs, notes et recherche interne.",
+    subtitle: "Documents, décisions, SOPs, notes et recherche interne par workspace.",
+    status: "planned",
+    autonomyLevel: 2,
+  },
+  {
+    id: "financial-advisor-mode",
+    title: "Mode conseiller financier",
+    subtitle: "Préparation, suivis, contenu éducatif et garde-fous stricts pour Eric et futurs clients.",
+    status: "planned",
+    autonomyLevel: 2,
+  },
+  {
+    id: "real-estate-mode",
+    title: "Mode immobilier",
+    subtitle: "Listings, suivis, rendez-vous, contenu local et workflow courtier sans contaminer le core.",
     status: "planned",
     autonomyLevel: 2,
   },
