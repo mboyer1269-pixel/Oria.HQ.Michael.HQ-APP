@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint src eslint.config.mjs next.config.ts postcss.config.mjs",
     "typecheck": "tsc --noEmit",
-    "check:supabase": "node --experimental-strip-types src/scripts/check-supabase-config.ts"
+    "check:supabase": "node --experimental-strip-types src/scripts/check-supabase-config.ts",
+    "smoke:joris": "node src/scripts/smoke/joris-booking.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
