@@ -5,32 +5,54 @@
  * Runs `runJorisCommand` in-process with a French booking message and asserts
  * the calendar booking path produces an event. Exits 0 on pass, 1 on fail.
  *
- * Run from the project root:
- *   npm run smoke:joris
+ * Default mode is LOCAL — the script clears MICHAEL_HQ_OWNER_ID and
+ * SUPABASE_SERVICE_ROLE_KEY before importing the server so the calendar
+ * repository falls back to its in-memory store. No Supabase rows are written.
+ *
+ * To exercise the real Supabase write path explicitly:
+ *   SMOKE_WRITE=1 npm run smoke:joris
  *
  * What this exercises:
  *   - Joris intent detection (message -> "calendar.book")
  *   - Calendar intent parser (French "demain 10h00")
  *   - Permission engine (must allow "calendar-simple")
- *   - Calendar repository write (Supabase if configured, else local memory)
+ *   - Calendar repository write (in-memory by default, Supabase if SMOKE_WRITE=1)
  *   - Action ledger write (best-effort)
  *
  * What this does NOT exercise:
  *   - HTTP route handler (`/api/joris/chat`)
  *   - Zod request validation
  *   - Owner-only auth gate
- *
- * If MICHAEL_HQ_OWNER_ID + SUPABASE_SERVICE_ROLE_KEY are set, this writes a
- * real calendar_events row to Supabase. The event title starts with
- * "Smoke-test" so you can spot and delete it after the run.
  */
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createJiti } from "jiti";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
+
+// Pin storage mode BEFORE importing any server module — serverEnv is computed
+// at import time, so once the brain (or anything that pulls in serverEnv) is
+// loaded, flipping these env vars no longer has any effect.
+const writeMode = process.env.SMOKE_WRITE === "1";
+const hadOwnerId = Boolean(process.env.MICHAEL_HQ_OWNER_ID);
+const hadServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+if (!writeMode) {
+  delete process.env.MICHAEL_HQ_OWNER_ID;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
+
+console.log(
+  `[smoke:joris] mode: ${writeMode ? "WRITE (will hit Supabase if configured)" : "LOCAL (no Supabase write)"}`,
+);
+if (!writeMode && (hadOwnerId || hadServiceRole)) {
+  console.log(
+    "[smoke:joris] cleared MICHAEL_HQ_OWNER_ID / SUPABASE_SERVICE_ROLE_KEY for this run; set SMOKE_WRITE=1 to keep them",
+  );
+}
+
+const { createJiti } = await import("jiti");
 
 const jiti = createJiti(import.meta.url, {
   alias: {
@@ -68,7 +90,16 @@ const checks = [
     "calendarEvent.title contains smoke-test",
     Boolean(result.calendarEvent && /smoke-test/i.test(result.calendarEvent.title)),
   ],
-  ["ledgerStatus is recorded or failed (not undefined)", result.ledgerStatus === "recorded" || result.ledgerStatus === "failed"],
+  [
+    "ledgerStatus is recorded or failed (not undefined)",
+    result.ledgerStatus === "recorded" || result.ledgerStatus === "failed",
+  ],
+  [
+    writeMode ? "storageMode set" : "storageMode is local (no Supabase write)",
+    writeMode
+      ? Boolean(result.storageMode)
+      : result.storageMode === "local",
+  ],
 ];
 
 console.log("[smoke:joris] result:");
