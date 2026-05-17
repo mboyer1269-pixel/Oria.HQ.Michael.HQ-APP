@@ -1,0 +1,16 @@
+{
+    "mcpServers": {
+        "ruflo": {
+            "command": "node",
+            "args": [
+                "./bin/cli.js",
+                "mcp",
+                "start"
+            ],
+            "env": {
+                "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
+                "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+            }
+        }
+    }
+}
