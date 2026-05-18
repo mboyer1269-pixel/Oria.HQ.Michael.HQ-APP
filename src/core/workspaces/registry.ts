@@ -1,4 +1,4 @@
-import type { Workspace } from "@/core/types";
+import type { AssistantProfile, Workspace, WorkspaceMode } from "@/core/types";
 
 /**
  * Built-in workspace slug for the founder's HQ. In a later phase this becomes
@@ -6,6 +6,8 @@ import type { Workspace } from "@/core/types";
  * the system knows about.
  */
 export const DEFAULT_WORKSPACE_SLUG = "michael-hq";
+export const DEFAULT_WORKSPACE_MODE_ID = "hq";
+export const DEFAULT_ASSISTANT_PROFILE_ID = "joris";
 
 type GetDefaultWorkspaceInput = {
   ownerUserId: string;
@@ -28,6 +30,20 @@ export function getDefaultWorkspace(input: GetDefaultWorkspaceInput): Workspace 
       { id: "suivia", label: "Suivia" },
       { id: "mcl", label: "MCL" },
     ],
-    defaultAssistantId: "joris",
+    defaultAssistantId: DEFAULT_ASSISTANT_PROFILE_ID,
+  };
+}
+
+export function getDefaultWorkspaceMode(workspace: Workspace): WorkspaceMode {
+  return workspace.modes.find((mode) => mode.id === DEFAULT_WORKSPACE_MODE_ID) ?? workspace.modes[0];
+}
+
+export function getDefaultAssistantProfile(workspace: Workspace): AssistantProfile {
+  return {
+    id: workspace.defaultAssistantId,
+    workspaceId: workspace.id,
+    name: "Joris",
+    runtimeId: "joris-brain",
+    allowedTools: ["calendar.book", "brief.generate"],
   };
 }
