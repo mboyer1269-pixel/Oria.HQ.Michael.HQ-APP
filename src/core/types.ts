@@ -1,8 +1,8 @@
 /**
  * Core Oria domain types.
  *
- * These types intentionally avoid proper nouns (no "Michael", "Joris", "MCL",
- * etc.). All workspace-specific data lives in workspace configs and seed files
+ * These types intentionally avoid workspace-specific proper nouns. All
+ * workspace-specific data lives in workspace configs and seed files
  * (see `src/workspaces/...` in a later phase). The core stays generic so any
  * workspace can plug in.
  */
@@ -26,9 +26,9 @@ export type WorkspaceMode = {
 
 export type Workspace = {
   id: WorkspaceId;
-  /** Url-safe identifier, e.g. "michael-hq". Stable across renames. */
+  /** Url-safe identifier, e.g. "default-workspace". Stable across renames. */
   slug: string;
-  /** Human-facing label, e.g. "Michael HQ". Free to change. */
+  /** Human-facing label, e.g. "Default Workspace". Free to change. */
   displayName: string;
   /** Supabase auth.users.id of the workspace owner. */
   ownerUserId: string;
@@ -41,7 +41,7 @@ export type Workspace = {
 export type AssistantProfile = {
   id: AssistantProfileId;
   workspaceId: WorkspaceId;
-  /** Display name shown to users, e.g. "Joris". A workspace controls this string. */
+  /** Display name shown to users, e.g. "Default Assistant". A workspace controls this string. */
   name: string;
   /** Optional persona/system-prompt seed. Loaded when the assistant is invoked. */
   persona?: string;
@@ -55,9 +55,9 @@ export type AssistantProfile = {
 
 /**
  * An AgentRuntime is the execution backend that turns an assistant + message
- * into a response. Today: a single in-process "joris-brain" runtime. Later:
- * Claude, Hermes, custom orchestrators. Adapters land in later phases — for
- * now this type is metadata-only so call sites can already reference it.
+ * into a response. Today: a single in-process assistant runtime. Later:
+ * workspace-specific runtime adapters land in later phases — for now this type
+ * is metadata-only so call sites can already reference it.
  */
 export type AgentRuntime = {
   id: AgentRuntimeId;
@@ -97,9 +97,9 @@ export type ActionQueueStatus =
   | "failed";
 
 /**
- * A unit of work an assistant wants to perform. Replaces the old "action ledger"
- * record-only model. In Phase 2 the Joris brain will enqueue these and the
- * permission engine will decide whether to auto-execute or wait for approval.
+ * A unit of work an assistant wants to perform. Replaces the old record-only
+ * action ledger model. In Phase 2 the assistant runtime will enqueue these and
+ * the permission engine will decide whether to auto-execute or wait for approval.
  */
 export type ActionQueueItem = {
   id: string;
