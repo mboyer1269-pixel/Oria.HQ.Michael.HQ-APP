@@ -1,5 +1,9 @@
-import type { Workspace } from "@/core/types";
-import { getDefaultWorkspace } from "@/core/workspaces/registry";
+import type { ActiveWorkspaceContext, Workspace } from "@/core/types";
+import {
+  getDefaultAssistantProfile,
+  getDefaultWorkspace,
+  getDefaultWorkspaceMode,
+} from "@/core/workspaces/registry";
 import { getServerUserContext, type ServerUserContext } from "@/server/auth/user-context";
 
 /**
@@ -10,7 +14,7 @@ import { getServerUserContext, type ServerUserContext } from "@/server/auth/user
  * keep working when we add a real workspace resolver (e.g. from the URL or a
  * session claim).
  */
-export type WorkspaceContext = {
+export type WorkspaceContext = ActiveWorkspaceContext & {
   workspace: Workspace;
   userId: string;
   storagePreference: ServerUserContext["storagePreference"];
@@ -27,8 +31,17 @@ export type WorkspaceContext = {
 export function getActiveWorkspaceContext(): WorkspaceContext {
   const user = getServerUserContext();
   const workspace = getDefaultWorkspace({ ownerUserId: user.userId });
+  const activeMode = getDefaultWorkspaceMode(workspace);
+  const activeAgentProfile = getDefaultAssistantProfile(workspace);
 
   return {
+    activeWorkspace: workspace,
+    activeMode,
+    activeAgentProfile,
+    currentOwnerUser: {
+      id: user.userId,
+      email: user.email,
+    },
     workspace,
     userId: user.userId,
     storagePreference: user.storagePreference,

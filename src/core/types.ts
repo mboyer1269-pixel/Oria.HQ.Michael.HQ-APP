@@ -38,6 +38,12 @@ export type Workspace = {
   defaultAssistantId: AssistantProfileId;
 };
 
+export type OwnerUser = {
+  /** Supabase auth.users.id when configured, or the local development owner id. */
+  id: string;
+  email?: string;
+};
+
 export type AssistantProfile = {
   id: AssistantProfileId;
   workspaceId: WorkspaceId;
@@ -51,6 +57,13 @@ export type AssistantProfile = {
   runtimeId: AgentRuntimeId;
   /** ToolRegistry ids this assistant is permitted to use. */
   allowedTools: ToolId[];
+};
+
+export type ActiveWorkspaceContext = {
+  activeWorkspace: Workspace;
+  activeMode: WorkspaceMode;
+  activeAgentProfile: AssistantProfile;
+  currentOwnerUser: OwnerUser;
 };
 
 /**
