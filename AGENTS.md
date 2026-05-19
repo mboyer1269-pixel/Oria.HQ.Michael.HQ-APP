@@ -78,3 +78,31 @@ Final handoffs should include:
 - Permission execution behavior remains future work beyond the current foundation.
 - Workspace configuration and seed-file expansion remain future work.
 - Any additional assistant runtime integration remains future work until explicitly scoped.
+
+## Cursor Cloud specific instructions
+
+### Service overview
+
+This is a monolithic Next.js 16 app (App Router + Turbopack). There are no Docker services or databases to run locally — all external services (Supabase, AI providers) are optional in dev thanks to local-persistence fallback.
+
+### Starting the dev server
+
+```
+npm run dev          # http://localhost:3000
+```
+
+### Validation commands (see "Validation Before Completion" above)
+
+```
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint src + config files
+npm run build        # next build (Turbopack)
+npm run smoke:joris  # Joris booking smoke test (runs locally, no API keys needed)
+```
+
+### Key gotchas
+
+- The app runs fully without Supabase or AI API keys in development. `isLocalPersistenceFallbackAllowed()` activates when `NODE_ENV !== "production"`, so calendar events, contacts, and the action ledger all work locally in-memory.
+- `npm run smoke:joris` exercises the Joris booking intent parser, calendar writer, and action ledger in local mode — it does **not** require any API keys or a running dev server.
+- The `/api/joris/chat` endpoint requires authentication (Supabase session). Without Supabase credentials the endpoint returns `401`. The contact API (`/api/contact`) is public and works without auth.
+- Node.js 22+ and npm 10+ are required. The project uses `package-lock.json` (npm), not pnpm or yarn.
