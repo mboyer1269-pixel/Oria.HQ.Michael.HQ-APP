@@ -4,8 +4,8 @@ import type {
   CalendarEventSource,
   ModelMode,
 } from "@/features/hq/types";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { createActionLedgerRepository } from "@/server/actions/action-ledger-repository";
-import { getServerUserContext } from "@/server/auth/user-context";
 import {
   createCalendarRepository,
   type ListCalendarEventsInput,
@@ -59,9 +59,9 @@ function assertCalendarPermission(confirm?: boolean) {
 
 export async function createCalendarEvent(command: CreateCalendarEventCommand): Promise<CalendarEventWriteResult> {
   const permission = assertCalendarPermission(command.confirm);
-  const user = getServerUserContext();
-  const calendarRepository = createCalendarRepository(user);
-  const actionLedgerRepository = createActionLedgerRepository(user);
+  const ctx = getActiveWorkspaceContext();
+  const calendarRepository = createCalendarRepository(ctx);
+  const actionLedgerRepository = createActionLedgerRepository(ctx);
   const remindersMinutes = command.remindersMinutes?.length
     ? command.remindersMinutes
     : defaultRemindersMinutes;
@@ -91,6 +91,9 @@ export async function createCalendarEvent(command: CreateCalendarEventCommand): 
         notes: command.notes ?? null,
         remindersMinutes: event.remindersMinutes,
         storageMode: event.storageMode,
+        workspaceId: ctx.workspace.id,
+        modeId: ctx.activeMode.id,
+        assistantId: ctx.activeAgentProfile.id,
       },
     });
   } catch (error) {
@@ -105,8 +108,8 @@ export async function createCalendarEvent(command: CreateCalendarEventCommand): 
 }
 
 export async function listCalendarEvents(input?: ListCalendarEventsInput) {
-  const user = getServerUserContext();
-  const calendarRepository = createCalendarRepository(user);
+  const ctx = getActiveWorkspaceContext();
+  const calendarRepository = createCalendarRepository(ctx);
 
   return calendarRepository.list(input);
 }

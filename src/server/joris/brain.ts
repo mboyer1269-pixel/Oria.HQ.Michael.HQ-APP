@@ -1,4 +1,5 @@
 import type { CommandResult, JorisIntent } from "@/features/hq/types";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { chooseModel } from "@/server/ai/model-router";
 import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
@@ -51,10 +52,17 @@ function buildFallbackSummary(intent: JorisIntent, message: string) {
 
 export async function runJorisCommand(message: string): Promise<CommandResult> {
   const intent = detectIntent(message);
+  const ctx = getActiveWorkspaceContext();
   const route = chooseModel({
     message,
     highImpact: intent === "board.consult" || intent === "opportunity.score",
   });
+
+  const workspaceMeta = {
+    workspaceId: ctx.workspace.id,
+    modeId: ctx.activeMode.id,
+    assistantId: ctx.activeAgentProfile.id,
+  };
 
   if (intent === "brief.generate") {
     const brief = await buildCeoBriefSnapshot();
@@ -64,6 +72,7 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
       summary: `${brief.headline} ${brief.focusLine}`,
       modelId: route.model.id,
       costMode: route.mode,
+      ...workspaceMeta,
       requiresConfirmation: false,
     };
   }
@@ -78,6 +87,7 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
         summary: `Je ne peux pas exécuter cette action sans confirmation: ${permission.reason}`,
         modelId: route.model.id,
         costMode: route.mode,
+        ...workspaceMeta,
         requiresConfirmation: true,
       };
     }
@@ -105,6 +115,7 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
           summary: `Booké, CEO: ${event.title} ${event.dateISO} de ${event.startTime} à ${event.endTime}. Rappels ${event.remindersMinutes.join(" min et ")} min avant. ${ledgerSummary} ${storageSummary}`,
           modelId: route.model.id,
           costMode: route.mode,
+          ...workspaceMeta,
           calendarIntent,
           calendarEvent: event,
           ledgerStatus,
@@ -118,6 +129,7 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
             summary: `Je ne peux pas booker ce rendez-vous tout de suite: ${error.message}`,
             modelId: route.model.id,
             costMode: route.mode,
+            ...workspaceMeta,
             calendarIntent,
             requiresConfirmation: error.code === "CALENDAR_CONFIRMATION_REQUIRED",
           };
@@ -132,6 +144,7 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
       summary: "Il me manque l’heure ou la date pour booker ça proprement. Donne-moi au moins l’heure, puis je le crée sans friction.",
       modelId: route.model.id,
       costMode: route.mode,
+      ...workspaceMeta,
       requiresConfirmation: false,
     };
   }
@@ -141,6 +154,7 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
     summary: buildFallbackSummary(intent, message),
     modelId: route.model.id,
     costMode: route.mode,
+    ...workspaceMeta,
     requiresConfirmation: false,
   };
 }

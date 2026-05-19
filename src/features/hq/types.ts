@@ -88,6 +88,9 @@ export type CommandResult = {
   summary: string;
   modelId?: string;
   costMode?: ModelMode;
+  workspaceId?: string;
+  modeId?: string;
+  assistantId?: string;
   calendarIntent?: CalendarIntent;
   calendarEvent?: CalendarEvent;
   ledgerStatus?: ActionLedgerStatus;
