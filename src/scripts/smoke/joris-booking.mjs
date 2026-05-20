@@ -100,6 +100,9 @@ const checks = [
       ? Boolean(result.storageMode)
       : result.storageMode === "local",
   ],
+  ["workspaceId present", Boolean(result.workspaceId)],
+  ["modeId present", Boolean(result.modeId)],
+  ["assistantId present", Boolean(result.assistantId)],
 ];
 
 console.log("[smoke:joris] result:");
@@ -108,6 +111,9 @@ console.log("  modelId:       ", result.modelId);
 console.log("  costMode:      ", result.costMode);
 console.log("  storageMode:   ", result.storageMode);
 console.log("  ledgerStatus:  ", result.ledgerStatus);
+console.log("  workspaceId:   ", result.workspaceId);
+console.log("  modeId:        ", result.modeId);
+console.log("  assistantId:   ", result.assistantId);
 console.log("  calendarEvent: ", result.calendarEvent ? JSON.stringify(result.calendarEvent, null, 2).replace(/\n/g, "\n                 ") : "(none)");
 console.log("  summary:       ", result.summary);
 
