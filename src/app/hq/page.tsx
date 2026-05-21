@@ -33,6 +33,10 @@ const privateLinks = [
     href: "#command-center",
   },
   {
+    label: "Missions",
+    href: "/hq/missions",
+  },
+  {
     label: "Prochains bookings",
     href: "#agenda-panel",
   },
