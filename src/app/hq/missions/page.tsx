@@ -2,6 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, LayoutDashboard, LayoutGrid, ShieldAlert } from "lucide-react";
 import { MissionKanbanBoard } from "@/features/missions/components/mission-kanban-board";
+import { MissionApprovalPanel } from "@/features/missions/components/mission-approval-panel";
 import { summarizeMissions } from "@/features/missions/summary";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listMissionsForWorkspace } from "@/server/missions";
@@ -100,6 +101,8 @@ export default async function MissionsPage() {
           </div>
         </section>
       )}
+
+      <MissionApprovalPanel missions={missions} />
 
       <section>
         {hasMissions ? (
