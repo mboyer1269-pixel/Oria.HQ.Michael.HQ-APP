@@ -1,7 +1,8 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowLeft, LayoutDashboard, ShieldAlert } from "lucide-react";
+import { ArrowLeft, LayoutDashboard, LayoutGrid, ShieldAlert } from "lucide-react";
 import { MissionKanbanBoard } from "@/features/missions/components/mission-kanban-board";
+import { summarizeMissions } from "@/features/missions/summary";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listMissionsForWorkspace } from "@/server/missions";
 import { requireOwnerAccess } from "@/server/auth/owner";
@@ -17,12 +18,13 @@ export default async function MissionsPage() {
   }
 
   const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
-  const { missions } = listMissionsForWorkspace({
+  const { missions, source } = listMissionsForWorkspace({
     workspaceId: activeWorkspace.id,
     modeId: activeMode.id,
   });
 
-  const pendingApproval = missions.filter((m) => m.status === "needs_approval");
+  const summary = summarizeMissions(missions);
+  const hasMissions = summary.total > 0;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-8 md:py-10">
@@ -49,46 +51,50 @@ export default async function MissionsPage() {
         </div>
 
         <aside className="shrink-0 rounded-2xl border border-neutral-800 bg-neutral-950/80 p-4 sm:w-56">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Statut</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Résumé</p>
           <div className="mt-3 space-y-2 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="text-neutral-400">Total</span>
-              <span className="tabular-nums text-white">{missions.length}</span>
+              <span className="tabular-nums text-white">{summary.total}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-amber-300">En cours</span>
-              <span className="tabular-nums text-white">
-                {missions.filter((m) => m.status === "running").length}
-              </span>
+              <span className="tabular-nums text-white">{summary.running}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-orange-300">Approbation</span>
-              <span className="tabular-nums text-white">{pendingApproval.length}</span>
+              <span className="tabular-nums text-white">{summary.needs_approval}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-emerald-300">Terminées</span>
-              <span className="tabular-nums text-white">
-                {missions.filter((m) => m.status === "completed").length}
-              </span>
+              <span className="tabular-nums text-white">{summary.completed}</span>
             </div>
+            {summary.failed > 0 && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-red-400">Échouées</span>
+                <span className="tabular-nums text-white">{summary.failed}</span>
+              </div>
+            )}
           </div>
         </aside>
       </header>
 
-      {pendingApproval.length > 0 && (
+      {summary.needs_approval > 0 && (
         <section className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4">
           <div className="flex items-start gap-3">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-orange-300" />
             <div>
               <h2 className="font-semibold text-orange-100">
-                {pendingApproval.length} mission{pendingApproval.length > 1 ? "s" : ""} en attente d&apos;approbation
+                {summary.needs_approval} mission{summary.needs_approval > 1 ? "s" : ""} en attente d&apos;approbation
               </h2>
               <ul className="mt-2 space-y-1">
-                {pendingApproval.map((m) => (
-                  <li key={m.id} className="text-sm text-orange-200/70">
-                    · {m.title} — autonomie {m.autonomyLevel}/5
-                  </li>
-                ))}
+                {missions
+                  .filter((m) => m.status === "needs_approval")
+                  .map((m) => (
+                    <li key={m.id} className="text-sm text-orange-200/70">
+                      · {m.title} — autonomie {m.autonomyLevel}/5
+                    </li>
+                  ))}
               </ul>
             </div>
           </div>
@@ -96,14 +102,28 @@ export default async function MissionsPage() {
       )}
 
       <section>
-        <MissionKanbanBoard missions={missions} />
+        {hasMissions ? (
+          <MissionKanbanBoard missions={missions} />
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-neutral-800 bg-neutral-950/40 py-20 text-center">
+            <LayoutGrid className="h-10 w-10 text-neutral-700" />
+            <div>
+              <p className="font-semibold text-neutral-400">Aucune mission pour ce workspace</p>
+              <p className="mt-1 text-sm text-neutral-600">
+                Les missions apparaîtront ici une fois le pipeline activé.
+              </p>
+            </div>
+          </div>
+        )}
       </section>
 
       <footer className="rounded-2xl border border-neutral-800 bg-neutral-950/60 px-4 py-3">
         <p className="text-xs leading-5 text-neutral-600">
-          <span className="font-medium text-neutral-500">Données mock — </span>
-          Aucune exécution autonome réelle. Les missions sont statiques dans cette version.
-          Le pipeline d&apos;exécution sera activé en Phase 2 après approbation du modèle Mission.
+          <span className="font-medium text-neutral-500">
+            Source: {source === "mock" ? "données mock" : "Supabase"} —{" "}
+          </span>
+          Aucune exécution autonome réelle. Le pipeline d&apos;exécution sera activé en Phase 2
+          après approbation du modèle Mission.
         </p>
       </footer>
     </main>
