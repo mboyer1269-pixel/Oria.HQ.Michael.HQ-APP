@@ -16,3 +16,12 @@ export type {
   MissionTransitionEvaluation,
   MissionTransitionBlockReason,
 } from "./state-machine";
+export { buildDryRunMissionExecutionPlan } from "./executor-contract";
+export type {
+  MissionExecutorMode,
+  MissionExecutorInput,
+  MissionExecutorPlan,
+  MissionExecutorStep,
+  MissionExecutorResult,
+  MissionExecutorBlockedReason,
+} from "./executor-contract";
