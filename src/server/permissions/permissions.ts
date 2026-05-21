@@ -1,4 +1,4 @@
-import type { AutonomyLevel } from "@/features/hq/types";
+import type { AutonomyLevel } from "@/core/types";
 import { permissionRules } from "@/features/hq/seed";
 
 export type PermissionCheck = {
