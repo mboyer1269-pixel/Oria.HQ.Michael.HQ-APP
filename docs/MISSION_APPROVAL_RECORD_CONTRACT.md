@@ -25,10 +25,11 @@ This contract closes the critical gap identified in PR #19 (MISSION_EXECUTOR_REA
 
 ```ts
 type MissionApprovalRecordStatus =
-  | "pending"    // awaiting human decision
-  | "approved"   // explicitly approved
-  | "rejected"   // explicitly rejected
-  | "expired";   // expiresAt is in the past
+  | "pending"             // awaiting human decision
+  | "approved"            // explicitly approved
+  | "rejected"            // explicitly rejected
+  | "changes_requested"   // conditionally approved pending revisions
+  | "expired";            // expiresAt is in the past
 ```
 
 ### `MissionApprovalScope`
@@ -129,11 +130,11 @@ function verifyMissionApprovalRecord(
 ): MissionApprovalVerificationResult
 ```
 
-Verifies that a record is valid for the `queued → running` transition. Six gates run in order:
+Verifies that a record is valid for the `queued → running` transition. Seven checks run in order:
 
 1. `record` is not null/undefined → else `"no_record"`
 2. `record.missionId === mission.id` → else `"mission_mismatch"`
-3. `record.status === "approved"` → else `"not_approved"`
+3. `record.status === "approved"` → else `"not_approved"` (rejects `pending`, `rejected`, `changes_requested`, `expired`)
 4. `record.approvedBy` exists → else `"missing_approver"`
 5. `record.approvedAt` exists → else `"missing_timestamp"`
 6. `record.expiresAt` is absent or in the future → else `"expired"`

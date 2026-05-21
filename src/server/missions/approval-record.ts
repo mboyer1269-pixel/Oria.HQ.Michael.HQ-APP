@@ -5,10 +5,11 @@ import type { Mission } from "@/core/types";
 // ---------------------------------------------------------------------------
 
 export type MissionApprovalRecordStatus =
-  | "pending"    // awaiting human decision
-  | "approved"   // explicitly approved
-  | "rejected"   // explicitly rejected
-  | "expired";   // expiresAt is in the past
+  | "pending"             // awaiting human decision
+  | "approved"            // explicitly approved
+  | "rejected"            // explicitly rejected
+  | "changes_requested"   // approved conditionally pending revisions
+  | "expired";            // expiresAt is in the past
 
 // ---------------------------------------------------------------------------
 // Scope — the specific execution gating this approval unlocks.
@@ -104,13 +105,14 @@ export function createMissionApprovalRecordDraft(
 //
 // Pure function — no I/O, no writes.
 // Verifies that a record grants the right to transition mission.status to
-// "running". All five gates must pass:
-//   1. record.missionId === mission.id
-//   2. record.status === "approved"
-//   3. record.approvedBy is present
-//   4. record.approvedAt is present
-//   5. record.expiresAt is absent or in the future
-//   6. record.approvalScope includes "transition_to_running"
+// "running". All seven checks must pass:
+//   1. record exists (not null/undefined)
+//   2. record.missionId === mission.id
+//   3. record.status === "approved"
+//   4. record.approvedBy is present
+//   5. record.approvedAt is present
+//   6. record.expiresAt is absent or in the future
+//   7. record.approvalScope includes "transition_to_running"
 //
 // The live executor must call this and pass the returned MissionApprovalRecord
 // to the gate chain instead of accepting approvalConfirmed: boolean freely.
