@@ -6,3 +6,13 @@ export type {
   MissionApprovalReason,
   MissionApprovalSeverity,
 } from "./approval-service";
+export {
+  getAllowedMissionTransitions,
+  canTransitionMissionStatus,
+  evaluateMissionTransition,
+} from "./state-machine";
+export type {
+  MissionTransitionInput,
+  MissionTransitionEvaluation,
+  MissionTransitionBlockReason,
+} from "./state-machine";
