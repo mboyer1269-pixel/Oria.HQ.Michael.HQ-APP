@@ -2,7 +2,8 @@ import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, LayoutDashboard, ShieldAlert } from "lucide-react";
 import { MissionKanbanBoard } from "@/features/missions/components/mission-kanban-board";
-import { mockMissions } from "@/features/missions/seed";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
+import { listMissionsForWorkspace } from "@/server/missions";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 
@@ -15,7 +16,13 @@ export default async function MissionsPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
-  const pendingApproval = mockMissions.filter((m) => m.status === "needs_approval");
+  const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
+  const { missions } = listMissionsForWorkspace({
+    workspaceId: activeWorkspace.id,
+    modeId: activeMode.id,
+  });
+
+  const pendingApproval = missions.filter((m) => m.status === "needs_approval");
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-8 md:py-10">
@@ -46,12 +53,12 @@ export default async function MissionsPage() {
           <div className="mt-3 space-y-2 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="text-neutral-400">Total</span>
-              <span className="tabular-nums text-white">{mockMissions.length}</span>
+              <span className="tabular-nums text-white">{missions.length}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-amber-300">En cours</span>
               <span className="tabular-nums text-white">
-                {mockMissions.filter((m) => m.status === "running").length}
+                {missions.filter((m) => m.status === "running").length}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -61,7 +68,7 @@ export default async function MissionsPage() {
             <div className="flex items-center justify-between gap-2">
               <span className="text-emerald-300">Terminées</span>
               <span className="tabular-nums text-white">
-                {mockMissions.filter((m) => m.status === "completed").length}
+                {missions.filter((m) => m.status === "completed").length}
               </span>
             </div>
           </div>
@@ -89,7 +96,7 @@ export default async function MissionsPage() {
       )}
 
       <section>
-        <MissionKanbanBoard missions={mockMissions} />
+        <MissionKanbanBoard missions={missions} />
       </section>
 
       <footer className="rounded-2xl border border-neutral-800 bg-neutral-950/60 px-4 py-3">
