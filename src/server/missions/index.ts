@@ -25,3 +25,12 @@ export type {
   MissionExecutorResult,
   MissionExecutorBlockedReason,
 } from "./executor-contract";
+export { createMissionApprovalRecordDraft, verifyMissionApprovalRecord } from "./approval-record";
+export type {
+  MissionApprovalRecordStatus,
+  MissionApprovalScope,
+  MissionApprovalRecord,
+  MissionApprovalRecordInput,
+  MissionApprovalVerificationResult,
+  MissionApprovalVerificationFailReason,
+} from "./approval-record";
