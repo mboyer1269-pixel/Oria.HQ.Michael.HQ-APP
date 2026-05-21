@@ -71,6 +71,15 @@ Final handoffs should include:
 - Never mark work complete without validation evidence.
 - Never hide abnormal Git state, failing checks, or uncommitted changes.
 
+## Anti-Dispersion / Worktree Safety
+
+- This repository is the only source of truth for Oria product architecture, core contracts, auth, permissions, action ledger, and workspace boundaries.
+- No external repo, cockpit, or worktree is merged without completing the audit gate in `docs/REPO_CONSOLIDATION.md`.
+- The worktree at `C:\Users\micha\Projects\michael-hq-oria-review` must not be used as a source of changes for this repository.
+- The branch `claude/oria-refactor-foundation` was based on an older state and must not be merged.
+- Before opening a PR from any agent-generated branch, confirm: branch base is `origin/main`, no stashed or untracked changes are included, and all 4 validation checks pass.
+- When working across multiple branches or worktrees, always verify `git branch --show-current` and `git status --short` before making changes.
+
 ## What Remains To Build
 
 - Phase 1 must not start until Michael explicitly mandates it.
