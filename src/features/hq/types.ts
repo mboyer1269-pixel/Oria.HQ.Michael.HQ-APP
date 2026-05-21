@@ -1,6 +1,9 @@
-export type VentureHat = "suivia" | "mcl" | "personal" | "hq";
+// AutonomyLevel and PermissionRule are canonical in src/core/types.ts.
+// Imported for local use and re-exported so existing feature imports continue to resolve.
+import type { AutonomyLevel, PermissionRule } from "@/core/types";
+export type { AutonomyLevel, PermissionRule };
 
-export type AutonomyLevel = 0 | 1 | 2 | 3 | 4 | 5;
+export type VentureHat = "suivia" | "mcl" | "personal" | "hq";
 
 export type ModelProvider = "anthropic" | "openai" | "google";
 
@@ -44,13 +47,6 @@ export type ModelProfile = {
   strengths: string[];
 };
 
-export type PermissionRule = {
-  id: string;
-  action: string;
-  level: AutonomyLevel;
-  requiresConfirmation: boolean;
-  reason: string;
-};
 
 export type CalendarIntent = {
   title: string;

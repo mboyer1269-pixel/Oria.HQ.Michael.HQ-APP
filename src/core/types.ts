@@ -14,6 +14,15 @@ export type ToolId = string;
 export type PermissionActionId = string;
 
 /**
+ * 0 = disabled/forbidden  1 = read-only/analysis  2 = internal draft
+ * 3 = supervised reversible write  4 = external/shared requiring confirmation
+ * 5 = financial, publish, client delivery, credential, or irreversible action
+ *
+ * Single canonical definition. src/features/hq/types.ts re-exports this.
+ */
+export type AutonomyLevel = 0 | 1 | 2 | 3 | 4 | 5;
+
+/**
  * A "mode" is a venture/profession/context that a workspace operates in.
  * Examples a workspace might install: "real-estate", "financial-advisor",
  * "personal", "hq". The core knows the shape; the workspace owns the values.
@@ -90,11 +99,10 @@ export type ToolRegistry = Record<ToolId, ToolDefinition>;
 export type PermissionRule = {
   id: string;
   action: PermissionActionId;
-  /** When true, the action runs without human approval. */
-  autoApprove: boolean;
-  /** When true, even auto-approve actions surface a confirmation UI before execution. */
+  /** Autonomy level required for this action (0–5 scale). */
+  level: AutonomyLevel;
   requiresConfirmation: boolean;
-  reason?: string;
+  reason: string;
 };
 
 export type PermissionPolicy = {
@@ -192,12 +200,8 @@ export type MissionStatus =
 
 export type MissionRiskLevel = "low" | "medium" | "high";
 
-/**
- * 0 = disabled/forbidden  1 = read-only/analysis  2 = internal draft
- * 3 = supervised reversible write  4 = external/shared requiring confirmation
- * 5 = financial, publish, client delivery, credential, or irreversible action
- */
-export type MissionAutonomyLevel = 0 | 1 | 2 | 3 | 4 | 5;
+/** Alias of AutonomyLevel scoped to Mission domain. Same 0–5 scale. */
+export type MissionAutonomyLevel = AutonomyLevel;
 
 export type Mission = {
   id: string;
