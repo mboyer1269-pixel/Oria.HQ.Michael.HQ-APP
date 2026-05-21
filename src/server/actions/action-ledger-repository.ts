@@ -18,6 +18,18 @@ export type ActionLedgerEntry = {
   storageMode: CalendarStorageMode;
 };
 
+/**
+ * Typed shape for mission-related fields stored in metadata jsonb.
+ * No DB migration required — these live inside the existing `metadata` column.
+ * A future executor must pass `missionId` on every action it triggers.
+ */
+export type MissionLedgerMetadata = {
+  missionId?: string;
+  missionStatus?: string;
+  missionTransition?: string;
+  approvalConfirmed?: boolean;
+};
+
 export type RecordActionInput = {
   actionType: string;
   summary: string;
@@ -26,6 +38,8 @@ export type RecordActionInput = {
   modelId?: string;
   costMode?: ModelMode;
   metadata?: Json;
+  /** When set, merged into metadata.missionId for mission execution traceability. */
+  missionId?: string;
 };
 
 export type ActionLedgerRepository = {
@@ -62,6 +76,16 @@ function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): A
   };
 }
 
+function buildMetadata(input: RecordActionInput): Json {
+  const base = typeof input.metadata === "object" && input.metadata !== null && !Array.isArray(input.metadata)
+    ? (input.metadata as { [key: string]: Json | undefined })
+    : {};
+  if (input.missionId !== undefined) {
+    return { ...base, missionId: input.missionId };
+  }
+  return base;
+}
+
 function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedgerRepository {
   return {
     mode: "local",
@@ -75,7 +99,7 @@ function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedge
         requiresConfirmation: input.requiresConfirmation,
         modelId: input.modelId,
         costMode: input.costMode,
-        metadata: input.metadata ?? {},
+        metadata: buildMetadata(input),
         createdAt: new Date().toISOString(),
         storageMode: "local",
       };
@@ -107,7 +131,7 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
           requires_confirmation: input.requiresConfirmation,
           model_id: input.modelId ?? null,
           cost_mode: input.costMode ?? null,
-          metadata: input.metadata ?? {},
+          metadata: buildMetadata(input),
         })
         .select()
         .single();
