@@ -175,3 +175,65 @@ export type MediaProviderAdapter = {
   label: string;
   isConfigured: () => boolean;
 };
+
+// ---------------------------------------------------------------------------
+// Mission domain model (Phase 1 proposal — no runtime wiring yet)
+// See docs/MISSION_MODEL_PROPOSAL.md for rationale and safety rules.
+// ---------------------------------------------------------------------------
+
+export type MissionStatus =
+  | "draft"
+  | "queued"
+  | "running"
+  | "needs_approval"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type MissionRiskLevel = "low" | "medium" | "high";
+
+/**
+ * 0 = disabled/forbidden  1 = read-only/analysis  2 = internal draft
+ * 3 = supervised reversible write  4 = external/shared requiring confirmation
+ * 5 = financial, publish, client delivery, credential, or irreversible action
+ */
+export type MissionAutonomyLevel = 0 | 1 | 2 | 3 | 4 | 5;
+
+export type Mission = {
+  id: string;
+  workspaceId: WorkspaceId;
+  modeId: string;
+  title: string;
+  objective: string;
+  assignedAgentId: AssistantProfileId;
+  autonomyLevel: MissionAutonomyLevel;
+  status: MissionStatus;
+  riskLevel: MissionRiskLevel;
+  input: Record<string, unknown>;
+  expectedOutput: string;
+  requiresApproval: boolean;
+  costBudgetCents?: number;
+  result?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+};
+
+export type MissionResult = {
+  missionId: string;
+  status: Extract<MissionStatus, "completed" | "failed" | "cancelled">;
+  output: Record<string, unknown>;
+  summary: string;
+  error?: string;
+  completedAt: string;
+};
+
+export type MissionApprovalRequirement = {
+  missionId: string;
+  required: boolean;
+  reason: string;
+  policyId?: string;
+  evidenceRequired: string[];
+  approvedBy?: string;
+  approvedAt?: string;
+};
