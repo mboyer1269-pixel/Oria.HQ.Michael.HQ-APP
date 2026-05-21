@@ -1,4 +1,5 @@
 import type { Mission } from "@/core/types";
+import { evaluateMissionApproval } from "@/server/missions";
 
 const riskColors: Record<Mission["riskLevel"], string> = {
   low: "text-emerald-300 border-emerald-500/20 bg-emerald-500/10",
@@ -12,17 +13,13 @@ const riskLabels: Record<Mission["riskLevel"], string> = {
   high: "Risque élevé",
 };
 
-function approvalReason(mission: Mission): string {
-  const reasons: string[] = [];
-  if (mission.requiresApproval) reasons.push("approbation explicitement requise");
-  if (mission.riskLevel === "high") reasons.push("niveau de risque élevé");
-  if (mission.autonomyLevel >= 4)
-    reasons.push(`autonomie ${mission.autonomyLevel}/5 — action externe ou irréversible potentielle`);
-  return reasons.length > 0 ? reasons.join(", ") : "politique workspace";
-}
-
 function ApprovalCard({ mission }: { mission: Mission }) {
   const agentLabel = mission.assignedAgentId === "joris" ? "Joris" : mission.assignedAgentId;
+  const evaluation = evaluateMissionApproval(mission);
+  const reasonText =
+    evaluation.reasonLabels.length > 0
+      ? evaluation.reasonLabels.join(", ")
+      : "politique workspace";
 
   return (
     <article className="rounded-2xl border border-orange-500/15 bg-neutral-900/60 p-5">
@@ -51,7 +48,7 @@ function ApprovalCard({ mission }: { mission: Mission }) {
         </div>
         <div className="rounded-lg border border-orange-500/15 bg-orange-500/5 p-3 sm:col-span-2">
           <dt className="text-orange-400">Raison d&apos;approbation requise</dt>
-          <dd className="mt-1 capitalize text-orange-200/80">{approvalReason(mission)}</dd>
+          <dd className="mt-1 capitalize text-orange-200/80">{reasonText}</dd>
         </div>
       </dl>
 
@@ -94,13 +91,12 @@ interface MissionApprovalPanelProps {
 
 /**
  * Displays missions requiring human review.
- * All action buttons are disabled — this is a read-only visualization of the
- * future approval gate. No writes, no AI calls, no state mutations.
+ * Approval evaluation delegated to evaluateMissionApproval() — no inline logic.
+ * All action buttons are disabled — read-only visualization of the future approval gate.
+ * No writes, no AI calls, no state mutations.
  */
 export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
-  const gated = missions.filter(
-    (m) => m.requiresApproval || m.riskLevel === "high" || m.autonomyLevel >= 4,
-  );
+  const gated = missions.filter((m) => evaluateMissionApproval(m).required);
 
   if (gated.length === 0) return null;
 
