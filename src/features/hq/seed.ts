@@ -1,4 +1,4 @@
-import type { BoardFigure, HqModule, ModelProfile, PermissionRule } from "./types";
+import type { BoardFigure, HermesAgent, HqModule, ModelProfile, PermissionRule } from "./types";
 
 export const hqModules: HqModule[] = [
   {
@@ -220,5 +220,83 @@ export const billionaireBoard: BoardFigure[] = [
     lexicon: ["where focus goes energy flows", "massive action", "CANI"],
     bias: "Peut psychologiser ce qui est parfois un problème structurel.",
     bestFor: "Mindset, énergie, blocage, discipline durable.",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Hermes Fleet — agent seed data
+// Shape matches HermesAgent type added in src/features/hq/types.ts (Lot C types)
+// ---------------------------------------------------------------------------
+
+export const hermesAgents: HermesAgent[] = [
+  {
+    id: "joris",
+    name: "Joris",
+    niche: "Orchestrateur exécutif",
+    objective: "Gérer les opérations quotidiennes de Michael: calendrier, briefs CEO, Board virtuel, décisions cross-ventures.",
+    status: "active",
+    approvalMode: "supervised",
+    ventures: ["hq", "suivia", "mcl", "personal"],
+    allowedActions: ["draft_brief", "board_consult", "score_opportunity", "chat", "book_event"],
+    evidenceRequired: ["intent_confirmed"],
+    weeklyHoursSaved: 8,
+    monthlyRevenuePotential: 0,
+    reviewCadence: "Chaque sprint",
+  },
+  {
+    id: "market-scout",
+    name: "Market Scout",
+    niche: "Collecte de signaux marché",
+    objective: "Scanner les sources publiques QC/ON (esthétique, construction) et produire des notes de signal brut pour le Briefing Analyst.",
+    status: "planned",
+    approvalMode: "supervised",
+    ventures: ["suivia", "mcl"],
+    allowedActions: ["collect_public_sources", "draft_signal_notes"],
+    evidenceRequired: ["source_url", "capture_date"],
+    weeklyHoursSaved: 4,
+    monthlyRevenuePotential: 1200,
+    reviewCadence: "Hebdomadaire",
+  },
+  {
+    id: "briefing-analyst",
+    name: "Briefing Analyst",
+    niche: "Synthèse et rédaction de briefs",
+    objective: "Transformer les signaux bruts en briefings structurés de 5–7 pages pour les opérateurs de cliniques esthétiques Suivia.",
+    status: "planned",
+    approvalMode: "manual",
+    ventures: ["suivia"],
+    allowedActions: ["score_market_tension", "draft_briefing"],
+    evidenceRequired: ["source_citations", "confidence_note"],
+    weeklyHoursSaved: 6,
+    monthlyRevenuePotential: 2400,
+    reviewCadence: "À chaque livraison",
+  },
+  {
+    id: "outreach-operator",
+    name: "Outreach Operator",
+    niche: "Prospection et outreach",
+    objective: "Construire les listes de prospects et rédiger les séquences d'outreach — jamais d'envoi sans approbation explicite.",
+    status: "planned",
+    approvalMode: "manual",
+    ventures: ["suivia", "mcl"],
+    allowedActions: ["draft_prospect_list", "draft_outreach_copy"],
+    evidenceRequired: ["prospect_fit", "message_angle"],
+    weeklyHoursSaved: 5,
+    monthlyRevenuePotential: 3000,
+    reviewCadence: "Par campagne",
+  },
+  {
+    id: "skill-curator",
+    name: "Skill Curator",
+    niche: "Maintenance de la bibliothèque de skills",
+    objective: "Évaluer, signaler et suggérer des fusions dans la bibliothèque de skills Oria — aucun déploiement sans approbation.",
+    status: "idle",
+    approvalMode: "supervised",
+    ventures: ["hq"],
+    allowedActions: ["grade_skills", "flag_stale_routines"],
+    evidenceRequired: ["skill_diff", "usage_count"],
+    weeklyHoursSaved: 2,
+    monthlyRevenuePotential: 0,
+    reviewCadence: "Mensuelle",
   },
 ];

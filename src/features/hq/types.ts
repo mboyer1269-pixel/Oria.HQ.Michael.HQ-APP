@@ -141,3 +141,82 @@ export type CeoBriefSnapshot = {
     recentFilenames: string[];
   };
 };
+
+// ---------------------------------------------------------------------------
+// Agent Charter & Policy types (Lot C foundation)
+// Used by: agentPolicy.ts, charters.ts, fleet.ts, agent-charter-panel.tsx,
+//          agent-registry-panel.tsx
+// ---------------------------------------------------------------------------
+
+/** How an agent is permitted to execute a given action. */
+export type CharterRuleMode =
+  | "auto"              // no human in loop
+  | "supervised"        // executes + logs; human can veto within window
+  | "approval_required" // blocked until human approves
+  | "forbidden";        // hard block — never allowed
+
+/** Risk tier of an action, ordered low → high. */
+export type AgentActionRisk =
+  | "read"    // read-only, no side effects
+  | "draft"   // internal artifact only, not published
+  | "check"   // audit/validation, no writes
+  | "write"   // persists data or state changes
+  | "publish"; // external-facing or irreversible
+
+/** A single rule in an agent's operating charter. */
+export type CharterRule = {
+  action: string;
+  risk: AgentActionRisk;
+  mode: CharterRuleMode;
+  /** Evidence items that must be satisfied before the action executes. */
+  evidenceRequired?: string[];
+  /** Human-readable rationale for the chosen mode. */
+  reason: string;
+};
+
+/** Full operating charter for one agent. */
+export type AgentOperatingCharter = {
+  agentId: string;
+  version: string;
+  effectiveDate: string;
+  rules: CharterRule[];
+};
+
+// ---------------------------------------------------------------------------
+// Hermes Fleet types (Lot C foundation)
+// Used by: fleet.ts, agent-registry-panel.tsx
+// ---------------------------------------------------------------------------
+
+/** Approval mode for a Hermes fleet agent. */
+export type AgentApprovalMode = "manual" | "supervised" | "autonomous";
+
+/** Venture context an agent is scoped to. */
+export type AgentVenture = "hq" | "suivia" | "mcl" | "personal" | "global";
+
+/** Runtime status of a Hermes fleet agent (separate from AgentProfile status). */
+export type AgentStatus = "active" | "idle" | "needs_review" | "planned";
+
+/** Full profile of an agent in the Hermes fleet. */
+export type HermesAgent = {
+  id: string;
+  name: string;
+  niche: string;
+  objective: string;
+  status: AgentStatus;
+  approvalMode: AgentApprovalMode;
+  ventures: AgentVenture[];
+  allowedActions: string[];
+  evidenceRequired: string[];
+  weeklyHoursSaved: number;
+  monthlyRevenuePotential: number;
+  reviewCadence: string;
+};
+
+/** Aggregate summary of the Hermes agent fleet. */
+export type HermesFleetSummary = {
+  totalAgents: number;
+  activeAgents: number;
+  supervisedAgents: number;
+  weeklyHoursSaved: number;
+  monthlyRevenuePotential: number;
+};
