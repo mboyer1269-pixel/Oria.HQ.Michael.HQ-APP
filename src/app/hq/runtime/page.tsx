@@ -95,34 +95,40 @@ export default async function RuntimePage() {
 
   const statusItems: StatusItem[] = [
     {
-      label: "Prototype local",
-      value: `${LOCAL_RUNTIME_ID} · ${LOCAL_RUNTIME_VERSION}`,
+      label: "Local runtime prototype",
+      value: "available",
       level: "enabled",
-      note: "In-process, no VPS",
+      note: `${LOCAL_RUNTIME_ID} · ${LOCAL_RUNTIME_VERSION} — in-process, no VPS`,
     },
     {
-      label: "Canary skill",
+      label: "Canary",
       value: RUNTIME_HEALTH_ECHO_SKILL_ID,
       level: "enabled",
       note: "Echo only — zero side effects",
     },
     {
       label: "Signature",
-      value: "mock-local:v1 (HMAC-SHA256)",
+      value: "mock/local only",
       level: "partial",
-      note: "Mock key — real secret at deploy time",
+      note: "HMAC-SHA256 mock key — real secret at deploy time",
     },
     {
-      label: "Exécuteur live",
-      value: "mode: live — rejeté",
+      label: "Live executor",
+      value: "locked",
       level: "locked",
       note: "Locked through Phase 5",
     },
     {
       label: "VPS",
-      value: "Non déployé",
+      value: "Not deployed",
       level: "locked",
       note: "Phase 2+",
+    },
+    {
+      label: "API Endpoint",
+      value: "Not exposed",
+      level: "locked",
+      note: "No public runtime route until Codex audit + endpoint contract",
     },
     {
       label: "Persistance / idempotency",
@@ -272,12 +278,12 @@ export default async function RuntimePage() {
           <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-amber-400" />
-              <p className="text-sm font-semibold text-amber-300">Audit Codex (Phase 1)</p>
+              <p className="text-sm font-semibold text-amber-300">Next unlock: Codex audit + endpoint contract</p>
             </div>
             <p className="mt-2 text-xs leading-5 text-neutral-400">
               Revue de sécurité de <span className="font-mono">local-runtime.ts</span> — vérification
               du chemin de signature, rejets de la gate sequence, et absence de side effects. Prérequis
-              avant tout endpoint API.
+              avant exposition de l&apos;endpoint runtime.
             </p>
           </div>
           <div className="rounded-2xl border border-neutral-700/50 bg-neutral-900/40 p-4">
