@@ -41,6 +41,10 @@ const privateLinks = [
     href: "/hq/agents",
   },
   {
+    label: "Skills",
+    href: "/hq/skills",
+  },
+  {
     label: "Prochains bookings",
     href: "#agenda-panel",
   },
