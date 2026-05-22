@@ -25,6 +25,8 @@ export type {
   MissionExecutorResult,
   MissionExecutorBlockedReason,
 } from "./executor-contract";
+export { resolveMissionFromText } from "./mission-resolver";
+export type { MissionResolveResult } from "./mission-resolver";
 export { createMissionApprovalRecordDraft, verifyMissionApprovalRecord } from "./approval-record";
 export type {
   MissionApprovalRecordStatus,
