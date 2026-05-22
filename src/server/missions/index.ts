@@ -34,3 +34,20 @@ export type {
   MissionApprovalVerificationResult,
   MissionApprovalVerificationFailReason,
 } from "./approval-record";
+export {
+  createIdempotencyRecord,
+  checkIdempotencyRecord,
+  checkRateLimit,
+  validateExecutionAttempt,
+  DEFAULT_RATE_LIMIT_CONFIG,
+} from "./idempotency-contract";
+export type {
+  MissionIdempotencyKey,
+  MissionIdempotencyRecord,
+  MissionIdempotencyCheckResult,
+  MissionRateLimitConfig,
+  MissionRateLimitRecord,
+  MissionRateLimitCheckResult,
+  MissionExecutionAttemptInput,
+  MissionExecutionAttemptValidation,
+} from "./idempotency-contract";
