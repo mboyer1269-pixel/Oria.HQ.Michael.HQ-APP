@@ -6,45 +6,7 @@ import { parseCalendarIntent } from "@/server/calendar/intent-parser";
 import { CalendarServiceError, createCalendarEvent } from "@/server/calendar/calendar-service";
 import { checkPermission } from "@/server/permissions/permissions";
 import { buildDryRunMissionExecutionPlan, listMissionsForWorkspace, resolveMissionFromText } from "@/server/missions";
-
-function detectIntent(message: string): JorisIntent {
-  const lower = message.toLowerCase();
-
-  // Mission plan intent: "mission" + a planning signal word.
-  // Must be checked before calendar.book to avoid false positives.
-  const missionPlanSignals = ["plan", "planifie", "planifier", "lancer", "lance", "exécute", "execute", "prépare", "preparer", "évalue", "evaluer", "évaluation"];
-  if (lower.includes("mission") && missionPlanSignals.some((s) => lower.includes(s))) {
-    return "mission.plan";
-  }
-
-  if (lower.includes("book") || lower.includes("rendez-vous") || lower.includes("rdv")) {
-    return "calendar.book";
-  }
-
-  if (lower.includes("rappelle-moi") || lower.includes("rappel")) {
-    return "calendar.remind";
-  }
-
-  if (lower.includes("board") || lower.includes("comité") || lower.includes("hormozi")) {
-    return "board.consult";
-  }
-
-  if (lower.includes("idée") || lower.includes("opportunité") || lower.includes("business")) {
-    return "opportunity.score";
-  }
-
-  if (
-    lower.includes("brief") ||
-    lower.includes("résumé") ||
-    lower.includes("resume") ||
-    lower.includes("priorité") ||
-    lower.includes("priorite")
-  ) {
-    return "brief.generate";
-  }
-
-  return "chat";
-}
+import { detectIntent } from "@/server/joris/detect-intent";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
