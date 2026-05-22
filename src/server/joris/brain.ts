@@ -1,13 +1,21 @@
-import type { CommandResult, JorisIntent } from "@/features/hq/types";
+import type { CommandResult, JorisIntent, MissionPlanResult } from "@/features/hq/types";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { chooseModel } from "@/server/ai/model-router";
 import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
 import { CalendarServiceError, createCalendarEvent } from "@/server/calendar/calendar-service";
 import { checkPermission } from "@/server/permissions/permissions";
+import { buildDryRunMissionExecutionPlan, listMissionsForWorkspace } from "@/server/missions";
 
 function detectIntent(message: string): JorisIntent {
   const lower = message.toLowerCase();
+
+  // Mission plan intent: "mission" + a planning signal word.
+  // Must be checked before calendar.book to avoid false positives.
+  const missionPlanSignals = ["plan", "planifie", "planifier", "lancer", "lance", "exécute", "execute", "prépare", "preparer", "évalue", "evaluer", "évaluation"];
+  if (lower.includes("mission") && missionPlanSignals.some((s) => lower.includes(s))) {
+    return "mission.plan";
+  }
 
   if (lower.includes("book") || lower.includes("rendez-vous") || lower.includes("rdv")) {
     return "calendar.book";
@@ -146,6 +154,99 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
       costMode: route.mode,
       ...workspaceMeta,
       requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "mission.plan") {
+    const { missions } = listMissionsForWorkspace({
+      workspaceId: ctx.workspace.id,
+      modeId: ctx.activeMode.id,
+    });
+
+    // Resolve mission: try direct ID match first, then fuzzy title match.
+    // Joris never accepts a mission from the caller — it resolves server-side only.
+    const idMatch = message.match(/\b(mission_\w+)\b/i);
+    let mission = idMatch ? missions.find((m) => m.id === idMatch[1]) : undefined;
+
+    if (!mission) {
+      const lower = message.toLowerCase();
+      const titleMatches = missions.filter((m) => lower.includes(m.title.toLowerCase()));
+      if (titleMatches.length === 1) {
+        mission = titleMatches[0];
+      } else if (titleMatches.length > 1) {
+        const list = titleMatches.map((m) => `• "${m.title}" (${m.id})`).join("\n");
+        return {
+          intent,
+          summary: `Plusieurs missions correspondent. Précise laquelle :\n${list}`,
+          modelId: route.model.id,
+          costMode: route.mode,
+          ...workspaceMeta,
+          requiresConfirmation: false,
+        };
+      }
+    }
+
+    if (!mission) {
+      const available = missions
+        .filter((m) => !["completed", "failed", "cancelled"].includes(m.status))
+        .map((m) => `• "${m.title}" — ${m.status} (${m.id})`)
+        .join("\n");
+      return {
+        intent,
+        summary: available
+          ? `Aucune mission trouvée pour ta demande. Missions disponibles :\n${available}`
+          : "Aucune mission active dans ce workspace.",
+        modelId: route.model.id,
+        costMode: route.mode,
+        ...workspaceMeta,
+        requiresConfirmation: false,
+      };
+    }
+
+    // approvalConfirmed is NEVER set to true by Joris.
+    // Joris surfaces the plan; the user must confirm explicitly through a separate action.
+    const planResult = buildDryRunMissionExecutionPlan({
+      mission,
+      mode: "dry_run",
+      approvalConfirmed: false,
+    });
+
+    const missionPlanResult: MissionPlanResult = planResult.allowed
+      ? {
+          allowed: true,
+          missionId: mission.id,
+          stepCount: planResult.plan.steps.length,
+          estimatedAutonomyCost: planResult.plan.estimatedAutonomyCost,
+        }
+      : {
+          allowed: false,
+          missionId: mission.id,
+          blockReasons: planResult.blockReasons,
+        };
+
+    const summary = planResult.allowed
+      ? [
+          `Plan dry-run pour "${mission.title}" :`,
+          `- ${planResult.plan.steps.length} étape(s) planifiée(s)`,
+          `- Coût autonomie estimé : ${planResult.plan.estimatedAutonomyCost}/5`,
+          `- Approbation requise : ${planResult.approvalEvaluation.required ? "oui" : "non"}`,
+          `→ Prêt à exécuter sur confirmation explicite uniquement.`,
+        ].join("\n")
+      : [
+          `Mission "${mission.title}" bloquée :`,
+          ...planResult.blockReasons.map((r) => `- ${r}`),
+          `→ Ce plan ne peut pas être exécuté dans l'état actuel.`,
+        ].join("\n");
+
+    return {
+      intent,
+      summary,
+      modelId: route.model.id,
+      costMode: route.mode,
+      ...workspaceMeta,
+      // requiresConfirmation is always true for mission.plan — Joris never auto-executes.
+      requiresConfirmation: true,
+      missionPlanResult,
     };
   }
 

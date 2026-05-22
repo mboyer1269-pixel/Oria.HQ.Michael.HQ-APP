@@ -17,7 +17,8 @@ export type JorisIntent =
   | "board.consult"
   | "memory.capture"
   | "opportunity.score"
-  | "task.create";
+  | "task.create"
+  | "mission.plan"; // dry-run plan surface only — never executes
 
 export type BoardFigure = {
   id: string;
@@ -79,6 +80,15 @@ export type CalendarEvent = {
 
 export type ActionLedgerStatus = "recorded" | "skipped" | "failed";
 
+/** View-model flattening of MissionExecutorResult — no server imports needed here. */
+export type MissionPlanResult = {
+  allowed: boolean;
+  missionId: string;
+  blockReasons?: string[];
+  stepCount?: number;
+  estimatedAutonomyCost?: number;
+};
+
 export type CommandResult = {
   intent: JorisIntent;
   summary: string;
@@ -92,6 +102,7 @@ export type CommandResult = {
   ledgerStatus?: ActionLedgerStatus;
   storageMode?: CalendarStorageMode;
   requiresConfirmation?: boolean;
+  missionPlanResult?: MissionPlanResult;
 };
 
 export type CeoBriefAgendaItem = {
