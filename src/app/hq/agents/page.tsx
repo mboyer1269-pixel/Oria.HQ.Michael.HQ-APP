@@ -2,7 +2,10 @@ import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { AgentCard } from "@/features/agents/components/agent-card";
+import { AgentSkillPanel } from "@/features/agents/components/agent-skill-panel";
 import { agentRegistry } from "@/features/agents/seed";
+import { validateAgentSkillMapping } from "@/features/agents/skill-mapping";
+import { skillsCatalog } from "@/features/skills/seed";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 
@@ -19,6 +22,8 @@ export default async function AgentsPage() {
   const standby = agentRegistry.filter((a) => a.status === "standby");
   const locked = agentRegistry.filter((a) => a.status === "locked");
   const planned = agentRegistry.filter((a) => a.status === "planned");
+
+  const mappingReport = validateAgentSkillMapping(agentRegistry, skillsCatalog);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-8 md:py-10">
@@ -88,6 +93,46 @@ export default async function AgentsPage() {
             </div>
           </section>
         ))}
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            Mapping Agent → Skills
+          </h2>
+          <span
+            className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+              mappingReport.valid
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                : "border-amber-500/20 bg-amber-500/10 text-amber-300"
+            }`}
+          >
+            {mappingReport.valid ? "Cohérent" : "Mismatches détectés"}
+          </span>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {mappingReport.results.map((result) => (
+            <AgentSkillPanel key={result.agent.id} result={result} />
+          ))}
+        </div>
+
+        {mappingReport.unclaimed.length > 0 && (
+          <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+            <p className="text-xs font-semibold text-amber-300">
+              Skills non revendiquées par aucun agent
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {mappingReport.unclaimed.map((id) => (
+                <li
+                  key={id}
+                  className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 font-mono text-[11px] text-amber-300"
+                >
+                  {id}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
     </main>
   );
 }
