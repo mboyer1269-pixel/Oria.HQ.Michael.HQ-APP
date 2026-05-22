@@ -108,6 +108,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Reserve the idempotency key before plan generation.
+  // This closes the window where two concurrent requests with the same key
+  // could both pass checkExecutionAttempt() before either calls recordAttempt().
+  // If buildDryRunMissionExecutionPlan() throws after this point, the key is
+  // consumed — acceptable for a planning endpoint where safety > retry convenience.
+  recordAttempt(attemptInput);
+
   // approvalConfirmed is NEVER accepted from the caller.
   // It is derived server-side from a verified MissionApprovalRecord.
   // Until mission_approval_records persistence is live (PR #19C sign-off required),
@@ -129,9 +136,6 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json({ error: "Erreur interne lors de l'évaluation du plan." }, { status: 500 });
   }
-
-  // Record the attempt only after the plan has been built successfully
-  recordAttempt(attemptInput);
 
   return NextResponse.json(result);
 }

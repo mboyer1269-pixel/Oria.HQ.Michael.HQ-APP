@@ -19,8 +19,12 @@ import type {
 // a Supabase-backed implementation once the mission_execution_attempts table
 // migration is approved (PR #19C sign-off required).
 //
-// One store per server process. Concurrent requests within a single Node.js
-// event loop are safe — no concurrency issue at the volumes this handles.
+// The check and record operations are NOT atomic — two concurrent requests
+// arriving between checkExecutionAttempt() and recordAttempt() could both
+// pass the check. The route mitigates this by calling recordAttempt() before
+// plan generation (reserve-before-build), but this store remains best-effort
+// for development and runtime preview. Production enforcement requires
+// Supabase or Redis with atomic insert / unique-key semantics.
 // ---------------------------------------------------------------------------
 
 const idempotencyStore = new Map<MissionIdempotencyKey, MissionIdempotencyRecord>();
@@ -55,7 +59,7 @@ export type LocalAttemptCheckResult =
 
 /**
  * Checks whether an execution attempt is allowed.
- * Does NOT record the attempt — call recordAttempt() after the plan succeeds.
+ * Does NOT record the attempt — call recordAttempt() immediately after if allowed.
  */
 export function checkExecutionAttempt(input: MissionExecutionAttemptInput): LocalAttemptCheckResult {
   if (!input.idempotencyKey || input.idempotencyKey.trim() === "") {
@@ -80,8 +84,10 @@ export function checkExecutionAttempt(input: MissionExecutionAttemptInput): Loca
 }
 
 /**
- * Records a successful execution attempt.
- * Call this only after the plan has been built and the response is ready to send.
+ * Reserves and records an execution attempt.
+ * Must be called immediately after checkExecutionAttempt() returns allowed,
+ * before plan generation, to prevent concurrent requests from both passing
+ * the duplicate check.
  */
 export function recordAttempt(input: MissionExecutionAttemptInput, ttlSeconds = 300): void {
   const record = createIdempotencyRecord(input, ttlSeconds);
