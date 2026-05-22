@@ -5,8 +5,9 @@ import { ContactLeadRepositoryError } from "@/server/contact/contact-lead-reposi
 import {
   CONTACT_POST_RATE_LIMIT_CONFIG,
   CONTACT_POST_RATE_LIMIT_SCOPE,
+  buildPrivacySafeRateLimitBucketKey,
   enforceSharedRateLimit,
-  getRequestClientIp,
+  getRequestClientIdentifier,
   RateLimitServiceError,
 } from "@/server/security/rate-limit-service";
 
@@ -85,10 +86,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const clientIp = getRequestClientIp(request);
+    const clientIdentifier = getRequestClientIdentifier(request);
+    const bucketKey = buildPrivacySafeRateLimitBucketKey(
+      CONTACT_POST_RATE_LIMIT_SCOPE,
+      clientIdentifier,
+    );
     const rateLimit = await enforceSharedRateLimit({
       scope: CONTACT_POST_RATE_LIMIT_SCOPE,
-      bucketKey: clientIp,
+      bucketKey,
       config: CONTACT_POST_RATE_LIMIT_CONFIG,
     });
 

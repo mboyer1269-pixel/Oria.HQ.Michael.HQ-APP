@@ -1,4 +1,5 @@
-import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
+import { createHmac } from "node:crypto";
+import { isLocalPersistenceFallbackAllowed, serverEnv } from "@/lib/server-env";
 import {
   checkRateLimit,
   DEFAULT_RATE_LIMIT_CONFIG,
@@ -25,6 +26,9 @@ export const CONTACT_POST_RATE_LIMIT_CONFIG: SharedRateLimitConfig = {
 
 export const CONTACT_POST_RATE_LIMIT_SCOPE = "api.contact.post";
 
+const IP_LIKE_PATTERN = /^[\d.a-fA-F:]+$/;
+const LOCAL_DEV_RATE_LIMIT_PEPPER = "local-dev-only-rate-limit-pepper-not-for-production";
+
 type LocalRateLimitEvent = {
   scope: string;
   bucketKey: string;
@@ -39,6 +43,65 @@ export type SharedRateLimitResult =
 
 function buildBucketId(scope: string, bucketKey: string) {
   return `${scope}:${bucketKey}`;
+}
+
+function getRateLimitPepper(): string {
+  if (serverEnv.supabaseServiceRoleKey) {
+    return serverEnv.supabaseServiceRoleKey;
+  }
+
+  if (isLocalPersistenceFallbackAllowed()) {
+    return LOCAL_DEV_RATE_LIMIT_PEPPER;
+  }
+
+  throw new RateLimitServiceError(
+    "Rate limit pepper requires SUPABASE_SERVICE_ROLE_KEY in production.",
+    "RATE_LIMIT_UNAVAILABLE",
+  );
+}
+
+export function buildPrivacySafeRateLimitBucketKey(scope: string, clientIdentifier: string): string {
+  const identifier = clientIdentifier.trim();
+  if (!identifier) {
+    throw new RateLimitServiceError("Rate limit client identifier is required.", "RATE_LIMIT_UNAVAILABLE");
+  }
+
+  return createHmac("sha256", getRateLimitPepper()).update(`${scope}\0${identifier}`).digest("hex");
+}
+
+function sanitizeIpCandidate(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim().slice(0, 45);
+  if (!trimmed || !IP_LIKE_PATTERN.test(trimmed)) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+function isTrustedPlatformProxyContext(): boolean {
+  // Vercel terminates TLS and manages x-forwarded-for at the edge.
+  return process.env.VERCEL === "1";
+}
+
+export function getRequestClientIdentifier(request: Request): string {
+  const realIp = sanitizeIpCandidate(request.headers.get("x-real-ip"));
+  if (realIp) return realIp;
+
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded && isTrustedPlatformProxyContext()) {
+    const first = sanitizeIpCandidate(forwarded.split(",")[0]?.trim());
+    if (first) return first;
+    return "unknown";
+  }
+
+  if (forwarded) {
+    // Outside a trusted platform proxy, ignore spoofable x-forwarded-for values.
+    return "untrusted-proxy";
+  }
+
+  return "unknown";
 }
 
 async function loadAttemptTimestamps(
@@ -89,6 +152,10 @@ async function loadAttemptTimestamps(
 
 async function recordRateLimitAttempt(scope: string, bucketKey: string, now: Date): Promise<void> {
   const createdAt = now.toISOString();
+
+  // TODO(rate-limit): select-then-insert is best-effort under high concurrency.
+  // Two requests can pass the count check before either insert lands. Replace with
+  // a Supabase RPC or atomic insert+count before public high-traffic launch.
 
   if (hasSupabaseAdminConfig()) {
     const supabase = createOptionalSupabaseAdminClient();
@@ -156,19 +223,6 @@ export async function enforceSharedRateLimit(input: {
 
   await recordRateLimitAttempt(input.scope, bucketKey, now);
   return { allowed: true };
-}
-
-export function getRequestClientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first.slice(0, 200);
-  }
-
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp.slice(0, 200);
-
-  return "unknown";
 }
 
 /** Dev/test helper — clears the local fallback event log only. */

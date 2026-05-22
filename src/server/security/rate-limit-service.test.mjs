@@ -15,6 +15,7 @@ const projectRoot = path.resolve(__dirname, "..", "..", "..");
 delete process.env.MICHAEL_HQ_OWNER_ID;
 delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+delete process.env.VERCEL;
 
 const { createJiti } = await import("jiti");
 const jiti = createJiti(import.meta.url, {
@@ -24,26 +25,74 @@ const jiti = createJiti(import.meta.url, {
   },
 });
 
+const servicePath = path.join(projectRoot, "src/server/security/rate-limit-service.ts");
 const {
   CONTACT_POST_RATE_LIMIT_SCOPE,
+  buildPrivacySafeRateLimitBucketKey,
   enforceSharedRateLimit,
-  getRequestClientIp,
+  getRequestClientIdentifier,
   resetLocalRateLimitEventsForTests,
-} = await jiti.import(path.join(projectRoot, "src/server/security/rate-limit-service.ts"));
+} = await jiti.import(`${servicePath}?test=${Date.now()}`);
 
-test("getRequestClientIp prefers the first x-forwarded-for address", () => {
+test("buildPrivacySafeRateLimitBucketKey never stores raw IP", () => {
+  const rawIp = "203.0.113.10";
+  const bucketKey = buildPrivacySafeRateLimitBucketKey(CONTACT_POST_RATE_LIMIT_SCOPE, rawIp);
+
+  assert.notEqual(bucketKey, rawIp);
+  assert.match(bucketKey, /^[a-f0-9]{64}$/);
+});
+
+test("getRequestClientIdentifier ignores spoofed x-forwarded-for outside trusted proxy context", () => {
   const request = new Request("https://example.com", {
     headers: { "x-forwarded-for": "203.0.113.10, 198.51.100.2" },
   });
 
-  assert.equal(getRequestClientIp(request), "203.0.113.10");
+  assert.equal(getRequestClientIdentifier(request), "untrusted-proxy");
+});
+
+test("getRequestClientIdentifier uses x-forwarded-for only on trusted Vercel proxy context", () => {
+  const previous = process.env.VERCEL;
+  process.env.VERCEL = "1";
+
+  try {
+    const request = new Request("https://example.com", {
+      headers: { "x-forwarded-for": "203.0.113.10, 198.51.100.2" },
+    });
+
+    assert.equal(getRequestClientIdentifier(request), "203.0.113.10");
+  } finally {
+    if (previous === undefined) {
+      delete process.env.VERCEL;
+    } else {
+      process.env.VERCEL = previous;
+    }
+  }
+});
+
+test("getRequestClientIdentifier rejects malformed forwarded header values on trusted proxy", () => {
+  const previous = process.env.VERCEL;
+  process.env.VERCEL = "1";
+
+  try {
+    const request = new Request("https://example.com", {
+      headers: { "x-forwarded-for": "not-an-ip, also-bad" },
+    });
+
+    assert.equal(getRequestClientIdentifier(request), "unknown");
+  } finally {
+    if (previous === undefined) {
+      delete process.env.VERCEL;
+    } else {
+      process.env.VERCEL = previous;
+    }
+  }
 });
 
 test("enforceSharedRateLimit blocks after maxAttempts in local fallback mode", async () => {
   resetLocalRateLimitEventsForTests();
 
   const scope = CONTACT_POST_RATE_LIMIT_SCOPE;
-  const bucketKey = `test-${Date.now()}`;
+  const bucketKey = buildPrivacySafeRateLimitBucketKey(scope, `test-${Date.now()}`);
   const config = { maxAttempts: 2, windowSeconds: 60 };
   const now = new Date("2026-05-22T12:00:00.000Z");
 
