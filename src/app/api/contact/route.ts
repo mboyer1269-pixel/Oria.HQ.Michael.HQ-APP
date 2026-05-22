@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createContactLead } from "@/server/contact/contact-lead-service";
 import { ContactLeadRepositoryError } from "@/server/contact/contact-lead-repository";
+import {
+  CONTACT_POST_RATE_LIMIT_CONFIG,
+  CONTACT_POST_RATE_LIMIT_SCOPE,
+  enforceSharedRateLimit,
+  getRequestClientIp,
+  RateLimitServiceError,
+} from "@/server/security/rate-limit-service";
 
 const optionalTextSchema = (max: number) =>
   z
@@ -22,6 +29,16 @@ const contactRequestSchema = z.object({
 });
 
 function toApiError(error: unknown) {
+  if (error instanceof RateLimitServiceError) {
+    return NextResponse.json(
+      {
+        error: "Le formulaire de contact n'est pas disponible pour le moment.",
+        code: error.code,
+      },
+      { status: 503 },
+    );
+  }
+
   if (error instanceof ContactLeadRepositoryError) {
     return NextResponse.json(
       {
@@ -68,6 +85,29 @@ export async function POST(request: Request) {
   }
 
   try {
+    const clientIp = getRequestClientIp(request);
+    const rateLimit = await enforceSharedRateLimit({
+      scope: CONTACT_POST_RATE_LIMIT_SCOPE,
+      bucketKey: clientIp,
+      config: CONTACT_POST_RATE_LIMIT_CONFIG,
+    });
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Trop de soumissions récentes. Réessayez dans quelques minutes.",
+          code: "RATE_LIMIT_EXCEEDED",
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        },
+      );
+    }
+
     const result = await createContactLead({
       name: parsed.data.name,
       email: parsed.data.email,

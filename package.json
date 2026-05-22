@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "check:supabase": "node --experimental-strip-types src/scripts/check-supabase-config.ts",
     "smoke:joris": "node src/scripts/smoke/joris-booking.mjs",
-    "smoke:runtime": "node src/scripts/smoke/runtime-health-echo.mjs"
+    "smoke:runtime": "node src/scripts/smoke/runtime-health-echo.mjs",
+    "test:contact-rate-limit": "node --test src/server/security/rate-limit-service.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

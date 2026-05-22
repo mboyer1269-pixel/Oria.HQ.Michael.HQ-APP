@@ -54,6 +54,18 @@ export type ContactLeadInsert = Omit<ContactLeadRow, "id" | "created_at"> & {
   created_at?: string;
 };
 
+export type ApiRateLimitEventRow = {
+  id: string;
+  scope: string;
+  bucket_key: string;
+  created_at: string;
+};
+
+export type ApiRateLimitEventInsert = Omit<ApiRateLimitEventRow, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
 export type DocumentRow = {
   id: string;
   user_id: string;
@@ -91,6 +103,12 @@ export type MichaelHqDatabase = {
         Row: ContactLeadRow;
         Insert: ContactLeadInsert;
         Update: Partial<ContactLeadInsert>;
+        Relationships: [];
+      };
+      api_rate_limit_events: {
+        Row: ApiRateLimitEventRow;
+        Insert: ApiRateLimitEventInsert;
+        Update: Partial<ApiRateLimitEventInsert>;
         Relationships: [];
       };
       documents: {

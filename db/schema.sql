@@ -142,6 +142,18 @@ create index if not exists documents_hat_idx on public.documents(hat);
 create index if not exists contact_leads_created_at_idx on public.contact_leads(created_at desc);
 create index if not exists contact_leads_status_idx on public.contact_leads(status);
 
+create table if not exists public.api_rate_limit_events (
+  id uuid primary key default gen_random_uuid(),
+  scope text not null check (char_length(trim(scope)) between 1 and 80),
+  bucket_key text not null check (char_length(trim(bucket_key)) between 1 and 200),
+  created_at timestamptz not null default now()
+);
+
+alter table public.api_rate_limit_events enable row level security;
+
+create index if not exists api_rate_limit_events_scope_bucket_created_at_idx
+  on public.api_rate_limit_events(scope, bucket_key, created_at desc);
+
 drop policy if exists "profiles are private" on public.profiles;
 drop policy if exists "conversations are private" on public.joris_conversations;
 drop policy if exists "messages are private" on public.joris_messages;
@@ -200,3 +212,6 @@ create policy "documents are private" on public.documents
 
 -- No public contact_leads policy on purpose. Leads are inserted server-side
 -- through the Supabase service role and remain unreadable to anon/authenticated clients.
+
+-- No public api_rate_limit_events policy on purpose. Rate-limit events are
+-- inserted server-side through the Supabase service role only.
