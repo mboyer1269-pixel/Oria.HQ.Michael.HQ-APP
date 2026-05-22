@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
@@ -32,7 +32,7 @@ const {
   enforceSharedRateLimit,
   getRequestClientIdentifier,
   resetLocalRateLimitEventsForTests,
-} = await jiti.import(`${servicePath}?test=${Date.now()}`);
+} = await jiti.import(pathToFileURL(servicePath).href);
 
 test("buildPrivacySafeRateLimitBucketKey never stores raw IP", () => {
   const rawIp = "203.0.113.10";
@@ -50,6 +50,20 @@ test("getRequestClientIdentifier ignores spoofed x-forwarded-for outside trusted
   assert.equal(getRequestClientIdentifier(request), "untrusted-proxy");
 });
 
+test("getRequestClientIdentifier ignores spoofed x-real-ip outside trusted proxy context", () => {
+  const request = new Request("https://example.com", {
+    headers: { "x-real-ip": "203.0.113.10" },
+  });
+
+  assert.equal(getRequestClientIdentifier(request), "untrusted-proxy");
+});
+
+test("getRequestClientIdentifier returns unknown when no proxy headers outside trusted context", () => {
+  const request = new Request("https://example.com");
+
+  assert.equal(getRequestClientIdentifier(request), "unknown");
+});
+
 test("getRequestClientIdentifier uses x-forwarded-for only on trusted Vercel proxy context", () => {
   const previous = process.env.VERCEL;
   process.env.VERCEL = "1";
@@ -57,6 +71,47 @@ test("getRequestClientIdentifier uses x-forwarded-for only on trusted Vercel pro
   try {
     const request = new Request("https://example.com", {
       headers: { "x-forwarded-for": "203.0.113.10, 198.51.100.2" },
+    });
+
+    assert.equal(getRequestClientIdentifier(request), "203.0.113.10");
+  } finally {
+    if (previous === undefined) {
+      delete process.env.VERCEL;
+    } else {
+      process.env.VERCEL = previous;
+    }
+  }
+});
+
+test("getRequestClientIdentifier uses x-real-ip on trusted Vercel proxy context", () => {
+  const previous = process.env.VERCEL;
+  process.env.VERCEL = "1";
+
+  try {
+    const request = new Request("https://example.com", {
+      headers: { "x-real-ip": "203.0.113.10" },
+    });
+
+    assert.equal(getRequestClientIdentifier(request), "203.0.113.10");
+  } finally {
+    if (previous === undefined) {
+      delete process.env.VERCEL;
+    } else {
+      process.env.VERCEL = previous;
+    }
+  }
+});
+
+test("getRequestClientIdentifier prefers x-real-ip over x-forwarded-for on trusted proxy context", () => {
+  const previous = process.env.VERCEL;
+  process.env.VERCEL = "1";
+
+  try {
+    const request = new Request("https://example.com", {
+      headers: {
+        "x-real-ip": "203.0.113.10",
+        "x-forwarded-for": "198.51.100.2, 192.0.2.1",
+      },
     });
 
     assert.equal(getRequestClientIdentifier(request), "203.0.113.10");

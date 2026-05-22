@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { isIP } from "node:net";
 import { isLocalPersistenceFallbackAllowed, serverEnv } from "@/lib/server-env";
 import {
   checkRateLimit,
@@ -26,7 +27,6 @@ export const CONTACT_POST_RATE_LIMIT_CONFIG: SharedRateLimitConfig = {
 
 export const CONTACT_POST_RATE_LIMIT_SCOPE = "api.contact.post";
 
-const IP_LIKE_PATTERN = /^[\d.a-fA-F:]+$/;
 const LOCAL_DEV_RATE_LIMIT_PEPPER = "local-dev-only-rate-limit-pepper-not-for-production";
 
 type LocalRateLimitEvent = {
@@ -73,7 +73,7 @@ function sanitizeIpCandidate(value: string | null | undefined): string | null {
   if (!value) return null;
 
   const trimmed = value.trim().slice(0, 45);
-  if (!trimmed || !IP_LIKE_PATTERN.test(trimmed)) {
+  if (!trimmed || isIP(trimmed) === 0) {
     return null;
   }
 
@@ -86,19 +86,22 @@ function isTrustedPlatformProxyContext(): boolean {
 }
 
 export function getRequestClientIdentifier(request: Request): string {
+  if (!isTrustedPlatformProxyContext()) {
+    if (request.headers.has("x-real-ip") || request.headers.has("x-forwarded-for")) {
+      return "untrusted-proxy";
+    }
+
+    return "unknown";
+  }
+
   const realIp = sanitizeIpCandidate(request.headers.get("x-real-ip"));
   if (realIp) return realIp;
 
   const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded && isTrustedPlatformProxyContext()) {
+  if (forwarded) {
     const first = sanitizeIpCandidate(forwarded.split(",")[0]?.trim());
     if (first) return first;
     return "unknown";
-  }
-
-  if (forwarded) {
-    // Outside a trusted platform proxy, ignore spoofable x-forwarded-for values.
-    return "untrusted-proxy";
   }
 
   return "unknown";
