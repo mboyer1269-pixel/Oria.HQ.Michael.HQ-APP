@@ -13,6 +13,7 @@ Oria is a workspace-first operator platform. The product should evolve from the 
 ## Agent Operating Model
 
 - Treat this file as the canonical operating guide for agents working in this repository.
+- Identity layer: read `SOUL.md` for agent posture and values. `AGENTS.md` remains the operational source of truth.
 - Confirm the current branch, working tree state, and user mandate before making changes.
 - Keep changes scoped to the requested task and avoid opportunistic refactors.
 - Prefer existing project patterns over new abstractions unless the user explicitly asks for a design change.
