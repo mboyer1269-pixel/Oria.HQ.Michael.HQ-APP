@@ -5,7 +5,7 @@ import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
 import { CalendarServiceError, createCalendarEvent } from "@/server/calendar/calendar-service";
 import { checkPermission } from "@/server/permissions/permissions";
-import { buildDryRunMissionExecutionPlan, listMissionsForWorkspace } from "@/server/missions";
+import { buildDryRunMissionExecutionPlan, listMissionsForWorkspace, resolveMissionFromText } from "@/server/missions";
 
 function detectIntent(message: string): JorisIntent {
   const lower = message.toLowerCase();
@@ -163,18 +163,12 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
       modeId: ctx.activeMode.id,
     });
 
-    // Resolve mission: try direct ID match first, then fuzzy title match.
-    // Joris never accepts a mission from the caller — it resolves server-side only.
-    const idMatch = message.match(/\b(mission_\w+)\b/i);
-    let mission = idMatch ? missions.find((m) => m.id === idMatch[1]) : undefined;
+    // Resolve mission server-side — caller cannot inject mission data.
+    const resolved = resolveMissionFromText(message, missions);
 
-    if (!mission) {
-      const lower = message.toLowerCase();
-      const titleMatches = missions.filter((m) => lower.includes(m.title.toLowerCase()));
-      if (titleMatches.length === 1) {
-        mission = titleMatches[0];
-      } else if (titleMatches.length > 1) {
-        const list = titleMatches.map((m) => `• "${m.title}" (${m.id})`).join("\n");
+    if (!resolved.found) {
+      if (resolved.reason === "ambiguous") {
+        const list = resolved.candidates.map((m) => `• "${m.title}" (${m.id})`).join("\n");
         return {
           intent,
           summary: `Plusieurs missions correspondent. Précise laquelle :\n${list}`,
@@ -184,11 +178,7 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
           requiresConfirmation: false,
         };
       }
-    }
-
-    if (!mission) {
-      const available = missions
-        .filter((m) => !["completed", "failed", "cancelled"].includes(m.status))
+      const available = resolved.available
         .map((m) => `• "${m.title}" — ${m.status} (${m.id})`)
         .join("\n");
       return {
@@ -202,6 +192,8 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
         requiresConfirmation: false,
       };
     }
+
+    const { mission } = resolved;
 
     // approvalConfirmed is NEVER set to true by Joris.
     // Joris surfaces the plan; the user must confirm explicitly through a separate action.
