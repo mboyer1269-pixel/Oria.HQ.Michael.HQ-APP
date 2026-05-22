@@ -10,6 +10,23 @@ import type {
   MissionIdempotencyRecord,
   MissionRateLimitRecord,
 } from "./idempotency-contract";
+import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
+
+export class InMemoryExecutionStoreError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InMemoryExecutionStoreError";
+  }
+}
+
+function assertInMemoryExecutionStoreAllowed() {
+  if (!isLocalPersistenceFallbackAllowed()) {
+    throw new InMemoryExecutionStoreError(
+      "In-memory mission execution attempt store is not allowed in production. " +
+        "Configure persistent mission execution storage before enabling this path.",
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Local in-memory enforcement store for idempotency and rate limiting.
@@ -62,6 +79,8 @@ export type LocalAttemptCheckResult =
  * Does NOT record the attempt — call recordAttempt() immediately after if allowed.
  */
 export function checkExecutionAttempt(input: MissionExecutionAttemptInput): LocalAttemptCheckResult {
+  assertInMemoryExecutionStoreAllowed();
+
   if (!input.idempotencyKey || input.idempotencyKey.trim() === "") {
     return { allowed: false, reason: "missing_idempotency_key" };
   }
@@ -90,6 +109,8 @@ export function checkExecutionAttempt(input: MissionExecutionAttemptInput): Loca
  * the duplicate check.
  */
 export function recordAttempt(input: MissionExecutionAttemptInput, ttlSeconds = 300): void {
+  assertInMemoryExecutionStoreAllowed();
+
   const record = createIdempotencyRecord(input, ttlSeconds);
   idempotencyStore.set(input.idempotencyKey, record);
 
