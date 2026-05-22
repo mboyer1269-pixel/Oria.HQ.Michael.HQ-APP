@@ -66,24 +66,24 @@ export function detectIntent(message: string): JorisIntent {
     return "calendar.book";
   }
 
-  if (/\brappelle-moi\b/.test(lower) || /\brappel\b/.test(lower)) {
+  if (lower.includes("rappelle-moi") || lower.includes("rappel")) {
     return "calendar.remind";
   }
 
-  if (/\bboard\b/.test(lower) || /\bcomité\b/.test(lower) || /\bhormozi\b/.test(lower)) {
+  if (lower.includes("board") || lower.includes("comité") || lower.includes("hormozi")) {
     return "board.consult";
   }
 
-  if (/\bidée\b/.test(lower) || /\bopportunité\b/.test(lower) || /\bbusiness\b/.test(lower)) {
+  if (lower.includes("idée") || lower.includes("opportunité") || lower.includes("business")) {
     return "opportunity.score";
   }
 
   if (
-    /\bbrief\b/.test(lower) ||
-    /\brésumé\b/.test(lower) ||
-    /\bresume\b/.test(lower) ||
-    /\bpriorité\b/.test(lower) ||
-    /\bpriorite\b/.test(lower)
+    lower.includes("brief") ||
+    lower.includes("résumé") ||
+    lower.includes("resume") ||
+    lower.includes("priorité") ||
+    lower.includes("priorite")
   ) {
     return "brief.generate";
   }
