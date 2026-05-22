@@ -30,8 +30,8 @@ export function resolveMissionFromText(
 ): MissionResolveResult {
   const lower = query.toLowerCase();
 
-  // Step 1: direct ID match
-  const idMatch = query.match(/\b(mission_\w+)\b/i);
+  // Step 1: direct ID match — supports both "mission_..." and "msn_..." prefixes.
+  const idMatch = query.match(/\b((?:mission|msn)_\w+)\b/i);
   if (idMatch) {
     const byId = missions.find((m) => m.id.toLowerCase() === idMatch[1].toLowerCase());
     if (byId) return { found: true, mission: byId };

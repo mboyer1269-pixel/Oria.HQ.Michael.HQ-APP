@@ -44,7 +44,7 @@ type MissionResolveResult =
 
 ## Resolution Order
 
-1. **Direct ID match** — `\b(mission_\w+)\b` regex in the query. Fast, precise, no ambiguity.
+1. **Direct ID match** — `\b((?:mission|msn)_\w+)\b` regex in the query. Supports both `mission_…` and `msn_…` prefixes. Fast, precise, no ambiguity.
 2. **Exact title match** — case-insensitive full-title equality.
 3. **Fuzzy match** — the query contains the mission title as a substring (case-insensitive).
 
@@ -55,9 +55,13 @@ Steps 2 and 3 return `ambiguous` if multiple missions match.
 ## Examples
 
 ```ts
-// Direct ID
+// Direct ID — mission_ prefix
 resolveMissionFromText("plan mission_ceo_brief_2026_05_21 for today", missions);
 // → { found: true, mission: { id: "mission_ceo_brief_2026_05_21", ... } }
+
+// Direct ID — msn_ prefix (future short-form IDs)
+resolveMissionFromText("planifie msn_abc123", missions);
+// → { found: true, mission: { id: "msn_abc123", ... } }
 
 // Fuzzy title
 resolveMissionFromText("planifie le CEO Brief du jour", missions);
