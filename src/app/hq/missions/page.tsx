@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, LayoutDashboard, LayoutGrid, ShieldAlert } from "lucide-react";
 import { MissionKanbanBoard } from "@/features/missions/components/mission-kanban-board";
 import { MissionApprovalPanel } from "@/features/missions/components/mission-approval-panel";
+import { MissionSystemStatus } from "@/features/missions/components/mission-system-status";
 import { summarizeMissions } from "@/features/missions/summary";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listMissionsForWorkspace } from "@/server/missions";
@@ -101,6 +102,8 @@ export default async function MissionsPage() {
           </div>
         </section>
       )}
+
+      <MissionSystemStatus />
 
       <MissionApprovalPanel missions={missions} />
 
