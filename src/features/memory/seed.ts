@@ -23,8 +23,12 @@ export const memorySubjects: MemorySubject[] = [
     ],
     risks: ["Modèle encore documentaire — pas de persistance."],
     nextActions: ["Brancher le Memory Log Contract (dry-run Joris)."],
-    relatedRefs: ["docs/AGENTIC_HOLDING_COMPANY_OPERATING_MODEL.md"],
-    lastUpdated: "2026-05-22",
+    relatedRefs: [
+      "docs/AGENTIC_HOLDING_COMPANY_OPERATING_MODEL.md",
+      "docs/memory/MEMORY_SOURCE_NOTES.md",
+      "docs/memory/daily-logs/2026-05-23.md",
+    ],
+    lastUpdated: "2026-05-23",
   },
   {
     id: "joris",
@@ -117,6 +121,27 @@ export const memorySubjects: MemorySubject[] = [
 ];
 
 export const recentDailyLogs: DailyLog[] = [
+  {
+    date: "2026-05-23",
+    summary:
+      "Sequence SOVRA : merge #53-#56 et #54 sur main ; fondation Memory Wiki live en mock. Source notes canoniques sous docs/memory/.",
+    mergedPrs: [
+      "#52 doctrine (deja mergee)",
+      "#53 README + CEO Report",
+      "#55 HQ signal wiring",
+      "#56 safeguards + VPS",
+      "#54 Memory Wiki Foundation",
+    ],
+    decisions: [
+      "Source notes markdown = trail canonique avant persistance Supabase.",
+      "Un fichier daily-logs/YYYY-MM-DD.md par jour.",
+    ],
+    blockers: ["#50 intent hardening toujours ouverte.", "Migration rate-limit : sign-off CEO."],
+    moneyInCents: 0,
+    moneyOutCents: 0,
+    topAgentId: "hermes-builder",
+    nextActions: ["Merger PR Memory Source Notes.", "Revoir #50 quand pret."],
+  },
   {
     date: "2026-05-22",
     summary:
