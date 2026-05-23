@@ -77,100 +77,100 @@ Si SOVRA croît : Trigger.dev self-host (~1.5 GB) + Qdrant (~1 GB) restent compa
 
 ## 3. Hardening sécurité (priorité 1, avant tout déploiement)
 
-### 3.1 SSH key-only (bannir password)
+Le hardening canonique est maintenant dans `scripts/vps-hardening/`. Il remplace les modifications manuelles directes de `sshd_config` pour éviter les erreurs de lockout.
 
-Sur ta machine locale (Mac/Linux), génère ou récupère ta clé publique :
+### 3.1 Snapshot et clé SSH publique
+
+Avant toute commande VPS, créer un snapshot manuel dans hPanel. Ensuite, depuis la machine locale :
 
 ```bash
-# Si pas déjà fait
-ssh-keygen -t ed25519 -C "michael@sovra"
-
-# Copier la clé publique sur le VPS
-ssh-copy-id -i ~/.ssh/id_ed25519.pub root@2.24.118.156
+ls -la ~/.ssh/id_ed25519.pub 2>/dev/null
+ssh-keygen -t ed25519 -C "michael@sovra-vps" -f ~/.ssh/id_ed25519
+scp ~/.ssh/id_ed25519.pub root@2.24.118.156:/root/michael-vps.pub
 ```
 
-Sur le VPS, durcir `sshd_config` :
+Ne jamais copier la clé privée `~/.ssh/id_ed25519`, ni coller une clé dans un fichier suivi par Git. Le script lit uniquement `/root/michael-vps.pub`.
+
+### 3.2 Phase A sûre
 
 ```bash
+cd scripts/vps-hardening
+scp 01-phase-a-safe.sh 02-phase-b-lock.sh root@2.24.118.156:/root/
 ssh root@2.24.118.156
-nano /etc/ssh/sshd_config
+chmod +x /root/01-phase-a-safe.sh /root/02-phase-b-lock.sh
+bash /root/01-phase-a-safe.sh /root/michael-vps.pub
 ```
 
-Modifier :
+Phase A :
+
+- crée `sovra` comme utilisateur non-root ;
+- ajoute `sovra` au groupe `sudo` ;
+- exige un mot de passe Unix pour `sudo` ;
+- supprime/sauvegarde toute ancienne règle `NOPASSWD` pour `sovra` ;
+- installe la clé publique dans `/home/sovra/.ssh/authorized_keys` ;
+- active UFW avec `22/tcp` uniquement ;
+- active fail2ban sur `sshd` ;
+- configure `unattended-upgrades` ;
+- crée `/opt/sovra` sans `.env`, secrets, compose ou stack applicative.
+
+### 3.3 Validation avant lock
+
+Garder la session root ouverte. Depuis une deuxième session locale :
+
+```bash
+ssh sovra@2.24.118.156
 ```
-PermitRootLogin prohibit-password
+
+Ne pas lancer Phase B tant que cette connexion ne fonctionne pas.
+
+### 3.4 Phase B lock SSH
+
+Depuis la session root encore ouverte :
+
+```bash
+bash /root/02-phase-b-lock.sh
+```
+
+Le script écrit `/etc/ssh/sshd_config.d/00-sovra-hardening.conf`, valide `sshd -t`, vérifie les valeurs effectives via `sshd -T`, puis recharge `sshd`.
+
+Politique finale :
+
+```
+PermitRootLogin no
 PasswordAuthentication no
+KbdInteractiveAuthentication no
 PubkeyAuthentication yes
 PermitEmptyPasswords no
 MaxAuthTries 3
-ClientAliveInterval 300
-ClientAliveCountMax 2
+X11Forwarding no
+AllowUsers sovra
 ```
 
-Recharger :
-```bash
-systemctl reload sshd
-```
-
-**Test:** ouvrir une 2e session SSH avant de fermer la 1re. Si la 2e échoue, restaurer `PasswordAuthentication yes` via la console Hostinger.
-
-### 3.2 Créer un utilisateur non-root
+### 3.5 Validation post-hardening
 
 ```bash
-adduser sovra
-usermod -aG sudo sovra
-mkdir -p /home/sovra/.ssh
-cp /root/.ssh/authorized_keys /home/sovra/.ssh/
-chown -R sovra:sovra /home/sovra/.ssh
-chmod 700 /home/sovra/.ssh
-chmod 600 /home/sovra/.ssh/authorized_keys
+ssh sovra@2.24.118.156
+ssh root@2.24.118.156
+ssh -o PreferredAuthentications=password root@2.24.118.156
 ```
 
-À partir d'ici, se connecter en `sovra@2.24.118.156` et utiliser `sudo`.
+Résultat attendu : `sovra` fonctionne par clé, `root` échoue, l'authentification par mot de passe échoue.
 
-### 3.3 UFW firewall
+Dans la session `sovra` :
 
 ```bash
-sudo apt update && sudo apt install -y ufw
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow 22/tcp     # SSH
-sudo ufw allow 80/tcp     # HTTP (Caddy redirect → 443)
-sudo ufw allow 443/tcp    # HTTPS
-sudo ufw enable
-sudo ufw status verbose
+sudo -l
+ufw status verbose
+fail2ban-client status sshd
+sshd -T -C user=sovra,host="$(hostname)",addr=127.0.0.1 | grep -E '^(permitrootlogin|passwordauthentication|kbdinteractiveauthentication|allowusers|maxauthtries|x11forwarding) '
+ls -ld /opt/sovra
 ```
 
-**Note:** Configurer également les firewall rules natives Hostinger via le hPanel (cf. section "Firewall rules" de l'overview VPS) en miroir d'UFW pour double protection.
+`sudo -l` doit demander le mot de passe `sovra`.
 
-### 3.4 Fail2ban (anti brute-force SSH)
+### 3.6 Firewall Hostinger
 
-```bash
-sudo apt install -y fail2ban
-sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-sudo nano /etc/fail2ban/jail.local
-```
-
-Section `[sshd]` :
-```
-enabled = true
-port = ssh
-maxretry = 3
-bantime = 3600
-findtime = 600
-```
-
-```bash
-sudo systemctl enable --now fail2ban
-sudo fail2ban-client status sshd
-```
-
-### 3.5 Mises à jour auto sécurité
-
-```bash
-sudo apt install -y unattended-upgrades
-sudo dpkg-reconfigure --priority=low unattended-upgrades
-```
+Configurer également le firewall natif Hostinger en miroir d'UFW : accepter `22/tcp`, bloquer le reste. `80/tcp` et `443/tcp` ne sont ouverts que dans le mandat de déploiement Caddy.
 
 ---
 
@@ -204,13 +204,14 @@ OneDrive est déjà connecté côté SOVRA HQ — réutiliser ce canal.
 
 ---
 
-## 5. Stack Docker (via Hostinger Docker Manager OU Compose manuel)
+## 5. Stack Docker (phase séparée, via Compose manuel)
+
+Cette section est une référence pour le prochain mandat. Elle ne fait pas partie du hardening actuel : ne pas ouvrir `80/443`, ne pas créer `.env`, ne pas générer de secrets applicatifs et ne pas lancer `docker compose` tant que le déploiement stack n'est pas explicitement mandaté.
 
 ### 5.1 Préparer le répertoire de travail
 
 ```bash
-sudo mkdir -p /opt/sovra
-sudo chown sovra:sovra /opt/sovra
+sudo install -d -o sovra -g sovra -m 750 /opt/sovra
 cd /opt/sovra
 mkdir -p {caddy,n8n,langfuse,postgres,backups}
 ```
@@ -376,14 +377,22 @@ Pointer 2 sous-domaines vers `2.24.118.156` :
 
 ---
 
-## 7. Validation post-déploiement
+## 7. Validation post-hardening et post-déploiement
 
-Checklist à passer avant d'utiliser le VPS pour SOVRA :
+Checklist hardening à passer avant toute stack :
 
 - [ ] SSH key-only fonctionne, password désactivé
-- [ ] UFW actif, seuls 22/80/443 ouverts
+- [ ] SSH root refusé
+- [ ] `sudo -l` demande le mot de passe `sovra`
+- [ ] UFW actif, seul `22/tcp` ouvert
 - [ ] Fail2ban actif et bannit après 3 essais
-- [ ] Backups Hostinger snapshots quotidiens configurés
+- [ ] Firewall Hostinger actif, miroir `22/tcp`
+- [ ] Backups Hostinger automatiques configurés
+- [ ] `/opt/sovra` existe, owned by `sovra:sovra`, sans `.env`
+
+Checklist stack future, seulement après mandat de déploiement :
+
+- [ ] UFW et firewall Hostinger ouvrent `80/443`
 - [ ] Backup Postgres externe (OneDrive) fonctionne (test manuel)
 - [ ] Docker Compose stack up: caddy, postgres, redis, n8n, langfuse
 - [ ] `https://n8n.<domain>` répond 200, TLS valide, n8n login screen
@@ -426,13 +435,14 @@ Vs Hetzner CX22 + Supabase Pro = ~$31/mo. **Économie nette: ~$30/mo** sur l'inf
 ## 10. Prochaines actions (séquence)
 
 1. **Snapshot Hostinger manuel** (avant tout changement)
-2. **Hardening SSH + UFW + fail2ban** (sections 3.1–3.4)
+2. **Hardening SSH + UFW + fail2ban** avec `scripts/vps-hardening/`
 3. **Activer backups Hostinger automatiques** (section 4.1)
-4. **Choisir 2 sous-domaines + configurer DNS** (section 6)
-5. **Déployer la stack Docker Compose** (section 5)
-6. **Valider checklist section 7**
-7. **Créer projet Langfuse "SOVRA" + clés API** → à câbler dans les wrappers LLM SOVRA
-8. **Première workflow n8n: Telegram approval bot** (gate GF7 de `OPERATIONAL_SAFEGUARDS_V1.md`)
+4. **Activer firewall Hostinger miroir `22/tcp`**
+5. **Valider checklist hardening section 7**
+6. **Mandat séparé seulement ensuite:** choisir 2 sous-domaines + configurer DNS (section 6)
+7. **Mandat séparé:** ouvrir `80/443`, générer secrets hors Git, déployer stack Docker Compose (section 5)
+8. **Mandat séparé:** créer projet Langfuse "SOVRA" + clés API à câbler dans les wrappers LLM SOVRA
+9. **Mandat séparé:** première workflow n8n: Telegram approval bot (gate GF7 de `OPERATIONAL_SAFEGUARDS_V1.md`)
 
 Estimation effort total: **3-5 heures** pour Michael ou agent build accompagné.
 

@@ -1,156 +1,199 @@
 #!/usr/bin/env bash
 #
-# SOVRA — VPS Hostinger Hardening — Phase B (LOCK SSH)
+# SOVRA - VPS Hostinger Hardening - Phase B (LOCK SSH)
 # ----------------------------------------------------------------
-# À exécuter UNIQUEMENT après avoir vérifié que tu peux te connecter
-# avec succès en sovra@VPS depuis une 2e session SSH avec ta clé.
+# Execute only after validating a separate ssh sovra@VPS session.
+# This script writes a dedicated sshd_config drop-in, validates syntax
+# and effective values, then reloads sshd.
 #
-# Ce script:
-#   1. Désactive PasswordAuthentication dans sshd_config
-#   2. Désactive PermitRootLogin (root SSH interdit)
-#   3. Durcit autres paramètres SSH (MaxAuthTries, ClientAlive)
-#   4. Recharge sshd
-#
-# IRRÉVERSIBLE sans accès console Hostinger (hPanel → Browser Terminal).
-# Si ça casse, tu peux toujours te connecter via le terminal web
-# Hostinger pour revert.
-#
-# Usage (en root sur le VPS, après validation Phase A):
+# Usage:
 #   bash /root/02-phase-b-lock.sh
 # ----------------------------------------------------------------
 
 set -euo pipefail
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+LOG_FILE="${LOG_FILE:-/var/log/sovra-hardening.log}"
+SOVRA_USER="${SOVRA_USER:-sovra}"
+MAIN_CONFIG="/etc/ssh/sshd_config"
+DROPIN_DIR="/etc/ssh/sshd_config.d"
+DROPIN_FILE="$DROPIN_DIR/00-sovra-hardening.conf"
+MAIN_BACKUP=""
+DROPIN_BACKUP=""
 
 log() {
-  echo -e "$(date '+%Y-%m-%d %H:%M:%S') [$1] $2" | tee -a /var/log/sovra-hardening.log
+  echo -e "$(date '+%Y-%m-%d %H:%M:%S') [$1] $2" | tee -a "$LOG_FILE"
 }
 
 step() {
-  echo -e "\n${YELLOW}═══ $1 ═══${NC}\n"
+  echo -e "\n${YELLOW}=== $1 ===${NC}\n" | tee -a "$LOG_FILE"
 }
 
 ok() {
-  echo -e "${GREEN}✓ $1${NC}"
+  echo -e "${GREEN}OK: $1${NC}" | tee -a "$LOG_FILE"
 }
 
 fail() {
-  echo -e "${RED}✗ $1${NC}"
+  echo -e "${RED}ERROR: $1${NC}" | tee -a "$LOG_FILE"
   exit 1
 }
 
-if [[ $EUID -ne 0 ]]; then
-  fail "Ce script doit être exécuté en tant que root."
-fi
+rollback() {
+  if [[ -n "$MAIN_BACKUP" && -f "$MAIN_BACKUP" ]]; then
+    cp "$MAIN_BACKUP" "$MAIN_CONFIG"
+  fi
 
-# === Pré-condition: vérifier que sovra existe et a une clé ===
-step "0/3 — Vérification pré-condition"
-if ! id sovra &>/dev/null; then
-  fail "Utilisateur 'sovra' n'existe pas. Lance d'abord 01-phase-a-safe.sh"
-fi
-
-SOVRA_HOME=$(getent passwd sovra | cut -d: -f6)
-if [[ ! -s "$SOVRA_HOME/.ssh/authorized_keys" ]]; then
-  fail "$SOVRA_HOME/.ssh/authorized_keys est vide ou manquant. Lance d'abord 01-phase-a-safe.sh"
-fi
-ok "Utilisateur 'sovra' présent avec clé SSH"
-
-# === Confirmation explicite ===
-echo
-echo -e "${YELLOW}⚠⚠⚠  ATTENTION  ⚠⚠⚠${NC}"
-echo
-echo "Ce script va:"
-echo "  • Désactiver le login SSH par mot de passe (key-only)"
-echo "  • Désactiver le login SSH en root"
-echo
-echo "Si tu n'as PAS vérifié que 'ssh sovra@$(hostname -I | awk '{print $1}')'"
-echo "fonctionne depuis ton Mac, NE CONTINUE PAS."
-echo
-read -p "Tape 'LOCK' (en majuscules) pour confirmer: " CONFIRM
-
-if [[ "$CONFIRM" != "LOCK" ]]; then
-  echo "Annulé. Aucun changement fait."
-  exit 0
-fi
-
-# === Step 1: Backup sshd_config ===
-step "1/3 — Backup sshd_config"
-BACKUP="/etc/ssh/sshd_config.bak-$(date +%Y%m%d-%H%M%S)"
-cp /etc/ssh/sshd_config "$BACKUP"
-ok "Backup créé: $BACKUP"
-
-# === Step 2: Durcir sshd_config ===
-step "2/3 — Durcissement sshd_config"
-
-# Fonction utilitaire pour set ou replace une directive
-set_directive() {
-  local key="$1"
-  local value="$2"
-  local file="/etc/ssh/sshd_config"
-
-  if grep -qE "^\s*#?\s*${key}\s+" "$file"; then
-    sed -i "s|^\s*#\?\s*${key}\s\+.*|${key} ${value}|" "$file"
+  if [[ -n "$DROPIN_BACKUP" && -f "$DROPIN_BACKUP" ]]; then
+    cp "$DROPIN_BACKUP" "$DROPIN_FILE"
   else
-    echo "${key} ${value}" >> "$file"
+    rm -f "$DROPIN_FILE"
+  fi
+
+  systemctl reload sshd || true
+}
+
+verify_effective_value() {
+  local key="$1"
+  local expected="$2"
+  local effective="$3"
+
+  if ! grep -qiE "^${key}[[:space:]]+${expected}$" <<< "$effective"; then
+    echo "$effective" | grep -iE "^${key}[[:space:]]+" | tee -a "$LOG_FILE" || true
+    rollback
+    fail "Effective sshd value mismatch: expected '${key} ${expected}'"
   fi
 }
 
-set_directive "PermitRootLogin" "no"
-set_directive "PasswordAuthentication" "no"
-set_directive "PubkeyAuthentication" "yes"
-set_directive "PermitEmptyPasswords" "no"
-set_directive "ChallengeResponseAuthentication" "no"
-set_directive "UsePAM" "yes"
-set_directive "MaxAuthTries" "3"
-set_directive "ClientAliveInterval" "300"
-set_directive "ClientAliveCountMax" "2"
-set_directive "X11Forwarding" "no"
-set_directive "AllowUsers" "sovra"
-
-ok "Directives appliquées:"
-grep -E "^(PermitRootLogin|PasswordAuthentication|PubkeyAuthentication|MaxAuthTries|AllowUsers)" /etc/ssh/sshd_config
-
-# === Step 3: Validate et reload ===
-step "3/3 — Validation syntaxe + reload sshd"
-if sshd -t; then
-  ok "Syntaxe sshd_config valide"
-  systemctl reload sshd
-  ok "sshd rechargé"
-else
-  echo -e "${RED}✗ Erreur syntaxe sshd_config — restauration du backup${NC}"
-  cp "$BACKUP" /etc/ssh/sshd_config
-  systemctl reload sshd
-  fail "Backup restauré. Aucun changement appliqué."
+if [[ $EUID -ne 0 ]]; then
+  fail "This script must be executed as root."
 fi
 
-# === Résumé final ===
-echo -e "\n${GREEN}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}  PHASE B TERMINÉE — VPS DURCI${NC}"
-echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}\n"
+touch "$LOG_FILE"
+chmod 600 "$LOG_FILE"
 
-cat <<EOF
+step "0/4 - Verify preconditions"
+if ! id "$SOVRA_USER" &>/dev/null; then
+  fail "User '$SOVRA_USER' does not exist. Run 01-phase-a-safe.sh first."
+fi
 
-ÉTAT FINAL DU VPS:
-  ✓ SSH key-only (password désactivé)
-  ✓ SSH root interdit
-  ✓ Seul l'utilisateur 'sovra' peut se connecter
-  ✓ MaxAuthTries=3, ClientAlive timeout activé
-  ✓ Backup sshd_config: $BACKUP
+SOVRA_HOME="$(getent passwd "$SOVRA_USER" | cut -d: -f6)"
+if [[ ! -s "$SOVRA_HOME/.ssh/authorized_keys" ]]; then
+  fail "$SOVRA_HOME/.ssh/authorized_keys is empty or missing. Run Phase A first."
+fi
 
-VALIDATION FINALE:
+PASSWORD_STATUS="$(passwd -S "$SOVRA_USER" 2>/dev/null | awk '{print $2}')"
+if [[ "$PASSWORD_STATUS" != "P" ]]; then
+  fail "User '$SOVRA_USER' has no active Unix password for sudo. Run Phase A and set one."
+fi
 
-  Depuis ton Mac, ouvre une 3e session SSH:
+if ! groups "$SOVRA_USER" | grep -qw sudo; then
+  fail "User '$SOVRA_USER' is not in the sudo group. Run Phase A first."
+fi
 
-    ssh sovra@$(hostname -I | awk '{print $1}')
+ok "User '$SOVRA_USER' has SSH key, sudo group membership, and sudo password"
 
-  Cette session doit:
-    ✓ Marcher avec ta clé
-    ✗ Refuser tout password (même si tu le tapes)
-    ✗ Refuser 'ssh root@...' désormais
+echo
+echo -e "${YELLOW}ATTENTION${NC}"
+echo
+echo "This script will:"
+echo "  - disable SSH password authentication"
+echo "  - disable root SSH login"
+echo "  - allow SSH login only for '$SOVRA_USER'"
+echo
+echo "If you have not validated 'ssh $SOVRA_USER@$(hostname -I | awk '{print $1}')' from a second terminal, stop now."
+echo
+read -r -p "Type 'LOCK' to confirm: " CONFIRM
 
-EN CAS DE PROBLÈME:
-  hPanel Hostinger → Browser Terminal → reste accessible en root
-  Restaurer: cp $BACKUP /etc/ssh/sshd_config && systemctl reload sshd
+if [[ "$CONFIRM" != "LOCK" ]]; then
+  echo "Cancelled. No changes made."
+  exit 0
+fi
+
+step "1/4 - Back up SSH configuration"
+MAIN_BACKUP="${MAIN_CONFIG}.bak-$(date +%Y%m%d-%H%M%S)"
+cp "$MAIN_CONFIG" "$MAIN_BACKUP"
+ok "Main sshd_config backup created: $MAIN_BACKUP"
+
+mkdir -p "$DROPIN_DIR"
+chmod 755 "$DROPIN_DIR"
+
+if [[ -f "$DROPIN_FILE" ]]; then
+  DROPIN_BACKUP="${DROPIN_FILE}.bak-$(date +%Y%m%d-%H%M%S)"
+  cp "$DROPIN_FILE" "$DROPIN_BACKUP"
+  ok "Existing drop-in backup created: $DROPIN_BACKUP"
+fi
+
+if ! grep -Eq '^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/\*\.conf' "$MAIN_CONFIG"; then
+  printf '\nInclude /etc/ssh/sshd_config.d/*.conf\n' >> "$MAIN_CONFIG"
+  ok "Added sshd_config.d include to $MAIN_CONFIG"
+fi
+
+step "2/4 - Write hardening drop-in"
+cat > "$DROPIN_FILE" <<EOF
+# Managed by SOVRA VPS hardening Phase B.
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+PermitEmptyPasswords no
+MaxAuthTries 3
+ClientAliveInterval 300
+ClientAliveCountMax 2
+X11Forwarding no
+AllowUsers $SOVRA_USER
+EOF
+
+chmod 644 "$DROPIN_FILE"
+ok "Drop-in written: $DROPIN_FILE"
+
+step "3/4 - Validate syntax and effective SSH policy"
+if ! sshd -t -f "$MAIN_CONFIG"; then
+  rollback
+  fail "sshd_config syntax validation failed; restored backups."
+fi
+ok "sshd_config syntax is valid"
+
+EFFECTIVE_CONFIG="$(sshd -T -f "$MAIN_CONFIG" -C "user=$SOVRA_USER,host=$(hostname),addr=127.0.0.1")"
+verify_effective_value "permitrootlogin" "no" "$EFFECTIVE_CONFIG"
+verify_effective_value "passwordauthentication" "no" "$EFFECTIVE_CONFIG"
+verify_effective_value "kbdinteractiveauthentication" "no" "$EFFECTIVE_CONFIG"
+verify_effective_value "pubkeyauthentication" "yes" "$EFFECTIVE_CONFIG"
+verify_effective_value "permitemptypasswords" "no" "$EFFECTIVE_CONFIG"
+verify_effective_value "maxauthtries" "3" "$EFFECTIVE_CONFIG"
+verify_effective_value "x11forwarding" "no" "$EFFECTIVE_CONFIG"
+verify_effective_value "allowusers" "$SOVRA_USER" "$EFFECTIVE_CONFIG"
+ok "Effective sshd policy verified"
+
+step "4/4 - Reload sshd"
+systemctl reload sshd
+ok "sshd reloaded"
+
+echo -e "\n${GREEN}===============================================================${NC}"
+echo -e "${GREEN}  PHASE B COMPLETED - VPS SSH IS HARDENED${NC}"
+echo -e "${GREEN}===============================================================${NC}\n"
+
+cat <<EOF | tee -a "$LOG_FILE"
+
+FINAL SSH STATE:
+  OK SSH key-only; password authentication disabled
+  OK root SSH login disabled
+  OK only '$SOVRA_USER' is allowed via SSH
+  OK MaxAuthTries=3, ClientAlive timeout enabled
+  OK Hardening drop-in: $DROPIN_FILE
+  OK Main backup: $MAIN_BACKUP
+
+FINAL VALIDATION FROM A THIRD TERMINAL:
+
+  ssh $SOVRA_USER@$(hostname -I | awk '{print $1}')                         # must work
+  ssh root@$(hostname -I | awk '{print $1}')                                # must fail
+  ssh -o PreferredAuthentications=password root@$(hostname -I | awk '{print $1}')  # must fail
+
+EMERGENCY RECOVERY:
+  hPanel Hostinger -> Browser terminal -> root shell
+  cp $MAIN_BACKUP $MAIN_CONFIG && rm -f $DROPIN_FILE && systemctl reload sshd
 
 EOF
