@@ -71,6 +71,34 @@ rollback() {
   reload_ssh_service || true
 }
 
+ensure_global_sshd_include() {
+  local include_line="Include /etc/ssh/sshd_config.d/*.conf"
+  local temp_config
+
+  if grep -Eq '^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/\*\.conf([[:space:]]|$)' "$MAIN_CONFIG"; then
+    log "INFO" "sshd_config.d include already present in $MAIN_CONFIG"
+    return
+  fi
+
+  temp_config="$(mktemp)"
+  awk -v include_line="$include_line" '
+    /^[[:space:]]*Match([[:space:]]|$)/ && inserted == 0 {
+      print include_line
+      inserted = 1
+    }
+    { print }
+    END {
+      if (inserted == 0) {
+        print ""
+        print include_line
+      }
+    }
+  ' "$MAIN_CONFIG" > "$temp_config"
+  cat "$temp_config" > "$MAIN_CONFIG"
+  rm -f "$temp_config"
+  ok "Added sshd_config.d include to global sshd_config scope"
+}
+
 verify_effective_value() {
   local key="$1"
   local expected="$2"
@@ -142,10 +170,7 @@ if [[ -f "$DROPIN_FILE" ]]; then
   ok "Existing drop-in backup created: $DROPIN_BACKUP"
 fi
 
-if ! grep -Eq '^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/\*\.conf' "$MAIN_CONFIG"; then
-  printf '\nInclude /etc/ssh/sshd_config.d/*.conf\n' >> "$MAIN_CONFIG"
-  ok "Added sshd_config.d include to $MAIN_CONFIG"
-fi
+ensure_global_sshd_include
 
 step "2/4 - Write hardening drop-in"
 cat > "$DROPIN_FILE" <<EOF
