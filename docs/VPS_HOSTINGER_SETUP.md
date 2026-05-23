@@ -109,6 +109,7 @@ Phase A :
 - supprime/sauvegarde toute ancienne règle `NOPASSWD` pour `sovra` ;
 - installe la clé publique dans `/home/sovra/.ssh/authorized_keys` ;
 - active UFW avec `22/tcp` uniquement ;
+- écrit la configuration fail2ban dans `/etc/fail2ban/jail.d/sovra-sshd.conf` ;
 - active fail2ban sur `sshd` ;
 - configure `unattended-upgrades` ;
 - crée `/opt/sovra` sans `.env`, secrets, compose ou stack applicative.
@@ -131,7 +132,7 @@ Depuis la session root encore ouverte :
 bash /root/02-phase-b-lock.sh
 ```
 
-Le script écrit `/etc/ssh/sshd_config.d/00-sovra-hardening.conf`, valide `sshd -t`, vérifie les valeurs effectives via `sshd -T`, puis recharge `sshd`.
+Le script écrit `/etc/ssh/sshd_config.d/00-sovra-hardening.conf`, valide `sshd -t`, vérifie les valeurs effectives via `sshd -T`, puis recharge le service SSH en tentant `sshd`, puis `ssh` si nécessaire.
 
 Politique finale :
 

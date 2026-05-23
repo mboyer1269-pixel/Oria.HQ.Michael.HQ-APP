@@ -91,6 +91,7 @@ Phase A:
 - supprime/sauvegarde toute ancienne regle `NOPASSWD` pour `sovra`;
 - installe la cle publique dans `/home/sovra/.ssh/authorized_keys`;
 - active UFW avec `22/tcp` uniquement;
+- ecrit la configuration fail2ban dans `/etc/fail2ban/jail.d/sovra-sshd.conf`;
 - active fail2ban;
 - prepare `/opt/sovra` sans `.env`, secrets, compose ou stack applicative.
 
@@ -148,7 +149,7 @@ Phase B:
 - garde `PubkeyAuthentication yes`;
 - limite SSH a `AllowUsers sovra`;
 - valide `sshd -t` puis les valeurs effectives via `sshd -T`;
-- recharge `sshd`.
+- recharge le service SSH en tentant `sshd`, puis `ssh` si necessaire.
 
 ---
 
@@ -201,7 +202,7 @@ Dans hPanel:
 | SSH password | Interdit |
 | UFW | Actif, inbound `22/tcp` uniquement |
 | Firewall Hostinger | Actif, miroir `22/tcp` |
-| fail2ban | Actif sur `sshd`, 3 essais, ban 1h |
+| fail2ban | Actif sur `sshd` via `/etc/fail2ban/jail.d/sovra-sshd.conf`, 3 essais, ban 1h |
 | Sudo `sovra` | Mot de passe requis |
 | `/opt/sovra` | Cree, owned by `sovra:sovra`, pas de secrets |
 | Stack Docker | Non deployee dans ce mandat |
@@ -219,7 +220,7 @@ Dans hPanel:
 ls /etc/ssh/sshd_config.bak-*
 cp /etc/ssh/sshd_config.bak-<derniere-date> /etc/ssh/sshd_config
 rm -f /etc/ssh/sshd_config.d/00-sovra-hardening.conf
-systemctl reload sshd
+systemctl reload sshd || systemctl reload ssh
 ```
 
 ### Option B - Restaurer le snapshot

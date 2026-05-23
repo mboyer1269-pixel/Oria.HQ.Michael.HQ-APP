@@ -4,7 +4,7 @@
 # ----------------------------------------------------------------
 # Execute only after validating a separate ssh sovra@VPS session.
 # This script writes a dedicated sshd_config drop-in, validates syntax
-# and effective values, then reloads sshd.
+# and effective values, then reloads the available SSH service.
 #
 # Usage:
 #   bash /root/02-phase-b-lock.sh
@@ -42,6 +42,21 @@ fail() {
   exit 1
 }
 
+reload_ssh_service() {
+  if systemctl reload sshd; then
+    log "INFO" "Reloaded SSH service via sshd"
+    return 0
+  fi
+
+  if systemctl reload ssh; then
+    log "INFO" "Reloaded SSH service via ssh"
+    return 0
+  fi
+
+  log "ERROR" "Failed to reload SSH service via both sshd and ssh"
+  return 1
+}
+
 rollback() {
   if [[ -n "$MAIN_BACKUP" && -f "$MAIN_BACKUP" ]]; then
     cp "$MAIN_BACKUP" "$MAIN_CONFIG"
@@ -53,7 +68,7 @@ rollback() {
     rm -f "$DROPIN_FILE"
   fi
 
-  systemctl reload sshd || true
+  reload_ssh_service || true
 }
 
 verify_effective_value() {
@@ -168,9 +183,13 @@ verify_effective_value "x11forwarding" "no" "$EFFECTIVE_CONFIG"
 verify_effective_value "allowusers" "$SOVRA_USER" "$EFFECTIVE_CONFIG"
 ok "Effective sshd policy verified"
 
-step "4/4 - Reload sshd"
-systemctl reload sshd
-ok "sshd reloaded"
+step "4/4 - Reload SSH service"
+if reload_ssh_service; then
+  ok "SSH service reloaded"
+else
+  rollback
+  fail "SSH service reload failed via both sshd and ssh; restored backups. Use hPanel Browser terminal if SSH is unavailable."
+fi
 
 echo -e "\n${GREEN}===============================================================${NC}"
 echo -e "${GREEN}  PHASE B COMPLETED - VPS SSH IS HARDENED${NC}"
@@ -194,6 +213,6 @@ FINAL VALIDATION FROM A THIRD TERMINAL:
 
 EMERGENCY RECOVERY:
   hPanel Hostinger -> Browser terminal -> root shell
-  cp $MAIN_BACKUP $MAIN_CONFIG && rm -f $DROPIN_FILE && systemctl reload sshd
+  Restore $MAIN_BACKUP to $MAIN_CONFIG, remove $DROPIN_FILE, then reload the available SSH service (sshd or ssh).
 
 EOF

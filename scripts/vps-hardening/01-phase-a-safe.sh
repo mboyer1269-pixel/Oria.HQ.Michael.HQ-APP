@@ -170,7 +170,12 @@ ok "UFW enabled; only inbound 22/tcp is open for this hardening phase"
 ufw status verbose | tee -a "$LOG_FILE"
 
 step "6/7 - Configure fail2ban"
-cat > /etc/fail2ban/jail.local <<'EOF'
+FAIL2BAN_DROPIN_DIR="/etc/fail2ban/jail.d"
+FAIL2BAN_DROPIN_FILE="$FAIL2BAN_DROPIN_DIR/sovra-sshd.conf"
+
+mkdir -p "$FAIL2BAN_DROPIN_DIR"
+
+cat > "$FAIL2BAN_DROPIN_FILE" <<'EOF'
 [DEFAULT]
 bantime  = 3600
 findtime = 600
@@ -183,6 +188,8 @@ port     = ssh
 maxretry = 3
 bantime  = 3600
 EOF
+chmod 644 "$FAIL2BAN_DROPIN_FILE"
+ok "fail2ban sshd drop-in written: $FAIL2BAN_DROPIN_FILE"
 
 systemctl enable fail2ban >/dev/null 2>&1
 systemctl restart fail2ban
