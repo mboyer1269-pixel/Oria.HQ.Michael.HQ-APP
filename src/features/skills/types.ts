@@ -9,7 +9,8 @@ export type SkillCategory =
   | "customer-ops"
   | "legal-admin"
   | "dev-code"
-  | "automation";
+  | "automation"
+  | "memory";
 
 export type SkillStatus =
   | "active"    // wired and callable today

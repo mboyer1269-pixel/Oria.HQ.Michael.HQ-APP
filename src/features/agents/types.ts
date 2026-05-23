@@ -6,14 +6,19 @@ export type AgentStatus =
   | "locked"    // requires unlock gate before activation
   | "planned";  // not yet built
 
+/** Canonical agent roles. "closer" kept (agent frozen, not deleted). */
 export type AgentRoleId =
   | "orchestrator"
-  | "scout"
-  | "builder"
-  | "closer"
   | "operator"
+  | "scout"
   | "auditor"
-  | "money";
+  | "memory"
+  | "money"
+  | "builder"
+  | "closer";
+
+/** Venture context an agent is scoped to. */
+export type AgentVenture = "hq" | "suivia" | "mcl" | "personal" | "global";
 
 export type AgentProfile = {
   id: string;
@@ -23,8 +28,14 @@ export type AgentProfile = {
   description: string;
   status: AgentStatus;
   autonomyLevel: AutonomyLevel;
-  /** Skills this agent can execute (referenced in Skills Catalog, PR #31). */
+  /** Skills this agent can execute (must resolve in the Skills Catalog). */
   skillIds: string[];
   /** Hard constraints — things this agent must never do. */
   constraints: string[];
+  /** Venture contexts where this agent operates. */
+  ventures: AgentVenture[];
+  /** MANUAL estimate, labelled as such. Never self-declared by the agent. */
+  monthlyRevenuePotential: number;
+  /** Human review cadence. */
+  reviewCadence: string;
 };

@@ -196,22 +196,6 @@ export type AgentVenture = "hq" | "suivia" | "mcl" | "personal" | "global";
 /** Runtime status of a Hermes fleet agent (separate from AgentProfile status). */
 export type AgentStatus = "active" | "idle" | "needs_review" | "planned";
 
-/** Full profile of an agent in the Hermes fleet. */
-export type HermesAgent = {
-  id: string;
-  name: string;
-  niche: string;
-  objective: string;
-  status: AgentStatus;
-  approvalMode: AgentApprovalMode;
-  ventures: AgentVenture[];
-  allowedActions: string[];
-  evidenceRequired: string[];
-  weeklyHoursSaved: number;
-  monthlyRevenuePotential: number;
-  reviewCadence: string;
-};
-
 /** Aggregate summary of the Hermes agent fleet. */
 export type HermesFleetSummary = {
   totalAgents: number;

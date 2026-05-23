@@ -139,7 +139,7 @@ export const recentDailyLogs: DailyLog[] = [
     blockers: ["#50 intent hardening toujours ouverte.", "Migration rate-limit : sign-off CEO."],
     moneyInCents: 0,
     moneyOutCents: 0,
-    topAgentId: "hermes-builder",
+    topAgentId: "builder",
     nextActions: ["Merger PR Memory Source Notes.", "Revoir #50 quand pret."],
   },
   {
@@ -154,7 +154,7 @@ export const recentDailyLogs: DailyLog[] = [
     blockers: ["Migration rate-limit en attente de sign-off CEO."],
     moneyInCents: 0,
     moneyOutCents: 1180,
-    topAgentId: "hermes-auditor",
+    topAgentId: "sentinel",
     nextActions: ["Lancer la fondation Memory Wiki.", "Reviewer rate limit + intent hardening."],
   },
   {
@@ -166,7 +166,7 @@ export const recentDailyLogs: DailyLog[] = [
     blockers: ["Lots G/H/I (cron, AI, DB) en attente de mandat explicite."],
     moneyInCents: 0,
     moneyOutCents: 640,
-    topAgentId: "hermes-builder",
+    topAgentId: "builder",
     nextActions: ["Préparer la fondation types pour le Lot C."],
   },
   {
@@ -178,7 +178,7 @@ export const recentDailyLogs: DailyLog[] = [
     blockers: ["Scope contamination à éviter — fichier par fichier."],
     moneyInCents: 0,
     moneyOutCents: 410,
-    topAgentId: "hermes-scout",
+    topAgentId: "orion",
     nextActions: ["Lander le Lot A (docs) en premier."],
   },
 ];
@@ -204,8 +204,8 @@ export const moneyboard: Moneyboard = {
 
 export const agentLeaderboard: AgentScore[] = [
   {
-    agentId: "hermes-auditor",
-    agentName: "Hermes Auditor",
+    agentId: "sentinel",
+    agentName: "Sentinel",
     score: 91,
     outputsAccepted: 4,
     revenueInfluencedCents: 0,
@@ -215,8 +215,8 @@ export const agentLeaderboard: AgentScore[] = [
     notes: "Protège la holding : fail-fast prod + revue des gates. Score élevé sans cash direct.",
   },
   {
-    agentId: "hermes-scout",
-    agentName: "Hermes Scout",
+    agentId: "orion",
+    agentName: "Orion",
     score: 87,
     outputsAccepted: 8,
     revenueInfluencedCents: 120000,
@@ -226,8 +226,8 @@ export const agentLeaderboard: AgentScore[] = [
     notes: "Collecte de signaux marché — coût faible, impact pipeline élevé.",
   },
   {
-    agentId: "hermes-closer",
-    agentName: "Hermes Closer",
+    agentId: "closer",
+    agentName: "Closer",
     score: 81,
     outputsAccepted: 5,
     revenueInfluencedCents: 49700,
@@ -237,8 +237,8 @@ export const agentLeaderboard: AgentScore[] = [
     notes: "Outreach et closing supervisés — jamais d'envoi sans approbation.",
   },
   {
-    agentId: "hermes-builder",
-    agentName: "Hermes Builder",
+    agentId: "builder",
+    agentName: "Builder",
     score: 72,
     outputsAccepted: 6,
     revenueInfluencedCents: 0,
@@ -248,8 +248,8 @@ export const agentLeaderboard: AgentScore[] = [
     notes: "Construction interne — un incident de rework noté ce cycle.",
   },
   {
-    agentId: "hermes-operator",
-    agentName: "Hermes Operator",
+    agentId: "hermes",
+    agentName: "Hermès",
     score: 68,
     outputsAccepted: 3,
     revenueInfluencedCents: 0,
@@ -259,8 +259,8 @@ export const agentLeaderboard: AgentScore[] = [
     notes: "Opérations terrain — volume faible ce cycle.",
   },
   {
-    agentId: "hermes-money",
-    agentName: "Hermes Money",
+    agentId: "finops",
+    agentName: "FinOps",
     score: 64,
     outputsAccepted: 2,
     revenueInfluencedCents: 0,

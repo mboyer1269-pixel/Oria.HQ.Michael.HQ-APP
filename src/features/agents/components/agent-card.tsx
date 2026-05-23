@@ -4,6 +4,7 @@ import {
   Hammer,
   Lock,
   Megaphone,
+  NotebookPen,
   SearchCheck,
   Settings2,
   ShieldAlert,
@@ -18,6 +19,7 @@ const ROLE_ICONS: Record<AgentRoleId, React.ComponentType<{ className?: string }
   closer: Megaphone,
   operator: Settings2,
   auditor: ShieldAlert,
+  memory: NotebookPen,
   money: TrendingUp,
 };
 

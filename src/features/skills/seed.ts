@@ -179,6 +179,38 @@ export const skillsCatalog: SkillProfile[] = [
     assignedRoles: ["auditor"],
     outputConstraint: "Sign-off requis — ne peut pas s'auto-valider",
   },
+
+  // ── Memory (Scribe) ────────────────────────────────────────────────────────
+  {
+    id: "memory.save",
+    label: "Memory Save",
+    category: "memory",
+    description: "Sauvegarde une décision ou un fait important dans la mémoire du workspace.",
+    status: "planned",
+    autonomyLevel: 1,
+    assignedRoles: ["memory"],
+    outputConstraint: "Mémoire interne du workspace — aucune fuite cross-workspace",
+  },
+  {
+    id: "daily.log",
+    label: "Daily Log",
+    category: "memory",
+    description: "Compile le journal quotidien des décisions, actions et apprentissages.",
+    status: "planned",
+    autonomyLevel: 1,
+    assignedRoles: ["memory"],
+    outputConstraint: "Journal interne — aucune publication externe",
+  },
+  {
+    id: "summary.generate",
+    label: "Summary Generate",
+    category: "memory",
+    description: "Résume une mission ou une conversation en points actionnables.",
+    status: "planned",
+    autonomyLevel: 1,
+    assignedRoles: ["memory"],
+    outputConstraint: "Résumé interne — ne ré-écrit jamais le ledger",
+  },
 ];
 
 export const CATEGORY_LABELS: Record<SkillProfile["category"], string> = {
@@ -190,4 +222,5 @@ export const CATEGORY_LABELS: Record<SkillProfile["category"], string> = {
   "legal-admin": "Legal / Admin",
   "dev-code": "Dev / Code",
   automation: "Automation",
+  memory: "Memory",
 };
