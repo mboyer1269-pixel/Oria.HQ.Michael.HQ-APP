@@ -152,3 +152,27 @@ export function verifyMissionApprovalRecord(
 
   return { verified: true, record };
 }
+
+// ---------------------------------------------------------------------------
+// deriveApprovalConfirmedFromRecord
+//
+// Single entry point for setting approvalConfirmed in executor paths.
+// Callers must never pass a raw boolean from clients — derive it here from
+// a persisted MissionApprovalRecord (via MissionApprovalRecordRepository).
+// ---------------------------------------------------------------------------
+
+export type DeriveApprovalConfirmedResult = {
+  approvalConfirmed: boolean;
+  verification: MissionApprovalVerificationResult;
+};
+
+export function deriveApprovalConfirmedFromRecord(
+  mission: Mission,
+  record: MissionApprovalRecord | null | undefined,
+): DeriveApprovalConfirmedResult {
+  const verification = verifyMissionApprovalRecord(mission, record);
+  return {
+    approvalConfirmed: verification.verified,
+    verification,
+  };
+}

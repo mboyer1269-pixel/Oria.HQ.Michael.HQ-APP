@@ -41,7 +41,7 @@ export type MissionExecutorPlan = {
 export type MissionExecutorInput = {
   mission: Mission;
   mode: MissionExecutorMode;
-  /** Must be true to proceed when evaluateMissionApproval().blocksExecution is true. */
+  /** Must be true when evaluateMissionApproval().blocksExecution is true. Server-side only — use deriveApprovalConfirmedFromRecord(), never accept from clients. */
   approvalConfirmed?: boolean;
 };
 

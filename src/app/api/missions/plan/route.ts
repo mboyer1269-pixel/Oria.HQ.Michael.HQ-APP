@@ -3,6 +3,7 @@ import { requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import {
   buildDryRunMissionExecutionPlan,
+  deriveApprovalConfirmedFromRecord,
   listMissionsForWorkspace,
 } from "@/server/missions";
 import { checkExecutionAttempt, recordAttempt } from "@/server/missions/execution-attempt-store";
@@ -116,10 +117,9 @@ export async function POST(request: NextRequest) {
   recordAttempt(attemptInput);
 
   // approvalConfirmed is NEVER accepted from the caller.
-  // It is derived server-side from a verified MissionApprovalRecord.
-  // Until mission_approval_records persistence is live (PR #19C sign-off required),
-  // this is always false — any mission requiring approval will return allowed: false.
-  const approvalConfirmed = false;
+  // Derive it from a verified MissionApprovalRecord (persistence: PR #19C).
+  // Until mission_approval_records is live, record lookup is null → always false.
+  const { approvalConfirmed } = deriveApprovalConfirmedFromRecord(mission, null);
 
   // Build dry-run plan — no execution, no writes, no AI calls, no ledger.record()
   let result: ReturnType<typeof buildDryRunMissionExecutionPlan>;

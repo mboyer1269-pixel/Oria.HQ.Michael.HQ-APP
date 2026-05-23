@@ -27,7 +27,7 @@ export type {
 } from "./executor-contract";
 export { resolveMissionFromText } from "./mission-resolver";
 export type { MissionResolveResult } from "./mission-resolver";
-export { createMissionApprovalRecordDraft, verifyMissionApprovalRecord } from "./approval-record";
+export { createMissionApprovalRecordDraft, verifyMissionApprovalRecord, deriveApprovalConfirmedFromRecord } from "./approval-record";
 export type {
   MissionApprovalRecordStatus,
   MissionApprovalScope,
@@ -35,7 +35,9 @@ export type {
   MissionApprovalRecordInput,
   MissionApprovalVerificationResult,
   MissionApprovalVerificationFailReason,
+  DeriveApprovalConfirmedResult,
 } from "./approval-record";
+export type { MissionApprovalRecordRepository } from "./approval-record-repository";
 export {
   createIdempotencyRecord,
   checkIdempotencyRecord,
