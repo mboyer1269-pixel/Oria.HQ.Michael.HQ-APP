@@ -151,3 +151,44 @@ test("classification matches the skill surface", () => {
   assert.equal(classifyExecutionRisk({ sideEffects: "reversible-write", canWriteDB: true, canTriggerExternal: false }), "effectful");
   assert.equal(classifyExecutionRisk({ sideEffects: "irreversible-external", canWriteDB: false, canTriggerExternal: true }), "external");
 });
+
+test("clientApprovalConfirmed from the client is rejected", () => {
+  const decision = canPrepareExecution(
+    baseInput({
+      clientApprovalConfirmed: true,
+    }),
+  );
+
+  assert.equal(decision.allowed, false);
+  assert.equal(decision.code, "APPROVAL_SOURCE_NOT_TRUSTED");
+});
+
+test("autonomy level 0 is rejected", () => {
+  const decision = canPrepareExecution(
+    baseInput({
+      autonomyLevel: 0,
+    }),
+  );
+
+  assert.equal(decision.allowed, false);
+  assert.equal(decision.code, "AUTONOMY_LEVEL_TOO_HIGH");
+});
+
+test("mission assigned to a different agent is rejected", () => {
+  const decision = canPrepareExecution(
+    baseInput({
+      mission: {
+        id: "mission-1",
+        workspaceId: "workspace-1",
+        title: "Cross-agent mission",
+        status: "draft",
+        autonomyLevel: 1,
+        riskLevel: "low",
+        assignedAgentId: "finops",
+      },
+    }),
+  );
+
+  assert.equal(decision.allowed, false);
+  assert.equal(decision.code, "UNSUPPORTED_SKILL");
+});
