@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
-// PR9 — Auth-focused API tests.
-// In the test environment (no Supabase env vars), requireOwnerApiSession()
-// returns 401 for all requests. These tests verify that auth guard is in
-// place on all arena routes — no unauthenticated access is permitted.
+// PR10.1 — Arena API authenticated path tests.
+// The existing 401 coverage stays in place; these tests add a success-path
+// proof with an authenticated owner and the active workspace context.
 
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -31,7 +30,9 @@ const candidateIdRoutePath = path.join(
 const { POST: evaluatePOST } = await jiti.import(evaluateRoutePath);
 const { GET: verdictsGET } = await jiti.import(verdictsRoutePath);
 const { GET: verdictByIdGET } = await jiti.import(candidateIdRoutePath);
-
+const { DEFAULT_WORKSPACE_SLUG } = await jiti.import(
+  path.join(projectRoot, "src/core/workspaces/registry.ts"),
+);
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -57,6 +58,84 @@ function makeCandidate(overrides = {}) {
     ...overrides,
   };
 }
+
+function allowOwnerApiSession() {
+  globalThis.__ownerApiSessionTestResult = null;
+}
+
+function clearOwnerApiSession() {
+  delete globalThis.__ownerApiSessionTestResult;
+}
+
+let arenaServiceHarness = null;
+
+function createArenaServiceHarness() {
+  const store = new Map();
+  const calls = [];
+
+  const service = {
+    async evaluateAndStore(candidate) {
+      calls.push(candidate);
+      const record = {
+        candidateId: candidate.id,
+        verdict: {
+          candidateId: candidate.id,
+          kind: candidate.kind,
+          decision: "promising",
+          score: 80,
+          netValueCents: 45000,
+          roiMultiple: 9,
+          executable: true,
+          reasons: ["Mock verdict."],
+        },
+        storedAt: "2026-05-24T18:00:00.000Z",
+        expiresAt: null,
+      };
+
+      if (!store.has(candidate.workspaceId)) {
+        store.set(candidate.workspaceId, new Map());
+      }
+      store.get(candidate.workspaceId).set(candidate.id, record);
+      return record;
+    },
+    async getVerdict(candidateId, workspaceId) {
+      if (workspaceId) {
+        return store.get(workspaceId)?.get(candidateId) ?? null;
+      }
+
+      for (const workspaceRecords of store.values()) {
+        const record = workspaceRecords.get(candidateId);
+        if (record) return record;
+      }
+
+      return null;
+    },
+    async listVerdicts(workspaceId) {
+      return [...(store.get(workspaceId)?.values() ?? [])];
+    },
+  };
+
+  globalThis.__arenaEvaluationServiceTestOverride = service;
+
+  return {
+    calls,
+    service,
+    seed(workspaceId, record) {
+      if (!store.has(workspaceId)) {
+        store.set(workspaceId, new Map());
+      }
+      store.get(workspaceId).set(record.candidateId, record);
+    },
+  };
+}
+
+test.afterEach(() => {
+  clearOwnerApiSession();
+  if (arenaServiceHarness) {
+    delete globalThis.__arenaEvaluationServiceTestOverride;
+    arenaServiceHarness = null;
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Test 1: POST /api/arena/evaluate returns 401 for unauthenticated request
@@ -99,7 +178,39 @@ test("POST /api/arena/evaluate with empty body returns 401 for unauthenticated r
 });
 
 // ---------------------------------------------------------------------------
-// Test 4: GET /api/arena/verdicts returns 401 for unauthenticated request
+// Test 4: POST /api/arena/evaluate succeeds for authenticated owner
+// ---------------------------------------------------------------------------
+
+test("POST /api/arena/evaluate returns 200 for authenticated owner and overwrites client workspaceId", async () => {
+  arenaServiceHarness = createArenaServiceHarness();
+  allowOwnerApiSession();
+  const candidateId = "auth-success-candidate";
+
+  const res = await evaluatePOST(
+    makeEvaluateRequest({
+      candidate: makeCandidate({
+        id: candidateId,
+        workspaceId: "client-workspace",
+      }),
+    }),
+  );
+
+  assert.equal(res.status, 200);
+
+  const body = await res.json();
+  assert.equal(body.candidateId, candidateId);
+  assert.ok(body.verdict);
+  assert.equal(arenaServiceHarness.calls[0].workspaceId, DEFAULT_WORKSPACE_SLUG);
+
+  const stored = await verdictByIdGET(
+    new Request(`http://localhost/api/arena/verdicts/${candidateId}`),
+    { params: Promise.resolve({ candidateId }) },
+  );
+  assert.equal(stored.status, 200);
+});
+
+// ---------------------------------------------------------------------------
+// Test 5: GET /api/arena/verdicts returns 401 for unauthenticated request
 // ---------------------------------------------------------------------------
 
 test("GET /api/arena/verdicts returns 401 for unauthenticated request", async () => {
@@ -112,7 +223,58 @@ test("GET /api/arena/verdicts returns 401 for unauthenticated request", async ()
 });
 
 // ---------------------------------------------------------------------------
-// Test 5: GET /api/arena/verdicts 401 body must not leak verdict data
+// Test 6: GET /api/arena/verdicts succeeds for authenticated owner
+// ---------------------------------------------------------------------------
+
+test("GET /api/arena/verdicts returns 200 and is workspace-scoped for authenticated owner", async () => {
+  arenaServiceHarness = createArenaServiceHarness();
+  allowOwnerApiSession();
+  const currentCandidateId = "auth-list-candidate";
+  const otherWorkspaceCandidateId = "other-workspace-candidate";
+
+  arenaServiceHarness.seed(DEFAULT_WORKSPACE_SLUG, {
+    candidateId: currentCandidateId,
+    verdict: {
+      candidateId: currentCandidateId,
+      kind: "mission",
+      decision: "promising",
+      score: 80,
+      netValueCents: 45000,
+      roiMultiple: 9,
+      executable: true,
+      reasons: ["Score: 80."],
+    },
+    storedAt: new Date().toISOString(),
+    expiresAt: null,
+  });
+
+  arenaServiceHarness.seed("other-workspace", {
+    candidateId: otherWorkspaceCandidateId,
+    verdict: {
+      candidateId: otherWorkspaceCandidateId,
+      kind: "mission",
+      decision: "promising",
+      score: 75,
+      netValueCents: 40000,
+      roiMultiple: 8,
+      executable: true,
+      reasons: ["Score: 75."],
+    },
+    storedAt: new Date().toISOString(),
+    expiresAt: null,
+  });
+
+  const res = await verdictsGET(new Request("http://localhost/api/arena/verdicts"));
+  assert.equal(res.status, 200);
+
+  const body = await res.json();
+  assert.equal(body.total, 1);
+  assert.equal(body.verdicts.length, 1);
+  assert.equal(body.verdicts[0].candidateId, currentCandidateId);
+});
+
+// ---------------------------------------------------------------------------
+// Test 7: GET /api/arena/verdicts 401 body must not leak verdict data
 // ---------------------------------------------------------------------------
 
 test("GET /api/arena/verdicts 401 response does not expose verdict data", async () => {
@@ -126,7 +288,59 @@ test("GET /api/arena/verdicts 401 response does not expose verdict data", async 
 });
 
 // ---------------------------------------------------------------------------
-// Test 6: GET /api/arena/verdicts/[candidateId] returns 401 for unknown candidateId
+// Test 8: GET /api/arena/verdicts/[candidateId] succeeds for authenticated owner
+// ---------------------------------------------------------------------------
+
+test("GET /api/arena/verdicts/[candidateId] returns 200 for authenticated owner and hides other workspaces", async () => {
+  arenaServiceHarness = createArenaServiceHarness();
+  allowOwnerApiSession();
+  const candidateId = "auth-get-candidate";
+
+  arenaServiceHarness.seed("other-workspace", {
+    candidateId,
+    verdict: {
+      candidateId,
+      kind: "mission",
+      decision: "promising",
+      score: 78,
+      netValueCents: 42000,
+      roiMultiple: 8.4,
+      executable: true,
+      reasons: ["Score: 78."],
+    },
+    storedAt: new Date().toISOString(),
+    expiresAt: null,
+  });
+
+  arenaServiceHarness.seed(DEFAULT_WORKSPACE_SLUG, {
+    candidateId,
+    verdict: {
+      candidateId,
+      kind: "mission",
+      decision: "promising",
+      score: 81,
+      netValueCents: 46000,
+      roiMultiple: 9.2,
+      executable: true,
+      reasons: ["Score: 81."],
+    },
+    storedAt: new Date().toISOString(),
+    expiresAt: null,
+  });
+
+  const res = await verdictByIdGET(
+    new Request(`http://localhost/api/arena/verdicts/${candidateId}`),
+    { params: Promise.resolve({ candidateId }) },
+  );
+
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.candidateId, candidateId);
+  assert.equal(body.verdict.score, 81);
+});
+
+// ---------------------------------------------------------------------------
+// Test 9: GET /api/arena/verdicts/[candidateId] returns 401 for unknown candidateId
 // ---------------------------------------------------------------------------
 
 test("GET /api/arena/verdicts/[candidateId] returns 401 for unauthenticated request", async () => {
@@ -140,7 +354,7 @@ test("GET /api/arena/verdicts/[candidateId] returns 401 for unauthenticated requ
 });
 
 // ---------------------------------------------------------------------------
-// Test 7: GET /api/arena/verdicts/[candidateId] 401 must not leak verdict data
+// Test 10: GET /api/arena/verdicts/[candidateId] 401 must not leak verdict data
 // ---------------------------------------------------------------------------
 
 test("GET /api/arena/verdicts/[candidateId] 401 response does not expose verdict data", async () => {
@@ -155,7 +369,7 @@ test("GET /api/arena/verdicts/[candidateId] 401 response does not expose verdict
 });
 
 // ---------------------------------------------------------------------------
-// Test 8: all three routes return JSON content-type on 401
+// Test 11: all three routes return JSON content-type on 401
 // ---------------------------------------------------------------------------
 
 test("all arena routes return application/json content-type on 401", async () => {
