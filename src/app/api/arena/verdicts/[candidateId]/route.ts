@@ -3,6 +3,16 @@ import { requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { defaultArenaEvaluationService } from "@/server/arena/arena-evaluation-service";
 
+type ArenaEvaluationService = typeof defaultArenaEvaluationService;
+
+function getArenaEvaluationService(): ArenaEvaluationService {
+  const globals = globalThis as typeof globalThis & {
+    __arenaEvaluationServiceTestOverride?: ArenaEvaluationService;
+  };
+
+  return globals.__arenaEvaluationServiceTestOverride ?? defaultArenaEvaluationService;
+}
+
 // GET /api/arena/verdicts/[candidateId]
 // Returns a specific verdict scoped to the authenticated owner's active workspace.
 export async function GET(
@@ -19,7 +29,7 @@ export async function GET(
     return NextResponse.json({ error: "candidateId is required." }, { status: 400 });
   }
 
-  const record = await defaultArenaEvaluationService.getVerdict(candidateId, activeWorkspace.id);
+  const record = await getArenaEvaluationService().getVerdict(candidateId, activeWorkspace.id);
 
   if (!record) {
     return NextResponse.json(

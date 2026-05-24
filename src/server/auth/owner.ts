@@ -75,6 +75,14 @@ export async function requireOwnerAccess(nextPath = "/hq"): Promise<OwnerAccess>
 
 /** Pour les Route Handlers : même barrière que le HQ, sans redirect HTML. */
 export async function requireOwnerApiSession(): Promise<NextResponse | null> {
+  const globals = globalThis as typeof globalThis & {
+    __ownerApiSessionTestResult?: NextResponse | null;
+  };
+
+  if (Object.prototype.hasOwnProperty.call(globals, "__ownerApiSessionTestResult")) {
+    return globals.__ownerApiSessionTestResult ?? null;
+  }
+
   const user = await getCurrentAuthUser();
 
   if (!user) {

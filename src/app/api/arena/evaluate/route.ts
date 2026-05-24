@@ -4,6 +4,16 @@ import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { defaultArenaEvaluationService } from "@/server/arena/arena-evaluation-service";
 import { arenaEvaluateRequestSchema } from "@/server/arena/arena-api-schema";
 
+type ArenaEvaluationService = typeof defaultArenaEvaluationService;
+
+function getArenaEvaluationService(): ArenaEvaluationService {
+  const globals = globalThis as typeof globalThis & {
+    __arenaEvaluationServiceTestOverride?: ArenaEvaluationService;
+  };
+
+  return globals.__arenaEvaluationServiceTestOverride ?? defaultArenaEvaluationService;
+}
+
 // POST /api/arena/evaluate
 // Evaluates a candidate, stores the verdict in memory, and persists to DB.
 // workspaceId is always resolved server-side — client-supplied value is overridden.
@@ -24,7 +34,7 @@ export async function POST(request: Request) {
   }
 
   const candidate = { ...parsed.data.candidate, workspaceId: activeWorkspace.id };
-  const record = await defaultArenaEvaluationService.evaluateAndStore(
+  const record = await getArenaEvaluationService().evaluateAndStore(
     candidate,
     parsed.data.context,
   );
