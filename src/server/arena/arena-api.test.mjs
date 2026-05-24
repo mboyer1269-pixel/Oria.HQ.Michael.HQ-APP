@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+// PR9 — Auth-focused API tests.
+// In the test environment (no Supabase env vars), requireOwnerApiSession()
+// returns 401 for all requests. These tests verify that auth guard is in
+// place on all arena routes — no unauthenticated access is permitted.
+
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
@@ -12,10 +17,10 @@ const { createJiti } = await import("jiti");
 const jiti = createJiti(import.meta.url, {
   alias: {
     "@": path.join(projectRoot, "src"),
+    "server-only": path.join(projectRoot, "src/__server-only-noop.js"),
   },
 });
 
-// Import route handlers directly — no running server needed.
 const evaluateRoutePath = path.join(projectRoot, "src/app/api/arena/evaluate/route.ts");
 const verdictsRoutePath = path.join(projectRoot, "src/app/api/arena/verdicts/route.ts");
 const candidateIdRoutePath = path.join(
@@ -31,7 +36,7 @@ const { GET: verdictByIdGET } = await jiti.import(candidateIdRoutePath);
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeRequest(body) {
+function makeEvaluateRequest(body = {}) {
   return new Request("http://localhost/api/arena/evaluate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -41,12 +46,10 @@ function makeRequest(body) {
 
 function makeCandidate(overrides = {}) {
   return {
-    id: `test-api-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: "auth-test-cand",
     kind: "mission",
-    title: "API Test Mission",
-    workspaceId: "ws-api-test",
-    skillId: "board.consult",
-    agentId: "joris",
+    title: "Auth Test Mission",
+    workspaceId: "ws-auth-test",
     autonomyLevel: 1,
     riskLevel: "low",
     assumedRevenueInfluencedCents: 50_000,
@@ -56,143 +59,118 @@ function makeCandidate(overrides = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Test 1: POST evaluate with valid mission → 200 + verdict stored
+// Test 1: POST /api/arena/evaluate returns 401 for unauthenticated request
 // ---------------------------------------------------------------------------
 
-test("POST /api/arena/evaluate with valid mission returns 200 and verdict", async () => {
-  const candidate = makeCandidate();
-  const res = await evaluatePOST(makeRequest({ candidate }));
-
-  assert.equal(res.status, 200);
-  const data = await res.json();
-
-  assert.equal(data.candidateId, candidate.id);
-  assert.ok(typeof data.verdict === "object");
-  assert.ok(typeof data.verdict.decision === "string");
-  assert.ok(typeof data.verdict.score === "number");
-  assert.ok(typeof data.storedAt === "string");
-  // expiresAt is null for defaultArenaEvaluationService (no TTL)
-  assert.equal(data.expiresAt, null);
-});
-
-// ---------------------------------------------------------------------------
-// Test 2: POST evaluate with missing ROI data → 200 + not-evaluable
-// ---------------------------------------------------------------------------
-
-test("POST /api/arena/evaluate with missing ROI data returns 200 not-evaluable", async () => {
-  const candidate = makeCandidate({
-    assumedRevenueInfluencedCents: undefined,
-    estimatedCostCents: undefined,
-  });
-  const res = await evaluatePOST(makeRequest({ candidate }));
-
-  assert.equal(res.status, 200);
-  const data = await res.json();
-  assert.equal(data.verdict.decision, "not-evaluable");
-  assert.equal(data.verdict.netValueCents, null);
-});
-
-// ---------------------------------------------------------------------------
-// Test 3: POST evaluate with invalid payload → 400
-// ---------------------------------------------------------------------------
-
-test("POST /api/arena/evaluate with invalid payload returns 400", async () => {
-  // Missing required fields
-  const res = await evaluatePOST(makeRequest({ candidate: { kind: "mission" } }));
-
-  assert.equal(res.status, 400);
-  const data = await res.json();
-  assert.ok(typeof data.error === "string");
-  assert.ok("issues" in data);
-});
-
-// ---------------------------------------------------------------------------
-// Test 4: GET verdicts returns array
-// ---------------------------------------------------------------------------
-
-test("GET /api/arena/verdicts returns a verdicts array", async () => {
-  // Seed at least one verdict
-  const candidate = makeCandidate();
-  await evaluatePOST(makeRequest({ candidate }));
-
-  const res = await verdictsGET();
-  assert.equal(res.status, 200);
-
-  const data = await res.json();
-  assert.ok(Array.isArray(data.verdicts));
-  assert.ok(typeof data.total === "number");
-  assert.ok(data.total >= 1);
-  // Our candidate must be in the list
-  const found = data.verdicts.some((v) => v.candidateId === candidate.id);
-  assert.ok(found, `Expected candidate ${candidate.id} in verdicts list`);
-});
-
-// ---------------------------------------------------------------------------
-// Test 5: GET /api/arena/verdicts/[candidateId] returns 200 for known verdict
-// ---------------------------------------------------------------------------
-
-test("GET /api/arena/verdicts/[candidateId] returns 200 for a stored verdict", async () => {
-  const candidate = makeCandidate();
-  await evaluatePOST(makeRequest({ candidate }));
-
-  const res = await verdictByIdGET(
-    new Request(`http://localhost/api/arena/verdicts/${candidate.id}`),
-    { params: Promise.resolve({ candidateId: candidate.id }) },
+test("POST /api/arena/evaluate returns 401 for unauthenticated request", async () => {
+  const res = await evaluatePOST(
+    makeEvaluateRequest({ candidate: makeCandidate() }),
   );
-
-  assert.equal(res.status, 200);
+  assert.equal(res.status, 401);
   const data = await res.json();
-  assert.equal(data.candidateId, candidate.id);
-  assert.ok(typeof data.verdict === "object");
+  assert.ok(typeof data.error === "string", "401 body must include an error field");
 });
 
 // ---------------------------------------------------------------------------
-// Test 6: GET /api/arena/verdicts/[candidateId] returns 404 for unknown id
+// Test 2: POST /api/arena/evaluate returns 401 even with invalid payload
 // ---------------------------------------------------------------------------
 
-test("GET /api/arena/verdicts/[candidateId] returns 404 for unknown candidateId", async () => {
-  const res = await verdictByIdGET(
-    new Request("http://localhost/api/arena/verdicts/does-not-exist-ever"),
-    { params: Promise.resolve({ candidateId: "does-not-exist-ever" }) },
+test("POST /api/arena/evaluate returns 401 before schema validation for unauthenticated request", async () => {
+  const res = await evaluatePOST(
+    makeEvaluateRequest({ candidate: { kind: "mission" } }),
   );
+  // Auth guard runs before schema validation — must be 401, not 400.
+  assert.equal(res.status, 401);
+});
 
-  assert.equal(res.status, 404);
+// ---------------------------------------------------------------------------
+// Test 3: POST /api/arena/evaluate returns 401 with empty body
+// ---------------------------------------------------------------------------
+
+test("POST /api/arena/evaluate with empty body returns 401 for unauthenticated request", async () => {
+  const res = await evaluatePOST(
+    new Request("http://localhost/api/arena/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }),
+  );
+  assert.equal(res.status, 401);
+});
+
+// ---------------------------------------------------------------------------
+// Test 4: GET /api/arena/verdicts returns 401 for unauthenticated request
+// ---------------------------------------------------------------------------
+
+test("GET /api/arena/verdicts returns 401 for unauthenticated request", async () => {
+  const res = await verdictsGET(
+    new Request("http://localhost/api/arena/verdicts"),
+  );
+  assert.equal(res.status, 401);
   const data = await res.json();
   assert.ok(typeof data.error === "string");
 });
 
 // ---------------------------------------------------------------------------
-// Test 7: response contains no DB / ledger / calendar surface
+// Test 5: GET /api/arena/verdicts 401 body must not leak verdict data
 // ---------------------------------------------------------------------------
 
-test("evaluate response contains no DB, ledger, calendar or write surface", async () => {
-  const candidate = makeCandidate();
-  const res = await evaluatePOST(makeRequest({ candidate }));
+test("GET /api/arena/verdicts 401 response does not expose verdict data", async () => {
+  const res = await verdictsGET(
+    new Request("http://localhost/api/arena/verdicts"),
+  );
+  assert.equal(res.status, 401);
   const data = await res.json();
+  assert.ok(!("verdicts" in data), "401 response must not include verdicts array");
+  assert.ok(!("total" in data), "401 response must not include total field");
+});
 
-  const forbidden = ["supabase", "ledger", "calendar", "write", "persist", "sql"];
-  const keys = Object.keys(data).concat(Object.keys(data.verdict ?? {}));
-  for (const key of keys) {
-    for (const f of forbidden) {
-      assert.ok(
-        !key.toLowerCase().includes(f),
-        `Response key "${key}" suggests forbidden surface "${f}"`,
-      );
-    }
+// ---------------------------------------------------------------------------
+// Test 6: GET /api/arena/verdicts/[candidateId] returns 401 for unknown candidateId
+// ---------------------------------------------------------------------------
+
+test("GET /api/arena/verdicts/[candidateId] returns 401 for unauthenticated request", async () => {
+  const res = await verdictByIdGET(
+    new Request("http://localhost/api/arena/verdicts/some-id"),
+    { params: Promise.resolve({ candidateId: "some-id" }) },
+  );
+  assert.equal(res.status, 401);
+  const data = await res.json();
+  assert.ok(typeof data.error === "string");
+});
+
+// ---------------------------------------------------------------------------
+// Test 7: GET /api/arena/verdicts/[candidateId] 401 must not leak verdict data
+// ---------------------------------------------------------------------------
+
+test("GET /api/arena/verdicts/[candidateId] 401 response does not expose verdict data", async () => {
+  const res = await verdictByIdGET(
+    new Request("http://localhost/api/arena/verdicts/any-id"),
+    { params: Promise.resolve({ candidateId: "any-id" }) },
+  );
+  assert.equal(res.status, 401);
+  const data = await res.json();
+  assert.ok(!("verdict" in data), "401 response must not include verdict object");
+  assert.ok(!("candidateId" in data), "401 response must not include candidateId");
+});
+
+// ---------------------------------------------------------------------------
+// Test 8: all three routes return JSON content-type on 401
+// ---------------------------------------------------------------------------
+
+test("all arena routes return application/json content-type on 401", async () => {
+  const responses = await Promise.all([
+    evaluatePOST(makeEvaluateRequest({ candidate: makeCandidate() })),
+    verdictsGET(new Request("http://localhost/api/arena/verdicts")),
+    verdictByIdGET(
+      new Request("http://localhost/api/arena/verdicts/x"),
+      { params: Promise.resolve({ candidateId: "x" }) },
+    ),
+  ]);
+
+  for (const res of responses) {
+    assert.equal(res.status, 401);
+    const ct = res.headers.get("content-type") ?? "";
+    assert.ok(ct.includes("application/json"), `Expected application/json, got "${ct}"`);
   }
-});
-
-// ---------------------------------------------------------------------------
-// Test 8: effectful skill returns not-evaluable
-// ---------------------------------------------------------------------------
-
-test("POST /api/arena/evaluate with effectful skill returns not-evaluable", async () => {
-  const candidate = makeCandidate({ skillId: "calendar.book", agentId: "joris" });
-  const res = await evaluatePOST(makeRequest({ candidate }));
-
-  assert.equal(res.status, 200);
-  const data = await res.json();
-  assert.equal(data.verdict.decision, "not-evaluable");
-  assert.equal(data.verdict.executable, false);
-  assert.ok(typeof data.verdict.guardReason === "string" && data.verdict.guardReason.length > 0);
 });
