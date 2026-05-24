@@ -30,4 +30,12 @@ export const arenaEvaluateRequestSchema = z.object({
   context: arenaEvaluationContextSchema.optional(),
 });
 
+export const arenaBatchRequestSchema = z.object({
+  candidates: z.array(arenaCandidateSchema).min(1, "candidates must not be empty").max(100),
+  context: arenaEvaluationContextSchema.optional(),
+  storeResults: z.boolean().optional().default(true),
+  limit: z.number().int().min(1).max(100).optional().default(25),
+});
+
 export type ArenaEvaluateRequest = z.infer<typeof arenaEvaluateRequestSchema>;
+export type ArenaBatchRequest = z.infer<typeof arenaBatchRequestSchema>;

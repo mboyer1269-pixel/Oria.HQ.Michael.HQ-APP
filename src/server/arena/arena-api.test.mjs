@@ -26,13 +26,18 @@ const candidateIdRoutePath = path.join(
   projectRoot,
   "src/app/api/arena/verdicts/[candidateId]/route.ts",
 );
+const batchRoutePath = path.join(projectRoot, "src/app/api/arena/batch/route.ts");
 
 const { POST: evaluatePOST } = await jiti.import(evaluateRoutePath);
 const { GET: verdictsGET } = await jiti.import(verdictsRoutePath);
 const { GET: verdictByIdGET } = await jiti.import(candidateIdRoutePath);
+const { POST: batchPOST } = await jiti.import(batchRoutePath);
 const { DEFAULT_WORKSPACE_SLUG } = await jiti.import(
   path.join(projectRoot, "src/core/workspaces/registry.ts"),
 );
+const {
+  clearLocalArenaVerdictStore,
+} = await jiti.import(path.join(projectRoot, "src/server/arena/arena-verdict-repository.ts"));
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -57,6 +62,41 @@ function makeCandidate(overrides = {}) {
     estimatedCostCents: 5_000,
     ...overrides,
   };
+}
+
+function makeBatchRequest(body = {}) {
+  return new Request("http://localhost/api/arena/batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function makeBatchCandidates() {
+  return [
+    makeCandidate({
+      id: "batch-high",
+      title: "Batch High",
+      assumedRevenueInfluencedCents: 120_000,
+      estimatedCostCents: 10_000,
+    }),
+    makeCandidate({
+      id: "batch-mid",
+      title: "Batch Mid",
+      kind: "idea",
+      assumedRevenueInfluencedCents: 70_000,
+      estimatedCostCents: 35_000,
+    }),
+    makeCandidate({
+      id: "batch-effectful",
+      title: "Batch Effectful",
+      kind: "agent-action",
+      skillId: "calendar.book",
+      agentId: "joris",
+      assumedRevenueInfluencedCents: 80_000,
+      estimatedCostCents: 10_000,
+    }),
+  ];
 }
 
 function allowOwnerApiSession() {
@@ -131,6 +171,7 @@ function createArenaServiceHarness() {
 
 test.afterEach(() => {
   clearOwnerApiSession();
+  clearLocalArenaVerdictStore();
   if (arenaServiceHarness) {
     delete globalThis.__arenaEvaluationServiceTestOverride;
     arenaServiceHarness = null;
@@ -387,4 +428,127 @@ test("all arena routes return application/json content-type on 401", async () =>
     const ct = res.headers.get("content-type") ?? "";
     assert.ok(ct.includes("application/json"), `Expected application/json, got "${ct}"`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Test 12: POST /api/arena/batch returns 401 for unauthenticated request
+// ---------------------------------------------------------------------------
+
+test("POST /api/arena/batch returns 401 for unauthenticated request", async () => {
+  const res = await batchPOST(makeBatchRequest({ candidates: makeBatchCandidates(), limit: 3 }));
+  assert.equal(res.status, 401);
+});
+
+// ---------------------------------------------------------------------------
+// Test 13: POST /api/arena/batch returns 200 for authenticated owner
+// ---------------------------------------------------------------------------
+
+test("POST /api/arena/batch returns 200 for authenticated owner and stores results by default", async () => {
+  arenaServiceHarness = createArenaServiceHarness();
+  allowOwnerApiSession();
+
+  const candidates = [
+    ...makeBatchCandidates(),
+    makeCandidate({
+      id: "batch-extra",
+      title: "Batch Extra",
+      assumedRevenueInfluencedCents: 140_000,
+      estimatedCostCents: 12_000,
+    }),
+  ];
+
+  const res = await batchPOST(makeBatchRequest({ candidates, limit: 3 }));
+  assert.equal(res.status, 200);
+
+  const body = await res.json();
+  assert.equal(body.total, candidates.length);
+  assert.equal(body.verdicts.length, 3);
+  assert.equal(body.topCandidateId, body.verdicts[0].candidateId);
+  assert.equal(body.stored, true);
+  assert.equal(arenaServiceHarness.calls.length, candidates.length);
+  assert.equal(arenaServiceHarness.calls[0].workspaceId, DEFAULT_WORKSPACE_SLUG);
+
+  const verdictsRes = await verdictsGET(new Request("http://localhost/api/arena/verdicts"));
+  const verdictsBody = await verdictsRes.json();
+  assert.equal(verdictsRes.status, 200);
+  assert.equal(verdictsBody.total, candidates.length);
+  assert.equal(verdictsBody.verdicts[0].candidateId, body.topCandidateId);
+});
+
+// ---------------------------------------------------------------------------
+// Test 14: POST /api/arena/batch rejects invalid payloads
+// ---------------------------------------------------------------------------
+
+test("POST /api/arena/batch rejects empty and oversized payloads", async () => {
+  allowOwnerApiSession();
+
+  const emptyRes = await batchPOST(makeBatchRequest({ candidates: [] }));
+  assert.equal(emptyRes.status, 400);
+
+  const oversized = Array.from({ length: 101 }, (_, index) =>
+    makeCandidate({ id: `oversized-${index}`, title: `Oversized ${index}` }),
+  );
+  const oversizedRes = await batchPOST(makeBatchRequest({ candidates: oversized }));
+  assert.equal(oversizedRes.status, 400);
+});
+
+// ---------------------------------------------------------------------------
+// Test 15: storeResults=false does not persist
+// ---------------------------------------------------------------------------
+
+test("POST /api/arena/batch with storeResults=false returns 200 without persisting", async () => {
+  arenaServiceHarness = createArenaServiceHarness();
+  allowOwnerApiSession();
+
+  const res = await batchPOST(
+    makeBatchRequest({
+      candidates: makeBatchCandidates(),
+      storeResults: false,
+      limit: 3,
+    }),
+  );
+
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.stored, false);
+  assert.equal(arenaServiceHarness.calls.length, 0);
+
+  const verdictsRes = await verdictsGET(new Request("http://localhost/api/arena/verdicts"));
+  const verdictsBody = await verdictsRes.json();
+  assert.equal(verdictsRes.status, 200);
+  assert.equal(verdictsBody.total, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Test 16: workspaceId client is overwritten by server workspace
+// ---------------------------------------------------------------------------
+
+test("POST /api/arena/batch overwrites client workspaceId and keeps workspaces isolated", async () => {
+  arenaServiceHarness = createArenaServiceHarness();
+  allowOwnerApiSession();
+
+  const res = await batchPOST(
+    makeBatchRequest({
+      candidates: [
+        makeCandidate({
+          id: "batch-workspace",
+          workspaceId: "client-workspace",
+          assumedRevenueInfluencedCents: 110_000,
+          estimatedCostCents: 5_000,
+        }),
+      ],
+      limit: 1,
+    }),
+  );
+
+  assert.equal(res.status, 200);
+  assert.equal(arenaServiceHarness.calls[0].workspaceId, DEFAULT_WORKSPACE_SLUG);
+
+  const verdictRes = await verdictByIdGET(
+    new Request("http://localhost/api/arena/verdicts/batch-workspace"),
+    { params: Promise.resolve({ candidateId: "batch-workspace" }) },
+  );
+  assert.equal(verdictRes.status, 200);
+  const verdictBody = await verdictRes.json();
+  assert.equal(verdictBody.candidateId, "batch-workspace");
 });
