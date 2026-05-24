@@ -50,6 +50,14 @@ type CandidateValueEstimate = {
 };
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+// Hard ceiling on caller-supplied revenue to catch obviously invalid inputs.
+// $10M (1,000,000,000 cents) — revise upward in PR7.2 if needed.
+export const REVENUE_SANITY_CEILING_CENTS = 1_000_000_000;
+
+// ---------------------------------------------------------------------------
 // Value estimation
 // ---------------------------------------------------------------------------
 
@@ -71,7 +79,37 @@ export function estimateCandidateValue(candidate: ArenaCandidate): CandidateValu
 }
 
 // ---------------------------------------------------------------------------
-// Scoring heuristic (POC — hardcoded, no LLM, no external call)
+// Financial input validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns an error string if any provided financial input is out of bounds,
+ * or null when inputs are valid (or absent — absence is handled separately).
+ */
+function validateFinancialInputs(candidate: ArenaCandidate): string | null {
+  const revenue = candidate.assumedRevenueInfluencedCents;
+  const cost = candidate.estimatedCostCents;
+
+  if (revenue !== undefined && revenue !== null) {
+    if (revenue < 0) {
+      return "assumedRevenueInfluencedCents must be non-negative.";
+    }
+    if (revenue > REVENUE_SANITY_CEILING_CENTS) {
+      return `assumedRevenueInfluencedCents exceeds sanity ceiling (${REVENUE_SANITY_CEILING_CENTS} cents = $10M).`;
+    }
+  }
+
+  if (cost !== undefined && cost !== null) {
+    if (cost < 0) {
+      return "estimatedCostCents must be non-negative.";
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Scoring heuristic (hardcoded, no LLM, no external call)
 // ---------------------------------------------------------------------------
 
 function computeScore(candidate: ArenaCandidate, roiMultiple: number | null): number {
@@ -106,6 +144,12 @@ function computeScore(candidate: ArenaCandidate, roiMultiple: number | null): nu
   return Math.max(0, Math.min(100, score));
 }
 
+function decisionFromScore(score: number): ArenaDecision {
+  if (score >= 70) return "promising";
+  if (score >= 45) return "marginal";
+  return "reject";
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -129,28 +173,10 @@ function makeNotEvaluable(
 }
 
 // ---------------------------------------------------------------------------
-// Core evaluation (pure — no writes, no external calls, no LLM)
+// Kind-specific evaluators (pure — no writes, no external calls, no LLM)
 // ---------------------------------------------------------------------------
 
-/**
- * Evaluates a single candidate and returns an ArenaVerdict.
- *
- * Pure function. Uses the PR6 execution guard to check feasibility.
- * Does not execute, persist, write, or call any external system.
- */
-export function evaluateCandidate(
-  candidate: ArenaCandidate,
-  context: ArenaEvaluationContext = {},
-): ArenaVerdict {
-  // POC: only "mission" kind is fully implemented
-  if (candidate.kind !== "mission") {
-    return makeNotEvaluable(
-      candidate,
-      `Kind "${candidate.kind}" is not evaluated in this POC — mission only.`,
-    );
-  }
-
-  // Require financial inputs before calling guard
+function evaluateIdea(candidate: ArenaCandidate): ArenaVerdict {
   const { netValueCents, roiMultiple } = estimateCandidateValue(candidate);
   if (netValueCents === null) {
     return makeNotEvaluable(
@@ -159,7 +185,156 @@ export function evaluateCandidate(
     );
   }
 
-  // Build and invoke the execution guard
+  if (netValueCents < 0) {
+    return {
+      candidateId: candidate.id,
+      kind: candidate.kind,
+      decision: "reject",
+      score: 0,
+      netValueCents,
+      roiMultiple,
+      executable: false,
+      reasons: [`Net value negative (${netValueCents} cents) — cost exceeds assumed revenue.`],
+    };
+  }
+
+  const score = computeScore(candidate, roiMultiple);
+  const autonomyLevel = candidate.autonomyLevel ?? 1;
+
+  return {
+    candidateId: candidate.id,
+    kind: candidate.kind,
+    decision: decisionFromScore(score),
+    score,
+    netValueCents,
+    roiMultiple,
+    executable: false, // ideas are not directly executable — no skill/agent assigned
+    reasons: [
+      `Score: ${score}. ROI multiple: ${roiMultiple !== null ? roiMultiple.toFixed(2) : "N/A (zero cost)"}.`,
+      `Net value: ${netValueCents} cents.`,
+      `Risk: ${candidate.riskLevel ?? "unspecified"}. Autonomy: ${autonomyLevel}.`,
+      "Idea — not directly executable. Assign a skill and agent to make it executable.",
+    ],
+  };
+}
+
+function evaluateAgentAction(
+  candidate: ArenaCandidate,
+  context: ArenaEvaluationContext,
+): ArenaVerdict {
+  if (!candidate.skillId || !candidate.agentId) {
+    return makeNotEvaluable(
+      candidate,
+      "agent-action requires both skillId and agentId to be evaluated.",
+    );
+  }
+
+  const { netValueCents, roiMultiple } = estimateCandidateValue(candidate);
+  if (netValueCents === null) {
+    return makeNotEvaluable(
+      candidate,
+      "Missing assumedRevenueInfluencedCents or estimatedCostCents — ROI cannot be computed.",
+    );
+  }
+
+  const autonomyLevel = candidate.autonomyLevel ?? 1;
+  const guardInput: ExecutionGuardInput = {
+    skillId: candidate.skillId,
+    agentId: candidate.agentId,
+    requestedMode: context.requestedMode ?? "dry-run",
+    autonomyLevel,
+  };
+
+  let guardDecision;
+  try {
+    guardDecision = canPrepareExecution(guardInput);
+  } catch {
+    return makeNotEvaluable(candidate, "Guard threw unexpectedly — evaluation blocked.");
+  }
+
+  if (!guardDecision.allowed) {
+    return makeNotEvaluable(
+      candidate,
+      `Guard denied: ${guardDecision.code} — ${guardDecision.reason}`,
+      guardDecision.reason,
+    );
+  }
+
+  const plan = buildDryRunExecutionPlan(guardInput);
+
+  if (netValueCents < 0) {
+    return {
+      candidateId: candidate.id,
+      kind: candidate.kind,
+      decision: "reject",
+      score: 0,
+      netValueCents,
+      roiMultiple,
+      executable: true,
+      reasons: [
+        `Net value negative (${netValueCents} cents) — cost exceeds assumed revenue.`,
+        `Guard: ${plan.summary}`,
+      ],
+    };
+  }
+
+  const score = computeScore(candidate, roiMultiple);
+
+  return {
+    candidateId: candidate.id,
+    kind: candidate.kind,
+    decision: decisionFromScore(score),
+    score,
+    netValueCents,
+    roiMultiple,
+    executable: true,
+    reasons: [
+      `Score: ${score}. ROI multiple: ${roiMultiple !== null ? roiMultiple.toFixed(2) : "N/A (zero cost)"}.`,
+      `Net value: ${netValueCents} cents.`,
+      `Risk: ${candidate.riskLevel ?? "unspecified"}. Autonomy: ${autonomyLevel}.`,
+      `Guard: ${plan.summary}`,
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Core evaluation (pure — no writes, no external calls, no LLM)
+// ---------------------------------------------------------------------------
+
+/**
+ * Evaluates a single candidate and returns an ArenaVerdict.
+ *
+ * Pure function. Uses the PR6 execution guard to check feasibility for
+ * mission and agent-action kinds. Does not execute, persist, write, or
+ * call any external system.
+ */
+export function evaluateCandidate(
+  candidate: ArenaCandidate,
+  context: ArenaEvaluationContext = {},
+): ArenaVerdict {
+  // Sanity-check financial inputs before kind-specific logic
+  const sanityError = validateFinancialInputs(candidate);
+  if (sanityError) {
+    return makeNotEvaluable(candidate, sanityError);
+  }
+
+  if (candidate.kind === "idea") {
+    return evaluateIdea(candidate);
+  }
+
+  if (candidate.kind === "agent-action") {
+    return evaluateAgentAction(candidate, context);
+  }
+
+  // mission path
+  const { netValueCents, roiMultiple } = estimateCandidateValue(candidate);
+  if (netValueCents === null) {
+    return makeNotEvaluable(
+      candidate,
+      "Missing assumedRevenueInfluencedCents or estimatedCostCents — ROI cannot be computed.",
+    );
+  }
+
   const autonomyLevel = candidate.autonomyLevel ?? 1;
   const guardInput: ExecutionGuardInput = {
     skillId: candidate.skillId ?? "mission.plan",
@@ -183,10 +358,8 @@ export function evaluateCandidate(
     );
   }
 
-  // Obtain the dry-run plan for context (no side effects)
   const plan = buildDryRunExecutionPlan(guardInput);
 
-  // Reject on negative net value (cost exceeds assumed revenue)
   if (netValueCents < 0) {
     return {
       candidateId: candidate.id,
@@ -205,15 +378,6 @@ export function evaluateCandidate(
 
   const score = computeScore(candidate, roiMultiple);
 
-  let decision: ArenaDecision;
-  if (score >= 70) {
-    decision = "promising";
-  } else if (score >= 45) {
-    decision = "marginal";
-  } else {
-    decision = "reject";
-  }
-
   const reasons: string[] = [
     `Score: ${score}. ROI multiple: ${roiMultiple !== null ? roiMultiple.toFixed(2) : "N/A (zero cost)"}.`,
     `Net value: ${netValueCents} cents.`,
@@ -224,7 +388,7 @@ export function evaluateCandidate(
   return {
     candidateId: candidate.id,
     kind: candidate.kind,
-    decision,
+    decision: decisionFromScore(score),
     score,
     netValueCents,
     roiMultiple,

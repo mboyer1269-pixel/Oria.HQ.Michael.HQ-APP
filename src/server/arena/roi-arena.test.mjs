@@ -16,7 +16,12 @@ const jiti = createJiti(import.meta.url, {
 });
 
 const arenaPath = path.join(projectRoot, "src/server/arena/roi-arena.ts");
-const { evaluateCandidate, rankCandidates, estimateCandidateValue } = await jiti.import(arenaPath);
+const {
+  evaluateCandidate,
+  rankCandidates,
+  estimateCandidateValue,
+  REVENUE_SANITY_CEILING_CENTS,
+} = await jiti.import(arenaPath);
 
 function missionCandidate(overrides = {}) {
   return {
@@ -211,4 +216,146 @@ test("estimateCandidateValue returns null when revenue or cost is absent", () =>
   });
   assert.equal(r3.netValueCents, 1500);
   assert.equal(r3.roiMultiple, 4);
+});
+
+// ── PR7.1 — idea kind ────────────────────────────────────────────────────────
+
+function ideaCandidate(overrides = {}) {
+  return {
+    id: "idea-1",
+    kind: "idea",
+    title: "Test Idea",
+    workspaceId: "ws-1",
+    riskLevel: "low",
+    autonomyLevel: 1,
+    assumedRevenueInfluencedCents: 50_000,
+    estimatedCostCents: 5_000,
+    ...overrides,
+  };
+}
+
+test("idea with positive net value above threshold is promising", () => {
+  const verdict = evaluateCandidate(ideaCandidate());
+  assert.equal(verdict.kind, "idea");
+  assert.equal(verdict.decision, "promising");
+  assert.ok(verdict.score >= 70, `expected score >= 70, got ${verdict.score}`);
+  assert.ok(verdict.netValueCents > 0);
+  // ideas are not directly executable — no guard check
+  assert.equal(verdict.executable, false);
+});
+
+test("idea with cost greater than revenue is rejected", () => {
+  const verdict = evaluateCandidate(
+    ideaCandidate({ assumedRevenueInfluencedCents: 1_000, estimatedCostCents: 2_000 }),
+  );
+  assert.equal(verdict.decision, "reject");
+  assert.ok(verdict.netValueCents < 0);
+  assert.equal(verdict.executable, false);
+});
+
+test("idea missing ROI data returns not-evaluable", () => {
+  const verdict = evaluateCandidate(ideaCandidate({ assumedRevenueInfluencedCents: undefined }));
+  assert.equal(verdict.decision, "not-evaluable");
+  assert.equal(verdict.netValueCents, null);
+});
+
+test("idea high risk has lower score than low risk identical idea", () => {
+  const low = evaluateCandidate(ideaCandidate({ riskLevel: "low" }));
+  const high = evaluateCandidate(ideaCandidate({ riskLevel: "high" }));
+  assert.ok(low.score > high.score, `low(${low.score}) must beat high(${high.score})`);
+});
+
+// ── PR7.1 — agent-action kind ─────────────────────────────────────────────
+
+function agentActionCandidate(overrides = {}) {
+  return {
+    id: "action-1",
+    kind: "agent-action",
+    title: "Test Agent Action",
+    workspaceId: "ws-1",
+    skillId: "board.consult",
+    agentId: "joris",
+    autonomyLevel: 1,
+    riskLevel: "low",
+    assumedRevenueInfluencedCents: 50_000,
+    estimatedCostCents: 5_000,
+    ...overrides,
+  };
+}
+
+test("agent-action with read-only skill and valid ROI is evaluable", () => {
+  const verdict = evaluateCandidate(agentActionCandidate());
+  assert.equal(verdict.kind, "agent-action");
+  assert.notEqual(verdict.decision, "not-evaluable");
+  assert.equal(verdict.executable, true);
+  assert.ok(verdict.netValueCents > 0);
+});
+
+test("agent-action with effectful skill is not-evaluable", () => {
+  const verdict = evaluateCandidate(
+    agentActionCandidate({ skillId: "calendar.book", agentId: "joris" }),
+  );
+  assert.equal(verdict.decision, "not-evaluable");
+  assert.equal(verdict.executable, false);
+  assert.ok(typeof verdict.guardReason === "string" && verdict.guardReason.length > 0);
+});
+
+test("agent-action missing skillId returns not-evaluable", () => {
+  const verdict = evaluateCandidate(agentActionCandidate({ skillId: undefined }));
+  assert.equal(verdict.decision, "not-evaluable");
+  assert.equal(verdict.executable, false);
+});
+
+test("agent-action missing agentId returns not-evaluable", () => {
+  const verdict = evaluateCandidate(agentActionCandidate({ agentId: undefined }));
+  assert.equal(verdict.decision, "not-evaluable");
+  assert.equal(verdict.executable, false);
+});
+
+// ── PR7.1 — revenue / cost validation ────────────────────────────────────
+
+test("negative revenue returns not-evaluable", () => {
+  const verdict = evaluateCandidate(
+    missionCandidate({ assumedRevenueInfluencedCents: -1_000 }),
+  );
+  assert.equal(verdict.decision, "not-evaluable");
+  assert.ok(verdict.reasons[0].includes("non-negative"));
+});
+
+test("revenue above sanity ceiling returns not-evaluable", () => {
+  const verdict = evaluateCandidate(
+    missionCandidate({ assumedRevenueInfluencedCents: REVENUE_SANITY_CEILING_CENTS + 1 }),
+  );
+  assert.equal(verdict.decision, "not-evaluable");
+  assert.ok(verdict.reasons[0].includes("sanity ceiling"));
+});
+
+test("negative cost returns not-evaluable", () => {
+  const verdict = evaluateCandidate(
+    missionCandidate({ estimatedCostCents: -500 }),
+  );
+  assert.equal(verdict.decision, "not-evaluable");
+  assert.ok(verdict.reasons[0].includes("non-negative"));
+});
+
+test("validation applies to all three kinds", () => {
+  const badRevenue = -1_000;
+  for (const kind of ["mission", "idea", "agent-action"]) {
+    const candidate = {
+      id: `${kind}-bad`,
+      kind,
+      title: "Bad candidate",
+      workspaceId: "ws-1",
+      skillId: "board.consult",
+      agentId: "joris",
+      assumedRevenueInfluencedCents: badRevenue,
+      estimatedCostCents: 1_000,
+    };
+    const verdict = evaluateCandidate(candidate);
+    assert.equal(
+      verdict.decision,
+      "not-evaluable",
+      `kind="${kind}" with negative revenue must be not-evaluable`,
+    );
+  }
 });
