@@ -23,11 +23,17 @@ export type ActionLedgerRow = {
   id: string;
   user_id: string;
   action_type: string;
+  event_type: "decision" | "action" | "result" | "cost" | "learning" | null;
   summary: string;
   autonomy_level: number;
   requires_confirmation: boolean;
   model_id: string | null;
   cost_mode: string | null;
+  workspace_id: string | null;
+  skill_id: string | null;
+  agent_id: string | null;
+  mission_id: string | null;
+  payload: Json;
   metadata: Json;
   created_at: string;
 };

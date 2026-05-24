@@ -1,4 +1,5 @@
 import type { ActionLedgerStatus, CalendarStorageMode, ModelMode } from "@/features/hq/types";
+import type { LedgerEventType } from "@/features/skills/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { ServerUserContext } from "@/server/auth/user-context";
 import type { ActionLedgerRow, Json } from "@/server/db/types";
@@ -8,11 +9,17 @@ export type ActionLedgerEntry = {
   id: string;
   userId: string;
   actionType: string;
+  eventType?: LedgerEventType;
   summary: string;
   autonomyLevel: number;
   requiresConfirmation: boolean;
   modelId?: string;
   costMode?: ModelMode;
+  workspaceId?: string;
+  skillId?: string;
+  agentId?: string;
+  missionId?: string;
+  payload: Json;
   metadata: Json;
   createdAt: string;
   storageMode: CalendarStorageMode;
@@ -32,11 +39,16 @@ export type MissionLedgerMetadata = {
 
 export type RecordActionInput = {
   actionType: string;
+  eventType?: LedgerEventType;
   summary: string;
   autonomyLevel: number;
   requiresConfirmation: boolean;
   modelId?: string;
   costMode?: ModelMode;
+  workspaceId?: string;
+  skillId?: string;
+  agentId?: string;
+  payload?: Json;
   metadata?: Json;
   /** When set, merged into metadata.missionId for mission execution traceability. */
   missionId?: string;
@@ -65,11 +77,17 @@ function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): A
     id: row.id,
     userId: row.user_id,
     actionType: row.action_type,
+    eventType: row.event_type ?? undefined,
     summary: row.summary,
     autonomyLevel: row.autonomy_level,
     requiresConfirmation: row.requires_confirmation,
     modelId: row.model_id ?? undefined,
     costMode: row.cost_mode ? (row.cost_mode as ModelMode) : undefined,
+    workspaceId: row.workspace_id ?? undefined,
+    skillId: row.skill_id ?? undefined,
+    agentId: row.agent_id ?? undefined,
+    missionId: row.mission_id ?? undefined,
+    payload: row.payload,
     metadata: row.metadata,
     createdAt: row.created_at,
     storageMode,
@@ -94,11 +112,17 @@ function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedge
         id: createLocalId(),
         userId: user.userId,
         actionType: input.actionType,
+        eventType: input.eventType,
         summary: input.summary,
         autonomyLevel: input.autonomyLevel,
         requiresConfirmation: input.requiresConfirmation,
         modelId: input.modelId,
         costMode: input.costMode,
+        workspaceId: input.workspaceId,
+        skillId: input.skillId,
+        agentId: input.agentId,
+        missionId: input.missionId,
+        payload: input.payload ?? {},
         metadata: buildMetadata(input),
         createdAt: new Date().toISOString(),
         storageMode: "local",
@@ -126,11 +150,17 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
         .insert({
           user_id: user.userId,
           action_type: input.actionType,
+          event_type: input.eventType ?? null,
           summary: input.summary,
           autonomy_level: input.autonomyLevel,
           requires_confirmation: input.requiresConfirmation,
           model_id: input.modelId ?? null,
           cost_mode: input.costMode ?? null,
+          workspace_id: input.workspaceId ?? null,
+          skill_id: input.skillId ?? null,
+          agent_id: input.agentId ?? null,
+          mission_id: input.missionId ?? null,
+          payload: input.payload ?? {},
           metadata: buildMetadata(input),
         })
         .select()

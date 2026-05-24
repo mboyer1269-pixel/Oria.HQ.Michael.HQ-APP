@@ -51,7 +51,7 @@ test("checkExecutionAttempt remains available in development", async () => {
   });
 
   const storePath = path.join(projectRoot, "src/server/missions/execution-attempt-store.ts");
-  const { checkExecutionAttempt } = await jiti.import(`${storePath}?dev=${Date.now()}`);
+  const { checkExecutionAttempt } = await jiti.import(storePath);
 
   const result = checkExecutionAttempt({
     missionId: "msn_test",

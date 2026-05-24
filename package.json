@@ -14,6 +14,7 @@
     "test:mission-store-guard": "node --test src/server/missions/execution-attempt-store.test.mjs",
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",
     "test:skill-governance": "node --test src/features/skills/skill-governance.test.mjs",
+    "test:ledger-events": "node --test src/server/actions/ledger-events.test.mjs",
     "test:model-router": "node --test src/server/ai/model-router.test.mjs"
   },
   "dependencies": {

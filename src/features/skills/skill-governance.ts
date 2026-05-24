@@ -60,6 +60,15 @@ function isValidAutonomyLevel(value: unknown): value is AutonomyLevel {
   );
 }
 
+function isEffectfulSkillProfile(skill: SkillProfile): boolean {
+  return (
+    skill.canWriteDB ||
+    skill.canTriggerExternal ||
+    skill.sideEffects === "reversible-write" ||
+    skill.sideEffects === "irreversible-external"
+  );
+}
+
 function pushIssue(
   issues: SkillGovernanceIssue[],
   skillId: string | undefined,
@@ -93,6 +102,7 @@ export function validateSkillProfile(
 ): SkillGovernanceIssue[] {
   const issues: SkillGovernanceIssue[] = [];
   const knownRoles = new Set<AgentRoleId>(options.knownRoles ?? KNOWN_AGENT_ROLES);
+  const logsRequired = Array.isArray(skill.logsRequired) ? skill.logsRequired : [];
 
   if (!isNonEmptyString(skill.id)) {
     pushIssue(issues, skill.id, "ID_REQUIRED", "Skill id is required");
@@ -161,7 +171,7 @@ export function validateSkillProfile(
   if (!Array.isArray(skill.logsRequired)) {
     pushIssue(issues, skill.id, "LOGS_REQUIRED_ARRAY", "logsRequired must be an array");
   } else {
-    for (const eventType of skill.logsRequired) {
+    for (const eventType of logsRequired) {
       if (!KNOWN_LEDGER_EVENTS.includes(eventType)) {
         pushIssue(issues, skill.id, "INVALID_LEDGER_EVENT", `Unknown ledger event type: ${eventType}`);
       }
@@ -199,12 +209,21 @@ export function validateSkillProfile(
     );
   }
 
-  if (skill.canWriteDB && skill.logsRequired.length === 0) {
+  if (skill.canWriteDB && logsRequired.length === 0) {
     pushIssue(
       issues,
       skill.id,
       "DB_WRITE_REQUIRES_LEDGER",
       "canWriteDB=true requires at least one logsRequired entry",
+    );
+  }
+
+  if (isEffectfulSkillProfile(skill) && logsRequired.length === 0) {
+    pushIssue(
+      issues,
+      skill.id,
+      "EFFECTFUL_SKILL_REQUIRES_LEDGER",
+      "Skills with side effects require at least one logsRequired entry",
     );
   }
 

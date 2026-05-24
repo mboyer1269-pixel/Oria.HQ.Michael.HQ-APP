@@ -5,7 +5,9 @@ import type {
   ModelMode,
 } from "@/features/hq/types";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { createActionLedgerRepository } from "@/server/actions/action-ledger-repository";
+import { skillsCatalog } from "@/features/skills/seed";
+import type { SkillProfile } from "@/features/skills/types";
+import { LedgerEventValidationError, recordLedgerEvent } from "@/server/actions/ledger-events";
 import {
   createCalendarRepository,
   type ListCalendarEventsInput,
@@ -36,11 +38,29 @@ export class CalendarServiceError extends Error {
   constructor(
     message: string,
     public readonly status: number,
-    public readonly code: "CALENDAR_FORBIDDEN" | "CALENDAR_CONFIRMATION_REQUIRED" | "CALENDAR_WRITE_FAILED",
+    public readonly code:
+      | "CALENDAR_FORBIDDEN"
+      | "CALENDAR_CONFIRMATION_REQUIRED"
+      | "CALENDAR_WRITE_FAILED"
+      | "CALENDAR_LEDGER_FAILED",
   ) {
     super(message);
     this.name = "CalendarServiceError";
   }
+}
+
+const calendarBookSkill = skillsCatalog.find((skill) => skill.id === "calendar.book");
+
+function getCalendarBookSkill(): SkillProfile {
+  if (!calendarBookSkill) {
+    throw new CalendarServiceError(
+      "La skill calendrier n'est pas configurée pour l'audit ledger.",
+      500,
+      "CALENDAR_LEDGER_FAILED",
+    );
+  }
+
+  return calendarBookSkill;
 }
 
 function assertCalendarPermission(confirm?: boolean) {
@@ -61,7 +81,7 @@ export async function createCalendarEvent(command: CreateCalendarEventCommand): 
   const permission = assertCalendarPermission(command.confirm);
   const ctx = getActiveWorkspaceContext();
   const calendarRepository = createCalendarRepository(ctx);
-  const actionLedgerRepository = createActionLedgerRepository(ctx);
+  const skill = getCalendarBookSkill();
   const remindersMinutes = command.remindersMinutes?.length
     ? command.remindersMinutes
     : defaultRemindersMinutes;
@@ -75,35 +95,44 @@ export async function createCalendarEvent(command: CreateCalendarEventCommand): 
     remindersMinutes,
   });
 
-  let ledgerStatus: ActionLedgerStatus = "recorded";
-
   try {
-    await actionLedgerRepository.record({
+    await recordLedgerEvent(ctx, {
       actionType: "calendar.book",
-      summary: `Création calendrier: ${event.title} ${event.dateISO} ${event.startTime}-${event.endTime}`,
+      eventType: "action",
+      summary: `Création calendrier ${event.dateISO} ${event.startTime}-${event.endTime}`,
       autonomyLevel: permission.autonomyLevel,
       requiresConfirmation: permission.requiresConfirmation,
+      workspaceId: ctx.workspace.id,
+      modeId: ctx.activeMode.id,
+      skillId: skill.id,
+      agentId: ctx.activeAgentProfile.id,
       modelId: command.modelId,
       costMode: command.costMode,
+      effect: {
+        kind: "schedule",
+        operation: "create",
+        target: "calendar_events",
+      },
       metadata: {
         calendarEventId: event.id,
         source: event.source,
-        notes: command.notes ?? null,
         remindersMinutes: event.remindersMinutes,
         storageMode: event.storageMode,
-        workspaceId: ctx.workspace.id,
-        modeId: ctx.activeMode.id,
-        assistantId: ctx.activeAgentProfile.id,
       },
+    }, {
+      skill,
     });
   } catch (error) {
-    ledgerStatus = "failed";
-    console.error("Action ledger write failed:", error instanceof Error ? error.message : "Unknown error");
+    const reason = error instanceof LedgerEventValidationError
+      ? error.message
+      : "Le ledger d'action n'est pas disponible.";
+    console.error("Mandatory action ledger write failed:", error instanceof Error ? error.message : "Unknown error");
+    throw new CalendarServiceError(reason, 503, "CALENDAR_LEDGER_FAILED");
   }
 
   return {
     event,
-    ledgerStatus,
+    ledgerStatus: "recorded",
   };
 }
 

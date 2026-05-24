@@ -17,7 +17,7 @@
  *   - Calendar intent parser (French "demain 10h00")
  *   - Permission engine (must allow "calendar-simple")
  *   - Calendar repository write (in-memory by default, Supabase if SMOKE_WRITE=1)
- *   - Action ledger write (best-effort)
+ *   - Action ledger write (mandatory)
  *
  * What this does NOT exercise:
  *   - HTTP route handler (`/api/joris/chat`)
@@ -91,8 +91,8 @@ const checks = [
     Boolean(result.calendarEvent && /smoke-test/i.test(result.calendarEvent.title)),
   ],
   [
-    "ledgerStatus is recorded or failed (not undefined)",
-    result.ledgerStatus === "recorded" || result.ledgerStatus === "failed",
+    "ledgerStatus is recorded",
+    result.ledgerStatus === "recorded",
   ],
   [
     writeMode ? "storageMode set" : "storageMode is local (no Supabase write)",

@@ -104,6 +104,17 @@ test("detects db write without required ledger events", () => {
   assert.ok(result.some((issue) => issue.code === "DB_WRITE_REQUIRES_LEDGER"));
 });
 
+test("detects effectful skill without required ledger events", () => {
+  const result = validateSkillProfile(
+    baseSkill({
+      sideEffects: "reversible-write",
+      logsRequired: [],
+    }),
+  );
+
+  assert.ok(result.some((issue) => issue.code === "EFFECTFUL_SKILL_REQUIRES_LEDGER"));
+});
+
 test("detects external trigger without human approval", () => {
   const result = validateSkillProfile(
     baseSkill({
