@@ -22,6 +22,7 @@ const repoPath = path.join(
 );
 
 const {
+  ArenaVerdictRepositoryError,
   recordArenaVerdict,
   getArenaVerdictByCandidateId,
   listArenaVerdicts,
@@ -51,12 +52,26 @@ function makeRecord(overrides = {}) {
   };
 }
 
+function installSupabaseClientFactory(factory) {
+  globalThis.__arenaVerdictRepositoryClientFactory = factory;
+}
+
+function clearSupabaseClientFactory() {
+  delete globalThis.__arenaVerdictRepositoryClientFactory;
+}
+
+test.afterEach(() => {
+  clearSupabaseClientFactory();
+  clearLocalArenaVerdictStore();
+});
+
 // ---------------------------------------------------------------------------
 // Test 1: recordArenaVerdict stores in local fallback
 // ---------------------------------------------------------------------------
 
 test("recordArenaVerdict stores a verdict in the local fallback store", async () => {
   clearLocalArenaVerdictStore();
+  clearSupabaseClientFactory();
   const record = makeRecord({ candidateId: "t1-cand" });
   await recordArenaVerdict("ws-test", record);
 
@@ -71,6 +86,7 @@ test("recordArenaVerdict stores a verdict in the local fallback store", async ()
 
 test("getArenaVerdictByCandidateId returns the stored record", async () => {
   clearLocalArenaVerdictStore();
+  clearSupabaseClientFactory();
   const record = makeRecord({ candidateId: "t2-cand" });
   await recordArenaVerdict("ws-test", record);
 
@@ -88,6 +104,7 @@ test("getArenaVerdictByCandidateId returns the stored record", async () => {
 
 test("getArenaVerdictByCandidateId returns null for an unknown candidateId", async () => {
   clearLocalArenaVerdictStore();
+  clearSupabaseClientFactory();
   const result = await getArenaVerdictByCandidateId("ws-test", "does-not-exist");
   assert.equal(result, null);
 });
@@ -98,6 +115,7 @@ test("getArenaVerdictByCandidateId returns null for an unknown candidateId", asy
 
 test("listArenaVerdicts returns all verdicts for the given workspace", async () => {
   clearLocalArenaVerdictStore();
+  clearSupabaseClientFactory();
   await recordArenaVerdict("ws-list", makeRecord({ candidateId: "l1" }));
   await recordArenaVerdict("ws-list", makeRecord({ candidateId: "l2" }));
   await recordArenaVerdict("ws-list", makeRecord({ candidateId: "l3" }));
@@ -112,16 +130,17 @@ test("listArenaVerdicts returns all verdicts for the given workspace", async () 
 
 test("listArenaVerdicts does not return verdicts from other workspaces", async () => {
   clearLocalArenaVerdictStore();
-  await recordArenaVerdict("ws-alpha", makeRecord({ candidateId: "alpha-1" }));
-  await recordArenaVerdict("ws-beta", makeRecord({ candidateId: "beta-1" }));
-  await recordArenaVerdict("ws-beta", makeRecord({ candidateId: "beta-2" }));
+  clearSupabaseClientFactory();
+  await recordArenaVerdict("ws-alpha", makeRecord({ candidateId: "shared-candidate" }));
+  await recordArenaVerdict("ws-beta", makeRecord({ candidateId: "shared-candidate" }));
 
   const alphaResults = await listArenaVerdicts("ws-alpha");
   const betaResults = await listArenaVerdicts("ws-beta");
 
   assert.equal(alphaResults.length, 1, "ws-alpha must have exactly 1 result");
-  assert.equal(betaResults.length, 2, "ws-beta must have exactly 2 results");
-  assert.equal(alphaResults[0].candidateId, "alpha-1");
+  assert.equal(betaResults.length, 1, "ws-beta must have exactly 1 result");
+  assert.equal(alphaResults[0].candidateId, "shared-candidate");
+  assert.equal(betaResults[0].candidateId, "shared-candidate");
 });
 
 // ---------------------------------------------------------------------------
@@ -129,6 +148,7 @@ test("listArenaVerdicts does not return verdicts from other workspaces", async (
 // ---------------------------------------------------------------------------
 
 test("clearLocalArenaVerdictStore empties the local fallback store", async () => {
+  clearSupabaseClientFactory();
   await recordArenaVerdict("ws-clear", makeRecord({ candidateId: "c1" }));
   await recordArenaVerdict("ws-clear", makeRecord({ candidateId: "c2" }));
 
@@ -144,6 +164,7 @@ test("clearLocalArenaVerdictStore empties the local fallback store", async () =>
 
 test("recordArenaVerdict overwrites an existing entry for the same workspace+candidate", async () => {
   clearLocalArenaVerdictStore();
+  clearSupabaseClientFactory();
   const first = makeRecord({ candidateId: "upsert-cand", verdict: { ...makeRecord().verdict, score: 55, decision: "marginal" } });
   const second = makeRecord({ candidateId: "upsert-cand", verdict: { ...makeRecord().verdict, score: 80, decision: "promising" } });
 
@@ -161,6 +182,7 @@ test("recordArenaVerdict overwrites an existing entry for the same workspace+can
 
 test("stored verdict round-trips all fields correctly through the local fallback", async () => {
   clearLocalArenaVerdictStore();
+  clearSupabaseClientFactory();
   const expiresAt = new Date(Date.now() + 60_000).toISOString();
   const record = makeRecord({
     candidateId: "roundtrip-cand",
@@ -187,6 +209,7 @@ test("arena-verdict-repository exports only expected surface", async () => {
   const exportedKeys = Object.keys(mod);
 
   const expected = new Set([
+    "ArenaVerdictRepositoryError",
     "recordArenaVerdict",
     "getArenaVerdictByCandidateId",
     "listArenaVerdicts",
@@ -203,4 +226,112 @@ test("arena-verdict-repository exports only expected surface", async () => {
       assert.ok(!key.toLowerCase().includes(f), `Export "${key}" suggests forbidden surface "${f}"`);
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// Test 10: Supabase errors are surfaced as repository errors
+// ---------------------------------------------------------------------------
+
+test("recordArenaVerdict throws on Supabase error without leaking internals", async () => {
+  clearLocalArenaVerdictStore();
+
+  const failingError = new Error("stack trace secret token leak");
+  installSupabaseClientFactory(() => ({
+    from() {
+      return {
+        upsert() {
+          return Promise.resolve({ data: null, error: failingError });
+        },
+        select() {
+          return this;
+        },
+        eq() {
+          return this;
+        },
+        order() {
+          return Promise.resolve({ data: [], error: null });
+        },
+        maybeSingle() {
+          return Promise.resolve({ data: null, error: null });
+        },
+      };
+    },
+  }));
+
+  await assert.rejects(
+    () => recordArenaVerdict("ws-supabase", makeRecord({ candidateId: "repo-error" })),
+    (error) =>
+      error instanceof ArenaVerdictRepositoryError &&
+      /record/i.test(error.message) &&
+      !error.message.includes("secret") &&
+      !error.message.includes("stack"),
+  );
+  clearSupabaseClientFactory();
+});
+
+test("getArenaVerdictByCandidateId throws on Supabase error", async () => {
+  installSupabaseClientFactory(() => ({
+    from() {
+      return {
+        select() {
+          return this;
+        },
+        eq() {
+          return this;
+        },
+        maybeSingle() {
+          return Promise.resolve({ data: null, error: new Error("get failed") });
+        },
+        order() {
+          return Promise.resolve({ data: [], error: null });
+        },
+        upsert() {
+          return Promise.resolve({ data: null, error: null });
+        },
+      };
+    },
+  }));
+
+  await assert.rejects(
+    () => getArenaVerdictByCandidateId("ws-supabase", "repo-error"),
+    (error) => error instanceof ArenaVerdictRepositoryError && /get/i.test(error.message),
+  );
+  clearSupabaseClientFactory();
+});
+
+test("listArenaVerdicts throws on Supabase error and uses workspace_id/candidate_id upsert conflict", async () => {
+  let recordedConflict = null;
+
+  installSupabaseClientFactory(() => ({
+    from() {
+      return {
+        select() {
+          return this;
+        },
+        eq() {
+          return this;
+        },
+        order() {
+          return Promise.resolve({ data: null, error: new Error("list failed") });
+        },
+        maybeSingle() {
+          return Promise.resolve({ data: null, error: null });
+        },
+        upsert(row, options) {
+          recordedConflict = options?.onConflict ?? null;
+          return Promise.resolve({ data: null, error: null });
+        },
+      };
+    },
+  }));
+
+  await assert.rejects(
+    () => listArenaVerdicts("ws-supabase"),
+    (error) => error instanceof ArenaVerdictRepositoryError && /list/i.test(error.message),
+  );
+
+  await recordArenaVerdict("ws-supabase", makeRecord({ candidateId: "conflict-cand" }));
+  assert.equal(recordedConflict, "workspace_id,candidate_id");
+
+  clearSupabaseClientFactory();
 });
