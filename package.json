@@ -24,7 +24,9 @@
     "test:arena-api": "node --test src/server/arena/arena-api.test.mjs",
     "test:arena-repository": "node --test src/server/arena/arena-verdict-repository.test.mjs",
     "test:arena-candidates": "node --test src/server/arena/arena-candidate-generator.test.mjs",
-    "test:arena-batch": "node --test src/server/arena/arena-batch-service.test.mjs"
+    "test:arena-batch": "node --test src/server/arena/arena-batch-service.test.mjs",
+    "test:arena-wra-evidence": "node --test src/server/arena/arena-wra-evidence.test.mjs",
+    "test:arena-wra-buckets": "node --test src/server/arena/arena-wra-buckets.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
