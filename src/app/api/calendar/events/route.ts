@@ -128,6 +128,18 @@ export async function POST(request: Request) {
   try {
     const result = await createCalendarEvent(parsed.data);
 
+    if (result.ledgerStatus === "failed") {
+      return NextResponse.json(
+        {
+          ...result,
+          error: "Événement créé, mais le ledger n'a pas pu être enregistré. Rejournalisation requise.",
+          code: "CALENDAR_LEDGER_FAILED",
+          recoverable: true,
+        },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     return toApiError(error);

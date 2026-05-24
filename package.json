@@ -15,6 +15,7 @@
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",
     "test:skill-governance": "node --test src/features/skills/skill-governance.test.mjs",
     "test:ledger-events": "node --test src/server/actions/ledger-events.test.mjs",
+    "test:calendar-ledger-atomicity": "node --test src/server/calendar/calendar-ledger-atomicity.test.mjs",
     "test:model-router": "node --test src/server/ai/model-router.test.mjs"
   },
   "dependencies": {

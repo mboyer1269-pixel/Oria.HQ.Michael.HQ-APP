@@ -27,6 +27,7 @@ export type CalendarRepository = {
   mode: CalendarStorageMode;
   create(input: CreateCalendarEventInput): Promise<CalendarEvent>;
   list(input?: ListCalendarEventsInput): Promise<CalendarEvent[]>;
+  deleteById(eventId: string): Promise<boolean>;
 };
 
 export class CalendarRepositoryError extends Error {
@@ -115,6 +116,19 @@ function createLocalCalendarRepository(user: ServerUserContext): CalendarReposit
 
       return sortEvents(filtered).slice(0, limit);
     },
+    async deleteById(eventId) {
+      const index = localEvents.findIndex(
+        (event) => event.id === eventId && event.userId === user.userId,
+      );
+
+      if (index === -1) {
+        return false;
+      }
+
+      localEvents.splice(index, 1);
+
+      return true;
+    },
   };
 }
 
@@ -173,6 +187,21 @@ function createSupabaseCalendarRepository(user: ServerUserContext): CalendarRepo
 
       return data.map((row) => mapCalendarRow(row, "supabase"));
     },
+    async deleteById(eventId) {
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .delete()
+        .eq("id", eventId)
+        .eq("user_id", user.userId)
+        .select("id")
+        .maybeSingle();
+
+      if (error) {
+        throw new CalendarRepositoryError(error.message, "CALENDAR_WRITE_FAILED");
+      }
+
+      return Boolean(data);
+    },
   };
 }
 
@@ -190,6 +219,9 @@ function createUnavailableCalendarRepository(): CalendarRepository {
         "Supabase configuration is required for calendar persistence in production.",
         "CALENDAR_READ_FAILED",
       );
+    },
+    async deleteById() {
+      return false;
     },
   };
 }

@@ -10,6 +10,7 @@ import type { SkillProfile } from "@/features/skills/types";
 import { LedgerEventValidationError, recordLedgerEvent } from "@/server/actions/ledger-events";
 import {
   createCalendarRepository,
+  type CalendarRepository,
   type ListCalendarEventsInput,
 } from "@/server/calendar/calendar-repository";
 import { checkPermission } from "@/server/permissions/permissions";
@@ -32,6 +33,11 @@ export type CreateCalendarEventCommand = {
 export type CalendarEventWriteResult = {
   event: CalendarEvent;
   ledgerStatus: ActionLedgerStatus;
+};
+
+export type CreateCalendarEventOptions = {
+  recordLedger?: typeof recordLedgerEvent;
+  calendarRepository?: CalendarRepository;
 };
 
 export class CalendarServiceError extends Error {
@@ -77,11 +83,31 @@ function assertCalendarPermission(confirm?: boolean) {
   return permission;
 }
 
-export async function createCalendarEvent(command: CreateCalendarEventCommand): Promise<CalendarEventWriteResult> {
+async function compensateCalendarCreate(
+  calendarRepository: CalendarRepository,
+  eventId: string,
+): Promise<boolean> {
+  try {
+    return await calendarRepository.deleteById(eventId);
+  } catch (error) {
+    console.error(
+      "Calendar compensation delete failed:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
+
+    return false;
+  }
+}
+
+export async function createCalendarEvent(
+  command: CreateCalendarEventCommand,
+  options?: CreateCalendarEventOptions,
+): Promise<CalendarEventWriteResult> {
   const permission = assertCalendarPermission(command.confirm);
   const ctx = getActiveWorkspaceContext();
-  const calendarRepository = createCalendarRepository(ctx);
+  const calendarRepository = options?.calendarRepository ?? createCalendarRepository(ctx);
   const skill = getCalendarBookSkill();
+  const recordLedger = options?.recordLedger ?? recordLedgerEvent;
   const remindersMinutes = command.remindersMinutes?.length
     ? command.remindersMinutes
     : defaultRemindersMinutes;
@@ -96,7 +122,7 @@ export async function createCalendarEvent(command: CreateCalendarEventCommand): 
   });
 
   try {
-    await recordLedgerEvent(ctx, {
+    await recordLedger(ctx, {
       actionType: "calendar.book",
       eventType: "action",
       summary: `Création calendrier ${event.dateISO} ${event.startTime}-${event.endTime}`,
@@ -127,7 +153,17 @@ export async function createCalendarEvent(command: CreateCalendarEventCommand): 
       ? error.message
       : "Le ledger d'action n'est pas disponible.";
     console.error("Mandatory action ledger write failed:", error instanceof Error ? error.message : "Unknown error");
-    throw new CalendarServiceError(reason, 503, "CALENDAR_LEDGER_FAILED");
+
+    const compensated = await compensateCalendarCreate(calendarRepository, event.id);
+
+    if (compensated) {
+      throw new CalendarServiceError(reason, 503, "CALENDAR_LEDGER_FAILED");
+    }
+
+    return {
+      event,
+      ledgerStatus: "failed",
+    };
   }
 
   return {
