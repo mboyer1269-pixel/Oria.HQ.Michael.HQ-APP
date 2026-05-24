@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
   const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
 
   // Resolve mission from the active workspace — rejects cross-workspace access
-  const { missions } = listMissionsForWorkspace({
+  const { missions } = await listMissionsForWorkspace({
     workspaceId: activeWorkspace.id,
     modeId: activeMode.id,
   });

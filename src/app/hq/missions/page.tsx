@@ -20,7 +20,7 @@ export default async function MissionsPage() {
   }
 
   const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
-  const { missions, source } = listMissionsForWorkspace({
+  const { missions, source } = await listMissionsForWorkspace({
     workspaceId: activeWorkspace.id,
     modeId: activeMode.id,
   });
@@ -126,7 +126,7 @@ export default async function MissionsPage() {
       <footer className="rounded-2xl border border-neutral-800 bg-neutral-950/60 px-4 py-3">
         <p className="text-xs leading-5 text-neutral-600">
           <span className="font-medium text-neutral-500">
-            Source: {source === "mock" ? "données mock" : "Supabase"} —{" "}
+            Source: {source === "supabase" ? "Supabase" : "données locales"} —{" "}
           </span>
           Aucune exécution autonome réelle. Le pipeline d&apos;exécution sera activé en Phase 2
           après approbation du modèle Mission.

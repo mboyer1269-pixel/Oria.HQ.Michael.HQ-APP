@@ -10,5 +10,5 @@ export type ListMissionsResult = {
   workspaceId: string;
   modeId?: string;
   missions: Mission[];
-  source: "mock" | "supabase";
+  source: "supabase" | "local" | "mock";
 };

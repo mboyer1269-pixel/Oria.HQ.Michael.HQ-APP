@@ -27,7 +27,7 @@ export const mockMissions: Mission[] = [
     title: "Audit repo Oria",
     objective:
       "Analyser la structure du repo, identifier les dépendances obsolètes, les tests manquants et les incohérences entre types et implémentation.",
-    assignedAgentId: "codex",
+    assignedAgentId: "builder",
     autonomyLevel: 1,
     status: "running",
     riskLevel: "medium",

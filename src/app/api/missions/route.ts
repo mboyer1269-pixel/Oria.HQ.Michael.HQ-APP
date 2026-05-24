@@ -16,7 +16,7 @@ export async function GET() {
 
   try {
     const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
-    const result = listMissionsForWorkspace({
+    const result = await listMissionsForWorkspace({
       workspaceId: activeWorkspace.id,
       modeId: activeMode.id,
     });

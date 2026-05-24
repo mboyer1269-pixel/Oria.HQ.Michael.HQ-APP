@@ -54,6 +54,37 @@ export type ContactLeadInsert = Omit<ContactLeadRow, "id" | "created_at"> & {
   created_at?: string;
 };
 
+export type MissionRow = {
+  id: string;
+  workspace_id: string;
+  mode_id: string;
+  title: string;
+  objective: string;
+  assigned_agent_id: string;
+  autonomy_level: number;
+  status: "draft" | "queued" | "running" | "needs_approval" | "completed" | "failed" | "cancelled";
+  risk_level: "low" | "medium" | "high";
+  requires_approval: boolean;
+  cost_budget_cents: number | null;
+  input: Json;
+  expected_output: string;
+  result: Json | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
+
+export type MissionInsert = Omit<
+  MissionRow,
+  "cost_budget_cents" | "result" | "created_at" | "updated_at" | "completed_at"
+> & {
+  cost_budget_cents?: number | null;
+  result?: Json | null;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+};
+
 export type DocumentRow = {
   id: string;
   user_id: string;
@@ -91,6 +122,12 @@ export type MichaelHqDatabase = {
         Row: ContactLeadRow;
         Insert: ContactLeadInsert;
         Update: Partial<ContactLeadInsert>;
+        Relationships: [];
+      };
+      missions: {
+        Row: MissionRow;
+        Insert: MissionInsert;
+        Update: Partial<MissionInsert>;
         Relationships: [];
       };
       documents: {
