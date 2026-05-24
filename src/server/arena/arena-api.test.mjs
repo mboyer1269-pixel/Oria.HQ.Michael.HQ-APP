@@ -26,11 +26,13 @@ const candidateIdRoutePath = path.join(
   projectRoot,
   "src/app/api/arena/verdicts/[candidateId]/route.ts",
 );
+const candidatesRoutePath = path.join(projectRoot, "src/app/api/arena/candidates/route.ts");
 const batchRoutePath = path.join(projectRoot, "src/app/api/arena/batch/route.ts");
 
 const { POST: evaluatePOST } = await jiti.import(evaluateRoutePath);
 const { GET: verdictsGET } = await jiti.import(verdictsRoutePath);
 const { GET: verdictByIdGET } = await jiti.import(candidateIdRoutePath);
+const { GET: candidatesGET } = await jiti.import(candidatesRoutePath);
 const { POST: batchPOST } = await jiti.import(batchRoutePath);
 const { DEFAULT_WORKSPACE_SLUG } = await jiti.import(
   path.join(projectRoot, "src/core/workspaces/registry.ts"),
@@ -410,7 +412,45 @@ test("GET /api/arena/verdicts/[candidateId] 401 response does not expose verdict
 });
 
 // ---------------------------------------------------------------------------
-// Test 11: all three routes return JSON content-type on 401
+// Test 11: GET /api/arena/candidates returns 401 for unauthenticated request
+// ---------------------------------------------------------------------------
+
+test("GET /api/arena/candidates returns 401 for unauthenticated request", async () => {
+  const res = await candidatesGET(new Request("http://localhost/api/arena/candidates"));
+  assert.equal(res.status, 401);
+  const data = await res.json();
+  assert.ok(typeof data.error === "string");
+  assert.ok(!("candidates" in data), "401 body must not expose candidates");
+});
+
+// ---------------------------------------------------------------------------
+// Test 12: GET /api/arena/candidates returns authenticated workspace candidates
+// ---------------------------------------------------------------------------
+
+test("GET /api/arena/candidates returns 200 for authenticated owner and workspace-scoped mission candidates", async () => {
+  allowOwnerApiSession();
+
+  const res = await candidatesGET(new Request("http://localhost/api/arena/candidates"));
+  assert.equal(res.status, 200);
+
+  const body = await res.json();
+  assert.equal(body.workspaceId, DEFAULT_WORKSPACE_SLUG);
+  assert.equal(body.source, "local");
+  assert.equal(body.candidates.length, 3);
+  assert.deepEqual(
+    body.candidates.map((candidate) => candidate.id),
+    [
+      "mission_ceo_brief_2026_05_21",
+      "mission_audit_oria_2026_05_21",
+      "mission_client_message_2026_05_21",
+    ],
+  );
+  assert.ok(body.candidates.every((candidate) => candidate.workspaceId === DEFAULT_WORKSPACE_SLUG));
+  assert.ok(body.candidates.every((candidate) => candidate.kind === "mission"));
+});
+
+// ---------------------------------------------------------------------------
+// Test 13: all three routes return JSON content-type on 401
 // ---------------------------------------------------------------------------
 
 test("all arena routes return application/json content-type on 401", async () => {
@@ -421,6 +461,7 @@ test("all arena routes return application/json content-type on 401", async () =>
       new Request("http://localhost/api/arena/verdicts/x"),
       { params: Promise.resolve({ candidateId: "x" }) },
     ),
+    candidatesGET(new Request("http://localhost/api/arena/candidates")),
   ]);
 
   for (const res of responses) {
@@ -431,7 +472,7 @@ test("all arena routes return application/json content-type on 401", async () =>
 });
 
 // ---------------------------------------------------------------------------
-// Test 12: POST /api/arena/batch returns 401 for unauthenticated request
+// Test 14: POST /api/arena/batch returns 401 for unauthenticated request
 // ---------------------------------------------------------------------------
 
 test("POST /api/arena/batch returns 401 for unauthenticated request", async () => {
@@ -440,7 +481,7 @@ test("POST /api/arena/batch returns 401 for unauthenticated request", async () =
 });
 
 // ---------------------------------------------------------------------------
-// Test 13: POST /api/arena/batch returns 200 for authenticated owner
+// Test 15: POST /api/arena/batch returns 200 for authenticated owner
 // ---------------------------------------------------------------------------
 
 test("POST /api/arena/batch returns 200 for authenticated owner and stores results by default", async () => {
@@ -476,7 +517,7 @@ test("POST /api/arena/batch returns 200 for authenticated owner and stores resul
 });
 
 // ---------------------------------------------------------------------------
-// Test 14: POST /api/arena/batch rejects invalid payloads
+// Test 16: POST /api/arena/batch rejects invalid payloads
 // ---------------------------------------------------------------------------
 
 test("POST /api/arena/batch rejects empty and oversized payloads", async () => {
@@ -493,7 +534,7 @@ test("POST /api/arena/batch rejects empty and oversized payloads", async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 15: storeResults=false does not persist
+// Test 17: storeResults=false does not persist
 // ---------------------------------------------------------------------------
 
 test("POST /api/arena/batch with storeResults=false returns 200 without persisting", async () => {
@@ -520,7 +561,7 @@ test("POST /api/arena/batch with storeResults=false returns 200 without persisti
 });
 
 // ---------------------------------------------------------------------------
-// Test 16: workspaceId client is overwritten by server workspace
+// Test 18: workspaceId client is overwritten by server workspace
 // ---------------------------------------------------------------------------
 
 test("POST /api/arena/batch overwrites client workspaceId and keeps workspaces isolated", async () => {
