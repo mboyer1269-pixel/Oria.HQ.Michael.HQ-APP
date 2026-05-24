@@ -359,3 +359,21 @@ test("validation applies to all three kinds", () => {
     );
   }
 });
+
+// ── PR7.2 — missing coverage ──────────────────────────────────────────────
+
+// agent-action: guard passes but net value is negative (faisable, non rentable)
+test("agent-action with guard OK but negative net value is reject with executable true", () => {
+  const verdict = evaluateCandidate(
+    agentActionCandidate({
+      assumedRevenueInfluencedCents: 1_000,
+      estimatedCostCents: 2_000,
+    }),
+  );
+  assert.equal(verdict.kind, "agent-action");
+  assert.equal(verdict.decision, "reject");
+  assert.ok(verdict.netValueCents < 0);
+  // guard allowed execution — it's feasible but not profitable
+  assert.equal(verdict.executable, true);
+  assert.ok(!("guardReason" in verdict), "guardReason must be absent when guard passes");
+});
