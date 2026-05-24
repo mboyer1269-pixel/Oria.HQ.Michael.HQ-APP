@@ -120,7 +120,7 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
   }
 
   if (intent === "mission.plan") {
-    const { missions } = listMissionsForWorkspace({
+    const { missions } = await listMissionsForWorkspace({
       workspaceId: ctx.workspace.id,
       modeId: ctx.activeMode.id,
     });
