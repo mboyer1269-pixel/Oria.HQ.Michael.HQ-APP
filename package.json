@@ -19,7 +19,8 @@
     "test:model-router": "node --test src/server/ai/model-router.test.mjs",
     "test:execution-guard": "node --test src/server/runtime/execution-guard.test.mjs",
     "test:arena": "node --test src/server/arena/roi-arena.test.mjs",
-    "test:arena-store": "node --test src/server/arena/arena-verdict-store.test.mjs"
+    "test:arena-store": "node --test src/server/arena/arena-verdict-store.test.mjs",
+    "test:arena-service": "node --test src/server/arena/arena-evaluation-service.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
