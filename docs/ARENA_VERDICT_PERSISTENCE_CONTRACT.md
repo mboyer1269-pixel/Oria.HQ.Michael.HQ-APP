@@ -115,9 +115,11 @@ alter table public.arena_verdicts enable row level security;
 
 1. **RLS not configured.** The table has RLS enabled but no policies. Policies must be added before production use.
 2. **TTL not enforced in DB.** `expires_at` is stored but not used to filter rows. DB-level expiry (pg cron or application-level purge) is out of scope.
+   The repository does not purge expired verdicts automatically; there is no scheduler in PR9/PR10.
 3. **Local fallback is process-scoped.** The Map is shared across requests within the same process and is cleared on restart. It is test/dev only.
 4. **No pagination.** `GET /verdicts` returns all rows for the workspace. Add pagination at PR10+.
 5. **No batch endpoint.** Single-candidate evaluation only. Batch at PR10.
+6. **Recent-first reads.** PR10 hardens retrieval order with a `stored_at desc` index so recent verdicts stay cheap to list.
 
 ---
 

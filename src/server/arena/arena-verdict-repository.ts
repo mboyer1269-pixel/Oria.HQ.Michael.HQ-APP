@@ -14,6 +14,31 @@ function makeId(workspaceId: string, candidateId: string): string {
   return `av_${workspaceId}_${candidateId}`;
 }
 
+type SupabaseAdminClient = NonNullable<ReturnType<typeof createOptionalSupabaseAdminClient>>;
+
+type ArenaVerdictRepositoryGlobals = typeof globalThis & {
+  __arenaVerdictRepositoryClientFactory?: (() => SupabaseAdminClient | null) | null;
+};
+
+export class ArenaVerdictRepositoryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ArenaVerdictRepositoryError";
+  }
+}
+
+function getSupabaseClient(): SupabaseAdminClient | null {
+  const globals = globalThis as ArenaVerdictRepositoryGlobals;
+  if (globals.__arenaVerdictRepositoryClientFactory) {
+    return globals.__arenaVerdictRepositoryClientFactory();
+  }
+  return createOptionalSupabaseAdminClient();
+}
+
+function toRepositoryError(operation: "record" | "get" | "list"): ArenaVerdictRepositoryError {
+  return new ArenaVerdictRepositoryError(`Arena verdict repository ${operation} failed.`);
+}
+
 // ---------------------------------------------------------------------------
 // Row mappers
 // ---------------------------------------------------------------------------
@@ -50,7 +75,7 @@ export async function recordArenaVerdict(
   workspaceId: string,
   record: StoredArenaVerdict,
 ): Promise<void> {
-  const db = createOptionalSupabaseAdminClient();
+  const db = getSupabaseClient();
   const id = makeId(workspaceId, record.candidateId);
 
   if (!db) {
@@ -58,27 +83,36 @@ export async function recordArenaVerdict(
     return;
   }
 
-  await db
+  const { error } = await db
     .from("arena_verdicts")
-    .upsert(mapToRow(id, workspaceId, record), { onConflict: "id" });
+    .upsert(mapToRow(id, workspaceId, record), { onConflict: "workspace_id,candidate_id" });
+
+  if (error) {
+    throw toRepositoryError("record");
+  }
 }
 
 export async function getArenaVerdictByCandidateId(
   workspaceId: string,
   candidateId: string,
 ): Promise<StoredArenaVerdict | null> {
-  const db = createOptionalSupabaseAdminClient();
+  const db = getSupabaseClient();
   const id = makeId(workspaceId, candidateId);
 
   if (!db) {
     return localStore.get(id) ?? null;
   }
 
-  const { data } = await db
+  const { data, error } = await db
     .from("arena_verdicts")
     .select("*")
-    .eq("id", id)
+    .eq("workspace_id", workspaceId)
+    .eq("candidate_id", candidateId)
     .maybeSingle();
+
+  if (error) {
+    throw toRepositoryError("get");
+  }
 
   return data ? mapRowToStored(data) : null;
 }
@@ -86,7 +120,7 @@ export async function getArenaVerdictByCandidateId(
 export async function listArenaVerdicts(
   workspaceId: string,
 ): Promise<StoredArenaVerdict[]> {
-  const db = createOptionalSupabaseAdminClient();
+  const db = getSupabaseClient();
   const prefix = `av_${workspaceId}_`;
 
   if (!db) {
@@ -97,11 +131,15 @@ export async function listArenaVerdicts(
     return results;
   }
 
-  const { data } = await db
+  const { data, error } = await db
     .from("arena_verdicts")
     .select("*")
     .eq("workspace_id", workspaceId)
     .order("stored_at", { ascending: false });
+
+  if (error) {
+    throw toRepositoryError("list");
+  }
 
   return (data ?? []).map(mapRowToStored);
 }
