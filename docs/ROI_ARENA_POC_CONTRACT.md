@@ -1,7 +1,6 @@
-# ROI Arena POC Contract
+# ROI Arena Contract
 
-**PR7 — Strict Proof of Concept**
-**Status:** POC — evaluation only, no execution, no persistence.
+**Current status:** PR7 + PR7.1 merged — all three kinds evaluated, financial validation active.
 
 ---
 
@@ -9,7 +8,7 @@
 
 The ROI Arena is a deterministic, pure evaluation harness that ranks missions, ideas, and agent-actions by estimated business value before any execution occurs. It answers: *"Is this worth doing, and in what order?"* — without doing anything.
 
-PR7 is designed to be called by planning surfaces, dashboards, or future approval flows. It never triggers side effects.
+It is designed to be called by planning surfaces, dashboards, or future approval flows. It never triggers side effects.
 
 ---
 
@@ -31,6 +30,12 @@ PR7 is designed to be called by planning surfaces, dashboards, or future approva
 
 ## Contract
 
+### Constants
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `REVENUE_SANITY_CEILING_CENTS` | `1_000_000_000` | Hard ceiling on `assumedRevenueInfluencedCents` ($10M). Revise upward when business scale justifies it. |
+
 ### Types
 
 ```typescript
@@ -44,14 +49,14 @@ type ArenaCandidate = {
   title: string;
   workspaceId: string;
   missionId?: string;
-  skillId?: string;
-  agentId?: string;
+  skillId?: string;   // required for agent-action
+  agentId?: string;   // required for agent-action
   objective?: string;
   expectedOutput?: string;
   riskLevel?: "low" | "medium" | "high";
   autonomyLevel?: number;
-  assumedRevenueInfluencedCents?: number;  // caller-supplied, never invented
-  estimatedCostCents?: number;             // or mapped from Mission.costBudgetCents
+  assumedRevenueInfluencedCents?: number;  // caller-supplied, never invented; must be >= 0 and <= REVENUE_SANITY_CEILING_CENTS
+  estimatedCostCents?: number;             // or mapped from Mission.costBudgetCents; must be >= 0
 };
 
 type ArenaVerdict = {
@@ -61,8 +66,8 @@ type ArenaVerdict = {
   score: number;          // 0–100 heuristic
   netValueCents: number | null;
   roiMultiple: number | null;
-  executable: boolean;    // true = guard allowed; false = guard denied
-  guardReason?: string;   // populated when guard denies
+  executable: boolean;    // true = guard allowed; false = guard denied or kind not executable (idea)
+  guardReason?: string;   // present only when the guard explicitly denied — absent for idea kind and absent when guard passes
   reasons: string[];      // human-readable explanation
 };
 ```
@@ -72,8 +77,21 @@ type ArenaVerdict = {
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `estimateCandidateValue` | `(candidate) → { netValueCents, roiMultiple }` | Deterministic value estimation from caller-supplied data. |
-| `evaluateCandidate` | `(candidate, context?) → ArenaVerdict` | Pure evaluation. Calls guard. Returns verdict. No side effects. |
+| `evaluateCandidate` | `(candidate, context?) → ArenaVerdict` | Pure evaluation. Calls guard for `mission` and `agent-action`. Returns verdict. No side effects. |
 | `rankCandidates` | `(candidates, context?) → ArenaVerdict[]` | Evaluates all candidates, sorts by score descending, `not-evaluable` last. |
+
+---
+
+## Financial Validation
+
+Applied before kind routing for all three kinds. Values outside bounds return `not-evaluable` immediately.
+
+| Field | Rule |
+|---|---|
+| `assumedRevenueInfluencedCents` | Must be `>= 0` and `<= REVENUE_SANITY_CEILING_CENTS` when provided |
+| `estimatedCostCents` | Must be `>= 0` when provided |
+
+Absent fields (`undefined`) are not a validation error — they are caught later as "missing ROI data."
 
 ---
 
@@ -85,7 +103,7 @@ All scoring is deterministic and hardcoded. No LLM, no ML model.
 
 | Decision | Condition |
 |----------|-----------|
-| `not-evaluable` | Guard denied / unknown skill / missing ROI data / unsupported kind |
+| `not-evaluable` | Guard denied / unknown skill / missing ROI data / invalid financial input / missing skillId or agentId for agent-action |
 | `reject` | `netValueCents < 0`, OR score `< 45` |
 | `marginal` | score `45–69` |
 | `promising` | score `≥ 70` AND `netValueCents ≥ 0` |
@@ -119,26 +137,27 @@ Base score: **50**
 |---|---|
 | 1–2 | 0 |
 | 3 | −5 |
-| ≥ 4 | −15 (guard will also reject) |
+| ≥ 4 | −15 (guard will also reject for `mission` and `agent-action`) |
 
 Score is clamped to [0, 100].
 
 ### Guard Integration
 
-`evaluateCandidate` calls `canPrepareExecution` (PR6) and `buildDryRunExecutionPlan` (PR6).
+`evaluateCandidate` calls `canPrepareExecution` (PR6) and `buildDryRunExecutionPlan` (PR6) for `mission` and `agent-action` kinds only. `idea` kind never calls the guard.
 
-- If the guard denies for any reason (effectful skill, unknown skill, live mode, autonomy > 3, wrong agent): verdict = `not-evaluable`, `executable = false`, `guardReason` populated.
+- If the guard denies for any reason (effectful skill, unknown skill, live mode, autonomy > 3, wrong agent): verdict = `not-evaluable`, `executable = false`, `guardReason` set.
 - If the guard allows: `executable = true`.
+- For `idea`: guard is not called, `executable = false` always, `guardReason` is absent.
 
 ---
 
 ## Kind Support
 
-| Kind | Status |
-|------|--------|
-| `mission` | Fully implemented |
-| `idea` | Returns `not-evaluable` (POC) |
-| `agent-action` | Returns `not-evaluable` (POC) |
+| Kind | Status | Guard | `executable` |
+|------|--------|-------|---|
+| `mission` | ✅ Fully implemented | Yes — defaults to `mission.plan` / `joris` | Guard result |
+| `idea` | ✅ Fully implemented | No | Always `false` |
+| `agent-action` | ✅ Fully implemented | Yes — requires explicit `skillId` + `agentId` | Guard result |
 
 ---
 
@@ -146,18 +165,18 @@ Score is clamped to [0, 100].
 
 1. **Scoring heuristic is POC-grade.** The ROI multiple bands and penalty weights are first-pass estimates. They need calibration against real outcomes.
 2. **No persistence.** Verdicts are ephemeral. No history, no trend analysis.
-3. **No UI.** Arena is server-side only. A dashboard can consume it in PR7.1.
-4. **Revenue not validated.** The caller supplies `assumedRevenueInfluencedCents`. The arena trusts it without validation.
-5. **Only `mission` kind is scored.** `idea` and `agent-action` return `not-evaluable`.
-6. **No multi-criteria weighting.** Strategic alignment, urgency, and opportunity cost are not modelled.
+3. **No UI.** Arena is server-side only. A dashboard can consume it in a future PR.
+4. **Revenue ceiling is $10M.** `REVENUE_SANITY_CEILING_CENTS = 1_000_000_000`. Not validated against market reality — adjust for enterprise use.
+5. **No multi-criteria weighting.** Strategic alignment, urgency, and opportunity cost are not modelled.
 
 ---
 
-## What PR7.1 Will Add
+## What Comes Next
 
-- Calibrated score weights from historical mission outcomes.
-- Full `idea` and `agent-action` evaluation paths.
-- Persistence of verdicts to a read-only verdicts table.
-- A minimal UI surface (Moneyboard integration or standalone Arena view).
-- Revenue validation rules (sanity bounds on `assumedRevenueInfluencedCents`).
-- Batch evaluation API for mission queues.
+| Item | Target |
+|---|---|
+| Persistence of verdicts (in-memory store or Supabase) | PR7.3 or PR8 |
+| UI surface (Moneyboard integration or standalone Arena view) | PR8 |
+| Revenue validation rules — tighter domain-specific bounds | PR8 |
+| Batch evaluation API | PR8 |
+| Score calibration from historical outcomes | Post-PR8 |
