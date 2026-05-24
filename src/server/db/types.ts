@@ -109,6 +109,20 @@ export type DocumentInsert = Omit<DocumentRow, "id" | "created_at" | "processed_
   task_id?: string | null;
 };
 
+export type ArenaVerdictRow = {
+  id: string;
+  workspace_id: string;
+  candidate_id: string;
+  verdict: Json;
+  stored_at: string;
+  expires_at: string | null;
+  created_at: string;
+};
+
+export type ArenaVerdictInsert = Omit<ArenaVerdictRow, "created_at"> & {
+  created_at?: string;
+};
+
 export type MichaelHqDatabase = {
   public: {
     Tables: {
@@ -140,6 +154,12 @@ export type MichaelHqDatabase = {
         Row: DocumentRow;
         Insert: DocumentInsert;
         Update: Partial<DocumentInsert>;
+        Relationships: [];
+      };
+      arena_verdicts: {
+        Row: ArenaVerdictRow;
+        Insert: ArenaVerdictInsert;
+        Update: Partial<ArenaVerdictInsert>;
         Relationships: [];
       };
     };

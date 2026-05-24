@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
+import { requireOwnerApiSession } from "@/server/auth/owner";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { defaultArenaEvaluationService } from "@/server/arena/arena-evaluation-service";
 import { arenaEvaluateRequestSchema } from "@/server/arena/arena-api-schema";
 
 // POST /api/arena/evaluate
-// Evaluates a candidate and stores the verdict in the process-scoped in-memory store.
-// No DB writes, no effects, no execution.
+// Evaluates a candidate, stores the verdict in memory, and persists to DB.
+// workspaceId is always resolved server-side — client-supplied value is overridden.
 export async function POST(request: Request) {
+  const authError = await requireOwnerApiSession();
+  if (authError) return authError;
+
+  const { activeWorkspace } = getActiveWorkspaceContext();
+
   const body = await request.json().catch(() => null);
   const parsed = arenaEvaluateRequestSchema.safeParse(body);
 
@@ -16,8 +23,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const record = defaultArenaEvaluationService.evaluateAndStore(
-    parsed.data.candidate,
+  const candidate = { ...parsed.data.candidate, workspaceId: activeWorkspace.id };
+  const record = await defaultArenaEvaluationService.evaluateAndStore(
+    candidate,
     parsed.data.context,
   );
 
