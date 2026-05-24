@@ -16,7 +16,8 @@
     "test:skill-governance": "node --test src/features/skills/skill-governance.test.mjs",
     "test:ledger-events": "node --test src/server/actions/ledger-events.test.mjs",
     "test:calendar-ledger-atomicity": "node --test src/server/calendar/calendar-ledger-atomicity.test.mjs",
-    "test:model-router": "node --test src/server/ai/model-router.test.mjs"
+    "test:model-router": "node --test src/server/ai/model-router.test.mjs",
+    "test:execution-guard": "node --test src/server/runtime/execution-guard.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
