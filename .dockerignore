@@ -1,0 +1,58 @@
+# =============================================================
+# Oria HQ — .dockerignore
+# Prevents unnecessary files from entering the Docker build context.
+# Keeps image lean, avoids secrets leaking into layers.
+# =============================================================
+
+# Dependencies (rebuilt inside Docker)
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js build output
+.next
+out
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment files — NEVER in image
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Docs & planning (not needed in runtime)
+docs
+README.md
+CHANGELOG.md
+
+# Tests & smoke scripts
+**/*.test.ts
+**/*.test.mjs
+**/*.spec.ts
+src/scripts/smoke
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode
+.idea
+*.swp
+*.swo
+
+# TypeScript incremental cache
+*.tsbuildinfo
+
+# Coverage
+coverage
+.nyc_output
+
+# CI/CD
+.github
