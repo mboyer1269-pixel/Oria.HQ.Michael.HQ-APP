@@ -59,6 +59,16 @@ export type ActionLedgerRepository = {
   record(input: RecordActionInput): Promise<ActionLedgerEntry>;
 };
 
+export type WorkspaceLedgerMetadataInput = {
+  eventType?: LedgerEventType;
+  workspaceId?: string;
+  modeId?: string;
+  skillId?: string;
+  agentId?: string;
+  assistantProfileId?: string;
+  missionId?: string;
+};
+
 export class ActionLedgerRepositoryError extends Error {
   constructor(message: string) {
     super(message);
@@ -70,6 +80,42 @@ const localEntries: ActionLedgerEntry[] = [];
 
 function createLocalId() {
   return `act_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isJsonRecord(value: Json | undefined): value is { [key: string]: Json | undefined } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function withoutUndefinedValues(value: { [key: string]: Json | undefined }): Record<string, Json> {
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, Json] => entry[1] !== undefined),
+  );
+}
+
+export function toWorkspaceLedgerMetadata(input: WorkspaceLedgerMetadataInput): Record<string, Json> {
+  const assistantProfileId = input.assistantProfileId ?? input.agentId;
+
+  return withoutUndefinedValues({
+    eventType: input.eventType,
+    workspaceId: input.workspaceId,
+    modeId: input.modeId,
+    skillId: input.skillId,
+    agentId: input.agentId,
+    assistantProfileId,
+    missionId: input.missionId,
+  });
+}
+
+export function withWorkspaceActionMetadata(
+  metadata: Json | undefined,
+  workspaceMetadata: WorkspaceLedgerMetadataInput,
+): Json {
+  const base = isJsonRecord(metadata) ? metadata : {};
+
+  return {
+    ...base,
+    ...toWorkspaceLedgerMetadata(workspaceMetadata),
+  };
 }
 
 function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): ActionLedgerEntry {
@@ -94,14 +140,27 @@ function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): A
   };
 }
 
+function getPayloadMetadata(input: RecordActionInput): Json | undefined {
+  if (!isJsonRecord(input.payload)) return undefined;
+
+  return input.payload.metadata;
+}
+
 function buildMetadata(input: RecordActionInput): Json {
-  const base = typeof input.metadata === "object" && input.metadata !== null && !Array.isArray(input.metadata)
-    ? (input.metadata as { [key: string]: Json | undefined })
-    : {};
-  if (input.missionId !== undefined) {
-    return { ...base, missionId: input.missionId };
-  }
-  return base;
+  const payloadMetadata = getPayloadMetadata(input);
+  const base = {
+    ...(isJsonRecord(payloadMetadata) ? payloadMetadata : {}),
+    ...(isJsonRecord(input.metadata) ? input.metadata : {}),
+  };
+
+  return withWorkspaceActionMetadata(base, {
+    eventType: input.eventType,
+    workspaceId: input.workspaceId,
+    modeId: isJsonRecord(base) && typeof base.modeId === "string" ? base.modeId : undefined,
+    skillId: input.skillId,
+    agentId: input.agentId,
+    missionId: input.missionId ?? (typeof base.missionId === "string" ? base.missionId : undefined),
+  });
 }
 
 function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedgerRepository {
@@ -196,6 +255,10 @@ export function createActionLedgerRepository(user: ServerUserContext): ActionLed
   }
 
   return createLocalActionLedgerRepository(user);
+}
+
+export function getLocalActionLedgerEntriesForSmoke(): readonly ActionLedgerEntry[] {
+  return [...localEntries];
 }
 
 export function toActionLedgerStatus(error: unknown): ActionLedgerStatus {

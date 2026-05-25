@@ -4,7 +4,7 @@ import type {
   CalendarEventSource,
   ModelMode,
 } from "@/features/hq/types";
-import { getActiveWorkspaceContext } from "@/core/workspace-context";
+import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import { skillsCatalog } from "@/features/skills/seed";
 import type { SkillProfile } from "@/features/skills/types";
 import { LedgerEventValidationError, recordLedgerEvent } from "@/server/actions/ledger-events";
@@ -38,6 +38,7 @@ export type CalendarEventWriteResult = {
 export type CreateCalendarEventOptions = {
   recordLedger?: typeof recordLedgerEvent;
   calendarRepository?: CalendarRepository;
+  workspaceContext?: WorkspaceContext;
 };
 
 export class CalendarServiceError extends Error {
@@ -83,6 +84,16 @@ function assertCalendarPermission(confirm?: boolean) {
   return permission;
 }
 
+function assertAssistantCanUseCalendarBook(ctx: WorkspaceContext) {
+  if (ctx.activeAgentProfile.allowedTools.includes("calendar.book")) return;
+
+  throw new CalendarServiceError(
+    "L'assistant actif n'est pas autorise a utiliser calendar.book.",
+    403,
+    "CALENDAR_FORBIDDEN",
+  );
+}
+
 async function compensateCalendarCreate(
   calendarRepository: CalendarRepository,
   eventId: string,
@@ -103,8 +114,9 @@ export async function createCalendarEvent(
   command: CreateCalendarEventCommand,
   options?: CreateCalendarEventOptions,
 ): Promise<CalendarEventWriteResult> {
+  const ctx = options?.workspaceContext ?? getActiveWorkspaceContext();
+  assertAssistantCanUseCalendarBook(ctx);
   const permission = assertCalendarPermission(command.confirm);
-  const ctx = getActiveWorkspaceContext();
   const calendarRepository = options?.calendarRepository ?? createCalendarRepository(ctx);
   const skill = getCalendarBookSkill();
   const recordLedger = options?.recordLedger ?? recordLedgerEvent;

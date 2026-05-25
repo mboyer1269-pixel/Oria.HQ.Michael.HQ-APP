@@ -1,5 +1,5 @@
 import type { CommandResult, JorisIntent, MissionPlanResult } from "@/features/hq/types";
-import { getActiveWorkspaceContext } from "@/core/workspace-context";
+import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import { chooseModel } from "@/server/ai/model-router";
 import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
@@ -20,9 +20,12 @@ function buildFallbackSummary(intent: JorisIntent, message: string) {
   return `Reçu, CEO. Je garde ça en contexte et je le traiterai en français québécois canadien: ${message}`;
 }
 
-export async function runJorisCommand(message: string): Promise<CommandResult> {
+export async function runJorisCommand(
+  message: string,
+  workspaceContext: WorkspaceContext = getActiveWorkspaceContext(),
+): Promise<CommandResult> {
   const intent = detectIntent(message);
-  const ctx = getActiveWorkspaceContext();
+  const ctx = workspaceContext;
   const route = chooseModel({
     message,
     highImpact: intent === "board.consult" || intent === "opportunity.score",
@@ -74,6 +77,8 @@ export async function runJorisCommand(message: string): Promise<CommandResult> {
           notes: calendarIntent.notes,
           modelId: route.model.id,
           costMode: route.mode,
+        }, {
+          workspaceContext: ctx,
         });
         const ledgerSummary =
           ledgerStatus === "recorded" ? "Action journalisée." : "Événement créé, ledger à rejournaliser.";

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { requireOwnerApiSession } from "@/server/auth/owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
@@ -28,7 +29,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runJorisCommand(parsed.data.message);
+    const workspaceContext = getActiveWorkspaceContext();
+    const result = await runJorisCommand(parsed.data.message, workspaceContext);
 
     return NextResponse.json(result);
   } catch (error) {

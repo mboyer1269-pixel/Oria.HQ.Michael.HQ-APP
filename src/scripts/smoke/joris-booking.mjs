@@ -64,7 +64,9 @@ const jiti = createJiti(import.meta.url, {
 });
 
 const brainPath = path.join(projectRoot, "src", "server", "joris", "brain.ts");
+const ledgerRepositoryPath = path.join(projectRoot, "src", "server", "actions", "action-ledger-repository.ts");
 const { runJorisCommand } = await jiti.import(brainPath);
+const { getLocalActionLedgerEntriesForSmoke } = await jiti.import(ledgerRepositoryPath);
 
 const stamp = new Date().toISOString().slice(11, 16); // HH:MM
 const message = `Book RDV demain 10h00 smoke-test ${stamp}`;
@@ -78,6 +80,10 @@ try {
   console.error("[smoke:joris] runJorisCommand threw:", err);
   process.exit(1);
 }
+
+const localLedgerEntries = getLocalActionLedgerEntriesForSmoke();
+const lastLedgerEntry = localLedgerEntries.at(-1);
+const ledgerMetadata = lastLedgerEntry?.metadata ?? {};
 
 const checks = [
   ["intent === calendar.book", result.intent === "calendar.book"],
@@ -103,6 +109,17 @@ const checks = [
   ["workspaceId present", Boolean(result.workspaceId)],
   ["modeId present", Boolean(result.modeId)],
   ["assistantId present", Boolean(result.assistantId)],
+  ["local ledger entry present", Boolean(lastLedgerEntry)],
+  ["ledger metadata workspaceId matches result", ledgerMetadata.workspaceId === result.workspaceId],
+  ["ledger metadata modeId matches result", ledgerMetadata.modeId === result.modeId],
+  [
+    "ledger metadata assistantProfileId matches result",
+    ledgerMetadata.assistantProfileId === result.assistantId,
+  ],
+  [
+    "ledger metadata calendarEventId matches event",
+    Boolean(result.calendarEvent && ledgerMetadata.calendarEventId === result.calendarEvent.id),
+  ],
 ];
 
 console.log("[smoke:joris] result:");
@@ -114,6 +131,7 @@ console.log("  ledgerStatus:  ", result.ledgerStatus);
 console.log("  workspaceId:   ", result.workspaceId);
 console.log("  modeId:        ", result.modeId);
 console.log("  assistantId:   ", result.assistantId);
+console.log("  ledgerMeta:    ", JSON.stringify(ledgerMetadata, null, 2).replace(/\n/g, "\n                 "));
 console.log("  calendarEvent: ", result.calendarEvent ? JSON.stringify(result.calendarEvent, null, 2).replace(/\n/g, "\n                 ") : "(none)");
 console.log("  summary:       ", result.summary);
 
