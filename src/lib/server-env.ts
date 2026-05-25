@@ -1,9 +1,11 @@
-// Server-only configuration. Do not import this module from Client Components.
+import "server-only";
+
 export const serverEnv = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   openAiApiKey: process.env.OPENAI_API_KEY,
   googleGenerativeAiApiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
   elevenLabsApiKey: process.env.ELEVENLABS_API_KEY,
+  openRouterApiKey: process.env.OPENROUTER_API_KEY,
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   michaelHqOwnerId: process.env.MICHAEL_HQ_OWNER_ID,

@@ -5,7 +5,7 @@ export type { AutonomyLevel, PermissionRule };
 
 export type VentureHat = "suivia" | "mcl" | "personal" | "hq";
 
-export type ModelProvider = "anthropic" | "openai" | "google";
+export type ModelProvider = "anthropic" | "openai" | "google" | "openrouter";
 
 export type ModelMode = "auto" | "economy" | "brute" | "manual";
 

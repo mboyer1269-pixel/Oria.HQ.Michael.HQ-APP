@@ -1,6 +1,15 @@
 import type { ModelProfile } from "@/features/hq/types";
 import { modelProfiles } from "@/features/hq/seed";
 
+/**
+ * OpenRouter gateway — unified access to 200+ models via a single API key.
+ * Compatible with the OpenAI SDK: set baseURL to "https://openrouter.ai/api/v1"
+ * and apiKey to serverEnv.openRouterApiKey. No extra SDK needed.
+ *
+ * Use these IDs when routing to OpenRouter profiles defined in seed.ts.
+ */
+export const OPENROUTER_PREFIX = "openrouter/";
+
 /** Premium brain — judgment, strategy, high-impact decisions. */
 export const PREMIUM_MODEL_ID = "claude-sonnet-4-6";
 
