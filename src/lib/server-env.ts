@@ -11,6 +11,8 @@ export const serverEnv = {
   michaelHqOwnerId: process.env.MICHAEL_HQ_OWNER_ID,
   michaelHqOwnerEmail: process.env.MICHAEL_HQ_OWNER_EMAIL?.trim().toLowerCase(),
   contactNotificationEmail: process.env.CONTACT_NOTIFICATION_EMAIL,
+  resendApiKey: process.env.RESEND_API_KEY,
+  resendFromEmail: process.env.RESEND_FROM_EMAIL,
 };
 
 export function isLocalPersistenceFallbackAllowed() {

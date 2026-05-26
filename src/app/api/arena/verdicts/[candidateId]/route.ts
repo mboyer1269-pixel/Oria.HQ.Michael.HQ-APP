@@ -1,17 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { defaultArenaEvaluationService } from "@/server/arena/arena-evaluation-service";
-
-type ArenaEvaluationService = typeof defaultArenaEvaluationService;
-
-function getArenaEvaluationService(): ArenaEvaluationService {
-  const globals = globalThis as typeof globalThis & {
-    __arenaEvaluationServiceTestOverride?: ArenaEvaluationService;
-  };
-
-  return globals.__arenaEvaluationServiceTestOverride ?? defaultArenaEvaluationService;
-}
+import { getArenaEvaluationService } from "@/server/arena/get-arena-service";
 
 // GET /api/arena/verdicts/[candidateId]
 // Returns a specific verdict scoped to the authenticated owner's active workspace.
