@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowRight, Bot, CalendarCheck, FileText, LockKeyhole, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
+import { ArrowRight, Bot, CalendarCheck, FileText, LockKeyhole, Mail, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 
 const pillars = [
   {
@@ -54,6 +54,13 @@ export default function Home() {
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:bg-neutral-900"
             >
               Connexion propriétaire
+            </Link>
+            <Link
+              href={"/contact" as Route}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-500/30 px-4 text-sm font-semibold text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-500/10"
+            >
+              <Mail className="h-4 w-4" />
+              Contact
             </Link>
           </nav>
         </section>
