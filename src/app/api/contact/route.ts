@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createContactLead } from "@/server/contact/contact-lead-service";
 import { ContactLeadRepositoryError } from "@/server/contact/contact-lead-repository";
+import { isAllowed } from "@/lib/rate-limit";
 
 const optionalTextSchema = (max: number) =>
   z
@@ -42,7 +43,25 @@ function toApiError(error: unknown) {
   );
 }
 
+/** 5 requests per hour per IP address. */
+const RATE_LIMIT = 5;
+const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
 export async function POST(request: Request) {
+  // ---- Rate limiting ----
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (!isAllowed(ip, RATE_LIMIT, RATE_WINDOW_MS)) {
+    return NextResponse.json(
+      { error: "Trop de messages envoyés. Réessaie dans une heure." },
+      { status: 429 },
+    );
+  }
+
+  // ---- Validation ----
   const body = await request.json().catch(() => null);
   const parsed = contactRequestSchema.safeParse(body);
 
@@ -56,6 +75,7 @@ export async function POST(request: Request) {
     );
   }
 
+  // ---- Honeypot ----
   if (parsed.data.website) {
     return NextResponse.json(
       {
@@ -67,6 +87,7 @@ export async function POST(request: Request) {
     );
   }
 
+  // ---- Business logic ----
   try {
     const result = await createContactLead({
       name: parsed.data.name,
