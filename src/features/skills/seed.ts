@@ -193,9 +193,9 @@ export const skillsCatalog: SkillProfile[] = [
     canWriteDB: true,
     canTriggerExternal: false,
     requiresHumanApproval: false,
-    logsRequired: ["action"],
+    logsRequired: ["decision", "action"],
     testsRequired: [
-      "Crée un événement interne réversible et journalise une action",
+      "Émet une décision avant la création, puis journalise une action",
       "Invitation externe → escalade au niveau 4 (approbation)",
     ],
     outputConstraint: "Invitation externe nécessite confirmation niveau 4",
