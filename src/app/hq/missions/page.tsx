@@ -1,6 +1,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, LayoutDashboard, LayoutGrid, ShieldAlert } from "lucide-react";
+import { MissionCalendarFlowSection } from "@/features/missions/components/mission-calendar-flow-section";
 import { MissionKanbanBoard } from "@/features/missions/components/mission-kanban-board";
 import { MissionApprovalPanel } from "@/features/missions/components/mission-approval-panel";
 import { MissionSystemStatus } from "@/features/missions/components/mission-system-status";
@@ -47,8 +48,11 @@ export default async function MissionsPage() {
             Pipeline des missions
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">
-            Toutes les missions assignées aux agents sont visibles ici. Aucune action autonome ne s&apos;exécute
-            sans approbation explicite.
+            Vue pipeline et démonstration Phase 1. Les rendez-vous Joris passent par une proposition pending sur{" "}
+            <Link href={"/hq#mission-draft-pending" as Route} className="text-amber-300 underline-offset-2 hover:underline">
+              Michael HQ
+            </Link>
+            ; l&apos;approbation exécuteur ci-dessous reste mock (Phase 2).
           </p>
         </div>
 
@@ -103,6 +107,8 @@ export default async function MissionsPage() {
         </section>
       )}
 
+      <MissionCalendarFlowSection />
+
       <MissionSystemStatus />
 
       <MissionApprovalPanel missions={missions} />
@@ -128,8 +134,7 @@ export default async function MissionsPage() {
           <span className="font-medium text-neutral-500">
             Source: {source === "supabase" ? "Supabase" : "données locales"} —{" "}
           </span>
-          Aucune exécution autonome réelle. Le pipeline d&apos;exécution sera activé en Phase 2
-          après approbation du modèle Mission.
+          Calendar.book : gate live sur /hq (#96–#98). Exécuteur autonome verrouillé — Phase 2 après Red Team.
         </p>
       </footer>
     </main>

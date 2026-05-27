@@ -1,9 +1,9 @@
 # Mission Control Operating Manual
 
 Last updated: 2026-05-27  
-Branch at time of writing: `main` at `4af014c` (post-PR #96)
+Branch at time of writing: `main` at `f38aa12`+ (post-PR #96–#99)
 
-> **Canonical inventory:** `docs/ORIA_HQ_CURRENT_STATE.md` — calendar ledger (#88–#90), Operator Snapshot (#92), Ledger Activity (#94–#95), Joris Mission Draft gate (#96).
+> **Canonical inventory:** `docs/ORIA_HQ_CURRENT_STATE.md` — calendar ledger (#88–#90), Operator Snapshot (#92), Ledger Activity (#94–#95), Joris Mission Draft gate (#96), HQ draft control (#98), missions page alignment (#99).
 
 ---
 
@@ -11,7 +11,20 @@ Branch at time of writing: `main` at `4af014c` (post-PR #96)
 
 Mission Control (`/hq/missions`) is the human oversight layer for all agent work in Oria HQ.
 
-**Core contract:** no autonomous action executes without an explicit human approval. Every mission goes through a visible pipeline with mandatory checkpoints before anything runs. The live executor is permanently locked until all safety guardrails pass a Red Team review.
+**Core contract:** no autonomous **live executor** run without explicit approval records (Phase 2). Calendar booking uses a separate **Mission Draft gate** on `/hq` (#96–#98): propose → confirm → local draft + `calendar.book`. `/hq/missions` is a **read-only pipeline view** plus a **mock** executor-approval panel (buttons disabled).
+
+---
+
+## Where to act (operator map)
+
+| What you see | Where to act | Notes |
+| --- | --- | --- |
+| Proposition calendrier (pending, TTL 10 min) | `/hq` bandeau `#mission-draft-pending` | Approuver / Refuser (#98 API ou chat Joris) |
+| Pending visible depuis missions | `/hq/missions` encart embedded | Read-only + lien « Ouvrir sur Michael HQ » (#99) |
+| Mission `mission_draft_*` / `calendar.book` | Kanban **Brouillon** | Déjà confirmée — badge « Calendrier confirmé » |
+| `mission.plan` dry-run | Joris chat | Texte seulement — pas de mission créée |
+| Missions `needs_approval` (seed) | `/hq/missions` panneau orange | **Mock Phase 2** — boutons désactivés |
+| Exécuteur live | Nulle part | Verrouillé |
 
 ---
 
@@ -19,10 +32,11 @@ Mission Control (`/hq/missions`) is the human oversight layer for all agent work
 
 | Component | Status | Detail |
 |---|---|---|
-| Joris planning | ✅ enabled | Dry-run only — produces a plan, never executes |
+| Calendar.book gate | ✅ enabled | Pending + confirm on `/hq`; local draft + ledger `missionId` |
+| Joris `mission.plan` | ✅ enabled | Dry-run text only — no mission row created |
 | Live executor | 🔴 locked | Requires Red Team pass before activation |
-| Approval records | 🟡 partial | Contract defined (`MissionApprovalRecord`); persistence not yet wired |
-| Mission persistence | 🟡 partial | Read path exists, but no mission write path is implemented yet; schema proposed in `docs/MISSION_PERSISTENCE_SCHEMA_PROPOSAL.md`, migration not applied |
+| Approval records (executor) | 🟡 mock UI | Contract defined; `/hq/missions` panel is Phase 2 mock only |
+| Mission persistence | 🟡 partial | Local in-memory drafts (#96); seed on missions page; Supabase migration not applied |
 | Idempotency / rate limit | 🟡 partial | Local in-memory store only; production requires Supabase/Redis |
 
 ---
@@ -76,6 +90,33 @@ Actionable calendar booking is **not** immediate. Joris requires a **proposal** 
 - Ledger Activity on `/hq` may show **Liée** when `missionId` is present on decision/action rows (#95).
 
 **Smoke:** `npm run smoke:joris` (two messages). **Tests:** `npm run test:mission-draft`.
+
+---
+
+## HQ Mission Draft Control (#98)
+
+When a pending draft exists, `/hq` shows the **Mission draft en attente** banner (`#mission-draft-pending`).
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/api/missions/draft/pending` | GET | Owner-gated read of pending preview + TTL |
+| `/api/missions/draft/confirm` | POST | Owner-gated confirm → local mission + `calendar.book` |
+| `/api/missions/draft/cancel` | POST | Owner-gated cancel → clears pending |
+
+Confirm/cancel from the UI use these routes (banner variant). Chat short-words still work via Joris brain delegating to the same control module.
+
+**Do not** duplicate confirm/cancel on `/hq/missions` — embedded panel (#99) links back to `/hq` only.
+
+---
+
+## Missions page alignment (#99)
+
+`/hq/missions` adds:
+
+- **Flux calendrier Joris** — legend + optional embedded pending (read-only).
+- **Mission system status** chips — distinguishes calendar gate vs `mission.plan` dry-run vs mock approval.
+- **Mission cards** — « Calendrier confirmé » for `mission_draft_*` / `calendar.book`.
+- **Approval panel** — relabeled « Approbation exécuteur (Phase 2 — mock) ».
 
 ---
 
@@ -136,9 +177,9 @@ Until all four are true, every execution plan is dry-run only. `buildDryRunMissi
 
 **Safe (current state):**
 - Requesting dry-run plans via Joris or POST /api/missions/plan
-- Viewing mission pipeline on /hq/missions
+- Viewing mission pipeline on `/hq/missions` (including legend and embedded pending read-only)
 - Viewing **Operator Snapshot** and **Ledger Activity** on `/hq` (read-only — no execution)
-- Proposing then confirming calendar bookings via Joris (Mission Draft gate → local draft + `calendar.book` with `missionId`; ledger decision→create→action #88–#96)
+- Proposing then confirming calendar bookings on `/hq` (#98 banner/API) or via Joris chat (Mission Draft gate → local draft + `calendar.book` with `missionId`; ledger #88–#96)
 - Creating `MissionApprovalRecord` drafts via `createMissionApprovalRecordDraft()`
 - Running `verifyMissionApprovalRecord()` — pure function, no I/O
 

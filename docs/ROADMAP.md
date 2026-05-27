@@ -35,6 +35,8 @@ This roadmap keeps Oria buildable by sequencing foundations before UI expansion.
 
 **Shipped on `main` (post-consolidation, see `ORIA_HQ_CURRENT_STATE.md`):**
 - PR #96 (`4af014c`): Joris `calendar.book` → Mission Draft proposal + explicit confirm before booking; local mission draft + `missionId` on ledger; no Supabase mission writes.
+- PR #98: Mission Draft Control V1 — bandeau pending sur `/hq`, API owner-gated `GET/POST` confirm/cancel, ancre `#mission-draft-pending`.
+- PR #99 (planned / `feat/mission-control-alignment`): alignement `/hq/missions` — légende flux, pending embedded read-only, badges calendrier, copy exécuteur mock vs gate HQ.
 - PRs #94–#95: Ledger Activity panel and mission ↔ ledger traceability labels (**Liée** / **Orphelin**).
 
 ## Phase 1: Mission Domain Model
