@@ -37,15 +37,22 @@ This skill guides agents through the complete PR preparation workflow — from s
 
 ## Workflow
 
-### Step 1: Scope Analysis
+### Step 1: Scope Analysis & PR Gatekeeper
 
-1. Identify all files that have been modified, created, or deleted.
-2. Classify each file into a component (core, features, docs, config, tests).
-3. Determine zone classification per [orya-security-boundaries.md](../../rules/orya-security-boundaries.md):
+The PR Gatekeeper logic ensures that only small, scoped, validated, and reversible PRs are proposed.
+
+1. **Gatekeeper Enforcement:**
+   - **Block broad refactors:** Reject PRs that include unrelated cleanups or wide-reaching formatting changes.
+   - **Block unauthorized scope:** Reject PRs touching runtime execution, auth, RLS, secrets, `.env`, dependencies (`package.json`), or migrations unless explicitly approved by Michael.
+   - **Enforce Reversibility:** Ensure the PR can be cleanly rolled back.
+   - **Require Out-of-Scope Definitions:** Explicitly document what was intentionally left out of scope to prevent creep.
+2. Identify all files that have been modified, created, or deleted.
+3. Classify each file into a component (core, features, docs, config, tests).
+4. Determine zone classification per [orya-security-boundaries.md](../../rules/orya-security-boundaries.md):
    - Are all changes Green zone?
    - Do any changes fall in Yellow zone?
    - Are any Red zone actions involved? → **Stop immediately.**
-4. Decide if changes should be one PR or split into multiple PRs:
+5. Decide if changes should be one PR or split into multiple PRs:
    - **One PR** if changes are logically cohesive and affect one feature/component.
    - **Multiple PRs** if changes span unrelated components or mix doc-only with code changes.
 
@@ -99,7 +106,11 @@ Generate a PR description using the template from [orya-pr-rules.md §3](../../r
 ## Zone Classification
 [Green / Yellow — identify which zone the changes fall into]
 
-## Validation Results
+## Out of Scope
+[Explicitly state what was left out of scope to prevent creep]
+
+## Validation Plan & Results
+[How the implementation was validated locally]
 - typecheck: ✅ / ❌
 - lint: ✅ / ❌
 - build: ✅ / ❌
@@ -108,8 +119,8 @@ Generate a PR description using the template from [orya-pr-rules.md §3](../../r
 ## Risks & Assumptions
 [Any risks, assumptions, or items requiring reviewer attention]
 
-## Rollback
-[How to revert this change if needed]
+## Rollback Plan
+[How to cleanly revert this change if needed]
 ```
 
 ### Step 6: Approval Request

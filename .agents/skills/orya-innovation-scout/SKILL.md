@@ -167,6 +167,7 @@ Must be achievable within 1-2 weeks with existing resources.
 Must not require production access, new infrastructure, or budget commitment.]
 
 ### 7. Decision: GO / WATCH / NO-GO
+*Constraint: The Scout must recommend ONLY ONE opportunity per cycle as GO. Reject shiny-object ideas. Prioritize ROI, product impact, differentiation, fast validation, and low risk. Only the winning idea should be converted into a PR candidate.*
 
 ### 8. Next Action
 [The single most important next step if the decision is GO or WATCH]
@@ -246,7 +247,7 @@ Must not require production access, new infrastructure, or budget commitment.]
 
 | Score Range | Decision | Meaning |
 |-------------|----------|---------|
-| **25–30** | **GO** | Strong opportunity. Proceed to micro-experiment immediately. |
+| **25–30** | **GO** | Strong opportunity. Proceed to micro-experiment immediately. Limit: ONE per cycle. |
 | **18–24** | **WATCH** | Promising but uncertain. Monitor for 2-4 weeks and re-score. |
 | **12–17** | **LOW PRIORITY** | Some potential but not worth active pursuit now. Log and revisit quarterly. |
 | **0–11** | **NO-GO** | Not viable for Orya HQ at this time. Archive with rationale. |

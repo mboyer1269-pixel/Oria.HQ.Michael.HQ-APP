@@ -249,6 +249,8 @@ Skills are purpose-built workflows for specific agent roles.
 
 | Skill | Path | Primary Agent |
 |-------|------|---------------|
+| **Multi-Agent Delivery Loop** | [orya-multi-agent-delivery-loop/SKILL.md](../.agents/skills/orya-multi-agent-delivery-loop/SKILL.md) | All Agents |
+| **Builder Green Zone** | [orya-builder-green-zone/SKILL.md](../.agents/skills/orya-builder-green-zone/SKILL.md) | Builder |
 | **PR Planner** | [orya-pr-planner/SKILL.md](../.agents/skills/orya-pr-planner/SKILL.md) | Architect, Builder |
 | **Security Review** | [orya-security-review/SKILL.md](../.agents/skills/orya-security-review/SKILL.md) | QA / Security |
 | **Runtime Ledger** | [orya-runtime-ledger/SKILL.md](../.agents/skills/orya-runtime-ledger/SKILL.md) | QA / Security, Builder |
@@ -320,7 +322,9 @@ Every factual claim must cite at least one Tier 1 source.
 
 ### 8.1 Standard Development Pipeline
 
-```
+This pipeline is explicitly coordinated by the [Multi-Agent Delivery Loop](../.agents/skills/orya-multi-agent-delivery-loop/SKILL.md) skill.
+
+```text
 Architect → Builder → QA/Security → UI Verification → Docs → PR → Michael
 ```
 
