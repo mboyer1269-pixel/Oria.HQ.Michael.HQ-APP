@@ -26,6 +26,7 @@ export type CreateCalendarEventCommand = {
   remindersMinutes?: number[];
   notes?: string;
   confirm?: boolean;
+  missionId?: string;
   modelId?: string;
   costMode?: ModelMode;
 };
@@ -122,6 +123,7 @@ async function recordCalendarLedgerEvent(
     agentId: ctx.activeAgentProfile.id,
     modelId: command.modelId,
     costMode: command.costMode,
+    missionId: command.missionId,
     effect: {
       kind: "schedule",
       operation: "create",

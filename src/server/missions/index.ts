@@ -27,6 +27,29 @@ export type {
 } from "./executor-contract";
 export { resolveMissionFromText } from "./mission-resolver";
 export type { MissionResolveResult } from "./mission-resolver";
+export { classifyMissionDraftReply } from "./mission-draft-confirmation";
+export type { MissionDraftReplyKind } from "./mission-draft-confirmation";
+export {
+  buildMissionDraftPreview,
+  buildMissionDraftFromCalendar,
+  formatMissionDraftProposalSummary,
+  MISSION_DRAFT_TTL_MS,
+} from "./mission-draft-builder";
+export {
+  getPendingMissionDraft,
+  setPendingMissionDraft,
+  clearPendingMissionDraft,
+  getCachedMissionDraftConfirmation,
+  cacheMissionDraftConfirmation,
+  isPendingMissionDraftExpired,
+  resetMissionDraftSessionForTests,
+} from "./mission-draft-session";
+export type { PendingMissionDraft, MissionDraftConfirmationResult } from "./mission-draft-session";
+export {
+  createLocalMissionDraft,
+  listLocalMissionDrafts,
+  resetLocalMissionDraftsForTests,
+} from "./mission-draft-repository";
 export { createMissionApprovalRecordDraft, verifyMissionApprovalRecord } from "./approval-record";
 export type {
   MissionApprovalRecordStatus,

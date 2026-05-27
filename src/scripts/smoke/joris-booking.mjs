@@ -3,7 +3,8 @@
  * Joris booking smoke check.
  *
  * Runs `runJorisCommand` in-process with a French booking message and asserts
- * the calendar booking path produces an event. Exits 0 on pass, 1 on fail.
+ * the mission-draft confirmation path produces an event linked to a mission.
+ * Exits 0 on pass, 1 on fail.
  *
  * Default mode is LOCAL — the script clears MICHAEL_HQ_OWNER_ID and
  * SUPABASE_SERVICE_ROLE_KEY before importing the server so the calendar
@@ -11,18 +12,6 @@
  *
  * To exercise the real Supabase write path explicitly:
  *   SMOKE_WRITE=1 npm run smoke:joris
- *
- * What this exercises:
- *   - Joris intent detection (message -> "calendar.book")
- *   - Calendar intent parser (French "demain 10h00")
- *   - Permission engine (must allow "calendar-simple")
- *   - Calendar repository write (in-memory by default, Supabase if SMOKE_WRITE=1)
- *   - Action ledger write (mandatory)
- *
- * What this does NOT exercise:
- *   - HTTP route handler (`/api/joris/chat`)
- *   - Zod request validation
- *   - Owner-only auth gate
  */
 
 import path from "node:path";
@@ -31,9 +20,6 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
 
-// Pin storage mode BEFORE importing any server module — serverEnv is computed
-// at import time, so once the brain (or anything that pulls in serverEnv) is
-// loaded, flipping these env vars no longer has any effect.
 const writeMode = process.env.SMOKE_WRITE === "1";
 const hadOwnerId = Boolean(process.env.MICHAEL_HQ_OWNER_ID);
 const hadServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -57,8 +43,6 @@ const { createJiti } = await import("jiti");
 const jiti = createJiti(import.meta.url, {
   alias: {
     "@": path.join(projectRoot, "src"),
-    // "server-only" is a Next.js bundler marker with no runtime package; stub
-    // it so jiti can load server modules that import it.
     "server-only": path.join(__dirname, "server-only-stub.mjs"),
   },
 });
@@ -68,25 +52,39 @@ const ledgerRepositoryPath = path.join(projectRoot, "src", "server", "actions", 
 const { runJorisCommand } = await jiti.import(brainPath);
 const { getLocalActionLedgerEntriesForSmoke } = await jiti.import(ledgerRepositoryPath);
 
-const stamp = new Date().toISOString().slice(11, 16); // HH:MM
+const stamp = new Date().toISOString().slice(11, 16);
 const message = `Book RDV demain 10h00 smoke-test ${stamp}`;
 
-console.log(`[smoke:joris] message: ${JSON.stringify(message)}`);
+console.log(`[smoke:joris] proposal message: ${JSON.stringify(message)}`);
+
+let proposal;
+try {
+  proposal = await runJorisCommand(message);
+} catch (err) {
+  console.error("[smoke:joris] runJorisCommand (proposal) threw:", err);
+  process.exit(1);
+}
+
+console.log(`[smoke:joris] confirm message: "confirme"`);
 
 let result;
 try {
-  result = await runJorisCommand(message);
+  result = await runJorisCommand("confirme");
 } catch (err) {
-  console.error("[smoke:joris] runJorisCommand threw:", err);
+  console.error("[smoke:joris] runJorisCommand (confirm) threw:", err);
   process.exit(1);
 }
 
 const localLedgerEntries = getLocalActionLedgerEntriesForSmoke();
-const lastLedgerEntry = localLedgerEntries.at(-1);
+const calendarLedgerEntries = localLedgerEntries.filter((entry) => entry.actionType === "calendar.book");
+const lastLedgerEntry = calendarLedgerEntries.at(-1);
 const ledgerMetadata = lastLedgerEntry?.metadata ?? {};
 
 const checks = [
-  ["intent === calendar.book", result.intent === "calendar.book"],
+  ["proposal intent === mission.draft", proposal.intent === "mission.draft"],
+  ["proposal requiresConfirmation", proposal.requiresConfirmation === true],
+  ["proposal pendingDraftId present", Boolean(proposal.pendingDraftId)],
+  ["confirm intent === calendar.book", result.intent === "calendar.book"],
   ["calendarEvent present", Boolean(result.calendarEvent)],
   [
     "calendarEvent.startTime is HH:mm",
@@ -96,6 +94,7 @@ const checks = [
     "calendarEvent.title contains smoke-test",
     Boolean(result.calendarEvent && /smoke-test/i.test(result.calendarEvent.title)),
   ],
+  ["missionId present on confirm", Boolean(result.missionId)],
   [
     "ledgerStatus is recorded",
     result.ledgerStatus === "recorded",
@@ -110,6 +109,8 @@ const checks = [
   ["modeId present", Boolean(result.modeId)],
   ["assistantId present", Boolean(result.assistantId)],
   ["local ledger entry present", Boolean(lastLedgerEntry)],
+  ["ledger missionId matches confirm missionId", lastLedgerEntry?.missionId === result.missionId],
+  ["ledger metadata missionId matches confirm missionId", ledgerMetadata.missionId === result.missionId],
   ["ledger metadata workspaceId matches result", ledgerMetadata.workspaceId === result.workspaceId],
   ["ledger metadata modeId matches result", ledgerMetadata.modeId === result.modeId],
   [
@@ -122,8 +123,14 @@ const checks = [
   ],
 ];
 
-console.log("[smoke:joris] result:");
+console.log("[smoke:joris] proposal:");
+console.log("  intent:         ", proposal.intent);
+console.log("  pendingDraftId: ", proposal.pendingDraftId);
+console.log("  requiresConfirmation:", proposal.requiresConfirmation);
+
+console.log("[smoke:joris] confirm result:");
 console.log("  intent:        ", result.intent);
+console.log("  missionId:     ", result.missionId);
 console.log("  modelId:       ", result.modelId);
 console.log("  costMode:      ", result.costMode);
 console.log("  storageMode:   ", result.storageMode);
