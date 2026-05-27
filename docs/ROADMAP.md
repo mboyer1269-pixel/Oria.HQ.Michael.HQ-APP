@@ -33,6 +33,10 @@ This roadmap keeps Oria buildable by sequencing foundations before UI expansion.
 - Mission model is proposed without runtime wiring;
 - `npm run typecheck`, `npm run lint`, `npm run build`, and `npm run smoke:joris` are executed and reported.
 
+**Shipped on `main` (post-consolidation, see `ORIA_HQ_CURRENT_STATE.md`):**
+- PR #96 (`4af014c`): Joris `calendar.book` → Mission Draft proposal + explicit confirm before booking; local mission draft + `missionId` on ledger; no Supabase mission writes.
+- PRs #94–#95: Ledger Activity panel and mission ↔ ledger traceability labels (**Liée** / **Orphelin**).
+
 ## Phase 1: Mission Domain Model
 
 **Objective:** Make Mission the typed unit of work for agents, command center actions, approvals, and ledger entries.
@@ -47,7 +51,7 @@ This roadmap keeps Oria buildable by sequencing foundations before UI expansion.
 - no mission UI;
 - no autonomous execution;
 - no new DB table until migration is explicitly approved;
-- no replacement of Joris command behavior.
+- no replacement of Joris **mission execution** behavior (calendar booking uses Mission Draft gate #96; still not live executor).
 
 **Risks:**
 - overbuilding the model before real agent runs demand it;
