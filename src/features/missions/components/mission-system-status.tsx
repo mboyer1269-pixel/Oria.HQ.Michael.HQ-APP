@@ -12,9 +12,15 @@ type StatusItem = {
 const STATUS_ITEMS: StatusItem[] = [
   {
     icon: CheckCircle2,
-    label: "Joris planning",
-    detail: "dry-run uniquement",
+    label: "Calendar.book gate",
+    detail: "proposition + confirm sur /hq — local",
     level: "enabled",
+  },
+  {
+    icon: Timer,
+    label: "Joris mission.plan",
+    detail: "dry-run texte — pas de mission créée",
+    level: "partial",
   },
   {
     icon: Lock,
@@ -24,20 +30,14 @@ const STATUS_ITEMS: StatusItem[] = [
   },
   {
     icon: FileCode2,
-    label: "Approval records",
-    detail: "contrat défini, pas de persistence",
+    label: "Approbation exécuteur",
+    detail: "mock UI — Phase 2, boutons off",
     level: "partial",
   },
   {
     icon: Database,
-    label: "Persistence",
-    detail: "proposée, migration non appliquée",
-    level: "partial",
-  },
-  {
-    icon: Timer,
-    label: "Idempotency / rate limit",
-    detail: "local dry-run uniquement",
+    label: "Persistence missions",
+    detail: "drafts locaux + seed — pas Supabase",
     level: "partial",
   },
 ];

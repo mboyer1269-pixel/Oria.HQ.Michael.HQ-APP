@@ -33,6 +33,8 @@ type MissionDraftPendingPanelProps = {
   listenForDraftChanges?: boolean;
 };
 
+const HQ_DRAFT_ANCHOR = "/hq#mission-draft-pending";
+
 function dispatchDraftChanged() {
   window.dispatchEvent(new CustomEvent(MISSION_DRAFT_CHANGED_EVENT));
 }
@@ -177,10 +179,13 @@ export function MissionDraftPendingPanel({
   }
 
   if (pending?.status === "expired" && !dismissedExpired) {
+    const expiredTestId =
+      variant === "banner" ? "mission-draft-pending-banner" : "mission-draft-pending-embedded";
+
     return (
       <section
-        id="mission-draft-pending"
-        data-testid="mission-draft-pending-banner"
+        id={variant === "banner" ? "mission-draft-pending" : undefined}
+        data-testid={expiredTestId}
         className="rounded-3xl border border-amber-500/25 bg-amber-500/10 p-5"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -196,13 +201,23 @@ export function MissionDraftPendingPanel({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setDismissedExpired(true)}
-            className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500"
-          >
-            Fermer
-          </button>
+          <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+            {variant === "embedded" ? (
+              <Link
+                href={HQ_DRAFT_ANCHOR}
+                className="inline-flex min-h-9 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 text-sm font-semibold text-amber-200 transition hover:border-amber-500/50"
+              >
+                Reprendre sur Michael HQ
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setDismissedExpired(true)}
+              className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500"
+            >
+              Fermer
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -281,31 +296,43 @@ export function MissionDraftPendingPanel({
               </span>
             </div>
             <p className="mt-3 text-xs leading-5 text-neutral-500">
-              Confirmer crée une mission draft locale et booke le calendrier avec missionId sur le ledger. Aucune
-              exécution live.
+              {variant === "embedded"
+                ? "Les actions de confirmation se font sur Michael HQ pour éviter deux surfaces actives."
+                : "Confirmer crée une mission draft locale et booke le calendrier avec missionId sur le ledger. Aucune exécution live."}
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-          <button
-            type="button"
-            disabled={Boolean(action)}
-            onClick={() => void runAction("confirm")}
-            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            {action === "confirm" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Approuver
-          </button>
-          <button
-            type="button"
-            disabled={Boolean(action)}
-            onClick={() => void runAction("cancel")}
-            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 text-sm font-semibold text-red-200 transition hover:border-red-500/50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-          >
-            {action === "cancel" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Refuser
-          </button>
+          {variant === "embedded" ? (
+            <Link
+              href={HQ_DRAFT_ANCHOR}
+              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400 sm:w-auto"
+            >
+              Approuver ou refuser sur Michael HQ
+            </Link>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={Boolean(action)}
+                onClick={() => void runAction("confirm")}
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {action === "confirm" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Approuver
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(action)}
+                onClick={() => void runAction("cancel")}
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 text-sm font-semibold text-red-200 transition hover:border-red-500/50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {action === "cancel" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Refuser
+              </button>
+            </>
+          )}
         </div>
       </div>
 

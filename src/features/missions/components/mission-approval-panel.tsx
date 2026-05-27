@@ -105,14 +105,15 @@ export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">
-            Approbation requise
+            Approbation exécuteur (Phase 2 — mock)
           </p>
           <h2 className="mt-2 text-xl font-semibold text-white">
-            {gated.length} mission{gated.length > 1 ? "s" : ""} en attente de validation humaine
+            {gated.length} mission{gated.length > 1 ? "s" : ""} seed en attente (exécuteur futur)
           </h2>
           <p className="mt-1 text-sm text-neutral-400">
-            Ces missions nécessitent une approbation explicite avant toute exécution.
-            Les actions ci-dessous sont désactivées dans cette version mock.
+            Distinct du gate calendrier Joris : les rendez-vous pending se confirment sur{" "}
+            <strong className="font-medium text-amber-200">Michael HQ</strong> (#mission-draft-pending).
+            Ici : preview Phase 2 — boutons désactivés, aucune exécution.
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-neutral-700 px-3 py-1 text-[11px] font-medium text-neutral-500">
@@ -129,8 +130,9 @@ export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
       <div className="mt-5 rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
         <p className="text-xs leading-5 text-neutral-600">
           <span className="font-medium text-neutral-500">Phase 2 — </span>
-          Ces boutons deviendront actifs après l&apos;implémentation du Mission Executor et du service
-          d&apos;approbation. Aucun appel AI, aucun write, aucune action externe ne s&apos;exécute dans cette PR.
+          Approbation avant exécution autonome du Mission Executor. Le gate{" "}
+          <span className="text-neutral-400">calendar.book</span> (mission draft + confirm) est déjà live sur{" "}
+          <span className="text-neutral-400">/hq</span>, pas dans ce panneau.
         </p>
       </div>
     </section>

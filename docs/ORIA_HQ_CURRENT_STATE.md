@@ -131,7 +131,8 @@ Data sources: `getActiveWorkspaceContext()`, `listMissionsForWorkspace()`, `agen
 | --- | --- |
 | `/hq/missions` UI | Live |
 | Joris `mission.plan` | Live (dry-run) |
-| Joris `mission.draft` + confirm | Live (#96) — local draft + `calendar.book` with `missionId`; not execution |
+| Joris `mission.draft` + confirm | Live (#96–#98) — pending TTL on `/hq`, owner-gated API confirm/cancel; local draft + `calendar.book` with `missionId`; not live executor |
+| `/hq/missions` alignment | Live (#99) — légende flux, pending embedded (CTA `/hq`), badges calendrier confirmé |
 | POST `/api/missions/plan` | Live (10-gate sequence; idempotency in-memory) |
 | `MissionApprovalRecord` contract | Defined in TypeScript |
 | Mission draft persistence (Supabase) | Not applied — local in-memory drafts only (#96) |
@@ -210,6 +211,7 @@ npm run test:ledger-events
 npm run test:calendar-ledger-atomicity
 npm run test:ledger-activity-read
 npm run test:mission-draft
+npm run test:mission-display
 git diff --check
 ```
 
@@ -247,5 +249,7 @@ git diff --check
 
 | Date | Change |
 | --- | --- |
+| 2026-05-27 | #99: Mission Control alignment on `/hq/missions` (flux calendrier vs mock approval) |
+| 2026-05-27 | #98: HQ Mission Draft Control (bandeau + API pending/confirm/cancel) |
 | 2026-05-27 | Post-#96 sync: Mission Draft gate, Ledger Activity (#94–#95), `main` @ `4af014c` |
 | 2026-05-27 | Initial sync after PRs #88, #89, #90, #92 |
