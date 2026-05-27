@@ -143,6 +143,31 @@ test("valid ledger event is accepted and recorded locally", async () => {
   assert.equal(entry.metadata.workspaceId, workspace.id);
 });
 
+test("calendar.book accepts decision ledger events", async () => {
+  const skill = skillsCatalog.find((candidate) => candidate.id === "calendar.book");
+  assert.ok(skill, "calendar.book skill must exist");
+
+  const entry = await recordLedgerEvent(
+    ctx,
+    validEvent({
+      eventType: "decision",
+      summary: "Décision calendrier 2026-05-24 10:00-11:00",
+      metadata: undefined,
+    }),
+    { skill },
+  );
+
+  assert.equal(entry.eventType, "decision");
+  assert.equal(entry.actionType, "calendar.book");
+  assert.equal(entry.workspaceId, workspace.id);
+  assert.equal(entry.skillId, "calendar.book");
+  assert.equal(entry.agentId, "joris");
+  assert.equal(entry.storageMode, "local");
+  assert.equal(entry.payload.effect.kind, "schedule");
+  assert.equal(entry.metadata.eventType, "decision");
+  assert.equal(entry.metadata.workspaceId, workspace.id);
+});
+
 test("ledger event workspace must match active workspace context", async () => {
   await assert.rejects(
     () => recordLedgerEvent(ctx, validEvent({ workspaceId: "other_workspace" })),

@@ -94,6 +94,45 @@ function assertAssistantCanUseCalendarBook(ctx: WorkspaceContext) {
   );
 }
 
+type CalendarLedgerEventType = "decision" | "action";
+
+type CalendarLedgerEventInput = {
+  eventType: CalendarLedgerEventType;
+  summary: string;
+  metadata?: Record<string, unknown>;
+};
+
+async function recordCalendarLedgerEvent(
+  ctx: WorkspaceContext,
+  permission: ReturnType<typeof assertCalendarPermission>,
+  skill: SkillProfile,
+  command: CreateCalendarEventCommand,
+  recordLedger: typeof recordLedgerEvent,
+  input: CalendarLedgerEventInput,
+) {
+  await recordLedger(ctx, {
+    actionType: "calendar.book",
+    eventType: input.eventType,
+    summary: input.summary,
+    autonomyLevel: permission.autonomyLevel,
+    requiresConfirmation: permission.requiresConfirmation,
+    workspaceId: ctx.workspace.id,
+    modeId: ctx.activeMode.id,
+    skillId: skill.id,
+    agentId: ctx.activeAgentProfile.id,
+    modelId: command.modelId,
+    costMode: command.costMode,
+    effect: {
+      kind: "schedule",
+      operation: "create",
+      target: "calendar_events",
+    },
+    ...(input.metadata ? { metadata: input.metadata } : {}),
+  }, {
+    skill,
+  });
+}
+
 async function compensateCalendarCreate(
   calendarRepository: CalendarRepository,
   eventId: string,
@@ -124,6 +163,20 @@ export async function createCalendarEvent(
     ? command.remindersMinutes
     : defaultRemindersMinutes;
 
+  try {
+    await recordCalendarLedgerEvent(ctx, permission, skill, command, recordLedger, {
+      eventType: "decision",
+      summary: `Décision calendrier ${command.dateISO} ${command.startTime}-${command.endTime}`,
+    });
+  } catch (error) {
+    const reason = error instanceof LedgerEventValidationError
+      ? error.message
+      : "Le ledger d'action n'est pas disponible.";
+    console.error("Mandatory decision ledger write failed:", error instanceof Error ? error.message : "Unknown error");
+
+    throw new CalendarServiceError(reason, 503, "CALENDAR_LEDGER_FAILED");
+  }
+
   const event = await calendarRepository.create({
     title: command.title,
     dateISO: command.dateISO,
@@ -134,31 +187,15 @@ export async function createCalendarEvent(
   });
 
   try {
-    await recordLedger(ctx, {
-      actionType: "calendar.book",
+    await recordCalendarLedgerEvent(ctx, permission, skill, command, recordLedger, {
       eventType: "action",
       summary: `Création calendrier ${event.dateISO} ${event.startTime}-${event.endTime}`,
-      autonomyLevel: permission.autonomyLevel,
-      requiresConfirmation: permission.requiresConfirmation,
-      workspaceId: ctx.workspace.id,
-      modeId: ctx.activeMode.id,
-      skillId: skill.id,
-      agentId: ctx.activeAgentProfile.id,
-      modelId: command.modelId,
-      costMode: command.costMode,
-      effect: {
-        kind: "schedule",
-        operation: "create",
-        target: "calendar_events",
-      },
       metadata: {
         calendarEventId: event.id,
         source: event.source,
         remindersMinutes: event.remindersMinutes,
         storageMode: event.storageMode,
       },
-    }, {
-      skill,
     });
   } catch (error) {
     const reason = error instanceof LedgerEventValidationError
