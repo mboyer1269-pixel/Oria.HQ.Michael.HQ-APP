@@ -3,17 +3,7 @@ import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { requireOwnerApiSession } from "@/server/auth/owner";
 import { arenaBatchRequestSchema } from "@/server/arena/arena-api-schema";
 import { evaluateBatchAndMaybeStore } from "@/server/arena/arena-batch-service";
-import { defaultArenaEvaluationService } from "@/server/arena/arena-evaluation-service";
-
-type ArenaEvaluationService = typeof defaultArenaEvaluationService;
-
-function getArenaEvaluationService(): ArenaEvaluationService {
-  const globals = globalThis as typeof globalThis & {
-    __arenaEvaluationServiceTestOverride?: ArenaEvaluationService;
-  };
-
-  return globals.__arenaEvaluationServiceTestOverride ?? defaultArenaEvaluationService;
-}
+import { getArenaEvaluationService } from "@/server/arena/get-arena-service";
 
 // POST /api/arena/batch
 export async function POST(request: Request) {
@@ -31,16 +21,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await evaluateBatchAndMaybeStore(
-    {
-      workspaceId: activeWorkspace.id,
-      candidates: parsed.data.candidates,
-      context: parsed.data.context,
-      storeResults: parsed.data.storeResults,
-      limit: parsed.data.limit,
-    },
-    { evaluationService: getArenaEvaluationService() },
-  );
+  try {
+    const result = await evaluateBatchAndMaybeStore(
+      {
+        workspaceId: activeWorkspace.id,
+        candidates: parsed.data.candidates,
+        context: parsed.data.context,
+        storeResults: parsed.data.storeResults,
+        limit: parsed.data.limit,
+      },
+      { evaluationService: getArenaEvaluationService() },
+    );
 
-  return NextResponse.json(result, { status: 200 });
+    return NextResponse.json(result, { status: 200 });
+  } catch (error) {
+    console.error("POST /api/arena/batch failed:", error instanceof Error ? error.message : "Unknown error");
+    return NextResponse.json({ error: "Arena batch evaluation failed." }, { status: 500 });
+  }
 }

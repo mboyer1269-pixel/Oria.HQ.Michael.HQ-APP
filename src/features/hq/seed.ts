@@ -113,6 +113,24 @@ export const modelProfiles: ModelProfile[] = [
     costTier: "low",
     strengths: ["contexte long", "coût", "résumé"],
   },
+  {
+    // Access via OpenRouter gateway — useful as unified fallback when direct provider keys are missing.
+    // Requires OPENROUTER_API_KEY. HTTP client: baseURL https://openrouter.ai/api/v1 (OpenAI-compatible).
+    id: "openrouter/anthropic/claude-sonnet-4-6",
+    label: "Claude Sonnet (via OpenRouter)",
+    provider: "openrouter",
+    defaultUse: "Fallback premium via OpenRouter quand la clé Anthropic directe est absente.",
+    costTier: "medium",
+    strengths: ["jugement", "stratégie", "écriture", "fallback unifié"],
+  },
+  {
+    id: "openrouter/mistralai/mistral-small-3.2-24b",
+    label: "Mistral Small (via OpenRouter)",
+    provider: "openrouter",
+    defaultUse: "Fallback économique européen via OpenRouter — RGPD-friendly, rapide, faible coût.",
+    costTier: "low",
+    strengths: ["vitesse", "coût", "multilingual", "RGPD"],
+  },
 ];
 
 export const permissionRules: PermissionRule[] = [

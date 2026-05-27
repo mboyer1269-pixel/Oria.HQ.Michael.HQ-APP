@@ -11,20 +11,59 @@ export async function notifyContactLead(lead: ContactLead): Promise<ContactNotif
     console.info("Contact notification skipped: CONTACT_NOTIFICATION_EMAIL is not configured.", {
       leadId: lead.id,
     });
-
-    return {
-      status: "skipped",
-      reason: "missing_recipient",
-    };
+    return { status: "skipped", reason: "missing_recipient" };
   }
 
-  console.info("Contact notification skipped: no email provider is configured yet.", {
-    leadId: lead.id,
-    recipient: serverEnv.contactNotificationEmail,
-  });
+  if (!serverEnv.resendApiKey) {
+    console.info("Contact notification skipped: RESEND_API_KEY is not configured.", {
+      leadId: lead.id,
+    });
+    return { status: "skipped", reason: "provider_unconfigured" };
+  }
 
-  return {
-    status: "skipped",
-    reason: "provider_unconfigured",
-  };
+  try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(serverEnv.resendApiKey);
+
+    const from = serverEnv.resendFromEmail
+      ? `Suivia Notifications <${serverEnv.resendFromEmail}>`
+      : "Suivia Notifications <onboarding@resend.dev>";
+
+    const subject = lead.company
+      ? `Nouveau lead: ${lead.name} — ${lead.company}`
+      : `Nouveau lead: ${lead.name}`;
+
+    const lines: string[] = [
+      "Nouveau message via le formulaire de contact.",
+      "",
+      `Nom       : ${lead.name}`,
+      `Courriel  : ${lead.email}`,
+    ];
+    if (lead.phone) lines.push(`Téléphone : ${lead.phone}`);
+    if (lead.company) lines.push(`Entreprise: ${lead.company}`);
+    lines.push(`Source    : ${lead.source}`);
+    lines.push("");
+    lines.push("Message:");
+    lines.push(lead.message);
+    lines.push("");
+    lines.push(`Lead ID   : ${lead.id}`);
+    lines.push(`Reçu      : ${lead.createdAt}`);
+
+    await resend.emails.send({
+      from,
+      to: serverEnv.contactNotificationEmail,
+      subject,
+      text: lines.join("\n"),
+    });
+
+    console.info("Contact notification queued via Resend.", { leadId: lead.id });
+    return { status: "queued", reason: "queued" };
+  } catch (error) {
+    console.error(
+      "Contact notification failed via Resend:",
+      error instanceof Error ? error.message : "Unknown error",
+      { leadId: lead.id },
+    );
+    return { status: "failed", reason: "failed" };
+  }
 }

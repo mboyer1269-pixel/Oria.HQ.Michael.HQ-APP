@@ -3,6 +3,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type CalendarEventRow = {
   id: string;
   user_id: string;
+  workspace_id: string;
   title: string;
   date_iso: string;
   start_time: string;

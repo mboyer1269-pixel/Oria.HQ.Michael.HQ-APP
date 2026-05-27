@@ -1,22 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { defaultArenaEvaluationService } from "@/server/arena/arena-evaluation-service";
 import { arenaEvaluateRequestSchema } from "@/server/arena/arena-api-schema";
-
-type ArenaEvaluationService = typeof defaultArenaEvaluationService;
-
-function getArenaEvaluationService(): ArenaEvaluationService {
-  const globals = globalThis as typeof globalThis & {
-    __arenaEvaluationServiceTestOverride?: ArenaEvaluationService;
-  };
-
-  return globals.__arenaEvaluationServiceTestOverride ?? defaultArenaEvaluationService;
-}
+import { getArenaEvaluationService } from "@/server/arena/get-arena-service";
 
 // POST /api/arena/evaluate
 // Evaluates a candidate, stores the verdict in memory, and persists to DB.
-// workspaceId is always resolved server-side — client-supplied value is overridden.
+// workspaceId is always resolved server-side -- client-supplied value is overridden.
 export async function POST(request: Request) {
   const authError = await requireOwnerApiSession();
   if (authError) return authError;
@@ -33,19 +23,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const candidate = { ...parsed.data.candidate, workspaceId: activeWorkspace.id };
-  const record = await getArenaEvaluationService().evaluateAndStore(
-    candidate,
-    parsed.data.context,
-  );
+  try {
+    const candidate = { ...parsed.data.candidate, workspaceId: activeWorkspace.id };
+    const record = await getArenaEvaluationService().evaluateAndStore(
+      candidate,
+      parsed.data.context,
+    );
 
-  return NextResponse.json(
-    {
-      candidateId: record.candidateId,
-      verdict: record.verdict,
-      storedAt: record.storedAt,
-      expiresAt: record.expiresAt,
-    },
-    { status: 200 },
-  );
+    return NextResponse.json(
+      {
+        candidateId: record.candidateId,
+        verdict: record.verdict,
+        storedAt: record.storedAt,
+        expiresAt: record.expiresAt,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("POST /api/arena/evaluate failed:", error instanceof Error ? error.message : "Unknown error");
+    return NextResponse.json({ error: "Arena evaluation failed." }, { status: 500 });
+  }
 }

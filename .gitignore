@@ -25,3 +25,8 @@ pnpm-debug.log*
 # system
 .DS_Store
 Thumbs.db
+# Codex CLI local config (contains project refs)
+.codex/
+
+# Agent skill definitions (tool-local, not app code)
+.agents/

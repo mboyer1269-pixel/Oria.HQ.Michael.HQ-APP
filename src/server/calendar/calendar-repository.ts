@@ -4,7 +4,7 @@ import type {
   CalendarStorageMode,
 } from "@/features/hq/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
-import type { ServerUserContext } from "@/server/auth/user-context";
+import type { WorkspaceContext } from "@/core/workspace-context";
 import { createOptionalSupabaseAdminClient, hasSupabaseAdminConfig } from "@/server/supabase/admin";
 import type { CalendarEventRow } from "@/server/db/types";
 
@@ -60,6 +60,7 @@ function mapCalendarRow(row: CalendarEventRow, storageMode: CalendarStorageMode)
   return {
     id: row.id,
     userId: row.user_id,
+    workspaceId: row.workspace_id,
     title: row.title,
     dateISO: row.date_iso,
     startTime: normalizeTime(row.start_time),
@@ -81,14 +82,15 @@ function sortEvents(events: CalendarEvent[]) {
   });
 }
 
-function createLocalCalendarRepository(user: ServerUserContext): CalendarRepository {
+function createLocalCalendarRepository(ctx: WorkspaceContext): CalendarRepository {
   return {
     mode: "local",
     async create(input) {
       const timestamp = new Date().toISOString();
       const event: CalendarEvent = {
         id: createLocalId(),
-        userId: user.userId,
+        userId: ctx.userId,
+        workspaceId: ctx.workspace.id,
         title: input.title,
         dateISO: input.dateISO,
         startTime: input.startTime,
@@ -107,7 +109,8 @@ function createLocalCalendarRepository(user: ServerUserContext): CalendarReposit
     async list(input = {}) {
       const limit = input.limit ?? 20;
       const filtered = localEvents.filter((event) => {
-        if (event.userId !== user.userId) return false;
+        if (event.userId !== ctx.userId) return false;
+        if (event.workspaceId !== ctx.workspace.id) return false;
         if (input.fromDateISO && event.dateISO < input.fromDateISO) return false;
         if (input.toDateISO && event.dateISO > input.toDateISO) return false;
 
@@ -118,7 +121,10 @@ function createLocalCalendarRepository(user: ServerUserContext): CalendarReposit
     },
     async deleteById(eventId) {
       const index = localEvents.findIndex(
-        (event) => event.id === eventId && event.userId === user.userId,
+        (event) =>
+          event.id === eventId &&
+          event.userId === ctx.userId &&
+          event.workspaceId === ctx.workspace.id,
       );
 
       if (index === -1) {
@@ -132,11 +138,11 @@ function createLocalCalendarRepository(user: ServerUserContext): CalendarReposit
   };
 }
 
-function createSupabaseCalendarRepository(user: ServerUserContext): CalendarRepository {
+function createSupabaseCalendarRepository(ctx: WorkspaceContext): CalendarRepository {
   const supabase = createOptionalSupabaseAdminClient();
 
   if (!supabase) {
-    return createLocalCalendarRepository(user);
+    return createLocalCalendarRepository(ctx);
   }
 
   return {
@@ -145,7 +151,8 @@ function createSupabaseCalendarRepository(user: ServerUserContext): CalendarRepo
       const { data, error } = await supabase
         .from("calendar_events")
         .insert({
-          user_id: user.userId,
+          user_id: ctx.userId,
+          workspace_id: ctx.workspace.id,
           title: input.title,
           date_iso: input.dateISO,
           start_time: input.startTime,
@@ -166,7 +173,8 @@ function createSupabaseCalendarRepository(user: ServerUserContext): CalendarRepo
       let query = supabase
         .from("calendar_events")
         .select("*")
-        .eq("user_id", user.userId)
+        .eq("user_id", ctx.userId)
+        .eq("workspace_id", ctx.workspace.id)
         .order("date_iso", { ascending: true })
         .order("start_time", { ascending: true })
         .limit(input.limit ?? 20);
@@ -192,7 +200,8 @@ function createSupabaseCalendarRepository(user: ServerUserContext): CalendarRepo
         .from("calendar_events")
         .delete()
         .eq("id", eventId)
-        .eq("user_id", user.userId)
+        .eq("user_id", ctx.userId)
+        .eq("workspace_id", ctx.workspace.id)
         .select("id")
         .maybeSingle();
 
@@ -226,14 +235,14 @@ function createUnavailableCalendarRepository(): CalendarRepository {
   };
 }
 
-export function createCalendarRepository(user: ServerUserContext): CalendarRepository {
-  if (user.storagePreference === "supabase" && hasSupabaseAdminConfig()) {
-    return createSupabaseCalendarRepository(user);
+export function createCalendarRepository(ctx: WorkspaceContext): CalendarRepository {
+  if (ctx.storagePreference === "supabase" && hasSupabaseAdminConfig()) {
+    return createSupabaseCalendarRepository(ctx);
   }
 
   if (!isLocalPersistenceFallbackAllowed()) {
     return createUnavailableCalendarRepository();
   }
 
-  return createLocalCalendarRepository(user);
+  return createLocalCalendarRepository(ctx);
 }
