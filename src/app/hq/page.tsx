@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AgendaPanel } from "@/features/hq/components/agenda-panel";
 import { CommandCenter } from "@/features/hq/components/command-center";
+import { MissionDraftPendingPanel } from "@/features/hq/components/mission-draft-pending-panel";
 import { ModuleCard } from "@/features/hq/components/module-card";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { CeoBriefSection } from "@/features/hq/components/ceo-brief-section";
@@ -29,6 +30,10 @@ const privateLinks = [
   {
     label: "CEO Brief",
     href: "#ceo-brief",
+  },
+  {
+    label: "Mission draft",
+    href: "#mission-draft-pending",
   },
   {
     label: "Command Center",
@@ -169,6 +174,8 @@ export default async function HqPage() {
       <LedgerActivity />
 
       <CeoBriefSection />
+
+      <MissionDraftPendingPanel variant="banner" />
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <CommandCenter />

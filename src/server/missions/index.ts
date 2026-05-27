@@ -44,6 +44,12 @@ export {
   isPendingMissionDraftExpired,
   resetMissionDraftSessionForTests,
 } from "./mission-draft-session";
+export {
+  getMissionDraftPendingView,
+  confirmPendingMissionDraft,
+  cancelPendingMissionDraft,
+} from "./mission-draft-control";
+export type { MissionDraftPendingView, MissionDraftPendingStatus } from "./mission-draft-control";
 export type { PendingMissionDraft, MissionDraftConfirmationResult } from "./mission-draft-session";
 export {
   createLocalMissionDraft,
