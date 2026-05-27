@@ -1,9 +1,9 @@
 # Mission Control Operating Manual
 
 Last updated: 2026-05-27  
-Branch at time of writing: `main` (post-PR #92)
+Branch at time of writing: `main` at `4af014c` (post-PR #96)
 
-> **Canonical inventory:** `docs/ORIA_HQ_CURRENT_STATE.md` — calendar ledger (#88), workspace scope (#89), Joris metadata (#90), Operator Snapshot (#92).
+> **Canonical inventory:** `docs/ORIA_HQ_CURRENT_STATE.md` — calendar ledger (#88–#90), Operator Snapshot (#92), Ledger Activity (#94–#95), Joris Mission Draft gate (#96).
 
 ---
 
@@ -51,6 +51,31 @@ prépare le CEO Brief du jour
 4. Returns the plan with `requiresConfirmation: true` — you must explicitly approve before anything proceeds
 
 `approvalConfirmed` is **always `false`** in Joris responses. It can only be set `true` server-side via a verified `MissionApprovalRecord`.
+
+---
+
+## How to Book Calendar via Joris (Mission Draft Gate, #96)
+
+Actionable calendar booking is **not** immediate. Joris requires a **proposal** then an **explicit human confirm** before `calendar.book` runs.
+
+| Step | You send | Joris returns |
+| --- | --- | --- |
+| 1 | Natural-language booking (e.g. « Book RDV demain 10h00 ») | `intent: mission.draft`, structured Mission Draft preview, `requiresConfirmation: true` — **no** calendar event |
+| 2 | Short confirm (`confirme`, `oui`, `go`) or cancel (`annule`) | On confirm: local mission draft (`status: draft`) + `calendar.book` with `missionId` on ledger decision/action |
+
+**Pending draft rules:**
+
+- One pending draft per `workspaceId` + `userId`; TTL **10 minutes**.
+- Confirm/cancel words apply only when a non-expired pending draft exists.
+- Re-sending the same confirm is idempotent (no double booking for the same `pendingDraftId`).
+
+**Boundaries (same as Mission Control):**
+
+- Mission drafts are **local in-memory only** — not Supabase mission persistence.
+- This is **not** live mission execution; no executor runs beyond draft + calendar write.
+- Ledger Activity on `/hq` may show **Liée** when `missionId` is present on decision/action rows (#95).
+
+**Smoke:** `npm run smoke:joris` (two messages). **Tests:** `npm run test:mission-draft`.
 
 ---
 
@@ -112,8 +137,8 @@ Until all four are true, every execution plan is dry-run only. `buildDryRunMissi
 **Safe (current state):**
 - Requesting dry-run plans via Joris or POST /api/missions/plan
 - Viewing mission pipeline on /hq/missions
-- Viewing **Operator Snapshot** on `/hq` (read-only health — no execution)
-- Booking calendar via Joris with decision→create→action ledger sequence (#88)
+- Viewing **Operator Snapshot** and **Ledger Activity** on `/hq` (read-only — no execution)
+- Proposing then confirming calendar bookings via Joris (Mission Draft gate → local draft + `calendar.book` with `missionId`; ledger decision→create→action #88–#96)
 - Creating `MissionApprovalRecord` drafts via `createMissionApprovalRecordDraft()`
 - Running `verifyMissionApprovalRecord()` — pure function, no I/O
 
