@@ -1,5 +1,7 @@
 # Oria HQ — Phase 2 Snapshot
 
+> **Superseded for operations:** use `docs/ORIA_HQ_CURRENT_STATE.md` (2026-05-27, post #88–#92). This file is kept as a historical checkpoint.
+
 Date: 2026-05-21  
 Branch: `main` (post-PR #33)  
 Author: CEO checkpoint — Michael Boyer
