@@ -257,8 +257,13 @@ export function createActionLedgerRepository(user: ServerUserContext): ActionLed
   return createLocalActionLedgerRepository(user);
 }
 
-export function getLocalActionLedgerEntriesForSmoke(): readonly ActionLedgerEntry[] {
+/** Read-only view of in-memory ledger entries (local persistence mode). */
+export function listLocalActionLedgerEntries(): readonly ActionLedgerEntry[] {
   return [...localEntries];
+}
+
+export function getLocalActionLedgerEntriesForSmoke(): readonly ActionLedgerEntry[] {
+  return listLocalActionLedgerEntries();
 }
 
 export function toActionLedgerStatus(error: unknown): ActionLedgerStatus {
