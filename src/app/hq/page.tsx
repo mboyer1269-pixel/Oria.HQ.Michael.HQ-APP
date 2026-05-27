@@ -16,6 +16,7 @@ import { CommandCenter } from "@/features/hq/components/command-center";
 import { ModuleCard } from "@/features/hq/components/module-card";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { CeoBriefSection } from "@/features/hq/components/ceo-brief-section";
+import { OperatorSnapshot } from "@/features/hq/components/operator-snapshot";
 import { PrivateHqOverview } from "@/features/hq/components/private-hq-overview";
 import { billionaireBoard, hqModules, modelProfiles, permissionRules } from "@/features/hq/seed";
 import { signOutAction } from "@/server/auth/actions";
@@ -31,6 +32,10 @@ const privateLinks = [
   {
     label: "Command Center",
     href: "#command-center",
+  },
+  {
+    label: "Operator Snapshot",
+    href: "#operator-snapshot",
   },
   {
     label: "Missions",
@@ -153,6 +158,8 @@ export default async function HqPage() {
       </header>
 
       <PrivateHqOverview />
+
+      <OperatorSnapshot />
 
       <CeoBriefSection />
 
