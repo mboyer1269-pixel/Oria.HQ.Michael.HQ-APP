@@ -1,17 +1,37 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { AlertCircle, Bell, CalendarCheck2, CheckCircle2, Loader2, Mic, Send, ShieldCheck } from "lucide-react";
-import type { ActionLedgerStatus, CalendarEvent } from "@/features/hq/types";
+import Link from "next/link";
+import {
+  AlertCircle,
+  Bell,
+  CalendarCheck2,
+  CalendarClock,
+  CheckCircle2,
+  Loader2,
+  Mic,
+  Send,
+  ShieldCheck,
+} from "lucide-react";
+import type { ActionLedgerStatus, CalendarEvent, MissionDraftPreview } from "@/features/hq/types";
+import {
+  formatMissionDraftExpiryLabel,
+  formatMissionDraftSchedule,
+  MISSION_DRAFT_CHANGED_EVENT,
+} from "@/features/hq/mission-draft-format";
 
 type ChatResponse = {
   summary: string;
+  intent?: string;
   modelId?: string;
   costMode?: string;
   calendarEvent?: CalendarEvent;
   ledgerStatus?: ActionLedgerStatus;
   storageMode?: string;
   requiresConfirmation?: boolean;
+  missionDraftPreview?: MissionDraftPreview;
+  pendingDraftId?: string;
+  missionId?: string;
 };
 
 type ErrorResponse = {
@@ -43,10 +63,45 @@ function toUserError(error: unknown) {
   return message;
 }
 
+function notifyMissionDraftChanged(data: ChatResponse) {
+  if (data.intent === "mission.draft" || data.missionDraftPreview || data.pendingDraftId) {
+    window.dispatchEvent(new CustomEvent(MISSION_DRAFT_CHANGED_EVENT));
+  }
+
+  if (data.intent === "calendar.book" && data.calendarEvent) {
+    window.dispatchEvent(new CustomEvent(MISSION_DRAFT_CHANGED_EVENT));
+  }
+}
+
 const bookingExamples = [
   "Joris, book un rendez-vous dentiste pour les enfants demain à 18:00",
   "Joris, book un suivi avec Eric vendredi à 9:30",
 ];
+
+function MissionDraftProposalHint({ preview }: { preview: MissionDraftPreview }) {
+  const schedule = formatMissionDraftSchedule(preview);
+  const expiryLabel = formatMissionDraftExpiryLabel(undefined, preview.expiresAt);
+
+  return (
+    <div className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4">
+      <div className="flex items-start gap-3">
+        <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">Proposition en attente</p>
+          <p className="mt-1 font-medium text-white">{preview.title}</p>
+          {schedule ? <p className="mt-1 text-sm text-amber-100">{schedule}</p> : null}
+          <p className="mt-2 text-xs text-neutral-500">{expiryLabel}</p>
+          <Link
+            href="#mission-draft-pending"
+            className="mt-3 inline-flex text-sm font-semibold text-amber-300 underline-offset-2 hover:underline"
+          >
+            Approuver ou refuser dans le bandeau Mission draft
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function CommandCenter() {
   const [command, setCommand] = useState("");
@@ -77,6 +132,7 @@ export function CommandCenter() {
       }
 
       setResult(data);
+      notifyMissionDraftChanged(data);
       if (data.calendarEvent) {
         window.dispatchEvent(new CustomEvent("michael-hq:calendar-changed"));
       }
@@ -173,6 +229,11 @@ export function CommandCenter() {
               <p className="mt-1 text-sm leading-6 text-neutral-300">{result.summary}</p>
             </div>
           </div>
+
+          {result.missionDraftPreview && result.requiresConfirmation ? (
+            <MissionDraftProposalHint preview={result.missionDraftPreview} />
+          ) : null}
+
           {result.calendarEvent && (
             <div className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -180,10 +241,13 @@ export function CommandCenter() {
                   <CalendarCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">
-                      Rendez-vous booké
+                      {result.missionId ? "Calendrier confirmé" : "Rendez-vous booké"}
                     </p>
                     <p className="mt-1 font-medium text-white">{result.calendarEvent.title}</p>
                     <p className="mt-1 text-sm text-neutral-300">Ajouté à l&apos;agenda du workspace Michael HQ.</p>
+                    {result.missionId ? (
+                      <p className="mt-2 font-mono text-xs text-emerald-200/90">missionId: {result.missionId}</p>
+                    ) : null}
                   </div>
                 </div>
                 <span className="w-fit rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-300">
@@ -210,6 +274,15 @@ export function CommandCenter() {
                   </p>
                 </div>
               </div>
+
+              {result.missionId ? (
+                <Link
+                  href="#ledger-activity"
+                  className="mt-4 inline-flex text-sm font-semibold text-emerald-300 underline-offset-2 hover:underline"
+                >
+                  Voir la trace ledger (Liée)
+                </Link>
+              ) : null}
             </div>
           )}
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-500">
@@ -221,7 +294,9 @@ export function CommandCenter() {
                 {formatLedgerLabel(result.ledgerStatus)}
               </span>
             )}
-            {result.requiresConfirmation && <span className="text-amber-300">Confirmation requise</span>}
+            {result.requiresConfirmation && !result.missionDraftPreview ? (
+              <span className="text-amber-300">Confirmation requise</span>
+            ) : null}
           </div>
         </div>
       )}

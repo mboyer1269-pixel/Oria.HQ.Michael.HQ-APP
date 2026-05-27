@@ -24,6 +24,7 @@ const confirmationPath = path.join(projectRoot, "src/server/missions/mission-dra
 const builderPath = path.join(projectRoot, "src/server/missions/mission-draft-builder.ts");
 const sessionPath = path.join(projectRoot, "src/server/missions/mission-draft-session.ts");
 const brainPath = path.join(projectRoot, "src/server/joris/brain.ts");
+const controlPath = path.join(projectRoot, "src/server/missions/mission-draft-control.ts");
 const ledgerRepositoryPath = path.join(projectRoot, "src/server/actions/action-ledger-repository.ts");
 
 const { classifyMissionDraftReply } = await jiti.import(confirmationPath);
@@ -38,6 +39,11 @@ const {
   isPendingMissionDraftExpired,
 } = await jiti.import(sessionPath);
 const { runJorisCommand } = await jiti.import(brainPath);
+const {
+  getMissionDraftPendingView,
+  confirmPendingMissionDraft,
+  cancelPendingMissionDraft,
+} = await jiti.import(controlPath);
 const { getLocalActionLedgerEntriesForSmoke } = await jiti.import(ledgerRepositoryPath);
 const { resetLocalMissionDraftsForTests } = await jiti.import(
   path.join(projectRoot, "src/server/missions/mission-draft-repository.ts"),
@@ -204,4 +210,56 @@ test("joris confirm without pending draft returns nothing to confirm", async () 
   const ctx = workspaceContext();
   const result = await runJorisCommand("confirme", ctx);
   assert.match(result.summary, /rien à confirmer/i);
+});
+
+test("getMissionDraftPendingView reports active then none after cancel", async () => {
+  resetMissionDraftSessionForTests();
+  const ctx = workspaceContext(`workspace-draft-view-${Date.now()}`);
+
+  assert.equal(getMissionDraftPendingView(ctx).status, "none");
+
+  const proposal = await runJorisCommand("Book RDV 2026-06-01 10h00 HQ panel", ctx);
+  assert.equal(proposal.intent, "mission.draft");
+  assert.ok(proposal.pendingDraftId);
+
+  const active = getMissionDraftPendingView(ctx);
+  assert.equal(active.status, "active");
+  assert.equal(active.pendingDraftId, proposal.pendingDraftId);
+  assert.ok(active.preview);
+  assert.ok((active.remainingMs ?? 0) > 0);
+
+  cancelPendingMissionDraft(ctx, { pendingDraftId: proposal.pendingDraftId });
+  assert.equal(getMissionDraftPendingView(ctx).status, "none");
+});
+
+test("confirmPendingMissionDraft matches joris confirm path", async () => {
+  resetMissionDraftSessionForTests();
+  resetLocalMissionDraftsForTests();
+
+  const ctx = workspaceContext(`workspace-draft-control-${Date.now()}`);
+  await runJorisCommand("Book RDV vendredi 14h00 control-api", ctx);
+
+  const pending = getMissionDraftPendingView(ctx);
+  assert.equal(pending.status, "active");
+
+  const confirmed = await confirmPendingMissionDraft(ctx, {
+    pendingDraftId: pending.pendingDraftId,
+  });
+
+  assert.equal(confirmed.intent, "calendar.book");
+  assert.ok(confirmed.missionId);
+  assert.ok(confirmed.calendarEvent);
+  assert.equal(getMissionDraftPendingView(ctx).status, "none");
+});
+
+test("confirmPendingMissionDraft rejects mismatched pendingDraftId", async () => {
+  resetMissionDraftSessionForTests();
+  const ctx = workspaceContext(`workspace-draft-mismatch-${Date.now()}`);
+
+  const proposal = await runJorisCommand("Book RDV 2026-06-02 09h00 mismatch test", ctx);
+  assert.equal(proposal.intent, "mission.draft");
+
+  const result = await confirmPendingMissionDraft(ctx, { pendingDraftId: "pending_wrong_id" });
+  assert.equal(result.intent, "mission.draft");
+  assert.match(result.summary, /ne correspond plus/i);
 });
