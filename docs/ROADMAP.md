@@ -1,6 +1,6 @@
 # Oria Roadmap
 
-Last updated: 2026-05-21
+Last updated: 2026-05-27 (operational truth: `docs/ORIA_HQ_CURRENT_STATE.md`)
 
 This roadmap keeps Oria buildable by sequencing foundations before UI expansion. Each phase must pass validation before the next phase starts.
 

@@ -1,7 +1,9 @@
 # Mission Control Operating Manual
 
-Last updated: 2026-05-21  
-Branch at time of writing: `main` (post-PR #27)
+Last updated: 2026-05-27  
+Branch at time of writing: `main` (post-PR #92)
+
+> **Canonical inventory:** `docs/ORIA_HQ_CURRENT_STATE.md` — calendar ledger (#88), workspace scope (#89), Joris metadata (#90), Operator Snapshot (#92).
 
 ---
 
@@ -110,6 +112,8 @@ Until all four are true, every execution plan is dry-run only. `buildDryRunMissi
 **Safe (current state):**
 - Requesting dry-run plans via Joris or POST /api/missions/plan
 - Viewing mission pipeline on /hq/missions
+- Viewing **Operator Snapshot** on `/hq` (read-only health — no execution)
+- Booking calendar via Joris with decision→create→action ledger sequence (#88)
 - Creating `MissionApprovalRecord` drafts via `createMissionApprovalRecordDraft()`
 - Running `verifyMissionApprovalRecord()` — pure function, no I/O
 

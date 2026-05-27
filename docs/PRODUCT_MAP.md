@@ -1,6 +1,6 @@
 # Oria Product Map
 
-Last updated: 2026-05-21
+Last updated: 2026-05-27 (see `docs/ORIA_HQ_CURRENT_STATE.md` for live inventory)
 
 ## Purpose
 
@@ -32,11 +32,15 @@ Oria is a workspace-first operator platform. Its mission is to give a founder or
 | Module | Status | Phase | Notes |
 | --- | --- | --- | --- |
 | Workspace Context Foundation | Live | Phase 0 | `ActiveWorkspaceContext`, registry, seed |
-| Joris Chat | Live | Phase 0 | Booking intent, calendar, action ledger |
+| Joris Chat | Live | Phase 0 | Booking intent, calendar, decision+action ledger (#88–#90) |
+| HQ Operator Snapshot | Live | Phase 0 | Read-only `/hq` panel — runtime, ledger, guardrails (#92) |
 | Permission Policy Types | Live | Phase 0 | `PermissionPolicy`, `PermissionRule` |
 | Action Queue Types | Live | Phase 0 | `ActionQueueItem`, `ActionApproval` |
-| Mission Domain Model | Proposed | Phase 1 | Types in `src/core/types.ts`; no runtime yet |
-| Agent Command Center | Planned | Phase 2 | UI for missions, runs, approvals, costs |
+| Calendar (workspace-scoped) | Live | Phase 0 | `calendar_events.workspace_id` (#89); local + Supabase |
+| Mission Control UI | Live | Phase 1 | `/hq/missions`, dry-run plan API; live executor locked |
+| Mission persistence (Supabase) | Partial | Phase 1 | Schema proposed; migrations in repo, not fully wired |
+| Agent Registry + Skills Catalog | Live | Phase 2 | `/hq/agents`, `/hq/skills` |
+| Agent Command Center (full) | Partial | Phase 2 | Missions/agents live; costs/autonomy depth planned |
 | Venture Lab | Planned | Phase 3 | Idea scoring, decision states |
 | Memory Vault | Planned | Phase 4 | Typed docs, workspace-bound context |
 | Money Cockpit | Planned | Phase 5 | Spend, ROI, runway tracking |
