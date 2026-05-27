@@ -36,6 +36,41 @@ const user = {
   storagePreference: "local",
 };
 
+function workspaceContext(workspaceId) {
+  return {
+    activeWorkspace: {
+      id: workspaceId,
+      slug: workspaceId,
+      displayName: workspaceId,
+      ownerUserId: user.userId,
+      modes: [{ id: "hq", label: "HQ" }],
+      defaultAssistantId: "joris",
+    },
+    activeMode: { id: "hq", label: "HQ" },
+    activeAgentProfile: {
+      id: "joris",
+      workspaceId,
+      name: "Joris",
+      runtimeId: "joris-brain",
+      allowedTools: ["calendar.book", "brief.generate"],
+    },
+    currentOwnerUser: {
+      id: user.userId,
+      email: user.email,
+    },
+    workspace: {
+      id: workspaceId,
+      slug: workspaceId,
+      displayName: workspaceId,
+      ownerUserId: user.userId,
+      modes: [{ id: "hq", label: "HQ" }],
+      defaultAssistantId: "joris",
+    },
+    userId: user.userId,
+    storagePreference: user.storagePreference,
+  };
+}
+
 function tomorrowDateISO() {
   const date = new Date();
   date.setDate(date.getDate() + 1);
@@ -43,8 +78,48 @@ function tomorrowDateISO() {
   return date.toISOString().slice(0, 10);
 }
 
+test("calendar repository isolates local events by workspace for the same user", async () => {
+  const firstWorkspaceRepository = createCalendarRepository(workspaceContext("workspace-alpha"));
+  const secondWorkspaceRepository = createCalendarRepository(workspaceContext("workspace-beta"));
+
+  const firstEvent = await firstWorkspaceRepository.create({
+    title: "Workspace alpha event",
+    dateISO: tomorrowDateISO(),
+    startTime: "08:00",
+    endTime: "08:30",
+    source: "internal",
+    remindersMinutes: [15],
+  });
+
+  const secondEvent = await secondWorkspaceRepository.create({
+    title: "Workspace beta event",
+    dateISO: tomorrowDateISO(),
+    startTime: "09:00",
+    endTime: "09:30",
+    source: "internal",
+    remindersMinutes: [15],
+  });
+
+  assert.equal(firstEvent.workspaceId, "workspace-alpha");
+  assert.equal(secondEvent.workspaceId, "workspace-beta");
+
+  const firstWorkspaceEvents = await firstWorkspaceRepository.list({ limit: 100 });
+  const secondWorkspaceEvents = await secondWorkspaceRepository.list({ limit: 100 });
+
+  assert.ok(firstWorkspaceEvents.some((entry) => entry.id === firstEvent.id));
+  assert.equal(firstWorkspaceEvents.some((entry) => entry.id === secondEvent.id), false);
+  assert.ok(secondWorkspaceEvents.some((entry) => entry.id === secondEvent.id));
+  assert.equal(secondWorkspaceEvents.some((entry) => entry.id === firstEvent.id), false);
+
+  assert.equal(await firstWorkspaceRepository.deleteById(secondEvent.id), false);
+  assert.ok((await secondWorkspaceRepository.list({ limit: 100 })).some((entry) => entry.id === secondEvent.id));
+
+  assert.equal(await firstWorkspaceRepository.deleteById(firstEvent.id), true);
+  assert.equal(await secondWorkspaceRepository.deleteById(secondEvent.id), true);
+});
+
 test("calendar repository deleteById removes a persisted local event", async () => {
-  const repository = createCalendarRepository(user);
+  const repository = createCalendarRepository(workspaceContext("workspace-delete"));
   const event = await repository.create({
     title: "Delete me",
     dateISO: tomorrowDateISO(),
@@ -71,6 +146,7 @@ test("createCalendarEvent records a decision before creating the calendar event"
       return {
         id: "evt_decision_before_create",
         userId: user.userId,
+        workspaceId: "michael-hq",
         title: input.title,
         dateISO: input.dateISO,
         startTime: input.startTime,
@@ -200,7 +276,7 @@ test("createCalendarEvent rolls back the calendar event when the post-create led
 });
 
 test("createCalendarEvent exposes recoverable partial state when ledger and rollback both fail", async () => {
-  const repository = createCalendarRepository(user);
+  const repository = createCalendarRepository(workspaceContext("workspace-partial-failure"));
   repository.deleteById = async () => false;
   let ledgerCalls = 0;
 
@@ -232,7 +308,7 @@ test("createCalendarEvent exposes recoverable partial state when ledger and roll
   const listed = await repository.list({ limit: 100 });
   assert.ok(listed.some((entry) => entry.id === result.event.id));
 
-  const cleanupRepository = createCalendarRepository(user);
+  const cleanupRepository = createCalendarRepository(workspaceContext("workspace-partial-failure"));
   repository.deleteById = cleanupRepository.deleteById.bind(cleanupRepository);
   await repository.deleteById(result.event.id);
 });
