@@ -67,6 +67,7 @@ export type CalendarStorageMode = "local" | "supabase";
 export type CalendarEvent = {
   id: string;
   userId: string;
+  workspaceId: string;
   title: string;
   dateISO: string;
   startTime: string;
