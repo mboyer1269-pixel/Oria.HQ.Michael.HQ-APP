@@ -1,13 +1,19 @@
-import { BookOpenCheck, DatabaseZap } from "lucide-react";
+import { BookOpenCheck, DatabaseZap, Link2 } from "lucide-react";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import {
+  buildMissionLookup,
+  classifyMissionTrace,
   extractLedgerActivityContext,
   formatLedgerActivityTimestamp,
   formatLedgerStorageLabel,
   getLedgerEventTypeLabel,
+  getMissionTraceLabel,
+  summarizeMissionTrace,
+  type LedgerMissionTrace,
 } from "@/features/hq/ledger-activity";
 import type { LedgerEventType } from "@/features/skills/types";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
+import { listMissionsForWorkspace } from "@/server/missions";
 
 const EVENT_TYPE_STYLES: Record<LedgerEventType, string> = {
   decision: "border-sky-500/20 bg-sky-500/10 text-sky-200",
@@ -33,11 +39,43 @@ function EventTypeBadge({ eventType }: { eventType: LedgerEventType | undefined 
   );
 }
 
+const MISSION_TRACE_STYLES: Record<LedgerMissionTrace["kind"], string> = {
+  linked: "border-emerald-500/20 bg-emerald-500/10 text-emerald-200",
+  orphan: "border-neutral-600/40 bg-neutral-900 text-neutral-400",
+  unknown_ref: "border-amber-500/20 bg-amber-500/10 text-amber-200",
+};
+
+function MissionTraceBadge({ trace }: { trace: LedgerMissionTrace }) {
+  return (
+    <div className="space-y-1">
+      <span
+        className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium ${MISSION_TRACE_STYLES[trace.kind]}`}
+      >
+        {getMissionTraceLabel(trace)}
+      </span>
+      {trace.kind === "linked" && trace.missionStatus ? (
+        <p className="text-[11px] text-neutral-500">{trace.missionStatus}</p>
+      ) : null}
+      {trace.kind === "unknown_ref" && trace.missionId ? (
+        <p className="font-mono text-[11px] text-amber-100/80">{trace.missionId}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export async function LedgerActivity() {
   const { activeWorkspace } = getActiveWorkspaceContext();
-  const { entries, source } = await listActionLedgerForWorkspace({
-    workspaceId: activeWorkspace.id,
-  });
+  const [{ entries, source }, { missions }] = await Promise.all([
+    listActionLedgerForWorkspace({
+      workspaceId: activeWorkspace.id,
+    }),
+    listMissionsForWorkspace({
+      workspaceId: activeWorkspace.id,
+    }),
+  ]);
+
+  const missionLookup = buildMissionLookup(missions);
+  const traceSummary = summarizeMissionTrace(entries, missionLookup);
 
   return (
     <section
@@ -55,8 +93,8 @@ export async function LedgerActivity() {
             Événements ledger réels du workspace.
           </h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-400">
-            Read model dédié : affiche les entrées enregistrées par le write path (decision, action, etc.) sans
-            déclencher d&apos;écriture ni exposer de route publique.
+            Read model dédié : affiche les entrées enregistrées par le write path (decision, action, etc.) et indique
+            si chaque événement est lié à une mission, orphelin, ou référence une mission inconnue.
           </p>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 px-4 py-3">
@@ -68,6 +106,27 @@ export async function LedgerActivity() {
           <p className="mt-1 font-mono text-xs text-neutral-500">{entries.length} entrée(s)</p>
         </div>
       </div>
+
+      {entries.length > 0 ? (
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900/40 px-4 py-3 text-sm text-neutral-300">
+          <Link2 className="h-4 w-4 text-sky-300" aria-hidden="true" />
+          <span>
+            <span className="font-medium text-emerald-200">{traceSummary.linked}</span> liée(s)
+          </span>
+          <span className="text-neutral-600">·</span>
+          <span>
+            <span className="font-medium text-neutral-200">{traceSummary.orphan}</span> orpheline(s)
+          </span>
+          {traceSummary.unknownRef > 0 ? (
+            <>
+              <span className="text-neutral-600">·</span>
+              <span>
+                <span className="font-medium text-amber-200">{traceSummary.unknownRef}</span> réf. inconnue(s)
+              </span>
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       {entries.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed border-neutral-800 bg-neutral-900/40 px-4 py-8 text-center">
@@ -86,6 +145,7 @@ export async function LedgerActivity() {
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Action</th>
                 <th className="px-4 py-3 font-medium">Résumé</th>
+                <th className="px-4 py-3 font-medium">Mission</th>
                 <th className="px-4 py-3 font-medium">Contexte</th>
                 <th className="px-4 py-3 font-medium">Stockage</th>
               </tr>
@@ -93,6 +153,7 @@ export async function LedgerActivity() {
             <tbody>
               {entries.map((entry) => {
                 const context = extractLedgerActivityContext(entry);
+                const missionTrace = classifyMissionTrace(entry, missionLookup);
 
                 return (
                   <tr key={entry.id} className="border-b border-neutral-800/80 last:border-0">
@@ -106,6 +167,9 @@ export async function LedgerActivity() {
                       {entry.actionType}
                     </td>
                     <td className="max-w-xs px-4 py-3 text-neutral-300">{entry.summary}</td>
+                    <td className="px-4 py-3">
+                      <MissionTraceBadge trace={missionTrace} />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="space-y-1 text-xs text-neutral-400">
                         {entry.skillId ? <p>skill: {entry.skillId}</p> : null}
