@@ -30,7 +30,7 @@ function hasCalendarBookingPositiveSignal(message: string): boolean {
   return CALENDAR_BOOK_POSITIVE_PATTERNS.some((pattern) => pattern.test(message));
 }
 
-function matchesCalendarBookingIntent(message: string): boolean {
+export function matchesCalendarBookingIntent(message: string): boolean {
   const lower = message.toLowerCase();
   const hasNegative = CALENDAR_BOOK_NEGATIVE_PATTERNS.some((pattern) => pattern.test(lower));
 

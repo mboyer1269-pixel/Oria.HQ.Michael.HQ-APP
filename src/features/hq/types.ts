@@ -18,7 +18,8 @@ export type JorisIntent =
   | "memory.capture"
   | "opportunity.score"
   | "task.create"
-  | "mission.plan"; // dry-run plan surface only — never executes
+  | "mission.plan" // dry-run plan surface only — never executes
+  | "mission.draft"; // calendar.book proposal — pending user confirmation
 
 export type BoardFigure = {
   id: string;
@@ -90,6 +91,20 @@ export type MissionPlanResult = {
   estimatedAutonomyCost?: number;
 };
 
+export type MissionDraftPreview = {
+  pendingDraftId: string;
+  title: string;
+  objective: string;
+  skillId: "calendar.book";
+  actionType: "calendar.book";
+  scheduledAt?: {
+    dateISO: string;
+    startTime: string;
+    endTime: string;
+  };
+  expiresAt: string;
+};
+
 export type CommandResult = {
   intent: JorisIntent;
   summary: string;
@@ -104,6 +119,9 @@ export type CommandResult = {
   storageMode?: CalendarStorageMode;
   requiresConfirmation?: boolean;
   missionPlanResult?: MissionPlanResult;
+  missionDraftPreview?: MissionDraftPreview;
+  pendingDraftId?: string;
+  missionId?: string;
 };
 
 export type CeoBriefAgendaItem = {

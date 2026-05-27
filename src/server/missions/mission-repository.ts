@@ -3,6 +3,7 @@ import { mockMissions } from "@/features/missions/seed";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { MissionRow } from "@/server/db/types";
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
+import { listLocalMissionDrafts } from "./mission-draft-repository";
 import type { ListMissionsInput, ListMissionsResult } from "./types";
 
 /**
@@ -47,10 +48,16 @@ export async function listMissionsForWorkspace(input: ListMissionsInput): Promis
     missions = missions.filter((m) => m.modeId === input.modeId);
   }
 
+  const localDrafts = listLocalMissionDrafts(input.workspaceId, input.modeId);
+  const mergedById = new Map<string, Mission>();
+  for (const mission of [...missions, ...localDrafts]) {
+    mergedById.set(mission.id, mission);
+  }
+
   return {
     workspaceId: input.workspaceId,
     modeId: input.modeId,
-    missions,
+    missions: [...mergedById.values()],
     source: "local",
   };
 }

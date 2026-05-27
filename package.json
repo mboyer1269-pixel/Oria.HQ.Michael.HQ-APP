@@ -13,6 +13,7 @@
     "smoke:runtime": "node src/scripts/smoke/runtime-health-echo.mjs",
     "test:mission-store-guard": "node --test src/server/missions/execution-attempt-store.test.mjs",
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",
+    "test:mission-draft": "node --test src/server/missions/mission-draft.test.mjs",
     "test:skill-governance": "node --test src/features/skills/skill-governance.test.mjs",
     "test:ledger-events": "node --test src/server/actions/ledger-events.test.mjs",
     "test:ledger-activity-read": "node --test src/server/actions/action-ledger-read.test.mjs src/features/hq/ledger-activity.test.mjs",

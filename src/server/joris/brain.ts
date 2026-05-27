@@ -5,7 +5,26 @@ import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
 import { CalendarServiceError, createCalendarEvent } from "@/server/calendar/calendar-service";
 import { checkPermission } from "@/server/permissions/permissions";
-import { buildDryRunMissionExecutionPlan, listMissionsForWorkspace, resolveMissionFromText } from "@/server/missions";
+import {
+  buildDryRunMissionExecutionPlan,
+  listMissionsForWorkspace,
+  resolveMissionFromText,
+} from "@/server/missions";
+import { classifyMissionDraftReply } from "@/server/missions/mission-draft-confirmation";
+import {
+  buildMissionDraftFromCalendar,
+  createMissionDraftId,
+  formatMissionDraftProposalSummary,
+} from "@/server/missions/mission-draft-builder";
+import { createLocalMissionDraft } from "@/server/missions/mission-draft-repository";
+import {
+  cacheMissionDraftConfirmation,
+  clearPendingMissionDraft,
+  getCachedMissionDraftConfirmation,
+  getPendingMissionDraft,
+  isPendingMissionDraftExpired,
+  setPendingMissionDraft,
+} from "@/server/missions/mission-draft-session";
 import { detectIntent } from "@/server/joris/detect-intent";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
@@ -20,15 +39,201 @@ function buildFallbackSummary(intent: JorisIntent, message: string) {
   return `Reçu, CEO. Je garde ça en contexte et je le traiterai en français québécois canadien: ${message}`;
 }
 
+async function handleMissionDraftReply(
+  message: string,
+  ctx: WorkspaceContext,
+  route: ReturnType<typeof chooseModel>,
+  workspaceMeta: Pick<CommandResult, "workspaceId" | "modeId" | "assistantId">,
+): Promise<CommandResult | null> {
+  const replyKind = classifyMissionDraftReply(message);
+  if (replyKind === "none") return null;
+
+  const pending = getPendingMissionDraft(ctx.workspace.id, ctx.userId);
+
+  if (replyKind === "cancel") {
+    if (pending) {
+      clearPendingMissionDraft(ctx.workspace.id, ctx.userId);
+      return {
+        intent: "mission.draft",
+        summary: "Mission draft annulée. Tu peux reformuler un nouveau rendez-vous quand tu veux.",
+        modelId: route.model.id,
+        costMode: route.mode,
+        ...workspaceMeta,
+        requiresConfirmation: false,
+      };
+    }
+
+    return {
+      intent: "chat",
+      summary: "Il n'y a aucune mission draft en attente à annuler.",
+      modelId: route.model.id,
+      costMode: route.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (replyKind === "ambiguous") {
+    if (pending) {
+      return {
+        intent: "mission.draft",
+        summary:
+          "Ta réponse mélange confirmation et nouvelle demande calendrier. Réponds seulement « confirme », « oui » ou « go » pour booker la mission draft en cours, ou « annule » pour abandonner.",
+        modelId: route.model.id,
+        costMode: route.mode,
+        ...workspaceMeta,
+        missionDraftPreview: pending.preview,
+        pendingDraftId: pending.pendingDraftId,
+        requiresConfirmation: true,
+      };
+    }
+
+    return null;
+  }
+
+  if (!pending) {
+    return {
+      intent: "chat",
+      summary: "Il n'y a rien à confirmer pour l'instant. Propose d'abord un rendez-vous à booker.",
+      modelId: route.model.id,
+      costMode: route.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  const cachedBeforeBook = getCachedMissionDraftConfirmation(pending.pendingDraftId);
+  if (cachedBeforeBook) {
+    clearPendingMissionDraft(ctx.workspace.id, ctx.userId);
+    return {
+      intent: "calendar.book",
+      summary: cachedBeforeBook.summary,
+      modelId: route.model.id,
+      costMode: route.mode,
+      ...workspaceMeta,
+      pendingDraftId: cachedBeforeBook.pendingDraftId,
+      missionId: cachedBeforeBook.missionId,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (isPendingMissionDraftExpired(pending)) {
+    clearPendingMissionDraft(ctx.workspace.id, ctx.userId);
+    return {
+      intent: "mission.draft",
+      summary:
+        "La mission draft a expiré. Reformule le rendez-vous à booker (date et heure) pour que je prépare une nouvelle proposition.",
+      modelId: route.model.id,
+      costMode: route.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (pending.skillId !== "calendar.book" || pending.actionType !== "calendar.book") {
+    return {
+      intent: "mission.draft",
+      summary: "La mission draft en attente ne correspond pas à calendar.book. Reformule ta demande.",
+      modelId: route.model.id,
+      costMode: route.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  const permission = checkPermission("calendar-simple");
+  if (!permission.allowed) {
+    return {
+      intent: "calendar.book",
+      summary: `Je ne peux pas exécuter cette action sans confirmation: ${permission.reason}`,
+      modelId: route.model.id,
+      costMode: route.mode,
+      ...workspaceMeta,
+      missionDraftPreview: pending.preview,
+      pendingDraftId: pending.pendingDraftId,
+      requiresConfirmation: true,
+    };
+  }
+
+  const missionId = createMissionDraftId();
+  const missionDraft = buildMissionDraftFromCalendar({
+    missionId,
+    calendarIntent: pending.calendarIntent,
+    ctx,
+    pendingDraftId: pending.pendingDraftId,
+  });
+
+  createLocalMissionDraft(missionDraft);
+
+  try {
+    const { event, ledgerStatus } = await createCalendarEvent(
+      {
+        ...pending.calendarCommand,
+        confirm: true,
+        missionId,
+      },
+      {
+        workspaceContext: ctx,
+      },
+    );
+
+    const summary = `Confirmé, CEO: mission ${missionId} créée et ${event.title} booké ${event.dateISO} de ${event.startTime} à ${event.endTime}.`;
+    cacheMissionDraftConfirmation({
+      pendingDraftId: pending.pendingDraftId,
+      missionId,
+      calendarEventId: event.id,
+      summary,
+    });
+    clearPendingMissionDraft(ctx.workspace.id, ctx.userId);
+
+    const ledgerSummary =
+      ledgerStatus === "recorded" ? "Action journalisée." : "Événement créé, ledger à rejournaliser.";
+    const storageSummary =
+      event.storageMode === "supabase" ? "Source de vérité Supabase." : "Stockage local de session.";
+
+    return {
+      intent: "calendar.book",
+      summary: `${summary} ${ledgerSummary} ${storageSummary}`,
+      modelId: route.model.id,
+      costMode: route.mode,
+      ...workspaceMeta,
+      calendarIntent: pending.calendarIntent,
+      calendarEvent: event,
+      ledgerStatus,
+      storageMode: event.storageMode,
+      missionDraftPreview: pending.preview,
+      pendingDraftId: pending.pendingDraftId,
+      missionId,
+      requiresConfirmation: false,
+    };
+  } catch (error) {
+    if (error instanceof CalendarServiceError) {
+      return {
+        intent: "calendar.book",
+        summary: `Je ne peux pas booker ce rendez-vous tout de suite: ${error.message}`,
+        modelId: route.model.id,
+        costMode: route.mode,
+        ...workspaceMeta,
+        missionDraftPreview: pending.preview,
+        pendingDraftId: pending.pendingDraftId,
+        missionId,
+        calendarIntent: pending.calendarIntent,
+        requiresConfirmation: error.code === "CALENDAR_CONFIRMATION_REQUIRED",
+      };
+    }
+
+    throw error;
+  }
+}
+
 export async function runJorisCommand(
   message: string,
   workspaceContext: WorkspaceContext = getActiveWorkspaceContext(),
 ): Promise<CommandResult> {
-  const intent = detectIntent(message);
   const ctx = workspaceContext;
   const route = chooseModel({
     message,
-    highImpact: intent === "board.consult" || intent === "opportunity.score",
+    highImpact: false,
   });
 
   const workspaceMeta = {
@@ -37,14 +242,25 @@ export async function runJorisCommand(
     assistantId: ctx.activeAgentProfile.id,
   };
 
+  const draftReplyResult = await handleMissionDraftReply(message, ctx, route, workspaceMeta);
+  if (draftReplyResult) {
+    return draftReplyResult;
+  }
+
+  const intent = detectIntent(message);
+  const routedModel = chooseModel({
+    message,
+    highImpact: intent === "board.consult" || intent === "opportunity.score",
+  });
+
   if (intent === "brief.generate") {
     const brief = await buildCeoBriefSnapshot();
 
     return {
       intent,
       summary: `${brief.headline} ${brief.focusLine}`,
-      modelId: route.model.id,
-      costMode: route.mode,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -58,67 +274,40 @@ export async function runJorisCommand(
       return {
         intent,
         summary: `Je ne peux pas exécuter cette action sans confirmation: ${permission.reason}`,
-        modelId: route.model.id,
-        costMode: route.mode,
+        modelId: routedModel.model.id,
+        costMode: routedModel.mode,
         ...workspaceMeta,
         requiresConfirmation: true,
       };
     }
 
     if (calendarIntent) {
-      try {
-        const { event, ledgerStatus } = await createCalendarEvent({
-          title: calendarIntent.title,
-          dateISO: calendarIntent.dateISO,
-          startTime: calendarIntent.startTime,
-          endTime: calendarIntent.endTime,
-          source: "joris",
-          remindersMinutes: calendarIntent.remindersMinutes,
-          notes: calendarIntent.notes,
-          modelId: route.model.id,
-          costMode: route.mode,
-        }, {
-          workspaceContext: ctx,
-        });
-        const ledgerSummary =
-          ledgerStatus === "recorded" ? "Action journalisée." : "Événement créé, ledger à rejournaliser.";
-        const storageSummary =
-          event.storageMode === "supabase" ? "Source de vérité Supabase." : "Stockage local de session.";
+      const pending = setPendingMissionDraft({
+        workspaceId: ctx.workspace.id,
+        userId: ctx.userId,
+        calendarIntent,
+        modelId: routedModel.model.id,
+        costMode: routedModel.mode,
+      });
 
-        return {
-          intent,
-          summary: `Booké, CEO: ${event.title} ${event.dateISO} de ${event.startTime} à ${event.endTime}. Rappels ${event.remindersMinutes.join(" min et ")} min avant. ${ledgerSummary} ${storageSummary}`,
-          modelId: route.model.id,
-          costMode: route.mode,
-          ...workspaceMeta,
-          calendarIntent,
-          calendarEvent: event,
-          ledgerStatus,
-          storageMode: event.storageMode,
-          requiresConfirmation: calendarIntent.needsConfirmation || permission.requiresConfirmation,
-        };
-      } catch (error) {
-        if (error instanceof CalendarServiceError) {
-          return {
-            intent,
-            summary: `Je ne peux pas booker ce rendez-vous tout de suite: ${error.message}`,
-            modelId: route.model.id,
-            costMode: route.mode,
-            ...workspaceMeta,
-            calendarIntent,
-            requiresConfirmation: error.code === "CALENDAR_CONFIRMATION_REQUIRED",
-          };
-        }
-
-        throw error;
-      }
+      return {
+        intent: "mission.draft",
+        summary: formatMissionDraftProposalSummary(pending.preview),
+        modelId: routedModel.model.id,
+        costMode: routedModel.mode,
+        ...workspaceMeta,
+        calendarIntent,
+        missionDraftPreview: pending.preview,
+        pendingDraftId: pending.pendingDraftId,
+        requiresConfirmation: true,
+      };
     }
 
     return {
       intent,
       summary: "Il me manque l’heure ou la date pour booker ça proprement. Donne-moi au moins l’heure, puis je le crée sans friction.",
-      modelId: route.model.id,
-      costMode: route.mode,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -130,7 +319,6 @@ export async function runJorisCommand(
       modeId: ctx.activeMode.id,
     });
 
-    // Resolve mission server-side — caller cannot inject mission data.
     const resolved = resolveMissionFromText(message, missions);
 
     if (!resolved.found) {
@@ -139,8 +327,8 @@ export async function runJorisCommand(
         return {
           intent,
           summary: `Plusieurs missions correspondent. Précise laquelle :\n${list}`,
-          modelId: route.model.id,
-          costMode: route.mode,
+          modelId: routedModel.model.id,
+          costMode: routedModel.mode,
           ...workspaceMeta,
           requiresConfirmation: false,
         };
@@ -153,8 +341,8 @@ export async function runJorisCommand(
         summary: available
           ? `Aucune mission trouvée pour ta demande. Missions disponibles :\n${available}`
           : "Aucune mission active dans ce workspace.",
-        modelId: route.model.id,
-        costMode: route.mode,
+        modelId: routedModel.model.id,
+        costMode: routedModel.mode,
         ...workspaceMeta,
         requiresConfirmation: false,
       };
@@ -162,8 +350,6 @@ export async function runJorisCommand(
 
     const { mission } = resolved;
 
-    // approvalConfirmed is NEVER set to true by Joris.
-    // Joris surfaces the plan; the user must confirm explicitly through a separate action.
     const planResult = buildDryRunMissionExecutionPlan({
       mission,
       mode: "dry_run",
@@ -200,10 +386,9 @@ export async function runJorisCommand(
     return {
       intent,
       summary,
-      modelId: route.model.id,
-      costMode: route.mode,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
       ...workspaceMeta,
-      // requiresConfirmation is always true for mission.plan — Joris never auto-executes.
       requiresConfirmation: true,
       missionPlanResult,
     };
@@ -212,8 +397,8 @@ export async function runJorisCommand(
   return {
     intent,
     summary: buildFallbackSummary(intent, message),
-    modelId: route.model.id,
-    costMode: route.mode,
+    modelId: routedModel.model.id,
+    costMode: routedModel.mode,
     ...workspaceMeta,
     requiresConfirmation: false,
   };
