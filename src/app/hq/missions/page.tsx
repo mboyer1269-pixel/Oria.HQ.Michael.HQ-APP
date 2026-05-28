@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowLeft, LayoutDashboard, LayoutGrid, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Bot, LayoutDashboard, LayoutGrid, ShieldAlert } from "lucide-react";
 import { MissionCalendarFlowSection } from "@/features/missions/components/mission-calendar-flow-section";
 import { MissionKanbanBoard } from "@/features/missions/components/mission-kanban-board";
 import { MissionApprovalPanel } from "@/features/missions/components/mission-approval-panel";
@@ -117,13 +117,22 @@ export default async function MissionsPage() {
         {hasMissions ? (
           <MissionKanbanBoard missions={missions} />
         ) : (
-          <div className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-neutral-800 bg-neutral-950/40 py-20 text-center">
-            <LayoutGrid className="h-10 w-10 text-neutral-700" />
-            <div>
-              <p className="font-semibold text-neutral-400">Aucune mission pour ce workspace</p>
-              <p className="mt-1 text-sm text-neutral-600">
-                Les missions apparaîtront ici une fois le pipeline activé.
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-neutral-800 bg-neutral-950/40 px-4 py-24 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-900 shadow-inner">
+              <Bot className="h-8 w-8 text-amber-400" />
+            </div>
+            <div className="mt-6 max-w-md">
+              <h2 className="text-xl font-semibold text-white">Aucune mission active</h2>
+              <p className="mt-3 text-sm leading-6 text-neutral-400">
+                Le pipeline de missions est actuellement vide pour ce workspace. Démarrez une nouvelle action via Joris pour la voir apparaître ici.
               </p>
+              <Link 
+                href={"/hq" as Route} 
+                className="mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-amber-500 px-6 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.15)]"
+              >
+                <Bot className="h-4 w-4" />
+                Lancer une mission via Joris
+              </Link>
             </div>
           </div>
         )}
