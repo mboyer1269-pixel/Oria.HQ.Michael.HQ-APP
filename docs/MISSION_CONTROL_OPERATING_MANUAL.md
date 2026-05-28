@@ -107,6 +107,23 @@ Confirm/cancel from the UI use these routes (banner variant). Chat short-words s
 
 **Do not** duplicate confirm/cancel on `/hq/missions` — embedded panel (#99) links back to `/hq` only.
 
+### Approval UX states (banner `/hq`)
+
+The pending panel uses an explicit client UX state machine: `loading`, `active`, `confirming`, `cancelling`, `confirmed`, `cancelled`, `expired`, `unavailable`, `error`, `idle`.
+
+| UX state | Operator meaning |
+| --- | --- |
+| `active` | Pending calendar proposal — use **Confirmer le rendez-vous** or **Refuser la proposition** |
+| `confirming` / `cancelling` | In-flight — all actions disabled (no double POST) |
+| `confirmed` | Calendar booked + local mission draft; not executor Phase 2 approval |
+| `cancelled` | Neutral temporary banner — no calendar write |
+| `unavailable` | No matching pending (e.g. already cleared, mismatch id) |
+| `expired` | TTL elapsed — ask Joris for a fresh proposal |
+
+Copy distinguishes **calendar confirmation** from **executor approval (Phase 2 mock)** on `/hq/missions`.
+
+**Tests:** `npm run test:mission-draft-control` (response mapping); `npm run test:mission-draft` (server gate).
+
 ---
 
 ## Missions page alignment (#99)
