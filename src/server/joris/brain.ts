@@ -9,6 +9,7 @@ import {
   listMissionsForWorkspace,
   resolveMissionFromText,
 } from "@/server/missions";
+import { deriveMissionApprovalConfirmation } from "@/server/missions/approval-derivation";
 import { classifyMissionDraftReply } from "@/server/missions/mission-draft-confirmation";
 import {
   cancelPendingMissionDraft,
@@ -189,10 +190,12 @@ export async function runJorisCommand(
 
     const { mission } = resolved;
 
+    const approvalDerivation = deriveMissionApprovalConfirmation(mission, null);
+
     const planResult = buildDryRunMissionExecutionPlan({
       mission,
       mode: "dry_run",
-      approvalConfirmed: false,
+      approvalDerivation,
     });
 
     const missionPlanResult: MissionPlanResult = planResult.allowed
