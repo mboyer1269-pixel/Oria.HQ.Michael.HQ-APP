@@ -12,6 +12,7 @@ import {
   Mic,
   Send,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import type { ActionLedgerStatus, CalendarEvent, MissionDraftPreview } from "@/features/hq/types";
 import {
@@ -191,25 +192,25 @@ export function CommandCenter() {
         <div className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">Prêt pour le workspace Michael HQ</p>
+              <p className="text-sm font-semibold text-white">Sélectionnez un exemple pour tester Joris</p>
               <p className="mt-1 text-sm leading-6 text-neutral-400">
-                Commence avec un booking simple. Joris montre le résultat et journalise l&apos;action quand l&apos;agenda
-                est mis à jour.
+                Commencez avec un booking simple. Joris affichera le résultat et journalisera l&apos;action une fois confirmée.
               </p>
             </div>
             <span className="w-fit rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200">
               Aucun résultat encore
             </span>
           </div>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             {bookingExamples.map((example) => (
               <button
                 key={example}
                 type="button"
                 onClick={() => setCommand(example)}
-                className="min-h-10 rounded-lg border border-neutral-800 px-3 text-left text-sm text-neutral-300 transition hover:border-amber-500/40 hover:text-amber-200"
+                className="group inline-flex min-h-10 items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 text-left text-sm text-neutral-300 transition hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-200"
               >
-                {example}
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-neutral-500 transition group-hover:text-amber-400" />
+                <span>{example}</span>
               </button>
             ))}
           </div>
