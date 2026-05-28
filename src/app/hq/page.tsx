@@ -29,16 +29,16 @@ export const dynamic = "force-dynamic";
 
 const privateLinks = [
   {
+    label: "Command Center",
+    href: "#command-center",
+  },
+  {
     label: "CEO Brief",
     href: "#ceo-brief",
   },
   {
     label: "Mission draft",
     href: "#mission-draft-pending",
-  },
-  {
-    label: "Command Center",
-    href: "#command-center",
   },
   {
     label: "Operator Snapshot",
