@@ -132,6 +132,7 @@ Data sources: `getActiveWorkspaceContext()`, `listMissionsForWorkspace()`, `agen
 | `/hq/missions` UI | Live |
 | Joris `mission.plan` | Live (dry-run) |
 | Joris `mission.draft` + confirm | Live (#96–#98) — pending TTL on `/hq`, owner-gated API confirm/cancel; local draft + `calendar.book` with `missionId`; not live executor |
+| Mission Draft approval UX | In progress — explicit panel states, clearer copy, action mapping tests (`test:mission-draft-control`) |
 | `/hq/missions` alignment | Live (#99) — légende flux, pending embedded (CTA `/hq`), badges calendrier confirmé |
 | POST `/api/missions/plan` | Live (10-gate sequence; idempotency in-memory) |
 | `MissionApprovalRecord` contract | Defined in TypeScript |

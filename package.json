@@ -14,6 +14,7 @@
     "test:mission-store-guard": "node --test src/server/missions/execution-attempt-store.test.mjs",
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",
     "test:mission-draft": "node --test src/server/missions/mission-draft.test.mjs",
+    "test:mission-draft-control": "node --test src/server/missions/mission-draft-control.test.mjs",
     "test:mission-display": "node --test src/features/missions/mission-display.test.mjs",
     "test:skill-governance": "node --test src/features/skills/skill-governance.test.mjs",
     "test:ledger-events": "node --test src/server/actions/ledger-events.test.mjs",
