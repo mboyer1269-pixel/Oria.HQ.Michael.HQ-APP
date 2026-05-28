@@ -30,7 +30,18 @@ test("Mission Executor Contract tests", async (t) => {
     assignedAgentId: "test_agent",
   };
 
-  await t.test("dry-run mode produces a valid plan", () => {
+  const validDerivationMock = {
+    approvalConfirmed: true,
+    record: { id: "record_1" }
+  };
+
+  const invalidDerivationMock = {
+    approvalConfirmed: false,
+    reason: "not_approved",
+    record: null
+  };
+
+  await t.test("dry-run mode produces a valid plan without approval if not required", () => {
     const res = buildDryRunMissionExecutionPlan({
       mission: baseMission,
       mode: "dry_run",
@@ -45,13 +56,15 @@ test("Mission Executor Contract tests", async (t) => {
       assert.equal(step.ledgerMetadata.missionId, "msn_123");
       assert.equal(step.ledgerMetadata.missionStatus, "running");
       assert.equal(step.ledgerMetadata.missionTransition, "queued → running");
+      assert.equal(step.ledgerMetadata.approvalConfirmed, false);
     }
   });
 
-  await t.test("live mode is completely blocked", () => {
+  await t.test("live mode is completely blocked even with valid derivation", () => {
     const res = buildDryRunMissionExecutionPlan({
       mission: baseMission,
       mode: "live",
+      approvalDerivation: validDerivationMock,
     });
 
     assert.equal(res.allowed, false);
@@ -60,11 +73,11 @@ test("Mission Executor Contract tests", async (t) => {
     }
   });
 
-  await t.test("approval confirmed flag is accurately passed to the plan", () => {
+  await t.test("dry_run with valid approvalDerivation can pass the approval gate", () => {
     const res = buildDryRunMissionExecutionPlan({
-      mission: baseMission,
+      mission: { ...baseMission, requiresApproval: true },
       mode: "dry_run",
-      approvalConfirmed: true,
+      approvalDerivation: validDerivationMock,
     });
 
     assert.equal(res.allowed, true);
@@ -85,11 +98,41 @@ test("Mission Executor Contract tests", async (t) => {
     }
   });
 
-  await t.test("rejects plan if approval is required but missing", () => {
+  await t.test("dry_run without approvalDerivation remains blocked when approval is required", () => {
     const res = buildDryRunMissionExecutionPlan({
       mission: { ...baseMission, requiresApproval: true },
       mode: "dry_run",
-      approvalConfirmed: false,
+    });
+
+    assert.equal(res.allowed, false);
+    if (!res.allowed) {
+      assert.ok(res.blockReasons.includes("approval_required"));
+      assert.ok(res.blockReasons.includes("approval_not_confirmed"));
+    }
+  });
+
+  await t.test("dry_run with invalid approvalDerivation remains blocked", () => {
+    const res = buildDryRunMissionExecutionPlan({
+      mission: { ...baseMission, requiresApproval: true },
+      mode: "dry_run",
+      approvalDerivation: invalidDerivationMock,
+    });
+
+    assert.equal(res.allowed, false);
+    if (!res.allowed) {
+      assert.ok(res.blockReasons.includes("approval_required"));
+      assert.ok(res.blockReasons.includes("approval_not_confirmed"));
+    }
+  });
+
+  await t.test("no caller can pass approvalConfirmed: true as a trusted unlock anymore", () => {
+    // If a caller attempts to spoof the legacy property by passing it anyway (ignoring TS),
+    // it will not unlock the execution because it is not destructured.
+    const res = buildDryRunMissionExecutionPlan({
+      mission: { ...baseMission, requiresApproval: true },
+      mode: "dry_run",
+      // @ts-expect-error Intentionally spoofing to prove runtime protection
+      approvalConfirmed: true,
     });
 
     assert.equal(res.allowed, false);

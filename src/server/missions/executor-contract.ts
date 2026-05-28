@@ -1,6 +1,7 @@
 import type { Mission } from "@/core/types";
 import { evaluateMissionApproval } from "./approval-service";
 import { evaluateMissionTransition } from "./state-machine";
+import type { MissionApprovalDerivationResult } from "./approval-derivation";
 
 // ---------------------------------------------------------------------------
 // Executor mode — "live" is reserved for a future PR after a second Red Team pass.
@@ -41,8 +42,11 @@ export type MissionExecutorPlan = {
 export type MissionExecutorInput = {
   mission: Mission;
   mode: MissionExecutorMode;
-  /** Must be true to proceed when evaluateMissionApproval().blocksExecution is true. */
-  approvalConfirmed?: boolean;
+  /** 
+   * The derived approval result. Raw boolean is no longer accepted.
+   * Required to proceed when evaluateMissionApproval().blocksExecution is true.
+   */
+  approvalDerivation?: MissionApprovalDerivationResult;
 };
 
 export type MissionExecutorResult =
@@ -71,7 +75,8 @@ export type MissionExecutorResult =
 export function buildDryRunMissionExecutionPlan(
   input: MissionExecutorInput,
 ): MissionExecutorResult {
-  const { mission, mode, approvalConfirmed = false } = input;
+  const { mission, mode, approvalDerivation } = input;
+  const approvalConfirmed = approvalDerivation?.approvalConfirmed === true;
 
   const approvalEvaluation = evaluateMissionApproval(mission);
   const transitionEvaluation = evaluateMissionTransition({
