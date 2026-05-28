@@ -18,6 +18,8 @@ import {
 import { formatMissionDraftProposalSummary } from "@/server/missions/mission-draft-builder";
 import { getPendingMissionDraft, setPendingMissionDraft } from "@/server/missions/mission-draft-session";
 import { detectIntent } from "@/server/joris/detect-intent";
+import { routeMissionRequest } from "@/server/joris/mission-router";
+import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -92,6 +94,20 @@ export async function runJorisCommand(
     message,
     highImpact: intent === "board.consult" || intent === "opportunity.score",
   });
+
+  if (intent === "opportunity.score") {
+    const result = routeMissionRequest(message, ctx.userId);
+    const summary = formatMissionRouterResponse(result);
+
+    return {
+      intent,
+      summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
 
   if (intent === "brief.generate") {
     const brief = await buildCeoBriefSnapshot();
