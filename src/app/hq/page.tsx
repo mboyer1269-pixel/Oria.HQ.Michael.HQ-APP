@@ -20,6 +20,7 @@ import { CeoBriefSection } from "@/features/hq/components/ceo-brief-section";
 import { LedgerActivity } from "@/features/hq/components/ledger-activity";
 import { OperatorSnapshot } from "@/features/hq/components/operator-snapshot";
 import { PrivateHqOverview } from "@/features/hq/components/private-hq-overview";
+import { AgenticFactoryStatus } from "@/features/hq/components/agentic-factory-status";
 import { billionaireBoard, hqModules, modelProfiles, permissionRules } from "@/features/hq/seed";
 import { signOutAction } from "@/server/auth/actions";
 import { requireOwnerAccess } from "@/server/auth/owner";
@@ -174,6 +175,8 @@ export default async function HqPage() {
       <LedgerActivity />
 
       <CeoBriefSection />
+
+      <AgenticFactoryStatus />
 
       <MissionDraftPendingPanel variant="banner" />
 
