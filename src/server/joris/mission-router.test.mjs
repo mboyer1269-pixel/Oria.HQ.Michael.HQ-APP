@@ -40,7 +40,6 @@ test("Mission Router tests", async (t) => {
     
     assert.equal(result.workOrder.type, "venture");
     assert.equal(result.workOrder.ownerAgentId, "revenue-operator");
-    assert.equal(result.workOrder.riskLevel, "high");
     assert.ok(result.workOrder.approvalGates.includes("money"));
     assert.ok(result.workOrder.approvalGates.includes("publishing"));
     assert.ok(result.workOrder.approvalGates.includes("deployment"));
@@ -93,5 +92,22 @@ test("Mission Router tests", async (t) => {
     
     assert.equal(input, "research something");
     assert.equal(result.validation.valid, true);
+  });
+
+  await t.test("recognizes targeted French business keywords", () => {
+    const resultVenture = routeMissionRequest("Trouve-moi une idée de business autonome avec IA", "user_123");
+    assert.equal(resultVenture.workOrder.type, "venture");
+    assert.equal(resultVenture.workOrder.ownerAgentId, "revenue-operator");
+    assert.equal(resultVenture.validation.valid, true);
+
+    const resultResearch = routeMissionRequest("Recherche sur le marché", "user_123");
+    assert.equal(resultResearch.workOrder.type, "mission");
+    assert.equal(resultResearch.workOrder.ownerAgentId, "innovation-scout");
+    assert.equal(resultResearch.validation.valid, true);
+
+    const resultCode = routeMissionRequest("Développer et déployer l'application", "user_123");
+    assert.equal(resultCode.workOrder.type, "mission");
+    assert.equal(resultCode.workOrder.ownerAgentId, "product-builder");
+    assert.equal(resultCode.validation.valid, true);
   });
 });

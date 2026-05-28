@@ -21,9 +21,32 @@ export function routeMissionRequest(
   const text = requestText.toLowerCase();
 
   // Basic static heuristic rules
-  const isVenture = text.includes("revenue") || text.includes("opportunity") || text.includes("launch");
-  const isResearch = text.includes("research") || text.includes("analyze") || text.includes("scout") || text.includes("analyse");
-  const isCode = text.includes("code") || text.includes("build") || text.includes("deploy") || text.includes("développer");
+  const isVenture =
+    text.includes("revenue") ||
+    text.includes("opportunity") ||
+    text.includes("launch") ||
+    text.includes("business") ||
+    text.includes("idée") ||
+    text.includes("idee") ||
+    text.includes("opportunité") ||
+    text.includes("opportunite") ||
+    text.includes("revenu");
+  const isResearch =
+    text.includes("research") ||
+    text.includes("analyze") ||
+    text.includes("scout") ||
+    text.includes("analyse") ||
+    text.includes("recherche") ||
+    text.includes("analyser");
+  const isCode =
+    text.includes("code") ||
+    text.includes("build") ||
+    text.includes("deploy") ||
+    text.includes("développer") ||
+    text.includes("developper") ||
+    text.includes("construire") ||
+    text.includes("déployer") ||
+    text.includes("deployer");
 
   let workOrder: WorkOrder;
   let summary = "";
