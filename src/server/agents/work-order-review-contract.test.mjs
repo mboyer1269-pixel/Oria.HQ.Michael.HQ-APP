@@ -130,12 +130,28 @@ test("Work Order Review Contract tests", async (t) => {
     assert.ok(result.issues.some((i) => i.code === "missing_reviewer"));
   });
 
+  await t.test("unknown reviewerRole is blocked", () => {
+    const review = validReview({ reviewerRole: "system" });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "invalid_reviewer_role"));
+  });
+
   await t.test("missing decision is blocked", () => {
     const review = validReview({ decision: undefined });
     const result = validateWorkOrderReview(review);
 
     assert.equal(result.valid, false);
     assert.ok(result.issues.some((i) => i.code === "missing_decision"));
+  });
+
+  await t.test("missing createdAt is blocked", () => {
+    const review = validReview({ createdAt: undefined });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "missing_created_at"));
   });
 
   // ========================================================================
@@ -164,6 +180,55 @@ test("Work Order Review Contract tests", async (t) => {
 
     assert.equal(result.valid, false);
     assert.ok(result.issues.some((i) => i.code === "requested_changes_required"));
+  });
+
+  await t.test("request_changes with malformed requestedChanges [{}] is blocked", () => {
+    const review = validReview({ decision: "request_changes", requestedChanges: [{}] });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "invalid_requested_change"));
+  });
+
+  await t.test("request_changes with string array instead of objects is blocked", () => {
+    const review = validReview({ decision: "request_changes", requestedChanges: ["change title"] });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "invalid_requested_change"));
+  });
+
+  await t.test("request_changes missing field is blocked", () => {
+    const review = validReview({
+      decision: "request_changes",
+      requestedChanges: [{ description: "desc", severity: "suggested" }],
+    });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "invalid_requested_change"));
+  });
+
+  await t.test("request_changes missing description is blocked", () => {
+    const review = validReview({
+      decision: "request_changes",
+      requestedChanges: [{ field: "title", severity: "suggested" }],
+    });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "invalid_requested_change"));
+  });
+
+  await t.test("request_changes with invalid severity is blocked", () => {
+    const review = validReview({
+      decision: "request_changes",
+      requestedChanges: [{ field: "title", description: "desc", severity: "optional" }],
+    });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "invalid_requested_change"));
   });
 
   await t.test("reject without reason is blocked", () => {
@@ -259,6 +324,18 @@ test("Work Order Review Contract tests", async (t) => {
     assert.ok(result.issues.some((i) => i.code === "invalid_approval_gate_acknowledgement"));
   });
 
+  await t.test("acknowledgement with unknown gate identifier is blocked", () => {
+    const review = validReview({
+      approvalGateAcknowledgements: [
+        { gate: "wire_money", acknowledged: true },
+      ],
+    });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "invalid_approval_gate_acknowledgement"));
+  });
+
   await t.test("acknowledgement missing acknowledged boolean is blocked", () => {
     const review = validReview({
       approvalGateAcknowledgements: [
@@ -281,6 +358,38 @@ test("Work Order Review Contract tests", async (t) => {
 
     assert.equal(result.valid, false);
     assert.ok(result.issues.some((i) => i.code === "forbidden_execution_field"));
+  });
+
+  await t.test("nested forbidden execution fields in metadata object are blocked", () => {
+    const review = validReview({ metadata: { executeNow: true } });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "forbidden_execution_field"));
+  });
+
+  await t.test("deeply nested forbidden execution fields are blocked", () => {
+    const review = validReview({ metadata: { nested: { deployNow: true } } });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "forbidden_execution_field"));
+  });
+
+  await t.test("forbidden execution fields in metadata arrays are blocked", () => {
+    const review = validReview({ metadata: [{ sendNow: true }] });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((i) => i.code === "forbidden_execution_field"));
+  });
+
+  await t.test("safe metadata remains valid", () => {
+    const review = validReview({ metadata: { isPriority: true, nested: [{ score: 100 }] } });
+    const result = validateWorkOrderReview(review);
+
+    assert.equal(result.valid, true);
+    assert.equal(result.issues.length, 0);
   });
 
   await t.test("hasForbiddenExecutionFields detects all forbidden fields", () => {

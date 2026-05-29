@@ -17,7 +17,7 @@
  * All helpers are pure: no I/O, no writes, no mutations, no side-effects.
  */
 
-import type { ApprovalGate } from "./agent-profile-contract";
+import { ApprovalGate } from "./agent-profile-contract";
 
 // ---------------------------------------------------------------------------
 // Enumerations & Supporting Types
@@ -160,6 +160,15 @@ const VALID_DECISIONS: ReadonlySet<string> = new Set([
   "ask_for_more_info",
 ]);
 
+const VALID_REVIEWER_ROLES: ReadonlySet<string> = new Set([
+  "ceo",
+  "workflow_owner",
+  "delegate",
+  "auditor",
+]);
+
+const VALID_APPROVAL_GATES: ReadonlySet<string> = new Set(Object.values(ApprovalGate));
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -185,9 +194,24 @@ function issue(
  * are forbidden.
  */
 export function hasForbiddenExecutionFields(
-  review: Record<string, unknown>,
+  review: unknown,
 ): boolean {
-  return LIVE_EXECUTION_FIELDS.some((field) => field in review);
+  if (!review || typeof review !== "object") return false;
+
+  if (Array.isArray(review)) {
+    return review.some(hasForbiddenExecutionFields);
+  }
+
+  for (const [key, value] of Object.entries(review)) {
+    if ((LIVE_EXECUTION_FIELDS as readonly string[]).includes(key)) {
+      return true;
+    }
+    if (hasForbiddenExecutionFields(value)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,7 +244,7 @@ export function validateApprovalGateAcknowledgements(
       continue;
     }
 
-    if (!ack.gate || typeof ack.gate !== "string") {
+    if (!ack.gate || typeof ack.gate !== "string" || !VALID_APPROVAL_GATES.has(ack.gate)) {
       issues.push(issue(
         "invalid_approval_gate_acknowledgement",
         `Acknowledgement at index ${i} is missing a valid gate identifier`,
@@ -273,6 +297,12 @@ export function validateWorkOrderReview(
 
   if (!review.reviewerRole) {
     issues.push(issue("missing_reviewer", "Review is missing reviewerRole"));
+  } else if (typeof review.reviewerRole === "string" && !VALID_REVIEWER_ROLES.has(review.reviewerRole)) {
+    issues.push(issue("invalid_reviewer_role", `Unknown reviewer role: "${review.reviewerRole}"`));
+  }
+
+  if (!review.createdAt || typeof review.createdAt !== "string" || review.createdAt.trim() === "") {
+    issues.push(issue("missing_created_at", "Review is missing createdAt"));
   }
 
   // ---- Decision validation ----
@@ -315,6 +345,24 @@ export function validateWorkOrderReview(
         "error",
         "requestedChanges",
       ));
+    } else {
+      for (let i = 0; i < changes.length; i++) {
+        const change = changes[i] as Record<string, unknown> | null;
+        const prefix = `requestedChanges[${i}]`;
+        if (!change || typeof change !== "object") {
+          issues.push(issue("invalid_requested_change", "Requested change is not a structured object", "error", prefix));
+          continue;
+        }
+        if (!change.field || typeof change.field !== "string" || change.field.trim() === "") {
+          issues.push(issue("invalid_requested_change", "Requested change missing field", "error", prefix));
+        }
+        if (!change.description || typeof change.description !== "string" || change.description.trim() === "") {
+          issues.push(issue("invalid_requested_change", "Requested change missing description", "error", prefix));
+        }
+        if (change.severity !== "required" && change.severity !== "suggested") {
+          issues.push(issue("invalid_requested_change", "Requested change invalid severity", "error", prefix));
+        }
+      }
     }
   }
 
