@@ -20,6 +20,7 @@ import { getPendingMissionDraft, setPendingMissionDraft } from "@/server/mission
 import { detectIntent } from "@/server/joris/detect-intent";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
+import { buildJorisGovernanceBundlePreview } from "@/server/joris/governance-bundle-preview";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -97,7 +98,19 @@ export async function runJorisCommand(
 
   if (intent === "opportunity.score") {
     const result = routeMissionRequest(message, ctx.userId);
-    const summary = formatMissionRouterResponse(result);
+    const workOrderSummary = formatMissionRouterResponse(result);
+
+    // Read-only governance preview (PR127). Pure, dry-run: builds a
+    // preview-state Governance Bundle from the routed Work Order and appends
+    // its Markdown summary. No persistence, no confirmation, no execution —
+    // approve_to_plan stays planning-only and requiresConfirmation remains false.
+    const governancePreview = buildJorisGovernanceBundlePreview({
+      workOrder: result.workOrder,
+      reviewerId: ctx.userId,
+      reviewerRole: "ceo",
+    });
+
+    const summary = `${workOrderSummary}\n\n${governancePreview.message}`;
 
     return {
       intent,
