@@ -29,6 +29,11 @@ import {
 import { applyReviewToGovernanceBundle } from "@/server/joris/governance-bundle-review-applicator";
 import { buildGovernanceDecisionRecord } from "@/server/agents/work-order-governance-decision-contract";
 import { recordGovernanceDecision } from "@/server/joris/governance-decision-repository";
+import {
+  buildWorkOrderGovernancePlan,
+  formatWorkOrderGovernancePlan,
+  isBundleApprovedToPlan,
+} from "@/server/agents/work-order-governance-plan";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -143,9 +148,19 @@ function handleGovernanceReviewReply(
     // Audit persistence is best-effort; the dry-run response still stands.
   }
 
+  // On approved_to_plan, append a self-contained DRY-RUN planning representation
+  // derived from the Work Order + Autonomy Envelope. This is planning only — it
+  // touches no mission/runtime path, authorizes nothing, and requires no
+  // confirmation. approve_to_plan stays planning-only.
+  let summary = application.message;
+  if (isBundleApprovedToPlan(application.bundle)) {
+    const plan = buildWorkOrderGovernancePlan({ bundle: application.bundle });
+    summary = `${summary}\n\n${formatWorkOrderGovernancePlan(plan)}`;
+  }
+
   return {
     intent: "opportunity.score",
-    summary: application.message,
+    summary,
     modelId: route.model.id,
     costMode: route.mode,
     ...workspaceMeta,
