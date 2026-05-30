@@ -21,6 +21,7 @@ import { detectIntent } from "@/server/joris/detect-intent";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
 import { buildJorisGovernanceBundlePreview } from "@/server/joris/governance-bundle-preview";
+import { setPendingGovernanceBundle } from "@/server/joris/governance-bundle-session";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -108,6 +109,16 @@ export async function runJorisCommand(
       workOrder: result.workOrder,
       reviewerId: ctx.userId,
       reviewerRole: "ceo",
+    });
+
+    // Store the preview-state bundle in-memory so a later CEO review message
+    // can be applied to it (PR128/PR130). Storing a preview is not execution:
+    // it is a dry-run snapshot, requiresConfirmation stays false, and nothing
+    // is booked, persisted, or dispatched.
+    setPendingGovernanceBundle({
+      workspaceId: ctx.workspace.id,
+      userId: ctx.userId,
+      bundle: governancePreview.bundle,
     });
 
     const summary = `${workOrderSummary}\n\n${governancePreview.message}`;
