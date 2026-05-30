@@ -124,6 +124,35 @@ export type ArenaVerdictInsert = Omit<ArenaVerdictRow, "created_at"> & {
   created_at?: string;
 };
 
+export type GovernanceDecisionOutcome =
+  | "approved_to_plan"
+  | "changes_requested"
+  | "rejected"
+  | "more_info_requested"
+  | "blocked_execution_request";
+
+export type GovernanceDecisionRow = {
+  id: string;
+  workspace_id: string;
+  work_order_id: string;
+  bundle_id: string;
+  outcome: GovernanceDecisionOutcome;
+  session_status: string;
+  review_id: string | null;
+  review_decision: string | null;
+  reviewer_id: string;
+  reviewer_role: string;
+  // Safety invariants — always true (enforced by DB CHECK constraints).
+  human_on_the_loop: true;
+  no_execution_authorized: true;
+  decided_at: string;
+  created_at: string;
+};
+
+export type GovernanceDecisionInsert = Omit<GovernanceDecisionRow, "created_at"> & {
+  created_at?: string;
+};
+
 export type MichaelHqDatabase = {
   public: {
     Tables: {
@@ -161,6 +190,12 @@ export type MichaelHqDatabase = {
         Row: ArenaVerdictRow;
         Insert: ArenaVerdictInsert;
         Update: Partial<ArenaVerdictInsert>;
+        Relationships: [];
+      };
+      governance_decisions: {
+        Row: GovernanceDecisionRow;
+        Insert: GovernanceDecisionInsert;
+        Update: Partial<GovernanceDecisionInsert>;
         Relationships: [];
       };
     };
