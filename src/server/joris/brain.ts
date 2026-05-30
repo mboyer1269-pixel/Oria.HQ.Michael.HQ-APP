@@ -27,6 +27,8 @@ import {
   setPendingGovernanceBundle,
 } from "@/server/joris/governance-bundle-session";
 import { applyReviewToGovernanceBundle } from "@/server/joris/governance-bundle-review-applicator";
+import { buildGovernanceDecisionRecord } from "@/server/agents/work-order-governance-decision-contract";
+import { recordGovernanceDecision } from "@/server/joris/governance-decision-repository";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -124,6 +126,22 @@ function handleGovernanceReviewReply(
 
   // A decision or safety block closes the dry-run loop for this preview.
   clearPendingGovernanceBundle(ctx.workspace.id, ctx.userId);
+
+  // Persist the rendered decision as an audit record (best-effort, dry-run).
+  // This records that a planning decision was made — it authorizes nothing.
+  // Persistence must never break the read-only governance response, so a
+  // failure (e.g. production without a Supabase implementation) is swallowed.
+  try {
+    recordGovernanceDecision(
+      buildGovernanceDecisionRecord({
+        bundle: application.bundle,
+        workspaceId: ctx.workspace.id,
+        reviewerId: ctx.userId,
+      }),
+    );
+  } catch {
+    // Audit persistence is best-effort; the dry-run response still stands.
+  }
 
   return {
     intent: "opportunity.score",
