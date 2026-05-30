@@ -21,7 +21,12 @@ import { detectIntent } from "@/server/joris/detect-intent";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
 import { buildJorisGovernanceBundlePreview } from "@/server/joris/governance-bundle-preview";
-import { setPendingGovernanceBundle } from "@/server/joris/governance-bundle-session";
+import {
+  clearPendingGovernanceBundle,
+  getPendingGovernanceBundle,
+  setPendingGovernanceBundle,
+} from "@/server/joris/governance-bundle-session";
+import { applyReviewToGovernanceBundle } from "@/server/joris/governance-bundle-review-applicator";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -70,6 +75,66 @@ async function handleMissionDraftReply(
   return confirmPendingMissionDraft(ctx);
 }
 
+/**
+ * Applies a CEO review message to a pending preview-state Governance Bundle
+ * (PR130). Pure, read-only, dry-run: it advances the bundle's review session
+ * via the applicator and returns a read-only summary. It NEVER books, persists,
+ * confirms, or dispatches, and approve_to_plan stays planning-only.
+ *
+ * Returns null (so normal intent routing proceeds) when:
+ *   - a calendar mission draft is pending — booking owns overlap tokens like
+ *     "go"/"oui", so governance defers to preserve the booking flow;
+ *   - no pending governance bundle exists for this (workspace, user);
+ *   - the message is not a review (interpreted as ambiguous) — likely a new
+ *     request, so the pending bundle is left intact for normal routing.
+ *
+ * When a decision (or a safety block) is rendered, the pending bundle is
+ * cleared: one decision per preview closes the dry-run loop; re-preview to
+ * continue.
+ */
+function handleGovernanceReviewReply(
+  message: string,
+  ctx: WorkspaceContext,
+  route: ReturnType<typeof chooseModel>,
+  workspaceMeta: Pick<CommandResult, "workspaceId" | "modeId" | "assistantId">,
+): CommandResult | null {
+  // Booking precedence: defer to the mission-draft confirmation path when a
+  // calendar draft is pending.
+  if (getPendingMissionDraft(ctx.workspace.id, ctx.userId)) {
+    return null;
+  }
+
+  const pending = getPendingGovernanceBundle(ctx.workspace.id, ctx.userId);
+  if (!pending) {
+    return null;
+  }
+
+  const application = applyReviewToGovernanceBundle({
+    bundle: pending.bundle,
+    message,
+    reviewerId: ctx.userId,
+    reviewerRole: pending.bundle.reviewSession.reviewerRole,
+  });
+
+  // Ambiguous = not a review. Leave the pending bundle intact and let normal
+  // intent routing handle the message (e.g. a brand-new opportunity).
+  if (application.intent === "ambiguous") {
+    return null;
+  }
+
+  // A decision or safety block closes the dry-run loop for this preview.
+  clearPendingGovernanceBundle(ctx.workspace.id, ctx.userId);
+
+  return {
+    intent: "opportunity.score",
+    summary: application.message,
+    modelId: route.model.id,
+    costMode: route.mode,
+    ...workspaceMeta,
+    requiresConfirmation: false,
+  };
+}
+
 export async function runJorisCommand(
   message: string,
   workspaceContext: WorkspaceContext = getActiveWorkspaceContext(),
@@ -85,6 +150,15 @@ export async function runJorisCommand(
     modeId: ctx.activeMode.id,
     assistantId: ctx.activeAgentProfile.id,
   };
+
+  // Governance review reply runs before the mission-draft reply so that, when
+  // only a governance bundle is pending, review verbs ("approuve", "rejette",
+  // "modifie"…) advance the dry-run governance session. It internally defers to
+  // booking when a calendar draft is pending, preserving the confirmation flow.
+  const governanceReplyResult = handleGovernanceReviewReply(message, ctx, route, workspaceMeta);
+  if (governanceReplyResult) {
+    return governanceReplyResult;
+  }
 
   const draftReplyResult = await handleMissionDraftReply(message, ctx, route, workspaceMeta);
   if (draftReplyResult) {
