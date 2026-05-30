@@ -13,8 +13,18 @@
  *   - noExecutionAuthorized is always true.
  *   - approve_to_plan is planning only — it never authorizes execution.
  *   - All workOrderId references across artifacts must be consistent.
- *   - Session statuses that require a decision must have a matching review.
+ *   - Session statuses that require a formal decision must have a matching review.
  *   - No live-execution fields are permitted anywhere in the bundle.
+ *
+ * Design decision — blocked_execution_request:
+ *   "blocked_execution_request" is a ReviewSession safety state, set by the
+ *   interpreter when it detects forbidden execution language in a review message.
+ *   It is NOT a WorkOrderReviewDecision and it is NOT an execution authorization.
+ *   A session in this state is valid without a WorkOrderReview object, because
+ *   the interpreter blocked the request before a formal review could be created.
+ *   The bundle enforces humanOnTheLoop: true and noExecutionAuthorized: true
+ *   regardless of session status, and forbidden execution fields are always
+ *   scanned recursively across the entire bundle.
  *
  * All helpers are pure: no I/O, no writes, no mutations, no side-effects.
  */
@@ -123,13 +133,23 @@ const LIVE_EXECUTION_FIELDS = [
   "deployNow",
 ] as const;
 
-/** Session statuses that require a review object to be present in the bundle. */
+/**
+ * Session statuses that require a WorkOrderReview object to be present.
+ * These are statuses produced by a formal review decision (WorkOrderReviewDecision).
+ *
+ * "blocked_execution_request" is intentionally excluded: it is set by the
+ * interpreter when it detects forbidden execution language before a formal
+ * review is created. It is a safety state, not a review outcome, and the
+ * WorkOrderReview contract does not define "blocked_execution_request" as a
+ * valid WorkOrderReviewDecision. A bundle with this session status is valid
+ * without a review — as long as humanOnTheLoop and noExecutionAuthorized hold
+ * and no forbidden execution fields are present.
+ */
 const SESSION_STATUSES_REQUIRING_REVIEW = new Set([
   "approved_to_plan",
   "changes_requested",
   "rejected",
   "more_info_requested",
-  "blocked_execution_request",
 ]);
 
 /** Maps review session status strings to bundle status values. */
@@ -186,11 +206,18 @@ export function hasForbiddenGovernanceBundleFields(input: unknown): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Maps a review decision string to the expected review session status.
- * Returns null if the decision string is not recognized.
+ * Maps a WorkOrderReviewDecision string to the expected review session status.
+ * Returns null if the decision string is not a recognized WorkOrderReviewDecision.
  *
- * Handles all standard WorkOrderReviewDecision values plus the special
- * "blocked_execution_request" safety case.
+ * Only the four formal WorkOrderReviewDecision values are mapped:
+ *   approve_to_plan    → approved_to_plan
+ *   request_changes    → changes_requested
+ *   reject             → rejected
+ *   ask_for_more_info  → more_info_requested
+ *
+ * "blocked_execution_request" is intentionally NOT mapped here because it is
+ * not a WorkOrderReviewDecision — it is a session-level safety state set by
+ * the interpreter. Passing "blocked_execution_request" returns null.
  *
  * This function is pure — it does not mutate the input.
  */
@@ -200,7 +227,6 @@ export function mapReviewDecisionToSessionStatus(decision: string): string | nul
     request_changes: "changes_requested",
     reject: "rejected",
     ask_for_more_info: "more_info_requested",
-    blocked_execution_request: "blocked_execution_request",
   };
   return DECISION_TO_STATUS[decision] ?? null;
 }
@@ -353,8 +379,10 @@ export function buildWorkOrderGovernanceBundle(
  *   1. Per-artifact validation using each artifact's own validator.
  *   2. Cross-artifact workOrderId consistency.
  *   3. reviewSession.autonomyEnvelopeId consistency.
- *   4. reviewSession.currentReviewId consistency.
- *   5. Terminal session statuses require a review.
+ *   4. reviewSession.currentReviewId consistency (including: set but no review present).
+ *   5. Session statuses that require a formal review must have one.
+ *      Note: "blocked_execution_request" is a safety state, not a review outcome;
+ *      it does not require a WorkOrderReview. See module comment for rationale.
  *   6. Review decision maps correctly to session status.
  *   7. Envelope agentId matches work order owner or assigned agent.
  *   8. No forbidden live-execution fields anywhere in the bundle.
@@ -474,7 +502,20 @@ export function validateWorkOrderGovernanceBundle(
     ));
   }
 
-  // ---- 4. reviewSession.currentReviewId must match review.id when review exists ----
+  // ---- 4. reviewSession.currentReviewId consistency ----
+  //
+  // Rule A: if currentReviewId is set, a review object must be present.
+  //         A dangling reference (set pointer, no review) is always invalid.
+  // Rule B: if a review is present, currentReviewId must equal review.id.
+
+  if (bundle.reviewSession.currentReviewId !== undefined && bundle.review === undefined) {
+    issues.push(bundleIssue(
+      "current_review_id_without_review",
+      `reviewSession.currentReviewId is set to "${bundle.reviewSession.currentReviewId}" but no review object is present in the bundle`,
+      "error",
+      "reviewSession.currentReviewId",
+    ));
+  }
 
   if (bundle.review !== undefined) {
     if (bundle.reviewSession.currentReviewId !== bundle.review.id) {
@@ -619,8 +660,18 @@ export function createWorkOrderGovernanceBundleSummary(
     invalid: "⚠️ Invalid",
   };
 
+  const isBlockedExecution = bundle.status === "blocked_execution_request";
+
   const lines: string[] = [
     `### 📦 Governance Bundle — Work Order`,
+    ...(isBlockedExecution
+      ? [
+          ``,
+          `> ⛔ **Execution request was blocked.** The session reached \`blocked_execution_request\` status.`,
+          `> This is a safety state, not a review outcome. No execution was authorized. No action was taken.`,
+        ]
+      : []
+    ),
     ``,
     `#### 📋 Work Order`,
     `- **ID** : \`${workOrderId}\``,

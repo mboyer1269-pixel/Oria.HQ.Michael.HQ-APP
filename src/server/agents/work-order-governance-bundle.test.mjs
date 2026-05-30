@@ -498,6 +498,115 @@ test("Work Order Governance Bundle tests", async (t) => {
   });
 
   // ---------------------------------------------------------------------------
+  // blocked_execution_request session semantics
+  // ---------------------------------------------------------------------------
+
+  await t.test("blocked_execution_request session without review is valid", () => {
+    // blocked_execution_request is a safety state, not a review outcome.
+    // It does NOT require a WorkOrderReview object.
+    const session = validSession("blocked_execution_request");
+    const bundle = buildWorkOrderGovernanceBundle({
+      workOrder: validWorkOrder(),
+      autonomyEnvelope: validEnvelope(),
+      reviewSession: session,
+    });
+    assert.equal(bundle.status, "blocked_execution_request");
+    const result = validateWorkOrderGovernanceBundle(bundle);
+    assert.equal(result.valid, true, JSON.stringify(result.issues));
+  });
+
+  await t.test("blocked_execution_request session still enforces humanOnTheLoop true", () => {
+    const session = validSession("blocked_execution_request");
+    const bundle = buildWorkOrderGovernanceBundle({
+      workOrder: validWorkOrder(),
+      autonomyEnvelope: validEnvelope(),
+      reviewSession: session,
+    });
+    assert.equal(bundle.humanOnTheLoop, true);
+    assert.equal(bundle.noExecutionAuthorized, true);
+  });
+
+  await t.test("blocked_execution_request session with currentReviewId but missing review is invalid", () => {
+    // currentReviewId is a pointer — if set, the review object must exist.
+    const session = validSession("blocked_execution_request", {
+      currentReviewId: "rev_001",
+    });
+    const bundle = buildWorkOrderGovernanceBundle({
+      workOrder: validWorkOrder(),
+      autonomyEnvelope: validEnvelope(),
+      reviewSession: session,
+    });
+    const result = validateWorkOrderGovernanceBundle(bundle);
+    assert.equal(result.valid, false);
+    assert.ok(
+      result.issues.some((i) => i.code === "current_review_id_without_review"),
+      "must flag dangling currentReviewId reference",
+    );
+  });
+
+  await t.test("forbidden execution fields inside blocked_execution_request session events are still blocked", () => {
+    const session = validSession("blocked_execution_request", {
+      events: [
+        {
+          id: "e1",
+          type: "blocked_event",
+          timestamp: new Date().toISOString(),
+          actorId: "joris",
+          metadata: { executeNow: true },
+        },
+      ],
+    });
+    const bundle = buildWorkOrderGovernanceBundle({
+      workOrder: validWorkOrder(),
+      autonomyEnvelope: validEnvelope(),
+      reviewSession: session,
+    });
+    const result = validateWorkOrderGovernanceBundle(bundle);
+    assert.equal(result.valid, false);
+    assert.ok(
+      result.issues.some((i) => i.code.includes("forbidden_execution_field")),
+      "forbidden fields must be caught even in blocked_execution_request sessions",
+    );
+  });
+
+  await t.test("noExecutionAuthorized false is blocked on blocked_execution_request session bundle", () => {
+    const session = validSession("blocked_execution_request");
+    const bundle = buildWorkOrderGovernanceBundle({
+      workOrder: validWorkOrder(),
+      autonomyEnvelope: validEnvelope(),
+      reviewSession: session,
+    });
+    const tampered = { ...bundle, noExecutionAuthorized: false };
+    const result = validateWorkOrderGovernanceBundle(tampered);
+    assert.equal(result.valid, false);
+    assert.ok(
+      result.issues.some(
+        (i) => i.code === "no_execution_authorized_required" || i.code === "planning_only_semantics_violated",
+      ),
+    );
+  });
+
+  await t.test("blocked_execution_request summary includes blocked and Aucune action executee wording", () => {
+    const session = validSession("blocked_execution_request");
+    const bundle = buildWorkOrderGovernanceBundle({
+      workOrder: validWorkOrder(),
+      autonomyEnvelope: validEnvelope(),
+      reviewSession: session,
+    });
+    const summary = createWorkOrderGovernanceBundleSummary(bundle);
+    assert.ok(
+      summary.text.includes("blocked") || summary.text.includes("Blocked"),
+      "summary must mention that execution was blocked",
+    );
+    assert.ok(
+      summary.text.includes("Aucune action"),
+      "summary must include Aucune action executee",
+    );
+    assert.equal(summary.humanOnTheLoop, true);
+    assert.equal(summary.noExecutionAuthorized, true);
+  });
+
+  // ---------------------------------------------------------------------------
   // humanOnTheLoop & noExecutionAuthorized enforcement
   // ---------------------------------------------------------------------------
 
@@ -687,15 +796,11 @@ test("Work Order Governance Bundle tests", async (t) => {
   // mapReviewDecisionToSessionStatus helper
   // ---------------------------------------------------------------------------
 
-  await t.test("status mapping helper maps all known review decisions", () => {
+  await t.test("status mapping helper maps all four WorkOrderReviewDecision values", () => {
     assert.equal(mapReviewDecisionToSessionStatus("approve_to_plan"), "approved_to_plan");
     assert.equal(mapReviewDecisionToSessionStatus("request_changes"), "changes_requested");
     assert.equal(mapReviewDecisionToSessionStatus("reject"), "rejected");
     assert.equal(mapReviewDecisionToSessionStatus("ask_for_more_info"), "more_info_requested");
-    assert.equal(
-      mapReviewDecisionToSessionStatus("blocked_execution_request"),
-      "blocked_execution_request",
-    );
   });
 
   await t.test("invalid status mapping is safely rejected (returns null)", () => {
@@ -703,6 +808,13 @@ test("Work Order Governance Bundle tests", async (t) => {
     assert.equal(mapReviewDecisionToSessionStatus(""), null);
     assert.equal(mapReviewDecisionToSessionStatus("execute_now"), null);
     assert.equal(mapReviewDecisionToSessionStatus("approve_to_execute"), null);
+    // blocked_execution_request is a session safety state, NOT a WorkOrderReviewDecision —
+    // it must not be mapped and must return null.
+    assert.equal(
+      mapReviewDecisionToSessionStatus("blocked_execution_request"),
+      null,
+      "blocked_execution_request is not a WorkOrderReviewDecision and must not be mapped",
+    );
   });
 
   // ---------------------------------------------------------------------------
