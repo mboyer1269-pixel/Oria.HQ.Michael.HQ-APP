@@ -8,6 +8,7 @@ import {
   CalendarCheck2,
   CalendarClock,
   CheckCircle2,
+  Download,
   Loader2,
   Mic,
   Send,
@@ -31,6 +32,14 @@ type ChatResponse = {
   storageMode?: string;
   requiresConfirmation?: boolean;
   missionDraftPreview?: MissionDraftPreview;
+  auditExport?: {
+    filename: string;
+    mimeType: "text/csv";
+    content: string;
+    totalDecisions: number;
+    humanOnTheLoop?: true;
+    noExecutionAuthorized?: true;
+  };
   pendingDraftId?: string;
   missionId?: string;
 };
@@ -72,6 +81,19 @@ function notifyMissionDraftChanged(data: ChatResponse) {
   if (data.intent === "calendar.book" && data.calendarEvent) {
     window.dispatchEvent(new CustomEvent(MISSION_DRAFT_CHANGED_EVENT));
   }
+}
+
+function downloadAuditExport(auditExport: NonNullable<ChatResponse["auditExport"]>) {
+  const blob = new Blob([auditExport.content], { type: auditExport.mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = auditExport.filename;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 const bookingExamples = [
@@ -233,6 +255,17 @@ export function CommandCenter() {
 
           {result.missionDraftPreview && result.requiresConfirmation ? (
             <MissionDraftProposalHint preview={result.missionDraftPreview} />
+          ) : null}
+
+          {result.auditExport ? (
+            <button
+              type="button"
+              onClick={() => downloadAuditExport(result.auditExport!)}
+              className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-200 transition hover:border-emerald-400/50 hover:bg-emerald-500/15"
+            >
+              <Download className="h-4 w-4" />
+              Télécharger le rapport d&apos;audit (CSV, lecture seule)
+            </button>
           ) : null}
 
           {result.calendarEvent && (

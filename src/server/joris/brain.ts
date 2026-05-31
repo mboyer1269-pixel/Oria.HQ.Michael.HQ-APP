@@ -28,13 +28,22 @@ import {
 } from "@/server/joris/governance-bundle-session";
 import { applyReviewToGovernanceBundle } from "@/server/joris/governance-bundle-review-applicator";
 import { buildGovernanceDecisionRecord } from "@/server/agents/work-order-governance-decision-contract";
-import { recordGovernanceDecision } from "@/server/joris/governance-decision-repository";
+import {
+  getGovernanceDecisionsForWorkspace,
+  recordGovernanceDecision,
+} from "@/server/joris/governance-decision-repository";
+import {
+  buildGovernanceAuditReport,
+  formatGovernanceAuditReportCsv,
+} from "@/server/joris/governance-audit-report";
 import {
   buildWorkOrderGovernancePlan,
   formatWorkOrderGovernancePlan,
   isBundleApprovedToPlan,
 } from "@/server/agents/work-order-governance-plan";
 import { buildGovernanceDecisionContinuityNote } from "@/server/joris/governance-decision-continuity";
+
+const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -204,6 +213,46 @@ export async function runJorisCommand(
     message,
     highImpact: intent === "board.consult" || intent === "opportunity.score",
   });
+
+  if (intent === "governance.audit") {
+    let degraded = false;
+    let decisions: Awaited<ReturnType<typeof getGovernanceDecisionsForWorkspace>> = [];
+
+    try {
+      decisions = await getGovernanceDecisionsForWorkspace(workspaceMeta.workspaceId, {
+        limit: DEFAULT_GOVERNANCE_AUDIT_LIMIT,
+      });
+    } catch {
+      degraded = true;
+    }
+
+    const report = buildGovernanceAuditReport({
+      workspaceId: workspaceMeta.workspaceId,
+      decisions,
+    });
+    const csv = formatGovernanceAuditReportCsv(report);
+    const filename = `governance-audit-${workspaceMeta.workspaceId}-${report.generatedAt.slice(0, 10)}.csv`;
+    const summary = degraded
+      ? `J'ai préparé un export CSV d'audit de gouvernance en lecture seule avec ${report.totalDecisions} décision(s), limité aux ${DEFAULT_GOVERNANCE_AUDIT_LIMIT} dernières décisions max. Le backend de persistance était indisponible, donc l'export peut être vide. Aucune exécution n'est autorisée par ce rapport.`
+      : `J'ai préparé un export CSV d'audit de gouvernance en lecture seule avec ${report.totalDecisions} décision(s), limité aux ${DEFAULT_GOVERNANCE_AUDIT_LIMIT} dernières décisions max. Aucune exécution n'est autorisée par ce rapport.`;
+
+    return {
+      intent,
+      summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+      auditExport: {
+        filename,
+        mimeType: "text/csv",
+        content: csv,
+        totalDecisions: report.totalDecisions,
+        humanOnTheLoop: true,
+        noExecutionAuthorized: true,
+      },
+    };
+  }
 
   if (intent === "opportunity.score") {
     const result = routeMissionRequest(message, ctx.userId);

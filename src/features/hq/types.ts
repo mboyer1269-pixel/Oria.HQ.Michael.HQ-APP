@@ -19,7 +19,8 @@ export type JorisIntent =
   | "opportunity.score"
   | "task.create"
   | "mission.plan" // dry-run plan surface only — never executes
-  | "mission.draft"; // calendar.book proposal — pending user confirmation
+  | "mission.draft" // calendar.book proposal — pending user confirmation
+  | "governance.audit";
 
 export type BoardFigure = {
   id: string;
@@ -105,6 +106,15 @@ export type MissionDraftPreview = {
   expiresAt: string;
 };
 
+export type GovernanceAuditExport = {
+  filename: string;
+  mimeType: "text/csv";
+  content: string;
+  totalDecisions: number;
+  humanOnTheLoop: true;
+  noExecutionAuthorized: true;
+};
+
 export type CommandResult = {
   intent: JorisIntent;
   summary: string;
@@ -120,6 +130,7 @@ export type CommandResult = {
   requiresConfirmation?: boolean;
   missionPlanResult?: MissionPlanResult;
   missionDraftPreview?: MissionDraftPreview;
+  auditExport?: GovernanceAuditExport;
   pendingDraftId?: string;
   missionId?: string;
 };
