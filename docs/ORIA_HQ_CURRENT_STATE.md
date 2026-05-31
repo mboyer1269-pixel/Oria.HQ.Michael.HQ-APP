@@ -6,6 +6,8 @@ Sprint board: GitHub issue [#91](https://github.com/mboyer1269-pixel/Oria.HQ.Mic
 
 This document is the **canonical source of truth** for what is live, partial, or locked in Oria HQ after the observability sprint (PRs #88–#92) and the mission-draft gate (PRs #94–#96). Historical snapshots (`ORIA_HQ_PHASE2_SNAPSHOT.md`, `MISSION_CONTROL_COMPLETION_SNAPSHOT.md`) remain for archaeology; prefer this file for current operations.
 
+For venture product direction, [`VENTURE_ENGINE_RECALIBRATION.md`](VENTURE_ENGINE_RECALIBRATION.md) is canonical. Historical portfolio docs and named venture examples do not define the new Venture Engine model.
+
 ---
 
 ## Product decision (active)
