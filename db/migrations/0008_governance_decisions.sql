@@ -12,7 +12,8 @@
 --   * It is NOT the action ledger — it never records executed actions.
 -- This table is the Supabase backing store for the repository that currently
 -- runs on an in-memory local fallback (see governance-decision-repository.ts).
--- It is scoped per workspace.
+-- It is scoped per workspace. Fields mirror the TypeScript contract in
+-- src/server/agents/work-order-governance-decision-contract.ts.
 --
 -- Safety invariants enforced at the DB level (defense in depth, mirroring the
 -- TypeScript contract):
@@ -24,7 +25,10 @@
 -- -------------------------
 -- The Supabase service-role key carries the `bypassrls` privilege and is
 -- therefore unaffected by the policies below. All server-side code uses the
--- service-role client (createOptionalSupabaseAdminClient).
+-- service-role client (createOptionalSupabaseAdminClient). NOTE: we do NOT add
+-- policies "to service_role" — bypassrls makes them no-ops, and the repo
+-- convention (0005_missions_rls / 0006_arena) only ever names anon and
+-- authenticated. Listing service_role would be misleading, not protective.
 --
 -- Who CANNOT access this table
 -- -----------------------------
@@ -75,6 +79,8 @@ create index if not exists governance_decisions_workspace_work_order_idx
   on public.governance_decisions(workspace_id, work_order_id);
 create index if not exists governance_decisions_workspace_decided_idx
   on public.governance_decisions(workspace_id, decided_at desc);
+create index if not exists governance_decisions_created_at_idx
+  on public.governance_decisions(created_at desc);
 
 -- RESTRICTIVE block-all policies (mirrors 0005_missions_rls / 0006_arena).
 -- With RLS enabled and these restrictive policies, anon and authenticated are
@@ -153,6 +159,7 @@ create policy "governance_decisions_block_authenticated_delete"
 -- drop policy if exists "governance_decisions_block_authenticated_update" on public.governance_decisions;
 -- drop policy if exists "governance_decisions_block_anon_delete" on public.governance_decisions;
 -- drop policy if exists "governance_decisions_block_authenticated_delete" on public.governance_decisions;
+-- drop index if exists public.governance_decisions_created_at_idx;
 -- drop index if exists public.governance_decisions_workspace_decided_idx;
 -- drop index if exists public.governance_decisions_workspace_work_order_idx;
 -- drop index if exists public.governance_decisions_workspace_id_idx;
