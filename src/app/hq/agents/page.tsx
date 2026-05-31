@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { AgentCard } from "@/features/agents/components/agent-card";
 import { AgentSkillPanel } from "@/features/agents/components/agent-skill-panel";
-import { AgenticHoldingPreview } from "@/features/hq/components/agentic-holding-preview";
 import { agentRegistry } from "@/features/agents/seed";
 import { validateAgentSkillMapping } from "@/features/agents/skill-mapping";
 import { skillsCatalog } from "@/features/skills/seed";
@@ -74,8 +73,6 @@ export default async function AgentsPage() {
           </div>
         </aside>
       </header>
-
-      <AgenticHoldingPreview />
 
       {[
         { label: "Actifs", agents: active, accent: "text-emerald-400" },

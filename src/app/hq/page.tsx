@@ -5,7 +5,6 @@ import {
   Bot,
   CalendarCheck,
   CheckCircle2,
-  FileText,
   LockKeyhole,
   LogOut,
   ShieldCheck,
@@ -65,16 +64,8 @@ const privateLinks = [
     href: "/hq/runtime",
   },
   {
-    label: "Memory",
-    href: "/hq/memory",
-  },
-  {
     label: "Prochains bookings",
     href: "#agenda-panel",
-  },
-  {
-    label: "Documents",
-    href: "/dashboard/documents",
   },
   {
     label: "Modes métier",
@@ -202,21 +193,6 @@ export default async function HqPage() {
         </div>
 
         <aside className="space-y-4">
-          <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Documents</p>
-            <h2 className="mt-2 text-xl font-semibold text-white">Coffre privé</h2>
-            <p className="mt-3 text-sm leading-6 text-neutral-400">
-              Notes, décisions, SOPs et documents utiles à Joris restent derrière le même accès propriétaire.
-            </p>
-            <Link
-              href={"/dashboard/documents" as Route}
-              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400"
-            >
-              <FileText className="h-4 w-4" />
-              Ouvrir Documents
-            </Link>
-          </section>
-
           <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500">À venir</p>
             <h2 className="mt-2 text-xl font-semibold text-white">Packs vendables</h2>
