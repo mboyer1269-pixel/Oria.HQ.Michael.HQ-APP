@@ -20,6 +20,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
 const migrationPath = path.join(projectRoot, "db/migrations/0008_governance_decisions.sql");
 const sql = readFileSync(migrationPath, "utf8").toLowerCase();
+// Executable SQL only (drop `--` comment lines) so prose in the header/rollback
+// block cannot trip the permissive-access checks below.
+const executableSql = sql
+  .split("\n")
+  .filter((line) => !line.trimStart().startsWith("--"))
+  .join("\n");
 
 const DECIDED_OUTCOMES = [
   "approved_to_plan",
@@ -53,14 +59,22 @@ test("governance_decisions migration (PR135)", async (t) => {
     assert.equal(restrictiveCount, 8, "expected 8 restrictive block-all policies");
   });
 
-  await t.test("contains no permissive open policy", () => {
-    assert.ok(!/using \(true\)/.test(sql), "no policy may open the table with using (true)");
-    assert.ok(!/with check \(true\)/.test(sql), "no policy may open the table with check (true)");
+  await t.test("introduces no permissive public access", () => {
+    assert.ok(!/using \(true\)/.test(executableSql), "no policy may open the table with using (true)");
+    assert.ok(!/with check \(true\)/.test(executableSql), "no policy may open the table with check (true)");
+    // service_role is never named in an actual policy: bypassrls makes policies
+    // no-ops for it, and listing it would be misleading rather than protective.
+    assert.ok(!/to service_role/.test(executableSql), "service_role must not be named in any policy");
   });
 
   await t.test("pins the no-execution / human-on-the-loop safety belts at the DB level", () => {
     assert.ok(/human_on_the_loop = true/.test(sql));
     assert.ok(/no_execution_authorized = true/.test(sql));
+  });
+
+  await t.test("indexes workspace_id and created_at", () => {
+    assert.ok(/governance_decisions_workspace_id_idx/.test(sql));
+    assert.ok(/governance_decisions_created_at_idx/.test(sql));
   });
 
   await t.test("documents a full rollback", () => {
