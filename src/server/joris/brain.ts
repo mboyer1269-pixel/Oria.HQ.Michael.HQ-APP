@@ -34,6 +34,7 @@ import {
   formatWorkOrderGovernancePlan,
   isBundleApprovedToPlan,
 } from "@/server/agents/work-order-governance-plan";
+import { buildGovernanceDecisionContinuityNote } from "@/server/joris/governance-decision-continuity";
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -228,7 +229,18 @@ export async function runJorisCommand(
       bundle: governancePreview.bundle,
     });
 
-    const summary = `${workOrderSummary}\n\n${governancePreview.message}`;
+    // Continuity context (read side of the audit trail, PR132 wrote it):
+    // surface the workspace's recent governance decisions so the CEO reviews
+    // the new bundle with history in view. Best-effort and read-only — it
+    // reflects PRIOR decisions (a preview records none), authorizes nothing,
+    // and degrades to no note if the repository is unavailable.
+    const continuityNote = buildGovernanceDecisionContinuityNote({
+      workspaceId: ctx.workspace.id,
+    });
+
+    const summary = continuityNote
+      ? `${workOrderSummary}\n\n${governancePreview.message}\n\n${continuityNote}`
+      : `${workOrderSummary}\n\n${governancePreview.message}`;
 
     return {
       intent,
