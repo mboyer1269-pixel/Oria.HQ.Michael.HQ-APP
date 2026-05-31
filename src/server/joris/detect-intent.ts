@@ -18,6 +18,10 @@ const CALENDAR_BOOK_POSITIVE_PATTERNS = [
   /\brdvs?\b/,
 ];
 
+const GOVERNANCE_AUDIT_GOVERNANCE_PATTERN = /\b(?:gouvernance|governance)\b/;
+const GOVERNANCE_AUDIT_REPORT_PATTERN =
+  /\b(?:audit|rapport|historique des décisions|historique des decisions|décisions de gouvernance|decisions de gouvernance)\b/;
+
 function stripCalendarBookingNegations(message: string): string {
   let stripped = message;
   for (const pattern of CALENDAR_BOOK_NEGATIVE_PATTERNS) {
@@ -60,6 +64,10 @@ export function detectIntent(message: string): JorisIntent {
   ];
   if (lower.includes("mission") && missionPlanSignals.some((signal) => lower.includes(signal))) {
     return "mission.plan";
+  }
+
+  if (GOVERNANCE_AUDIT_GOVERNANCE_PATTERN.test(lower) && GOVERNANCE_AUDIT_REPORT_PATTERN.test(lower)) {
+    return "governance.audit";
   }
 
   if (matchesCalendarBookingIntent(message)) {

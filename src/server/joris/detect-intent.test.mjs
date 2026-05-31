@@ -53,11 +53,18 @@ for (const { message, expected } of calendarBookingCases) {
 const priorityAndAccentCases = [
   { message: "planifie la mission de lancement", expected: "mission.plan" },
   { message: "book un rdv et planifie la mission demain", expected: "mission.plan" },
+  { message: "rapport d'audit de gouvernance", expected: "governance.audit" },
+  { message: "historique des décisions de gouvernance", expected: "governance.audit" },
+  { message: "audit gouvernance", expected: "governance.audit" },
+  { message: "résumé avec audit de gouvernance", expected: "governance.audit" },
   { message: "Prépare le comité pour demain", expected: "board.consult" },
   { message: "consulte le comité Hormozi", expected: "board.consult" },
+  { message: "consulte le board", expected: "board.consult" },
   { message: "Nouvelle opportunité à scorer", expected: "opportunity.score" },
   { message: "score cette opportunité business", expected: "opportunity.score" },
   { message: "Donne-moi un résumé de la semaine", expected: "brief.generate" },
+  { message: "fais-moi un résumé", expected: "brief.generate" },
+  { message: "mission planifie la relance", expected: "mission.plan" },
   { message: "Quelle est la priorité du jour?", expected: "brief.generate" },
   { message: "génère un résumé avec priorité haute", expected: "brief.generate" },
 ];
