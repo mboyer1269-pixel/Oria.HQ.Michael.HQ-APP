@@ -4,53 +4,136 @@
  * Governance Decision repository — durable, auditable trace of rendered
  * governance decisions.
  *
- * Persistence model (PR131): this follows the repo's existing local-fallback
- * pattern (see src/lib/server-env.ts `isLocalPersistenceFallbackAllowed`). It
- * uses an in-memory append-only store in development/test. There is NO Supabase
- * table, migration, or RLS policy here — a Supabase-backed implementation is a
- * separate, explicitly-mandated step. In production (without the local
- * fallback) the repository throws rather than silently dropping a decision, so
- * the missing Supabase implementation is loud, not silent.
+ * Persistence model (PR136): dual-mode, mirroring the repo's arena-verdict
+ * repository.
+ *   - When Supabase is configured, decisions are persisted to the
+ *     public.governance_decisions table (migration 0008) via the service-role
+ *     admin client. RLS blocks anon/authenticated; the service role bypasses it.
+ *   - Otherwise, in development/test, an in-memory append-only store is used
+ *     (the local fallback, see src/lib/server-env.ts).
+ *   - In production WITHOUT Supabase configured and WITHOUT the local fallback,
+ *     the repository THROWS rather than silently dropping a decision — the
+ *     missing persistence stays loud, not silent.
  *
  * Safety:
  *   - Records are PLANNING/AUDIT artifacts; they authorize nothing.
  *   - This is NOT the action ledger. It never records executed actions, and it
- *     never books, dispatches, or writes external state.
+ *     never books, dispatches, or writes external state beyond this audit table.
  *   - Every stored record is validated; humanOnTheLoop and noExecutionAuthorized
- *     must hold.
- *
- * Dormant: not imported by any production code yet (wired in a later PR).
+ *     must hold (also enforced by DB CHECK constraints in migration 0008).
+ *   - Supabase failures surface as a sanitized GovernanceDecisionRepositoryError
+ *     that never leaks driver internals.
  */
 
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type {
   WorkOrderGovernanceDecisionRecord,
+  WorkOrderGovernanceDecisionOutcome,
 } from "@/server/agents/work-order-governance-decision-contract";
 import { validateGovernanceDecisionRecord } from "@/server/agents/work-order-governance-decision-contract";
+import type { GovernanceDecisionInsert, GovernanceDecisionRow } from "@/server/db/types";
+import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
 
 const PRODUCTION_GUARD_MESSAGE =
-  "Supabase-backed governance decision persistence is not yet configured; " +
-  "local-fallback persistence is only available outside production.";
+  "Governance decision persistence is unavailable: Supabase is not configured " +
+  "and local-fallback persistence is only available outside production.";
 
 // In-memory append-only store for local development/test (no Supabase).
 const localDecisions: WorkOrderGovernanceDecisionRecord[] = [];
 
-function assertPersistenceAvailable(): void {
+type SupabaseAdminClient = NonNullable<ReturnType<typeof createOptionalSupabaseAdminClient>>;
+
+type GovernanceDecisionRepositoryGlobals = typeof globalThis & {
+  __governanceDecisionRepositoryClientFactory?: (() => SupabaseAdminClient | null) | null;
+};
+
+export class GovernanceDecisionRepositoryError extends Error {
+  constructor(operation: "record" | "list") {
+    super(`Governance decision repository ${operation} failed.`);
+    this.name = "GovernanceDecisionRepositoryError";
+  }
+}
+
+/**
+ * Resolves the Supabase admin client, or null when Supabase is not configured.
+ * A test-only global factory may override resolution.
+ */
+function getSupabaseClient(): SupabaseAdminClient | null {
+  const globals = globalThis as GovernanceDecisionRepositoryGlobals;
+  if (globals.__governanceDecisionRepositoryClientFactory) {
+    return globals.__governanceDecisionRepositoryClientFactory();
+  }
+  return createOptionalSupabaseAdminClient();
+}
+
+/**
+ * Throws the loud production guard when neither Supabase nor the local fallback
+ * is available. Callers invoke this only on the no-client path.
+ */
+function assertLocalFallbackAvailable(): void {
   if (!isLocalPersistenceFallbackAllowed()) {
     throw new Error(PRODUCTION_GUARD_MESSAGE);
   }
 }
 
+// ---------------------------------------------------------------------------
+// Row mappers
+// ---------------------------------------------------------------------------
+
+function mapRecordToRow(record: WorkOrderGovernanceDecisionRecord): GovernanceDecisionInsert {
+  return {
+    id: record.id,
+    workspace_id: record.workspaceId,
+    work_order_id: record.workOrderId,
+    bundle_id: record.bundleId,
+    outcome: record.outcome,
+    session_status: record.sessionStatus,
+    review_id: record.reviewId ?? null,
+    review_decision: record.reviewDecision ?? null,
+    reviewer_id: record.reviewerId,
+    reviewer_role: record.reviewerRole,
+    human_on_the_loop: true,
+    no_execution_authorized: true,
+    decided_at: record.decidedAt,
+    created_at: record.createdAt,
+  };
+}
+
+function mapRowToRecord(row: GovernanceDecisionRow): WorkOrderGovernanceDecisionRecord {
+  const record: WorkOrderGovernanceDecisionRecord = {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    workOrderId: row.work_order_id,
+    bundleId: row.bundle_id,
+    outcome: row.outcome as WorkOrderGovernanceDecisionOutcome,
+    sessionStatus: row.session_status,
+    reviewerId: row.reviewer_id,
+    reviewerRole: row.reviewer_role,
+    humanOnTheLoop: true,
+    noExecutionAuthorized: true,
+    decidedAt: row.decided_at,
+    createdAt: row.created_at,
+  };
+  if (row.review_id !== null) record.reviewId = row.review_id;
+  if (row.review_decision !== null) record.reviewDecision = row.review_decision;
+  return record;
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 /**
  * Persists a governance decision record. Validates the record first and refuses
  * to store an invalid one. Returns a defensive copy of the stored record.
  *
- * Throws in production (no local fallback) because no Supabase implementation
- * exists yet — a decision must never be silently dropped.
+ * Throws GovernanceDecisionRepositoryError on a Supabase failure, and throws the
+ * loud production guard when no persistence backend is available — a decision
+ * must never be silently dropped.
  */
-export function recordGovernanceDecision(
+export async function recordGovernanceDecision(
   record: WorkOrderGovernanceDecisionRecord,
-): WorkOrderGovernanceDecisionRecord {
+): Promise<WorkOrderGovernanceDecisionRecord> {
   const validation = validateGovernanceDecisionRecord(record);
   if (!validation.valid) {
     const codes = validation.issues
@@ -60,49 +143,91 @@ export function recordGovernanceDecision(
     throw new Error(`Refusing to persist an invalid governance decision record: ${codes}`);
   }
 
-  assertPersistenceAvailable();
+  const db = getSupabaseClient();
 
-  const stored: WorkOrderGovernanceDecisionRecord = { ...record };
-  localDecisions.push(stored);
-  return { ...stored };
+  if (!db) {
+    assertLocalFallbackAvailable();
+    const stored: WorkOrderGovernanceDecisionRecord = { ...record };
+    localDecisions.push(stored);
+    return { ...stored };
+  }
+
+  const { error } = await db.from("governance_decisions").insert(mapRecordToRow(record));
+  if (error) {
+    throw new GovernanceDecisionRepositoryError("record");
+  }
+  return { ...record };
 }
 
 /**
  * Returns all governance decisions for a workspace, most-recent first.
  */
-export function getGovernanceDecisionsForWorkspace(
+export async function getGovernanceDecisionsForWorkspace(
   workspaceId: string,
-): WorkOrderGovernanceDecisionRecord[] {
-  assertPersistenceAvailable();
-  return localDecisions
-    .filter((r) => r.workspaceId === workspaceId)
-    .map((r) => ({ ...r }))
-    .reverse();
+): Promise<WorkOrderGovernanceDecisionRecord[]> {
+  const db = getSupabaseClient();
+
+  if (!db) {
+    assertLocalFallbackAvailable();
+    return localDecisions
+      .filter((r) => r.workspaceId === workspaceId)
+      .map((r) => ({ ...r }))
+      .reverse();
+  }
+
+  const { data, error } = await db
+    .from("governance_decisions")
+    .select("*")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (error) {
+    throw new GovernanceDecisionRepositoryError("list");
+  }
+  return (data ?? []).map(mapRowToRecord);
 }
 
 /**
  * Returns all governance decisions for a specific work order in a workspace,
  * most-recent first.
  */
-export function getGovernanceDecisionsForWorkOrder(
+export async function getGovernanceDecisionsForWorkOrder(
   workspaceId: string,
   workOrderId: string,
-): WorkOrderGovernanceDecisionRecord[] {
-  assertPersistenceAvailable();
-  return localDecisions
-    .filter((r) => r.workspaceId === workspaceId && r.workOrderId === workOrderId)
-    .map((r) => ({ ...r }))
-    .reverse();
+): Promise<WorkOrderGovernanceDecisionRecord[]> {
+  const db = getSupabaseClient();
+
+  if (!db) {
+    assertLocalFallbackAvailable();
+    return localDecisions
+      .filter((r) => r.workspaceId === workspaceId && r.workOrderId === workOrderId)
+      .map((r) => ({ ...r }))
+      .reverse();
+  }
+
+  const { data, error } = await db
+    .from("governance_decisions")
+    .select("*")
+    .eq("workspace_id", workspaceId)
+    .eq("work_order_id", workOrderId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+
+  if (error) {
+    throw new GovernanceDecisionRepositoryError("list");
+  }
+  return (data ?? []).map(mapRowToRecord);
 }
 
 /**
  * Returns the most recent governance decision for a work order, or null.
  */
-export function getLatestGovernanceDecision(
+export async function getLatestGovernanceDecision(
   workspaceId: string,
   workOrderId: string,
-): WorkOrderGovernanceDecisionRecord | null {
-  const matches = getGovernanceDecisionsForWorkOrder(workspaceId, workOrderId);
+): Promise<WorkOrderGovernanceDecisionRecord | null> {
+  const matches = await getGovernanceDecisionsForWorkOrder(workspaceId, workOrderId);
   return matches.length > 0 ? matches[0] : null;
 }
 

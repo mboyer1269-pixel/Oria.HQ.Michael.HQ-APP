@@ -66,7 +66,7 @@ test("Joris Governance Decision Record wiring (PR132) tests", async (t) => {
     const woId = await previewAndGetWorkOrderId();
     await run("Approuve pour le plan");
 
-    const decisions = getGovernanceDecisionsForWorkOrder(WS, woId);
+    const decisions = await getGovernanceDecisionsForWorkOrder(WS, woId);
     assert.equal(decisions.length, 1);
     assert.equal(decisions[0].outcome, "approved_to_plan");
     assert.equal(decisions[0].workOrderId, woId);
@@ -77,7 +77,7 @@ test("Joris Governance Decision Record wiring (PR132) tests", async (t) => {
   await t.test("reject records a rejected decision", async () => {
     const woId = await previewAndGetWorkOrderId();
     await run("Non, rejette cette idée");
-    const decisions = getGovernanceDecisionsForWorkOrder(WS, woId);
+    const decisions = await getGovernanceDecisionsForWorkOrder(WS, woId);
     assert.equal(decisions.length, 1);
     assert.equal(decisions[0].outcome, "rejected");
   });
@@ -85,7 +85,7 @@ test("Joris Governance Decision Record wiring (PR132) tests", async (t) => {
   await t.test("execution language records a blocked_execution_request decision", async () => {
     const woId = await previewAndGetWorkOrderId();
     await run("Déploie maintenant !");
-    const decisions = getGovernanceDecisionsForWorkOrder(WS, woId);
+    const decisions = await getGovernanceDecisionsForWorkOrder(WS, woId);
     assert.equal(decisions.length, 1);
     assert.equal(decisions[0].outcome, "blocked_execution_request");
     assert.equal(decisions[0].reviewId, undefined, "no review backs a blocked decision");
@@ -95,7 +95,7 @@ test("Joris Governance Decision Record wiring (PR132) tests", async (t) => {
     await previewAndGetWorkOrderId();
     await run("Raconte-moi une blague sur les licornes");
     assert.equal(
-      getGovernanceDecisionsForWorkspace(WS).length,
+      (await getGovernanceDecisionsForWorkspace(WS)).length,
       0,
       "ambiguous messages must not record a decision",
     );
@@ -103,7 +103,7 @@ test("Joris Governance Decision Record wiring (PR132) tests", async (t) => {
 
   await t.test("a review verb with no pending bundle records no decision", async () => {
     await run("Approuve pour le plan");
-    assert.equal(getGovernanceDecisionsForWorkspace(WS).length, 0);
+    assert.equal((await getGovernanceDecisionsForWorkspace(WS)).length, 0);
   });
 
   await t.test("each preview→decision cycle appends a new audit record", async () => {
@@ -112,7 +112,7 @@ test("Joris Governance Decision Record wiring (PR132) tests", async (t) => {
     const wo2 = await previewAndGetWorkOrderId();
     await run("Non, rejette cette idée");
 
-    const all = getGovernanceDecisionsForWorkspace(WS);
+    const all = await getGovernanceDecisionsForWorkspace(WS);
     assert.equal(all.length, 2);
     // Most-recent first.
     assert.equal(all[0].outcome, "rejected");

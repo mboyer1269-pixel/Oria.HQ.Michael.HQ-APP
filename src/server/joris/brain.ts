@@ -100,12 +100,12 @@ async function handleMissionDraftReply(
  * cleared: one decision per preview closes the dry-run loop; re-preview to
  * continue.
  */
-function handleGovernanceReviewReply(
+async function handleGovernanceReviewReply(
   message: string,
   ctx: WorkspaceContext,
   route: ReturnType<typeof chooseModel>,
   workspaceMeta: Pick<CommandResult, "workspaceId" | "modeId" | "assistantId">,
-): CommandResult | null {
+): Promise<CommandResult | null> {
   // Booking precedence: defer to the mission-draft confirmation path when a
   // calendar draft is pending.
   if (getPendingMissionDraft(ctx.workspace.id, ctx.userId)) {
@@ -138,7 +138,7 @@ function handleGovernanceReviewReply(
   // Persistence must never break the read-only governance response, so a
   // failure (e.g. production without a Supabase implementation) is swallowed.
   try {
-    recordGovernanceDecision(
+    await recordGovernanceDecision(
       buildGovernanceDecisionRecord({
         bundle: application.bundle,
         workspaceId: ctx.workspace.id,
@@ -189,7 +189,7 @@ export async function runJorisCommand(
   // only a governance bundle is pending, review verbs ("approuve", "rejette",
   // "modifie"…) advance the dry-run governance session. It internally defers to
   // booking when a calendar draft is pending, preserving the confirmation flow.
-  const governanceReplyResult = handleGovernanceReviewReply(message, ctx, route, workspaceMeta);
+  const governanceReplyResult = await handleGovernanceReviewReply(message, ctx, route, workspaceMeta);
   if (governanceReplyResult) {
     return governanceReplyResult;
   }
@@ -234,7 +234,7 @@ export async function runJorisCommand(
     // the new bundle with history in view. Best-effort and read-only — it
     // reflects PRIOR decisions (a preview records none), authorizes nothing,
     // and degrades to no note if the repository is unavailable.
-    const continuityNote = buildGovernanceDecisionContinuityNote({
+    const continuityNote = await buildGovernanceDecisionContinuityNote({
       workspaceId: ctx.workspace.id,
     });
 
