@@ -64,6 +64,10 @@ const privateLinks = [
     href: "/hq/runtime",
   },
   {
+    label: "Ventures",
+    href: "/hq/ventures",
+  },
+  {
     label: "Prochains bookings",
     href: "#agenda-panel",
   },
