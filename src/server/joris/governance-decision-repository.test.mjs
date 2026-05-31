@@ -102,9 +102,11 @@ test("Governance Decision repository tests", async (t) => {
   function makeSupabaseMock({ insertError = null, listData = [], listError = null, onInsert } = {}) {
     const builder = {
       _result: { data: listData, error: listError },
+      appliedLimit: undefined,
       select() { return this; },
       eq() { return this; },
       order() { return this; },
+      limit(n) { this.appliedLimit = n; return this; },
       insert(row) {
         if (onInsert) onInsert(row);
         return Promise.resolve({ data: null, error: insertError });
@@ -168,6 +170,29 @@ test("Governance Decision repository tests", async (t) => {
     const latest = await getLatestGovernanceDecision("ws1", "wo_1");
     assert.ok(latest);
     assert.equal(latest.outcome, "rejected");
+  });
+
+  await t.test("limit bounds the result, most-recent first (local fallback)", async () => {
+    await recordGovernanceDecision(decisionRecord("ws1", "wo_1", "Approuve pour le plan"));
+    await recordGovernanceDecision(decisionRecord("ws1", "wo_2", "Non, rejette cette idée"));
+    await recordGovernanceDecision(decisionRecord("ws1", "wo_3", "Approuve pour le plan"));
+
+    const ws = await getGovernanceDecisionsForWorkspace("ws1", { limit: 2 });
+    assert.equal(ws.length, 2, "limit caps the workspace read");
+    assert.equal(ws[0].workOrderId, "wo_3", "most recent first under a limit");
+
+    await recordGovernanceDecision(decisionRecord("ws1", "wo_1", "Non, rejette cette idée"));
+    const wo = await getGovernanceDecisionsForWorkOrder("ws1", "wo_1", { limit: 1 });
+    assert.equal(wo.length, 1, "limit caps the work-order read");
+    assert.equal(wo[0].outcome, "rejected", "keeps the most recent");
+  });
+
+  await t.test("a non-positive or absent limit means no bound (local fallback)", async () => {
+    await recordGovernanceDecision(decisionRecord("ws1", "wo_1", "Approuve pour le plan"));
+    await recordGovernanceDecision(decisionRecord("ws1", "wo_2", "Non, rejette cette idée"));
+    assert.equal((await getGovernanceDecisionsForWorkspace("ws1")).length, 2);
+    assert.equal((await getGovernanceDecisionsForWorkspace("ws1", { limit: 0 })).length, 2);
+    assert.equal((await getGovernanceDecisionsForWorkspace("ws1", { limit: -5 })).length, 2);
   });
 
   await t.test("refuses to persist an invalid record (non-decided outcome)", async () => {
@@ -282,5 +307,21 @@ test("Governance Decision repository tests", async (t) => {
       () => getGovernanceDecisionsForWorkspace("ws-sb"),
       (err) => err instanceof GovernanceDecisionRepositoryError && /list/i.test(err.message),
     );
+  });
+
+  await t.test("Supabase: limit is pushed down to the query", async () => {
+    const mock = makeSupabaseMock({ listData: [] });
+    installSupabaseClientFactory(() => mock);
+
+    await getGovernanceDecisionsForWorkspace("ws-sb", { limit: 5 });
+    assert.equal(mock.__builder.appliedLimit, 5, "workspace read pushes the limit down");
+
+    mock.__builder.appliedLimit = undefined;
+    await getGovernanceDecisionsForWorkspace("ws-sb");
+    assert.equal(mock.__builder.appliedLimit, undefined, "no limit option → no .limit() call");
+
+    mock.__builder.appliedLimit = undefined;
+    await getLatestGovernanceDecision("ws-sb", "wo_x");
+    assert.equal(mock.__builder.appliedLimit, 1, "getLatest bounds the read to a single row");
   });
 });

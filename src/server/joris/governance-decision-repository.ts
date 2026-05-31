@@ -159,29 +159,54 @@ export async function recordGovernanceDecision(
   return { ...record };
 }
 
+/** Options for the read paths. `limit` bounds the number of rows returned. */
+export interface GovernanceDecisionReadOptions {
+  /** Max rows to return, most-recent first. Omit for no bound. Values < 1 are ignored. */
+  limit?: number;
+}
+
+/** Normalizes a limit option: a positive integer, or undefined for "no bound". */
+function normalizeLimit(limit: number | undefined): number | undefined {
+  if (typeof limit !== "number" || !Number.isFinite(limit) || limit < 1) return undefined;
+  return Math.floor(limit);
+}
+
+/** Applies a bound to an already-most-recent-first array (local fallback). */
+function applyLocalLimit<T>(rows: T[], limit: number | undefined): T[] {
+  return limit === undefined ? rows : rows.slice(0, limit);
+}
+
 /**
- * Returns all governance decisions for a workspace, most-recent first.
+ * Returns governance decisions for a workspace, most-recent first. Pass
+ * `{ limit }` to bound the result — the store is durable and append-only, so
+ * unbounded reads grow without limit; callers that only need recent history
+ * (e.g. the continuity note) should always bound.
  */
 export async function getGovernanceDecisionsForWorkspace(
   workspaceId: string,
+  options: GovernanceDecisionReadOptions = {},
 ): Promise<WorkOrderGovernanceDecisionRecord[]> {
+  const limit = normalizeLimit(options.limit);
   const db = getSupabaseClient();
 
   if (!db) {
     assertLocalFallbackAvailable();
-    return localDecisions
+    const rows = localDecisions
       .filter((r) => r.workspaceId === workspaceId)
       .map((r) => ({ ...r }))
       .reverse();
+    return applyLocalLimit(rows, limit);
   }
 
-  const { data, error } = await db
+  let query = db
     .from("governance_decisions")
     .select("*")
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false });
+  if (limit !== undefined) query = query.limit(limit);
 
+  const { data, error } = await query;
   if (error) {
     throw new GovernanceDecisionRepositoryError("list");
   }
@@ -189,31 +214,36 @@ export async function getGovernanceDecisionsForWorkspace(
 }
 
 /**
- * Returns all governance decisions for a specific work order in a workspace,
- * most-recent first.
+ * Returns governance decisions for a specific work order in a workspace,
+ * most-recent first. Pass `{ limit }` to bound the result.
  */
 export async function getGovernanceDecisionsForWorkOrder(
   workspaceId: string,
   workOrderId: string,
+  options: GovernanceDecisionReadOptions = {},
 ): Promise<WorkOrderGovernanceDecisionRecord[]> {
+  const limit = normalizeLimit(options.limit);
   const db = getSupabaseClient();
 
   if (!db) {
     assertLocalFallbackAvailable();
-    return localDecisions
+    const rows = localDecisions
       .filter((r) => r.workspaceId === workspaceId && r.workOrderId === workOrderId)
       .map((r) => ({ ...r }))
       .reverse();
+    return applyLocalLimit(rows, limit);
   }
 
-  const { data, error } = await db
+  let query = db
     .from("governance_decisions")
     .select("*")
     .eq("workspace_id", workspaceId)
     .eq("work_order_id", workOrderId)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false });
+  if (limit !== undefined) query = query.limit(limit);
 
+  const { data, error } = await query;
   if (error) {
     throw new GovernanceDecisionRepositoryError("list");
   }
@@ -222,12 +252,13 @@ export async function getGovernanceDecisionsForWorkOrder(
 
 /**
  * Returns the most recent governance decision for a work order, or null.
+ * Bounds the read to a single row.
  */
 export async function getLatestGovernanceDecision(
   workspaceId: string,
   workOrderId: string,
 ): Promise<WorkOrderGovernanceDecisionRecord | null> {
-  const matches = await getGovernanceDecisionsForWorkOrder(workspaceId, workOrderId);
+  const matches = await getGovernanceDecisionsForWorkOrder(workspaceId, workOrderId, { limit: 1 });
   return matches.length > 0 ? matches[0] : null;
 }
 

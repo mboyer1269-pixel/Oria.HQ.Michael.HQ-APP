@@ -75,7 +75,7 @@ export function formatGovernanceDecisionContinuityNote(
 
   const lines: string[] = [
     `#### 📜 Continuité gouvernance (audit, lecture seule)`,
-    `- ${total} décision(s) de gouvernance déjà enregistrée(s) dans ce workspace.`,
+    `- ${total} décision(s) de gouvernance récente(s) dans ce workspace.`,
     `- Plus récente : **${outcomeLabel(latest.outcome)}** ` +
       `(Work Order \`${latest.workOrderId}\`, le ${isoDate(latest.decidedAt)}).`,
   ];
@@ -112,13 +112,16 @@ export async function buildGovernanceDecisionContinuityNote(input: {
   workspaceId: string;
   limit?: number;
 }): Promise<string | null> {
+  const limit = input.limit ?? DEFAULT_CONTINUITY_LIMIT;
   let decisions: WorkOrderGovernanceDecisionRecord[] = [];
   try {
-    decisions = await getGovernanceDecisionsForWorkspace(input.workspaceId);
+    // Bound the read: the store is durable/append-only and we only surface the
+    // most recent few. Fetch exactly what the note displays.
+    decisions = await getGovernanceDecisionsForWorkspace(input.workspaceId, { limit });
   } catch {
     // Repository unavailable (e.g. production guard) or a Supabase read error.
     // Continuity is contextual sugar; degrade to no note rather than break.
     return null;
   }
-  return formatGovernanceDecisionContinuityNote(decisions, input.limit ?? DEFAULT_CONTINUITY_LIMIT);
+  return formatGovernanceDecisionContinuityNote(decisions, limit);
 }
