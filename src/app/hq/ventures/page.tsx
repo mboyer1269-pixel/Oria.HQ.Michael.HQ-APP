@@ -1,7 +1,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, Eye, Rocket } from "lucide-react";
-import { VentureCard } from "@/features/ventures/components/venture-card";
+import { VentureCommandCenterClient } from "@/features/ventures/components/venture-command-center-client";
 import { VentureSummaryPanel } from "@/features/ventures/components/venture-summary-panel";
 import {
   getDefaultActiveValidationSlotLimit,
@@ -59,22 +59,7 @@ export default async function VenturesPage() {
 
       <VentureSummaryPanel cards={ventureSeedCards} />
 
-      <section>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            Cartes ventures
-          </h2>
-          <span className="text-[11px] text-neutral-500">
-            {ventureSeedCards.length} carte{ventureSeedCards.length > 1 ? "s" : ""} affichée
-            {ventureSeedCards.length > 1 ? "s" : ""}
-          </span>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ventureSeedCards.map((card) => (
-            <VentureCard key={card.id} card={card} />
-          ))}
-        </div>
-      </section>
+      <VentureCommandCenterClient initialCards={ventureSeedCards} />
 
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">
