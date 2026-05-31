@@ -108,15 +108,16 @@ export function formatGovernanceDecisionContinuityNote(
  * This is the only effectful function in this module (an in-memory read in
  * development/test); it isolates the try/catch so callers stay clean.
  */
-export function buildGovernanceDecisionContinuityNote(input: {
+export async function buildGovernanceDecisionContinuityNote(input: {
   workspaceId: string;
   limit?: number;
-}): string | null {
+}): Promise<string | null> {
   let decisions: WorkOrderGovernanceDecisionRecord[] = [];
   try {
-    decisions = getGovernanceDecisionsForWorkspace(input.workspaceId);
+    decisions = await getGovernanceDecisionsForWorkspace(input.workspaceId);
   } catch {
-    // Repository unavailable (e.g. production guard). Degrade to no note.
+    // Repository unavailable (e.g. production guard) or a Supabase read error.
+    // Continuity is contextual sugar; degrade to no note rather than break.
     return null;
   }
   return formatGovernanceDecisionContinuityNote(decisions, input.limit ?? DEFAULT_CONTINUITY_LIMIT);
