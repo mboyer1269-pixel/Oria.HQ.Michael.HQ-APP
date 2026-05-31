@@ -1,5 +1,7 @@
 # Holding Portfolio v1 — Trois Ventures au Jour 1
 
+> **Historical context only.** This document does not define the canonical Venture Engine model. The canonical direction is [`VENTURE_ENGINE_RECALIBRATION.md`](VENTURE_ENGINE_RECALIBRATION.md).
+>
 > **Branch:** `claude/agentic-holding-company-operating-model`
 > **Status:** Draft — soumis à ratification Owner + Risk Office
 > **Parent doctrine:** [`AGENTIC_HOLDING_COMPANY_OPERATING_MODEL.md`](AGENTIC_HOLDING_COMPANY_OPERATING_MODEL.md)
