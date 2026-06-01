@@ -18,7 +18,11 @@ test("Cockpit review signal", async (t) => {
   });
 
   const mod = await jiti.import(path.join(__dirname, "agent-review-cockpit.ts"));
-  const { buildCockpitReviewSignal, reviewQueueFromQualityEvaluation } = mod;
+  const {
+    buildCockpitApprovalPreview,
+    buildCockpitReviewSignal,
+    reviewQueueFromQualityEvaluation,
+  } = mod;
 
   const { agentRegistry } = await jiti.import(path.join(__dirname, "seed.ts"));
   const { skillsCatalog } = await jiti.import(
@@ -29,6 +33,7 @@ test("Cockpit review signal", async (t) => {
   );
 
   const CREATED_AT = "2026-06-01T00:00:00.000Z";
+  const EXPIRES_AT = "2026-06-08T00:00:00.000Z";
 
   function build() {
     return buildCockpitReviewSignal({
@@ -36,6 +41,7 @@ test("Cockpit review signal", async (t) => {
       skills: skillsCatalog,
       policy: getDefaultAgentAutonomyPolicy(),
       createdAt: CREATED_AT,
+      approvalEventExpiresAt: EXPIRES_AT,
     });
   }
 
@@ -87,6 +93,45 @@ test("Cockpit review signal", async (t) => {
       assert.equal(item.noExecutionAuthorized, true);
       assert.equal(item.createdAt, CREATED_AT);
     }
+  });
+
+  await t.test("builds a read-only approval packet and event preview", () => {
+    const { reviewQueue, approvalPreview } = build();
+    assert.equal(approvalPreview.totalPreviewed, Math.min(2, reviewQueue.totalItems));
+    assert.equal(approvalPreview.approvalRequired, true);
+    assert.equal(approvalPreview.humanOnTheLoop, true);
+    assert.equal(approvalPreview.noAutoApproval, true);
+    assert.equal(approvalPreview.approvalEventOnly, true);
+    assert.equal(approvalPreview.ledgerRequiredBeforeExecution, true);
+    assert.equal(approvalPreview.noRuntimeExecutionAuthorized, true);
+
+    for (const item of approvalPreview.items) {
+      assert.equal(item.previewStatus, "read_only_preview");
+      assert.equal(item.futureLedgerRequired, true);
+      assert.equal(item.runtimeBlocked, true);
+      assert.equal(item.packet.queueItemId, item.queueItem.queueItemId);
+      assert.equal(item.packet.agentId, item.queueItem.agentId);
+      assert.equal(item.packet.outcomeId, item.queueItem.outcomeId);
+      assert.equal(item.packet.approvalRequired, true);
+      assert.equal(item.packet.noExecutionAuthorized, true);
+      assert.equal(item.approvalEventPreview.sourcePacketId, item.packet.packetId);
+      assert.equal(item.approvalEventPreview.decision, "approved");
+      assert.equal(item.approvalEventPreview.humanApproved, true);
+      assert.equal(item.approvalEventPreview.ledgerRequiredBeforeExecution, true);
+      assert.equal(item.approvalEventPreview.noRuntimeExecutionAuthorized, true);
+      assert.equal(item.approvalEventPreview.noAutoApproval, true);
+      assert.equal(item.approvalEventPreview.approvalEventOnly, true);
+    }
+  });
+
+  await t.test("approval preview helper is deterministic and independent", () => {
+    const { reviewQueue } = build();
+    const input = {
+      reviewQueue,
+      createdAt: CREATED_AT,
+      approvalEventExpiresAt: EXPIRES_AT,
+    };
+    assert.deepEqual(buildCockpitApprovalPreview(input), buildCockpitApprovalPreview(input));
   });
 
   await t.test("reviewQueueFromQualityEvaluation matches the full-chain queue", () => {
