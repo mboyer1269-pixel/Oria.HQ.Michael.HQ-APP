@@ -1,4 +1,5 @@
-import type { VentureScore } from "./types";
+import { getDefaultSafeAutonomyProfile } from "./autonomy";
+import type { VentureCard, VentureDecision, VentureScore } from "./types";
 
 export type VentureCandidateSuggestion = {
   id: string;
@@ -32,6 +33,7 @@ export type VentureSuggestionInboxSummary = {
 };
 
 const VISIBLE_SUGGESTION_LIMIT = 6;
+const SUGGESTION_VENTURE_ID_PREFIX = "venture-from-suggestion-";
 
 const NEXT_ACTION_PRIORITY: Record<VentureCandidateSuggestion["suggestedNextAction"], number> = {
   review: 0,
@@ -57,6 +59,28 @@ function compareSuggestions(
   if (createdAtDelta !== 0) return createdAtDelta;
 
   return left.name.localeCompare(right.name);
+}
+
+function nowIso(explicit?: string): string {
+  return explicit ?? new Date().toISOString();
+}
+
+function generateSuggestionVentureId(suggestionId: string): string {
+  const hasRandomUuid =
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function";
+  const suffix = hasRandomUuid
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+  return `${SUGGESTION_VENTURE_ID_PREFIX}${suggestionId}-${suffix}`;
+}
+
+function generateDecisionId(suggestionId: string): string {
+  const hasRandomUuid =
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function";
+  const suffix = hasRandomUuid ? globalThis.crypto.randomUUID() : `${Date.now()}`;
+  return `decision-save-suggestion-${suggestionId}-${suffix}`;
 }
 
 export function getVisibleSuggestionLimit(): number {
@@ -108,4 +132,44 @@ export function summarizeSuggestionInbox(
       estimatedScoreCount > 0 ? Math.round(estimatedScoreTotal / estimatedScoreCount) : null,
     rankedSuggestions: rankedSuggestions.slice(0, getVisibleSuggestionLimit()),
   };
+}
+
+export function createVentureCardFromSuggestion(
+  suggestion: VentureCandidateSuggestion,
+  options: { id?: string; now?: string } = {},
+): VentureCard {
+  const decidedAt = nowIso(options.now);
+  const id = options.id ?? generateSuggestionVentureId(suggestion.id);
+  const decision: VentureDecision = {
+    id: generateDecisionId(suggestion.id),
+    type: "save_suggestion",
+    summary: `Suggestion ${suggestion.id} saved as candidate. Suggested by ${suggestion.suggestedBy}; source ${suggestion.source}. Rationale: ${suggestion.rationale}`,
+    decidedBy: "ceo",
+    decidedAt,
+    noExecutionAuthorized: true,
+    humanOnTheLoop: true,
+  };
+
+  return {
+    id,
+    name: suggestion.name.trim(),
+    description: suggestion.description.trim(),
+    source: "agent_suggested",
+    status: "candidate",
+    targetCustomer: suggestion.targetCustomer.trim(),
+    problem: suggestion.problem.trim(),
+    offer: suggestion.offer.trim(),
+    primaryChannel: suggestion.primaryChannel.trim(),
+    score: undefined,
+    validationPlan: undefined,
+    autonomyProfile: getDefaultSafeAutonomyProfile(),
+    assignedAgents: [],
+    decisions: [decision],
+    createdAt: decidedAt,
+    updatedAt: decidedAt,
+  };
+}
+
+export function isVentureSavedFromSuggestion(card: VentureCard, suggestionId: string): boolean {
+  return card.id.startsWith(`${SUGGESTION_VENTURE_ID_PREFIX}${suggestionId}-`);
 }

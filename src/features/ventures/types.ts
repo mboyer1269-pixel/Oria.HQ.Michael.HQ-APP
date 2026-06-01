@@ -95,6 +95,7 @@ export type VentureDecision = {
   id: string;
   type:
     | "score"
+    | "save_suggestion"
     | "promote"
     | "pause"
     | "kill"

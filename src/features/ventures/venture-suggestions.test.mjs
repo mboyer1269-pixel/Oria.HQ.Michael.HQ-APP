@@ -33,7 +33,9 @@ test("Venture suggestion inbox helper", async (t) => {
   const seedMod = await jiti.import(path.join(__dirname, "suggestion-seed.ts"));
 
   const {
+    createVentureCardFromSuggestion,
     getVisibleSuggestionLimit,
+    isVentureSavedFromSuggestion,
     rankVentureSuggestions,
     summarizeSuggestionInbox,
   } = suggestionsMod;
@@ -175,5 +177,29 @@ test("Venture suggestion inbox helper", async (t) => {
     for (const word of FORBIDDEN_MUTATION_WORDS) {
       assert.equal(blob.includes(word), false, `seed data must not include "${word}"`);
     }
+  });
+
+  await t.test("a suggestion maps to an audit-only saved candidate card", () => {
+    const suggestion = ventureSuggestionSeed[0];
+    const card = createVentureCardFromSuggestion(suggestion, {
+      id: `venture-from-suggestion-${suggestion.id}-test`,
+      now: "2026-06-01T00:00:00.000Z",
+    });
+
+    assert.equal(card.id, `venture-from-suggestion-${suggestion.id}-test`);
+    assert.equal(card.name, suggestion.name);
+    assert.equal(card.status, "candidate");
+    assert.equal(card.source, "agent_suggested");
+    assert.equal(card.score, undefined, "estimated score must not become a saved CEO score");
+    assert.equal(card.validationPlan, undefined, "suggestions do not create validation plans");
+    assert.deepEqual(card.assignedAgents, []);
+    assert.equal(card.decisions.length, 1);
+    assert.equal(card.decisions[0].type, "save_suggestion");
+    assert.equal(card.decisions[0].decidedBy, "ceo");
+    assert.equal(card.decisions[0].humanOnTheLoop, true);
+    assert.equal(card.decisions[0].noExecutionAuthorized, true);
+    assert.match(card.decisions[0].summary, /saved as candidate/i);
+    assert.match(card.decisions[0].summary, new RegExp(suggestion.id));
+    assert.equal(isVentureSavedFromSuggestion(card, suggestion.id), true);
   });
 });

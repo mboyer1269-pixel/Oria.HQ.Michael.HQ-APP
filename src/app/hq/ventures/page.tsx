@@ -17,7 +17,10 @@ import {
   scoreVentureAction,
   updateVentureDetailsAction,
 } from "@/features/ventures/venture-lifecycle-action";
-import { saveVentureDraftAction } from "@/features/ventures/venture-save-action";
+import {
+  saveVentureDraftAction,
+  saveVentureSuggestionAction,
+} from "@/features/ventures/venture-save-action";
 import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import {
@@ -93,6 +96,7 @@ export default async function VenturesPage() {
         savedStorageMode={savedStorageMode}
         loadError={loadError}
         onSaveDraft={saveVentureDraftAction}
+        onSaveSuggestion={saveVentureSuggestionAction}
         onUpdateDetails={updateVentureDetailsAction}
         onArchive={archiveVentureAction}
         onKill={killVentureAction}

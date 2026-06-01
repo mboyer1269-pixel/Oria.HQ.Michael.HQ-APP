@@ -19,6 +19,8 @@ import { buildVentureCockpit } from "../venture-cockpit";
 import type { VentureScoreRecommendation, VentureSubScores } from "../venture-scoring";
 import type {
   SaveVentureDraftActionResult,
+  SaveVentureSuggestionActionResult,
+  SaveVentureSuggestionInput,
   VenturePersistenceMode,
 } from "../venture-save-types";
 import { VentureDecisionQueue } from "./venture-decision-queue";
@@ -28,7 +30,10 @@ import { VentureIntakeForm } from "./venture-intake-form";
 import { VentureLifecycleActions } from "./venture-lifecycle-actions";
 import { VentureSummaryPanel } from "./venture-summary-panel";
 import { VentureSuggestionInbox } from "./venture-suggestion-inbox";
-import type { VentureCandidateSuggestion } from "../venture-suggestions";
+import {
+  isVentureSavedFromSuggestion,
+  type VentureCandidateSuggestion,
+} from "../venture-suggestions";
 
 type StatusTone = "saved" | "local" | "demo" | "error";
 
@@ -104,6 +109,7 @@ export function VentureCommandCenterClient({
   savedStorageMode,
   loadError = false,
   onSaveDraft,
+  onSaveSuggestion,
   onUpdateDetails,
   onArchive,
   onKill,
@@ -116,6 +122,9 @@ export function VentureCommandCenterClient({
   savedStorageMode: VenturePersistenceMode | null;
   loadError?: boolean;
   onSaveDraft: (input: LocalDraftVentureInput) => Promise<SaveVentureDraftActionResult>;
+  onSaveSuggestion: (
+    input: SaveVentureSuggestionInput,
+  ) => Promise<SaveVentureSuggestionActionResult>;
   onUpdateDetails: (input: VentureUpdateInput) => Promise<VentureLifecycleActionResult>;
   onArchive: (input: VentureLifecycleActionInput) => Promise<VentureLifecycleActionResult>;
   onKill: (input: VentureLifecycleActionInput) => Promise<VentureLifecycleActionResult>;
@@ -153,6 +162,15 @@ export function VentureCommandCenterClient({
         demoCards: showDemo ? seedCards : [],
       }),
     [savedCards, seedCards, showDemo],
+  );
+  const savedSuggestionIds = useMemo(
+    () =>
+      suggestions
+        .filter((suggestion) =>
+          savedCards.some(({ card }) => isVentureSavedFromSuggestion(card, suggestion.id)),
+        )
+        .map((suggestion) => suggestion.id),
+    [savedCards, suggestions],
   );
 
   const selected = displayCards.find((d) => d.card.id === selectedCardId) ?? null;
@@ -192,6 +210,42 @@ export function VentureCommandCenterClient({
       }
 
       setBanner({ label: "Accès refusé : sauvegarde non autorisée.", tone: "error" });
+    });
+  }
+
+  function handleSaveSuggestion(input: SaveVentureSuggestionInput) {
+    setBanner(null);
+    setLifecycleError(null);
+    startTransition(async () => {
+      const result = await onSaveSuggestion(input);
+
+      if (result.status === "saved") {
+        setSavedCards((prev) => [{ card: result.card, storageMode: result.storageMode }, ...prev]);
+        setFailedCards((prev) => prev.filter((c) => c.id !== result.card.id));
+        setSelectedCardId(result.card.id);
+        setBanner({
+          label: `Suggestion sauvegardée comme candidate · ${storageModeLabel(result.storageMode)}`,
+          tone: result.storageMode === "supabase" ? "saved" : "local",
+        });
+        return;
+      }
+
+      if (result.status === "forbidden") {
+        setBanner({ label: "Accès refusé : sauvegarde non autorisée.", tone: "error" });
+        return;
+      }
+
+      if ("card" in result) {
+        setFailedCards((prev) => [result.card, ...prev]);
+        setSelectedCardId(result.card.id);
+        setBanner({
+          label: "Erreur de sauvegarde — la suggestion n'est pas persistée.",
+          tone: "error",
+        });
+        return;
+      }
+
+      setBanner({ label: "Suggestion introuvable — aucune candidate créée.", tone: "error" });
     });
   }
 
@@ -301,7 +355,12 @@ export function VentureCommandCenterClient({
     <section className="flex flex-col gap-4">
       <VentureSummaryPanel cockpit={cockpit} />
       <VentureDecisionQueue items={cockpit.decisionQueue} />
-      <VentureSuggestionInbox suggestions={suggestions} />
+      <VentureSuggestionInbox
+        suggestions={suggestions}
+        savedSuggestionIds={savedSuggestionIds}
+        pending={isPending}
+        onSaveSuggestion={handleSaveSuggestion}
+      />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

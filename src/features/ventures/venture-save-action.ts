@@ -13,9 +13,17 @@
 
 import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import type { LocalDraftVentureInput } from "@/features/ventures/draft";
-import type { SaveVentureDraftActionResult } from "@/features/ventures/venture-save-types";
+import { ventureSuggestionSeed } from "@/features/ventures/suggestion-seed";
+import type {
+  SaveVentureDraftActionResult,
+  SaveVentureSuggestionActionResult,
+  SaveVentureSuggestionInput,
+} from "@/features/ventures/venture-save-types";
 import { requireOwnerAccess } from "@/server/auth/owner";
-import { saveVentureDraft } from "@/server/ventures/venture-save-service";
+import {
+  saveVentureDraft,
+  saveVentureSuggestionAsCandidate,
+} from "@/server/ventures/venture-save-service";
 
 export async function saveVentureDraftAction(
   input: LocalDraftVentureInput,
@@ -27,4 +35,21 @@ export async function saveVentureDraftAction(
 
   const workspaceId = getDefaultWorkspace({ ownerUserId: access.user.id }).id;
   return saveVentureDraft({ workspaceId, input });
+}
+
+export async function saveVentureSuggestionAction(
+  input: SaveVentureSuggestionInput,
+): Promise<SaveVentureSuggestionActionResult> {
+  const access = await requireOwnerAccess("/hq/ventures");
+  if (access.status === "forbidden") {
+    return { status: "forbidden" };
+  }
+
+  const suggestion = ventureSuggestionSeed.find((item) => item.id === input.suggestionId);
+  if (!suggestion) {
+    return { status: "error", code: "suggestion_not_found" };
+  }
+
+  const workspaceId = getDefaultWorkspace({ ownerUserId: access.user.id }).id;
+  return saveVentureSuggestionAsCandidate({ workspaceId, suggestion });
 }

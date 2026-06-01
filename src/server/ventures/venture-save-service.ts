@@ -14,7 +14,14 @@
 // promote — those are intentionally absent.
 
 import { createLocalDraftVentureCard, type LocalDraftVentureInput } from "@/features/ventures/draft";
-import type { SaveVentureDraftOutcome } from "@/features/ventures/venture-save-types";
+import {
+  createVentureCardFromSuggestion,
+  type VentureCandidateSuggestion,
+} from "@/features/ventures/venture-suggestions";
+import type {
+  SaveVentureDraftOutcome,
+  SaveVentureSuggestionOutcome,
+} from "@/features/ventures/venture-save-types";
 import { createVenture, getVenturePersistenceMode } from "./venture-repository";
 
 export type { SaveVentureDraftOutcome } from "@/features/ventures/venture-save-types";
@@ -43,5 +50,24 @@ export async function saveVentureDraft(args: {
   } catch {
     // Sanitized: never surface repository/driver internals to the caller.
     return { status: "error", card };
+  }
+}
+
+export async function saveVentureSuggestionAsCandidate(args: {
+  workspaceId: string;
+  suggestion: VentureCandidateSuggestion;
+  id?: string;
+  now?: string;
+}): Promise<SaveVentureSuggestionOutcome> {
+  const card = createVentureCardFromSuggestion(args.suggestion, {
+    id: args.id,
+    now: args.now,
+  });
+
+  try {
+    const saved = await createVenture(args.workspaceId, card);
+    return { status: "saved", card: saved, storageMode: getVenturePersistenceMode() };
+  } catch {
+    return { status: "error", code: "repository_error", card };
   }
 }

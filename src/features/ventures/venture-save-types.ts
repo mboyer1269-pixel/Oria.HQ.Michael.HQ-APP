@@ -25,3 +25,16 @@ export type SaveVentureDraftOutcome =
 export type SaveVentureDraftActionResult =
   | SaveVentureDraftOutcome
   | { status: "forbidden" };
+
+export type SaveVentureSuggestionInput = {
+  suggestionId: string;
+};
+
+export type SaveVentureSuggestionOutcome =
+  | { status: "saved"; card: VentureCard; storageMode: VenturePersistenceMode }
+  | { status: "error"; code: "repository_error"; card: VentureCard };
+
+export type SaveVentureSuggestionActionResult =
+  | SaveVentureSuggestionOutcome
+  | { status: "error"; code: "suggestion_not_found" }
+  | { status: "forbidden" };

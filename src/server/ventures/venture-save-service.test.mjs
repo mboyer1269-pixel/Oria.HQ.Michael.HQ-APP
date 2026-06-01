@@ -51,7 +51,10 @@ test("Venture save service (PR149)", async (t) => {
   });
 
   const serviceMod = await jiti.import(path.join(__dirname, "venture-save-service.ts"));
-  const { saveVentureDraft } = serviceMod;
+  const { saveVentureDraft, saveVentureSuggestionAsCandidate } = serviceMod;
+  const { ventureSuggestionSeed } = await jiti.import(
+    path.join(projectRoot, "src/features/ventures/suggestion-seed.ts"),
+  );
 
   const repoMod = await jiti.import(path.join(__dirname, "venture-repository.ts"));
   const {
@@ -124,6 +127,50 @@ test("Venture save service (PR149)", async (t) => {
     assert.ok(got);
     assert.equal(got.id, "venture-local-draft-save-ok");
     assert.equal((await listVenturesForWorkspace("ws1")).length, 1);
+  });
+
+  await t.test("save suggestion persists a candidate through the repository", async () => {
+    const suggestion = ventureSuggestionSeed[0];
+    const result = await saveVentureSuggestionAsCandidate({
+      workspaceId: "ws-suggestion",
+      suggestion,
+      id: "venture-from-suggestion-service-ok",
+      now: "2026-06-01T00:00:00.000Z",
+    });
+
+    assert.equal(result.status, "saved");
+    assert.equal(result.storageMode, "local");
+    assert.equal(result.card.status, "candidate");
+    assert.equal(result.card.source, "agent_suggested");
+    assert.equal(result.card.score, undefined);
+    assert.equal(result.card.validationPlan, undefined);
+    assert.equal(result.card.decisions.length, 1);
+    assert.equal(result.card.decisions[0].type, "save_suggestion");
+    assert.equal(result.card.decisions[0].decidedBy, "ceo");
+    assert.equal(result.card.decisions[0].humanOnTheLoop, true);
+    assert.equal(result.card.decisions[0].noExecutionAuthorized, true);
+
+    const got = await getVentureById("ws-suggestion", "venture-from-suggestion-service-ok");
+    assert.ok(got);
+    assert.equal(got.name, suggestion.name);
+    assert.equal((await listVenturesForWorkspace("ws-suggestion")).length, 1);
+  });
+
+  await t.test("save suggestion failure does not mark the card as saved", async () => {
+    installSupabaseClientFactory(() => makeSupabaseMock({ insertError: new Error("secret boom") }));
+    const result = await saveVentureSuggestionAsCandidate({
+      workspaceId: "ws-suggestion-fail",
+      suggestion: ventureSuggestionSeed[0],
+      id: "venture-from-suggestion-service-fail",
+      now: "2026-06-01T00:00:00.000Z",
+    });
+
+    assert.equal(result.status, "error");
+    assert.ok(result.card);
+    assert.equal(result.card.status, "candidate");
+    clearSupabaseClientFactory();
+    assert.equal(await getVentureById("ws-suggestion-fail", "venture-from-suggestion-service-fail"), null);
+    assert.equal((await listVenturesForWorkspace("ws-suggestion-fail")).length, 0);
   });
 
   await t.test("reports supabase storage mode when Supabase is the backend", async () => {

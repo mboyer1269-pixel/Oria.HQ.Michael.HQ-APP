@@ -1,9 +1,10 @@
-import { BadgeAlert, CheckSquare2, Search, Sparkles } from "lucide-react";
+import { BadgeAlert, CheckCircle2, CheckSquare2, Save, Search, Sparkles } from "lucide-react";
 import {
   getVisibleSuggestionLimit,
   summarizeSuggestionInbox,
   type VentureCandidateSuggestion,
 } from "../venture-suggestions";
+import type { SaveVentureSuggestionInput } from "../venture-save-types";
 
 const NEXT_ACTION_LABELS: Record<VentureCandidateSuggestion["suggestedNextAction"], string> = {
   review: "À reviewer",
@@ -46,12 +47,20 @@ function formatEstimatedScoreLabel(suggestion: VentureCandidateSuggestion): stri
 
 export function VentureSuggestionInbox({
   suggestions,
+  savedSuggestionIds = [],
+  pending = false,
+  onSaveSuggestion,
 }: {
   suggestions: VentureCandidateSuggestion[];
+  savedSuggestionIds?: string[];
+  pending?: boolean;
+  onSaveSuggestion?: (input: SaveVentureSuggestionInput) => void;
 }) {
   const summary = summarizeSuggestionInbox(suggestions);
   const displaySuggestions = summary.rankedSuggestions;
   const visibleLimit = getVisibleSuggestionLimit();
+  const savedSuggestionIdSet = new Set(savedSuggestionIds);
+  const canSaveSuggestions = typeof onSaveSuggestion === "function";
 
   return (
     <section
@@ -67,13 +76,13 @@ export function VentureSuggestionInbox({
             Suggestions candidates pour revue CEO
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">
-            Simulation — aucune venture créée. Cette boîte prépare l&apos;accueil de futures
-            suggestions agent sans activer de mutation, de génération live ou de persistance.
+            Simulation contrôlée — aucune venture créée sans décision CEO explicite. Cette boîte
+            prépare l&apos;accueil de futures suggestions agent sans génération live.
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-[11px] font-medium text-cyan-200">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          Lecture seule
+          Contrôle CEO
         </span>
       </div>
 
@@ -136,15 +145,17 @@ export function VentureSuggestionInbox({
 
       {displaySuggestions.length > 0 ? (
         <div className="mt-5 grid gap-3 xl:grid-cols-2">
-          {displaySuggestions.map((suggestion, index) => (
-            <article
-              key={suggestion.id}
-              className={`rounded-2xl border p-4 ${
-                index === 0
-                  ? "border-cyan-500/30 bg-cyan-500/10"
-                  : "border-neutral-800 bg-neutral-900/60"
-              }`}
-            >
+          {displaySuggestions.map((suggestion, index) => {
+            const isSaved = savedSuggestionIdSet.has(suggestion.id);
+            return (
+              <article
+                key={suggestion.id}
+                className={`rounded-2xl border p-4 ${
+                  index === 0
+                    ? "border-cyan-500/30 bg-cyan-500/10"
+                    : "border-neutral-800 bg-neutral-900/60"
+                }`}
+              >
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-950 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
@@ -235,9 +246,37 @@ export function VentureSuggestionInbox({
                     Suggested by <span className="text-neutral-300">{suggestion.suggestedBy}</span>
                   </span>
                 </div>
+
+                <div className="border-t border-neutral-800/70 pt-3">
+                  {isSaved ? (
+                    <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-300">
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      Déjà sauvegardée
+                    </span>
+                  ) : canSaveSuggestions ? (
+                    <button
+                      type="button"
+                      onClick={() => onSaveSuggestion({ suggestionId: suggestion.id })}
+                      disabled={pending}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                      {pending ? "Sauvegarde…" : "Sauvegarder en candidate"}
+                    </button>
+                  ) : (
+                    <span className="inline-flex min-h-9 items-center rounded-lg border border-neutral-800 px-3 text-sm font-semibold text-neutral-500">
+                      Revue uniquement
+                    </span>
+                  )}
+                  <p className="mt-2 text-[11px] leading-5 text-neutral-500">
+                    Sauvegarde possible uniquement comme candidate, sans score CEO et sans étape de
+                    validation active.
+                  </p>
+                </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="mt-5 rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/40 p-4 text-sm leading-6 text-neutral-400">
