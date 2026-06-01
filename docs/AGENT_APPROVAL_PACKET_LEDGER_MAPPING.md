@@ -23,6 +23,7 @@ not as a shipped capability.
 
 Related documents:
 - `docs/AGENT_GOVERNANCE_REVIEW_LOOP.md` — the phase narrative (Phases 1–6)
+- `docs/AGENT_APPROVAL_PERSISTENCE_SCHEMA.md` — proposed DB/RLS schema for packets and approval events
 - `docs/ACTION_LEDGER_MISSION_TRACEABILITY.md` — the live Action Ledger contract
 - `docs/MISSION_APPROVAL_RECORD_CONTRACT.md` — the precedent approval-record pattern
 - `docs/ORIA_RUNTIME_CONTRACT.md` — the runtime boundary specification
@@ -190,7 +191,7 @@ authorization input is the ledgered approved action, not the packet.
 No phase below may begin until its preconditions are met. This is a checklist for
 *future* work, not a record of completed work.
 
-- [ ] RLS design exists before any DB persistence.
+- [ ] RLS design exists before any DB persistence (`docs/AGENT_APPROVAL_PERSISTENCE_SCHEMA.md`).
 - [ ] Ledger schema reviewed before any migration.
 - [ ] Approval event contract reviewed before any UI buttons.
 - [ ] Runtime contract reviewed before any execution hooks.
@@ -209,16 +210,16 @@ No phase below may begin until its preconditions are met. This is a checklist fo
 A recommendation, **not** an implementation plan to start now. Each step is a
 separate, deliberately-scoped PR with its own review.
 
-1. `docs(agents): map approval packets to action ledger requirements` — **this PR**.
-2. `feat(agents): add approval event contract` — pure/local, no DB, no runtime.
-3. `docs(db): design approval + ledger persistence with RLS`.
+1. `docs(agents): map approval packets to action ledger requirements` — completed in PR #167.
+2. `feat(agents): add approval event contract` — completed in PR #168; pure/local, no DB, no runtime.
+3. `docs(db): specify agent approval persistence schema` — PR #170; docs only, no migration.
 4. `db: add approval/ledger schema with RLS` — schema only, no runtime consumption.
 5. `feat(agents): show approval packet preview read-only` — display only, no controls.
 6. `feat(agents): add approval action draft` — writes the ledger only, never runtime.
 7. `feat(runtime): consume ledgered approved actions` — bounded, tested, reversible
    where possible.
 
-No step beyond #1 is authorized by this document.
+No implementation step beyond documentation is authorized by this document.
 
 ---
 
@@ -227,6 +228,8 @@ No step beyond #1 is authorized by this document.
 | Concept | File / Doc |
 |---|---|
 | Approval packet contract (current) | `src/features/agents/agent-review-approval-packet.ts` |
+| Approval event contract (current) | `src/features/agents/agent-review-approval-event.ts` |
+| Approval persistence schema (proposed) | `docs/AGENT_APPROVAL_PERSISTENCE_SCHEMA.md` |
 | Review queue builder | `src/features/agents/agent-review-queue.ts` |
 | Review recommendations | `src/features/agents/observed-agent-outcome-review.ts` |
 | Observed outcome contract + pipeline | `src/features/agents/observed-agent-outcome.ts` |
