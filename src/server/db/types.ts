@@ -153,6 +153,42 @@ export type GovernanceDecisionInsert = Omit<GovernanceDecisionRow, "created_at">
   created_at?: string;
 };
 
+// ventures — durable backing store for Venture Engine cards (migration 0009).
+// JSON columns (score, validation_plan, autonomy_profile, assigned_agents,
+// decisions) mirror the VentureCard contract in src/features/ventures/types.ts;
+// the repository owns row <-> VentureCard mapping and light validation. status
+// and source are kept as plain text here (DB CHECK constraints enforce the
+// whitelists) to avoid coupling the DB layer to feature types.
+export type VentureRow = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string;
+  source: string;
+  status: string;
+  target_customer: string;
+  problem: string;
+  offer: string;
+  primary_channel: string;
+  score: Json | null;
+  validation_plan: Json | null;
+  autonomy_profile: Json;
+  assigned_agents: Json;
+  decisions: Json;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VentureInsert = Omit<
+  VentureRow,
+  "score" | "validation_plan" | "assigned_agents" | "decisions"
+> & {
+  score?: Json | null;
+  validation_plan?: Json | null;
+  assigned_agents?: Json;
+  decisions?: Json;
+};
+
 export type MichaelHqDatabase = {
   public: {
     Tables: {
@@ -196,6 +232,12 @@ export type MichaelHqDatabase = {
         Row: GovernanceDecisionRow;
         Insert: GovernanceDecisionInsert;
         Update: Partial<GovernanceDecisionInsert>;
+        Relationships: [];
+      };
+      ventures: {
+        Row: VentureRow;
+        Insert: VentureInsert;
+        Update: Partial<VentureInsert>;
         Relationships: [];
       };
     };
