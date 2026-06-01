@@ -11,9 +11,11 @@ import type {
   VentureLifecycleActionResult,
   VentureLifecycleErrorCode,
   VenturePromotionInput,
+  VentureScoringInput,
   VentureUpdateInput,
 } from "../venture-lifecycle-types";
 import { getPromotableTargets } from "../venture-promotion";
+import type { VentureScoreRecommendation, VentureSubScores } from "../venture-scoring";
 import type {
   SaveVentureDraftActionResult,
   VenturePersistenceMode,
@@ -53,6 +55,8 @@ function lifecycleErrorMessage(code: VentureLifecycleErrorCode): string {
       return "Venture introuvable dans ce workspace — rien n'a été modifié.";
     case "invalid_reason":
       return "Une raison non vide est obligatoire pour archiver ou tuer.";
+    case "invalid_score":
+      return "Score invalide : les 11 dimensions doivent être notées de 0 à 10.";
     case "no_changes":
       return "Aucune modification détectée.";
     case "not_editable":
@@ -98,6 +102,7 @@ export function VentureCommandCenterClient({
   onArchive,
   onKill,
   onPromote,
+  onScore,
 }: {
   seedCards: VentureCardType[];
   savedVentures: VentureCardType[];
@@ -108,6 +113,7 @@ export function VentureCommandCenterClient({
   onArchive: (input: VentureLifecycleActionInput) => Promise<VentureLifecycleActionResult>;
   onKill: (input: VentureLifecycleActionInput) => Promise<VentureLifecycleActionResult>;
   onPromote: (input: VenturePromotionInput) => Promise<VentureLifecycleActionResult>;
+  onScore: (input: VentureScoringInput) => Promise<VentureLifecycleActionResult>;
 }) {
   const [savedCards, setSavedCards] = useState<
     Array<{ card: VentureCardType; storageMode: VenturePersistenceMode | null }>
@@ -226,6 +232,16 @@ export function VentureCommandCenterClient({
       "Venture avancée",
     );
   }
+  function handleScore(
+    card: VentureCardType,
+    scores: VentureSubScores,
+    recommendation?: VentureScoreRecommendation,
+  ) {
+    runLifecycle(
+      () => onScore({ ventureId: card.id, scores, recommendation }),
+      "Venture scorée",
+    );
+  }
 
   function renderActions(display: DisplayCard) {
     const card = display.card;
@@ -244,6 +260,7 @@ export function VentureCommandCenterClient({
           onArchive={() => {}}
           onKill={() => {}}
           onPromote={() => {}}
+          onScore={() => {}}
         />
       );
     }
@@ -260,6 +277,7 @@ export function VentureCommandCenterClient({
         onArchive={(reason) => handleArchive(card, reason)}
         onKill={(reason) => handleKill(card, reason)}
         onPromote={(target, note) => handlePromote(card, target, note)}
+        onScore={(scores, recommendation) => handleScore(card, scores, recommendation)}
       />
     );
   }

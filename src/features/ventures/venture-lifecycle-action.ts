@@ -15,6 +15,7 @@ import type {
   VentureLifecycleActionInput,
   VentureLifecycleActionResult,
   VenturePromotionInput,
+  VentureScoringInput,
   VentureUpdateInput,
 } from "@/features/ventures/venture-lifecycle-types";
 import { requireOwnerAccess } from "@/server/auth/owner";
@@ -22,6 +23,7 @@ import {
   archiveVenture,
   killVenture,
   promoteVenture,
+  scoreVenture,
   updateVentureDetails,
 } from "@/server/ventures/venture-lifecycle-service";
 
@@ -61,4 +63,12 @@ export async function promoteVentureAction(
   const workspaceId = await resolveOwnerWorkspaceId();
   if (!workspaceId) return { status: "forbidden" };
   return promoteVenture(workspaceId, input);
+}
+
+export async function scoreVentureAction(
+  input: VentureScoringInput,
+): Promise<VentureLifecycleActionResult> {
+  const workspaceId = await resolveOwnerWorkspaceId();
+  if (!workspaceId) return { status: "forbidden" };
+  return scoreVenture(workspaceId, input);
 }

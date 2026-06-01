@@ -11,6 +11,7 @@
 
 import type { VentureCard, VentureLifecycleStatus } from "./types";
 import type { VenturePersistenceMode } from "./venture-save-types";
+import type { VentureScoreRecommendation, VentureSubScores } from "./venture-scoring";
 
 export type VentureActionStatus = "saved" | "error";
 
@@ -59,9 +60,22 @@ export type VenturePromotionInput = {
   now?: string;
 };
 
+/**
+ * Score a saved venture. The CEO supplies the 11 sub-scores; the overall and a
+ * default recommendation are computed (the optional `recommendation` overrides
+ * the derived band). Scoring a `candidate` also advances it to `scored`.
+ */
+export type VentureScoringInput = {
+  ventureId: string;
+  scores: VentureSubScores;
+  recommendation?: VentureScoreRecommendation;
+  now?: string;
+};
+
 export type VentureLifecycleErrorCode =
   | "not_found"
   | "invalid_reason"
+  | "invalid_score"
   | "no_changes"
   | "not_editable"
   | "illegal_transition"

@@ -46,7 +46,8 @@ test("Venture lifecycle service (PR150)", async (t) => {
   });
 
   const serviceMod = await jiti.import(path.join(__dirname, "venture-lifecycle-service.ts"));
-  const { updateVentureDetails, archiveVenture, killVenture, promoteVenture } = serviceMod;
+  const { updateVentureDetails, archiveVenture, killVenture, promoteVenture, scoreVenture } =
+    serviceMod;
 
   const promotionMod = await jiti.import(
     path.join(projectRoot, "src/features/ventures/venture-promotion.ts"),
@@ -83,8 +84,28 @@ test("Venture lifecycle service (PR150)", async (t) => {
 
   async function seed(workspaceId, overrides) {
     const card = buildCard(overrides);
+    if (overrides?.status) card.status = overrides.status;
+    if (overrides?.score) card.score = overrides.score;
+    if (overrides?.decisions) card.decisions = overrides.decisions;
     await createVenture(workspaceId, card);
     return card;
+  }
+
+  function validScores(overrides = {}) {
+    return {
+      revenuePotential: 8,
+      speedToFirstDollar: 7,
+      costToValidate: 2,
+      automationPotential: 8,
+      ownerInvolvementRequired: 3,
+      marketPain: 8,
+      differentiation: 7,
+      executionDifficulty: 3,
+      risk: 3,
+      grossMarginPotential: 8,
+      strategicFit: 8,
+      ...overrides,
+    };
   }
 
   t.beforeEach(() => __clearVenturesForTests());
@@ -306,6 +327,101 @@ test("Venture lifecycle service (PR150)", async (t) => {
       (await promoteVenture("ws2", { ventureId: card.id, targetStatus: "scored" })).code,
       "not_found",
     );
+  });
+
+  await t.test("scoreVenture saves score, advances candidate to scored, and appends audit-only decision", async () => {
+    const card = await seed("ws1");
+    const result = await scoreVenture("ws1", {
+      ventureId: card.id,
+      scores: validScores(),
+      now: "2026-06-02T00:00:00.000Z",
+    });
+
+    assert.equal(result.status, "saved");
+    assert.equal(result.card.status, "scored");
+    assert.equal(result.card.score.overallScore, 75);
+    assert.equal(result.card.score.recommendation, "go");
+    assert.equal(result.card.updatedAt, "2026-06-02T00:00:00.000Z");
+    assert.equal(result.card.decisions.length, 1);
+
+    const decision = result.card.decisions[0];
+    assert.equal(decision.type, "score");
+    assert.equal(decision.decidedBy, "ceo");
+    assert.equal(decision.humanOnTheLoop, true);
+    assert.equal(decision.noExecutionAuthorized, true);
+    assert.match(decision.summary, /advanced/);
+
+    const reloaded = await getVentureById("ws1", card.id);
+    assert.equal(reloaded.status, "scored");
+    assert.equal(reloaded.score.overallScore, 75);
+  });
+
+  await t.test("scoreVenture accepts CEO recommendation override without changing overall score", async () => {
+    const card = await seed("ws1");
+    const result = await scoreVenture("ws1", {
+      ventureId: card.id,
+      scores: validScores(),
+      recommendation: "hold",
+    });
+
+    assert.equal(result.status, "saved");
+    assert.equal(result.card.score.overallScore, 75);
+    assert.equal(result.card.score.recommendation, "hold");
+  });
+
+  await t.test("scoreVenture rejects invalid sub-scores and leaves the venture unchanged", async () => {
+    const card = await seed("ws1");
+    const result = await scoreVenture("ws1", {
+      ventureId: card.id,
+      scores: validScores({ risk: 11 }),
+    });
+
+    assert.equal(result.status, "error");
+    assert.equal(result.code, "invalid_score");
+    const reloaded = await getVentureById("ws1", card.id);
+    assert.equal(reloaded.status, "candidate");
+    assert.equal(reloaded.score, undefined);
+    assert.equal(reloaded.decisions.length, 0);
+  });
+
+  await t.test("scoreVenture re-scores non-candidate ventures without auto-advancing", async () => {
+    const card = await seed("ws1", { status: "shortlisted" });
+    const result = await scoreVenture("ws1", {
+      ventureId: card.id,
+      scores: validScores({ risk: 9 }),
+    });
+
+    assert.equal(result.status, "saved");
+    assert.equal(result.card.status, "shortlisted");
+    assert.equal(result.card.score.overallScore, 70);
+    assert.equal(result.card.decisions.length, 1);
+    assert.equal(result.card.decisions[0].type, "score");
+    assert.match(result.card.decisions[0].summary, /status remains/);
+  });
+
+  await t.test("scoreVenture refuses terminal ventures", async () => {
+    const archived = await seed("ws1", { status: "archived" });
+    const killed = await seed("ws1", { status: "killed" });
+
+    assert.equal(
+      (await scoreVenture("ws1", { ventureId: archived.id, scores: validScores() })).code,
+      "not_editable",
+    );
+    assert.equal(
+      (await scoreVenture("ws1", { ventureId: killed.id, scores: validScores() })).code,
+      "not_editable",
+    );
+  });
+
+  await t.test("scoreVenture is workspace-isolated", async () => {
+    const card = await seed("ws1");
+    assert.equal(
+      (await scoreVenture("ws2", { ventureId: card.id, scores: validScores() })).code,
+      "not_found",
+    );
+    const reloaded = await getVentureById("ws1", card.id);
+    assert.equal(reloaded.status, "candidate");
+    assert.equal(reloaded.score, undefined);
   });
 
   await t.test("no historical venture names in lifecycle output", async () => {
