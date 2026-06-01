@@ -2,7 +2,7 @@
 
 **Status:** Implemented (Phase 1 — local/read-only). Phases 2–6 are future work.  
 **Last updated:** 2026-06-01  
-**Branch at time of writing:** `main` (post-PR #164)
+**Branch at time of writing:** `main` (post-PR #169)
 
 ---
 
@@ -251,7 +251,9 @@ Design a DB schema for review queue items with:
 - No item is writable by the agent itself
 - All writes go through a server action that checks auth
 
-This phase must not be started without a schema review and RLS design document.
+The schema/RLS design now lives in `docs/AGENT_APPROVAL_PERSISTENCE_SCHEMA.md`.
+This phase still must not start implementation without a separate migration PR
+and explicit approval to change the database.
 
 ### Phase 4 — Approval Packet Contract
 
@@ -312,4 +314,5 @@ These rules apply at all phases, including future ones.
 | Cockpit page | `src/app/hq/agents/page.tsx` |
 | Runtime boundary spec | `docs/ORIA_RUNTIME_CONTRACT.md` |
 | Action ledger contract | `docs/ACTION_LEDGER_MISSION_TRACEABILITY.md` |
+| Approval persistence schema | `docs/AGENT_APPROVAL_PERSISTENCE_SCHEMA.md` |
 | Operational safeguards | `docs/OPERATIONAL_SAFEGUARDS_V1.md` |
