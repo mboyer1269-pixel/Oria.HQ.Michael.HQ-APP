@@ -13,6 +13,7 @@ import type { VentureCard } from "@/features/ventures/types";
 import {
   archiveVentureAction,
   killVentureAction,
+  promoteVentureAction,
   updateVentureDetailsAction,
 } from "@/features/ventures/venture-lifecycle-action";
 import { saveVentureDraftAction } from "@/features/ventures/venture-save-action";
@@ -95,6 +96,7 @@ export default async function VenturesPage() {
         onUpdateDetails={updateVentureDetailsAction}
         onArchive={archiveVentureAction}
         onKill={killVentureAction}
+        onPromote={promoteVentureAction}
       />
 
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">

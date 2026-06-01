@@ -4,13 +4,16 @@ import { useMemo, useState, useTransition } from "react";
 import { AlertTriangle, Archive, CheckCircle2, FlaskConical, Plus, Skull } from "lucide-react";
 import type { LocalDraftVentureInput } from "../draft";
 import type { VentureCard as VentureCardType } from "../types";
+import type { VentureLifecycleStatus } from "../types";
 import type {
   VentureEditableFields,
   VentureLifecycleActionInput,
   VentureLifecycleActionResult,
   VentureLifecycleErrorCode,
+  VenturePromotionInput,
   VentureUpdateInput,
 } from "../venture-lifecycle-types";
+import { getPromotableTargets } from "../venture-promotion";
 import type {
   SaveVentureDraftActionResult,
   VenturePersistenceMode,
@@ -54,6 +57,8 @@ function lifecycleErrorMessage(code: VentureLifecycleErrorCode): string {
       return "Aucune modification détectée.";
     case "not_editable":
       return "Venture en statut terminal : édition indisponible.";
+    case "illegal_transition":
+      return "Avancement non autorisé pour ce statut.";
     default:
       return "Erreur de sauvegarde — la modification n'est pas persistée.";
   }
@@ -92,6 +97,7 @@ export function VentureCommandCenterClient({
   onUpdateDetails,
   onArchive,
   onKill,
+  onPromote,
 }: {
   seedCards: VentureCardType[];
   savedVentures: VentureCardType[];
@@ -101,6 +107,7 @@ export function VentureCommandCenterClient({
   onUpdateDetails: (input: VentureUpdateInput) => Promise<VentureLifecycleActionResult>;
   onArchive: (input: VentureLifecycleActionInput) => Promise<VentureLifecycleActionResult>;
   onKill: (input: VentureLifecycleActionInput) => Promise<VentureLifecycleActionResult>;
+  onPromote: (input: VenturePromotionInput) => Promise<VentureLifecycleActionResult>;
 }) {
   const [savedCards, setSavedCards] = useState<
     Array<{ card: VentureCardType; storageMode: VenturePersistenceMode | null }>
@@ -209,6 +216,16 @@ export function VentureCommandCenterClient({
   function handleKill(card: VentureCardType, reason: string) {
     runLifecycle(() => onKill({ ventureId: card.id, reason }), "Venture tuée");
   }
+  function handlePromote(
+    card: VentureCardType,
+    targetStatus: VentureLifecycleStatus,
+    note: string,
+  ) {
+    runLifecycle(
+      () => onPromote({ ventureId: card.id, targetStatus, note }),
+      "Venture avancée",
+    );
+  }
 
   function renderActions(display: DisplayCard) {
     const card = display.card;
@@ -220,11 +237,13 @@ export function VentureCommandCenterClient({
           canManage={false}
           disabledReason={display.kind === "failed" ? "unsaved" : "demo"}
           isLocked={false}
+          promotableTargets={[]}
           pending={isPending}
           error={null}
           onEdit={() => {}}
           onArchive={() => {}}
           onKill={() => {}}
+          onPromote={() => {}}
         />
       );
     }
@@ -234,11 +253,13 @@ export function VentureCommandCenterClient({
         card={card}
         canManage
         isLocked={LOCKED_STATUSES.has(card.status)}
+        promotableTargets={getPromotableTargets(card.status)}
         pending={isPending}
         error={lifecycleError}
         onEdit={(fields) => handleEdit(card, fields)}
         onArchive={(reason) => handleArchive(card, reason)}
         onKill={(reason) => handleKill(card, reason)}
+        onPromote={(target, note) => handlePromote(card, target, note)}
       />
     );
   }
