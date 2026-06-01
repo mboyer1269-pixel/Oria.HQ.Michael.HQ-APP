@@ -104,10 +104,12 @@ export function VentureDetailPanel({
   card,
   isLocalDraft = false,
   statusBadge,
+  actions,
 }: {
   card: VentureCard;
   isLocalDraft?: boolean;
   statusBadge?: { label: string; tone: DetailStatusTone };
+  actions?: React.ReactNode;
 }) {
   const plan = card.validationPlan;
 
@@ -115,10 +117,12 @@ export function VentureDetailPanel({
     <div className="flex h-full flex-col gap-5 rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
       <header className="flex flex-col gap-3 border-b border-neutral-800/60 pb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
-            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-            Lecture seule
-          </span>
+          {!actions && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
+              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+              Lecture seule
+            </span>
+          )}
           {statusBadge && (
             <span
               className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STATUS_BADGE_CLASS[statusBadge.tone]}`}
@@ -335,9 +339,12 @@ export function VentureDetailPanel({
         )}
       </section>
 
+      {actions}
+
       <footer className="mt-auto border-t border-neutral-800/60 pt-3 text-[11px] leading-5 text-neutral-500">
-        Vue en lecture seule — aucune action (éditer, supprimer, activer, dépenser) n&apos;est
-        déclenchée depuis ce panneau.
+        {actions
+          ? "Édition, archivage et kill passent par le repository. Aucune suppression définitive, aucune dépense, aucun envoi externe."
+          : "Vue en lecture seule — aucune action (éditer, supprimer, activer, dépenser) n'est déclenchée depuis ce panneau."}
       </footer>
     </div>
   );
