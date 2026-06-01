@@ -6,6 +6,7 @@ import {
   Archive,
   ArrowUpRight,
   FlaskConical,
+  Gauge,
   Lock,
   Pencil,
   Skull,
@@ -14,8 +15,33 @@ import {
 import type { VentureCard, VentureLifecycleStatus } from "../types";
 import type { VentureEditableFields } from "../venture-lifecycle-types";
 import { VENTURE_STATUS_LABELS } from "../venture-promotion";
+import {
+  computeOverallScore,
+  deriveRecommendation,
+  isValidSubScores,
+  MAX_SUB_SCORE,
+  MIN_SUB_SCORE,
+  SCORE_DIMENSIONS,
+  type VentureScoreRecommendation,
+  type VentureSubScores,
+} from "../venture-scoring";
 
-type Mode = "none" | "edit" | "archive" | "kill" | "promote";
+type Mode = "none" | "edit" | "archive" | "kill" | "promote" | "score";
+
+const RECOMMENDATION_LABELS: Record<VentureScoreRecommendation, string> = {
+  go: "Go",
+  test_small: "Tester petit",
+  hold: "Hold",
+  kill: "Kill",
+};
+
+function initialSubScores(card: VentureCard): VentureSubScores {
+  const result = {} as VentureSubScores;
+  for (const dimension of SCORE_DIMENSIONS) {
+    result[dimension.key] = card.score ? card.score[dimension.key] : 5;
+  }
+  return result;
+}
 
 const inputClass =
   "w-full rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-amber-500/50 focus:outline-none";
@@ -33,6 +59,7 @@ export function VentureLifecycleActions({
   onArchive,
   onKill,
   onPromote,
+  onScore,
 }: {
   card: VentureCard;
   canManage: boolean;
@@ -45,6 +72,7 @@ export function VentureLifecycleActions({
   onArchive: (reason: string) => void;
   onKill: (reason: string) => void;
   onPromote: (targetStatus: VentureLifecycleStatus, note: string) => void;
+  onScore: (scores: VentureSubScores, recommendation?: VentureScoreRecommendation) => void;
 }) {
   const [mode, setMode] = useState<Mode>("none");
   const [name, setName] = useState(card.name);
@@ -58,7 +86,14 @@ export function VentureLifecycleActions({
     promotableTargets[0] ?? "",
   );
   const [promoteNote, setPromoteNote] = useState("");
+  const [scores, setScores] = useState<VentureSubScores>(() => initialSubScores(card));
+  const [recommendationOverride, setRecommendationOverride] = useState<
+    VentureScoreRecommendation | ""
+  >("");
   const canPromote = promotableTargets.length > 0;
+  const scoresValid = isValidSubScores(scores);
+  const liveOverall = scoresValid ? computeOverallScore(scores) : null;
+  const liveRecommendation = liveOverall !== null ? deriveRecommendation(liveOverall) : null;
 
   if (!canManage) {
     const isUnsaved = disabledReason === "unsaved";
@@ -136,6 +171,15 @@ export function VentureLifecycleActions({
 
       {mode === "none" && (
         <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("score")}
+            disabled={pending}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 text-sm font-semibold text-sky-300 transition hover:bg-sky-500/20 disabled:opacity-50"
+          >
+            <Gauge className="h-3.5 w-3.5" />
+            {card.score ? "Re-scorer" : "Scorer"}
+          </button>
           {canPromote && (
             <button
               type="button"
@@ -241,6 +285,96 @@ export function VentureLifecycleActions({
             </button>
           </div>
         </form>
+      )}
+
+      {mode === "score" && (
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-sm leading-6 text-neutral-300">
+            Note chaque dimension de 0 à 10. Le score global et la recommandation sont calculés
+            automatiquement. Scorer une candidate la passe en « Scoré ».
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {SCORE_DIMENSIONS.map((dimension) => (
+              <label key={dimension.key} className="flex items-center justify-between gap-2">
+                <span className="text-xs leading-5 text-neutral-300">
+                  {dimension.label}
+                  {dimension.polarity === "negative" && (
+                    <span className="text-neutral-500"> (bas = mieux)</span>
+                  )}
+                </span>
+                <input
+                  type="number"
+                  min={MIN_SUB_SCORE}
+                  max={MAX_SUB_SCORE}
+                  step={1}
+                  value={scores[dimension.key]}
+                  onChange={(e) =>
+                    setScores((prev) => ({
+                      ...prev,
+                      [dimension.key]: Number(e.target.value),
+                    }))
+                  }
+                  className="w-16 rounded-lg border border-neutral-800 bg-neutral-900/70 px-2 py-1 text-sm text-neutral-100 focus:border-sky-500/50 focus:outline-none"
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-800/80 bg-neutral-900/40 px-3 py-2">
+            <span className="inline-flex items-center gap-1.5 text-sm text-neutral-300">
+              <Gauge className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
+              Score global :{" "}
+              <span className="tabular-nums text-white">
+                {liveOverall !== null ? `${liveOverall}/100` : "—"}
+              </span>
+            </span>
+            {liveRecommendation && (
+              <span className="text-xs text-neutral-400">
+                Recommandation auto : {RECOMMENDATION_LABELS[liveRecommendation]}
+              </span>
+            )}
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className={labelClass}>Recommandation</span>
+            <select
+              className={inputClass}
+              value={recommendationOverride}
+              onChange={(e) =>
+                setRecommendationOverride(e.target.value as VentureScoreRecommendation | "")
+              }
+            >
+              <option value="">Automatique{liveRecommendation ? ` (${RECOMMENDATION_LABELS[liveRecommendation]})` : ""}</option>
+              <option value="go">Go</option>
+              <option value="test_small">Tester petit</option>
+              <option value="hold">Hold</option>
+              <option value="kill">Kill</option>
+            </select>
+          </label>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("none");
+                setRecommendationOverride("");
+              }}
+              disabled={pending}
+              className="inline-flex min-h-9 items-center rounded-lg border border-neutral-700 px-3 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => onScore(scores, recommendationOverride || undefined)}
+              disabled={pending || !scoresValid}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-sky-500 px-3 text-sm font-semibold text-neutral-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Gauge className="h-3.5 w-3.5" />
+              {pending ? "Scoring…" : "Enregistrer le score"}
+            </button>
+          </div>
+        </div>
       )}
 
       {mode === "promote" && (

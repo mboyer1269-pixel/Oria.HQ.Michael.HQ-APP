@@ -14,6 +14,7 @@ import {
   archiveVentureAction,
   killVentureAction,
   promoteVentureAction,
+  scoreVentureAction,
   updateVentureDetailsAction,
 } from "@/features/ventures/venture-lifecycle-action";
 import { saveVentureDraftAction } from "@/features/ventures/venture-save-action";
@@ -97,6 +98,7 @@ export default async function VenturesPage() {
         onArchive={archiveVentureAction}
         onKill={killVentureAction}
         onPromote={promoteVentureAction}
+        onScore={scoreVentureAction}
       />
 
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">

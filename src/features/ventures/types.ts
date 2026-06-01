@@ -93,7 +93,15 @@ export type VentureAgentAssignment = {
 
 export type VentureDecision = {
   id: string;
-  type: "promote" | "pause" | "kill" | "archive" | "scale" | "rework" | "increase_autonomy";
+  type:
+    | "score"
+    | "promote"
+    | "pause"
+    | "kill"
+    | "archive"
+    | "scale"
+    | "rework"
+    | "increase_autonomy";
   summary: string;
   decidedBy: "ceo" | "system_recommendation";
   decidedAt: string;

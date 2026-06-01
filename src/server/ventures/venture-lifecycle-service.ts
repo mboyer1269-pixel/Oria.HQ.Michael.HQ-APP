@@ -23,6 +23,7 @@ import type {
   VentureLifecycleActionInput,
   VentureLifecycleOutcome,
   VenturePromotionInput,
+  VentureScoringInput,
   VentureUpdateInput,
 } from "@/features/ventures/venture-lifecycle-types";
 import {
@@ -30,6 +31,7 @@ import {
   isAdvancementTarget,
   VENTURE_STATUS_LABELS,
 } from "@/features/ventures/venture-promotion";
+import { buildVentureScore, isValidSubScores } from "@/features/ventures/venture-scoring";
 import { getVentureById, getVenturePersistenceMode, updateVenture } from "./venture-repository";
 
 const LOCKED_STATUSES: ReadonlySet<VentureCard["status"]> = new Set(["archived", "killed"]);
@@ -197,6 +199,55 @@ export async function killVenture(
   input: VentureLifecycleActionInput,
 ): Promise<VentureLifecycleOutcome> {
   return recordTerminalDecision(workspaceId, input, "kill", "killed");
+}
+
+/**
+ * Scores a saved venture from the CEO's 11 sub-scores: computes the overall +
+ * recommendation, sets the score, and — when the venture is still a `candidate`
+ * — advances it to `scored` with an audit-only score decision. Re-scoring a
+ * venture that is already past `candidate` updates the score without a status
+ * change. Rejects invalid sub-scores (`invalid_score`) and terminal ventures
+ * (`not_editable`). Authorizes no execution.
+ */
+export async function scoreVenture(
+  workspaceId: string,
+  input: VentureScoringInput,
+): Promise<VentureLifecycleOutcome> {
+  if (!isValidSubScores(input.scores)) {
+    return { status: "error", code: "invalid_score" };
+  }
+
+  const existing = await getVentureById(workspaceId, input.ventureId);
+  if (!existing) return { status: "error", code: "not_found" };
+  if (LOCKED_STATUSES.has(existing.status)) return { status: "error", code: "not_editable" };
+
+  const decidedAt = nowIso(input.now);
+  const score = buildVentureScore(input.scores, input.recommendation);
+  const advancesCandidate = existing.status === "candidate";
+  const fromLabel = VENTURE_STATUS_LABELS[existing.status];
+  const summary = advancesCandidate
+    ? `Scoring CEO recorded (${score.overallScore}/100, ${score.recommendation}); advanced ${fromLabel} to ${VENTURE_STATUS_LABELS.scored}.`
+    : `Scoring CEO recorded (${score.overallScore}/100, ${score.recommendation}); status remains ${fromLabel}.`;
+
+  const decision: VentureDecision = {
+    id: generateDecisionId("decision-score"),
+    type: "score",
+    summary,
+    decidedBy: "ceo",
+    decidedAt,
+    noExecutionAuthorized: true,
+    humanOnTheLoop: true,
+  };
+
+  const next: VentureCard = {
+    ...existing,
+    status: advancesCandidate ? "scored" : existing.status,
+    score,
+    decisions: [...existing.decisions, decision],
+    updatedAt: decidedAt,
+  };
+
+  return persist(workspaceId, next);
 }
 
 /**
