@@ -4,7 +4,7 @@ import { ArrowLeft, Users } from "lucide-react";
 import { buildAgentAutonomyCockpit } from "@/features/agents/agent-autonomy-cockpit";
 import { buildAgentKnowledgePackCatalog } from "@/features/agents/agent-knowledge-packs";
 import { buildAgentQualityEvaluation } from "@/features/agents/agent-quality-evaluation";
-import { buildAgentReviewQueue } from "@/features/agents/agent-review-queue";
+import { reviewQueueFromQualityEvaluation } from "@/features/agents/agent-review-cockpit";
 import { AgentAutonomyPolicyPanel } from "@/features/agents/components/agent-autonomy-policy-panel";
 import { AgentCard } from "@/features/agents/components/agent-card";
 import { AgentKnowledgePackPanel } from "@/features/agents/components/agent-knowledge-pack-panel";
@@ -12,7 +12,6 @@ import { AgentQualityEvaluationPanel } from "@/features/agents/components/agent-
 import { AgentReviewQueuePanel } from "@/features/agents/components/agent-review-queue-panel";
 import { AgentSkillPanel } from "@/features/agents/components/agent-skill-panel";
 import { getDefaultAgentAutonomyPolicy } from "@/features/agents/autonomy-policy";
-import { buildObservedAgentOutcomeReviewRecommendation } from "@/features/agents/observed-agent-outcome-review";
 import { agentRegistry } from "@/features/agents/seed";
 import { validateAgentSkillMapping } from "@/features/agents/skill-mapping";
 import { skillsCatalog } from "@/features/skills/seed";
@@ -48,37 +47,13 @@ export default async function AgentsPage() {
     autonomyCockpit,
   });
 
-  // Derive a local review queue from the quality scorecards. Each scorecard
-  // produces a deterministic evaluation stub and recommendation; no DB, no
-  // network, no runtime execution. createdAt is pinned to a fixed value so
-  // the server component renders stably (no Date.now() inside pure builders).
+  // Derive the local review queue from the quality scorecards via the shared
+  // cockpit signal builder (single source of truth — same derivation the
+  // cockpit uses). Pure, deterministic; createdAt is pinned so the server
+  // component renders stably (no Date.now() inside pure builders).
   const QUEUE_CREATED_AT = "2026-06-01T00:00:00.000Z";
-  const reviewQueueItems = qualityEvaluation.scorecards.map((scorecard) => {
-    const evaluation = {
-      status: "evaluated" as const,
-      outcomeId: `scorecard-${scorecard.agentId}`,
-      agentId: scorecard.agentId,
-      outcomeStatus: "completed" as const,
-      riskLevel: "low" as const,
-      validation: { valid: true, errors: [] as never[] },
-      observation: {
-        agentId: scorecard.agentId,
-        realizedProfitCents: scorecard.realizedProfitCents ?? 0,
-        ceoMinutesSaved: scorecard.ceoMinutesSaved ?? 0,
-        guardrailViolations: scorecard.guardrailViolations ?? 0,
-        usefulOutputs: scorecard.usefulOutputs ?? 0,
-        reviewedOutputs: scorecard.reviewedOutputs ?? 0,
-      },
-      scorecard,
-      evaluation: qualityEvaluation,
-      humanOnTheLoop: true as const,
-      noExecutionAuthorized: true as const,
-    };
-    const recommendation = buildObservedAgentOutcomeReviewRecommendation(evaluation);
-    return { evaluation, recommendation };
-  });
-  const reviewQueue = buildAgentReviewQueue({
-    items: reviewQueueItems,
+  const reviewQueue = reviewQueueFromQualityEvaluation({
+    qualityEvaluation,
     createdAt: QUEUE_CREATED_AT,
   });
 
