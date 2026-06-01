@@ -1,6 +1,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, Eye, Rocket } from "lucide-react";
+import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { VentureCommandCenterClient } from "@/features/ventures/components/venture-command-center-client";
 import { VentureSummaryPanel } from "@/features/ventures/components/venture-summary-panel";
 import {
@@ -8,7 +9,14 @@ import {
   getDefaultVisibleCandidateLimit,
 } from "@/features/ventures/lifecycle";
 import { ventureSeedCards } from "@/features/ventures/seed";
+import type { VentureCard } from "@/features/ventures/types";
+import { saveVentureDraftAction } from "@/features/ventures/venture-save-action";
+import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
 import { requireOwnerAccess } from "@/server/auth/owner";
+import {
+  getVenturePersistenceMode,
+  listVenturesForWorkspace,
+} from "@/server/ventures/venture-repository";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +30,20 @@ export default async function VenturesPage() {
 
   const candidateLimit = getDefaultVisibleCandidateLimit();
   const validationSlotLimit = getDefaultActiveValidationSlotLimit();
+
+  // Load saved ventures through the repository, scoped to the owner's workspace.
+  // A repository failure surfaces as a clear error state in the client rather
+  // than pretending success.
+  const workspaceId = getDefaultWorkspace({ ownerUserId: access.user.id }).id;
+  let savedVentures: VentureCard[] = [];
+  let savedStorageMode: VenturePersistenceMode | null = null;
+  let loadError = false;
+  try {
+    savedVentures = await listVenturesForWorkspace(workspaceId);
+    savedStorageMode = getVenturePersistenceMode();
+  } catch {
+    loadError = true;
+  }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-8 md:py-10">
@@ -59,7 +81,13 @@ export default async function VenturesPage() {
 
       <VentureSummaryPanel cards={ventureSeedCards} />
 
-      <VentureCommandCenterClient initialCards={ventureSeedCards} />
+      <VentureCommandCenterClient
+        seedCards={ventureSeedCards}
+        savedVentures={savedVentures}
+        savedStorageMode={savedStorageMode}
+        loadError={loadError}
+        onSaveDraft={saveVentureDraftAction}
+      />
 
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">
