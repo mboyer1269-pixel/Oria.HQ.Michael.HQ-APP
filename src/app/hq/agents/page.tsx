@@ -2,8 +2,10 @@ import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { buildAgentAutonomyCockpit } from "@/features/agents/agent-autonomy-cockpit";
+import { buildAgentKnowledgePackCatalog } from "@/features/agents/agent-knowledge-packs";
 import { AgentAutonomyPolicyPanel } from "@/features/agents/components/agent-autonomy-policy-panel";
 import { AgentCard } from "@/features/agents/components/agent-card";
+import { AgentKnowledgePackPanel } from "@/features/agents/components/agent-knowledge-pack-panel";
 import { AgentSkillPanel } from "@/features/agents/components/agent-skill-panel";
 import { getDefaultAgentAutonomyPolicy } from "@/features/agents/autonomy-policy";
 import { agentRegistry } from "@/features/agents/seed";
@@ -31,6 +33,10 @@ export default async function AgentsPage() {
     agents: agentRegistry,
     skills: skillsCatalog,
     policy: getDefaultAgentAutonomyPolicy(),
+  });
+  const knowledgePackCatalog = buildAgentKnowledgePackCatalog({
+    agents: agentRegistry,
+    skills: skillsCatalog,
   });
 
   return (
@@ -83,6 +89,8 @@ export default async function AgentsPage() {
       </header>
 
       <AgentAutonomyPolicyPanel model={autonomyCockpit} />
+
+      <AgentKnowledgePackPanel catalog={knowledgePackCatalog} />
 
       {[
         { label: "Actifs", agents: active, accent: "text-emerald-400" },
