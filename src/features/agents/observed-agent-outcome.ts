@@ -136,6 +136,10 @@ export interface ObservedAgentOutcomeEvaluation {
   status: ObservedAgentOutcomeEvaluationStatus;
   outcomeId: string;
   agentId: string;
+  /** Run status of the observed outcome, carried through for governance review. */
+  outcomeStatus: ObservedAgentOutcomeStatus;
+  /** Risk level of the observed outcome, carried through for governance review. */
+  riskLevel: ObservedAgentOutcomeRiskLevel;
   validation: ObservedAgentOutcomeValidation;
   observation: AgentQualityObservation | null;
   scorecard: AgentQualityScorecard | null;
@@ -261,6 +265,8 @@ export function evaluateObservedAgentOutcome(
       status: "invalid",
       outcomeId: outcome.id,
       agentId: outcome.agentId,
+      outcomeStatus: outcome.status,
+      riskLevel: outcome.riskLevel,
       validation,
       observation: null,
       scorecard: null,
@@ -283,6 +289,8 @@ export function evaluateObservedAgentOutcome(
     status: scorecard ? "evaluated" : "agent_not_in_catalog",
     outcomeId: outcome.id,
     agentId: outcome.agentId,
+    outcomeStatus: outcome.status,
+    riskLevel: outcome.riskLevel,
     validation,
     observation,
     scorecard,
