@@ -91,12 +91,23 @@ function Field({
   );
 }
 
+type DetailStatusTone = "saved" | "local" | "demo" | "error";
+
+const STATUS_BADGE_CLASS: Record<DetailStatusTone, string> = {
+  saved: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  local: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  demo: "border-neutral-700 bg-neutral-900 text-neutral-400",
+  error: "border-red-500/30 bg-red-500/10 text-red-300",
+};
+
 export function VentureDetailPanel({
   card,
   isLocalDraft = false,
+  statusBadge,
 }: {
   card: VentureCard;
   isLocalDraft?: boolean;
+  statusBadge?: { label: string; tone: DetailStatusTone };
 }) {
   const plan = card.validationPlan;
 
@@ -108,6 +119,14 @@ export function VentureDetailPanel({
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
             Lecture seule
           </span>
+          {statusBadge && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STATUS_BADGE_CLASS[statusBadge.tone]}`}
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              {statusBadge.label}
+            </span>
+          )}
           {isLocalDraft && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300">
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />

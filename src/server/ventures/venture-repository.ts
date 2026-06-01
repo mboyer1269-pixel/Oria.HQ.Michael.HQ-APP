@@ -29,6 +29,7 @@
  */
 
 import type { VentureCard } from "@/features/ventures/types";
+import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { VentureRow } from "@/server/db/types";
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
@@ -207,6 +208,18 @@ export async function updateVenture(
     throw new VentureRepositoryError("update");
   }
   return mapRowToVentureCard(row);
+}
+
+/**
+ * Reports which persistence backend the repository will use right now, using the
+ * exact same resolution as the read/write paths above. This never writes and
+ * never lies: callers use it to label storage status honestly (mirrors the
+ * action-ledger reader's `source`). Returns "unavailable" only in the
+ * loud-production case where a write would throw.
+ */
+export function getVenturePersistenceMode(): VenturePersistenceMode {
+  if (getSupabaseClient()) return "supabase";
+  return isLocalPersistenceFallbackAllowed() ? "local" : "unavailable";
 }
 
 /** Test-only helper to clear the in-memory fallback store. */
