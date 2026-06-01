@@ -10,20 +10,21 @@ export function VentureAgentBuildPlanPanel({
 
   return (
     <section
-      aria-label="Plans agents Joris"
+      aria-label="Plans agents pour ventures"
       className="rounded-3xl border border-emerald-500/20 bg-neutral-950/60 p-5"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300">
-            Plans agents Joris
+            Plans agents
           </p>
           <h2 className="mt-2 text-xl font-semibold text-white">
             Blueprints d&apos;agents pour augmenter les chances de profit
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">
-            Joris peut recommander le rôle, les skills et les connaissances à préparer pour une
-            venture. Cette section ne crée aucun agent et ne lance aucune exécution.
+            Un modèle de raisonnement approuvé peut recommander le rôle, les skills et les
+            connaissances à préparer pour une venture. Cette section ne crée aucun agent et ne
+            lance aucune exécution.
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-neutral-700 bg-neutral-900 px-3 py-1 text-[11px] font-medium text-neutral-300">
