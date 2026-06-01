@@ -32,6 +32,10 @@ const privateLinks = [
     href: "#command-center",
   },
   {
+    label: "Cockpit",
+    href: "/hq/cockpit",
+  },
+  {
     label: "CEO Brief",
     href: "#ceo-brief",
   },
