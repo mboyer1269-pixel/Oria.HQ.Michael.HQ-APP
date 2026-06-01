@@ -15,6 +15,7 @@ import type {
   VentureUpdateInput,
 } from "../venture-lifecycle-types";
 import { getPromotableTargets } from "../venture-promotion";
+import { summarizeVentureAgentBuildPlans } from "../venture-agent-build-plans";
 import { buildVentureCockpit } from "../venture-cockpit";
 import type { VentureScoreRecommendation, VentureSubScores } from "../venture-scoring";
 import type {
@@ -22,6 +23,7 @@ import type {
   VenturePersistenceMode,
 } from "../venture-save-types";
 import { VentureDecisionQueue } from "./venture-decision-queue";
+import { VentureAgentBuildPlanPanel } from "./venture-agent-build-plan-panel";
 import { VentureCard } from "./venture-card";
 import { VentureDetailPanel } from "./venture-detail-panel";
 import { VentureIntakeForm } from "./venture-intake-form";
@@ -153,6 +155,10 @@ export function VentureCommandCenterClient({
         demoCards: showDemo ? seedCards : [],
       }),
     [savedCards, seedCards, showDemo],
+  );
+  const agentBuildPlanSummary = useMemo(
+    () => summarizeVentureAgentBuildPlans(savedCards.map(({ card }) => card)),
+    [savedCards],
   );
 
   const selected = displayCards.find((d) => d.card.id === selectedCardId) ?? null;
@@ -301,6 +307,7 @@ export function VentureCommandCenterClient({
     <section className="flex flex-col gap-4">
       <VentureSummaryPanel cockpit={cockpit} />
       <VentureDecisionQueue items={cockpit.decisionQueue} />
+      <VentureAgentBuildPlanPanel summary={agentBuildPlanSummary} />
       <VentureSuggestionInbox suggestions={suggestions} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
