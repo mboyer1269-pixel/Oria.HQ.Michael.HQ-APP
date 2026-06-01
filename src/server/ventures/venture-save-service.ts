@@ -16,13 +16,18 @@
 import { createLocalDraftVentureCard, type LocalDraftVentureInput } from "@/features/ventures/draft";
 import {
   createVentureCardFromSuggestion,
+  isVentureSavedFromSuggestion,
   type VentureCandidateSuggestion,
 } from "@/features/ventures/venture-suggestions";
 import type {
   SaveVentureDraftOutcome,
   SaveVentureSuggestionOutcome,
 } from "@/features/ventures/venture-save-types";
-import { createVenture, getVenturePersistenceMode } from "./venture-repository";
+import {
+  createVenture,
+  getVenturePersistenceMode,
+  listVenturesForWorkspace,
+} from "./venture-repository";
 
 export type { SaveVentureDraftOutcome } from "@/features/ventures/venture-save-types";
 
@@ -65,6 +70,13 @@ export async function saveVentureSuggestionAsCandidate(args: {
   });
 
   try {
+    const existing = (await listVenturesForWorkspace(args.workspaceId)).find((venture) =>
+      isVentureSavedFromSuggestion(venture, args.suggestion.id),
+    );
+    if (existing) {
+      return { status: "saved", card: existing, storageMode: getVenturePersistenceMode() };
+    }
+
     const saved = await createVenture(args.workspaceId, card);
     return { status: "saved", card: saved, storageMode: getVenturePersistenceMode() };
   } catch {

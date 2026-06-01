@@ -156,6 +156,27 @@ test("Venture save service (PR149)", async (t) => {
     assert.equal((await listVenturesForWorkspace("ws-suggestion")).length, 1);
   });
 
+  await t.test("save suggestion is idempotent within a workspace", async () => {
+    const suggestion = ventureSuggestionSeed[0];
+    const first = await saveVentureSuggestionAsCandidate({
+      workspaceId: "ws-suggestion-idempotent",
+      suggestion,
+      id: `venture-from-suggestion-${suggestion.id}-first`,
+      now: "2026-06-01T00:00:00.000Z",
+    });
+    const second = await saveVentureSuggestionAsCandidate({
+      workspaceId: "ws-suggestion-idempotent",
+      suggestion,
+      id: `venture-from-suggestion-${suggestion.id}-second`,
+      now: "2026-06-01T00:01:00.000Z",
+    });
+
+    assert.equal(first.status, "saved");
+    assert.equal(second.status, "saved");
+    assert.equal(second.card.id, first.card.id);
+    assert.equal((await listVenturesForWorkspace("ws-suggestion-idempotent")).length, 1);
+  });
+
   await t.test("save suggestion failure does not mark the card as saved", async () => {
     installSupabaseClientFactory(() => makeSupabaseMock({ insertError: new Error("secret boom") }));
     const result = await saveVentureSuggestionAsCandidate({
