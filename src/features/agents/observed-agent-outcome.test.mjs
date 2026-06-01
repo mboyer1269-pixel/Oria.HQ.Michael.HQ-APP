@@ -79,6 +79,13 @@ test("Observed agent outcome evaluation pipeline", async (t) => {
     assert.deepEqual(result.errors, []);
   });
 
+  await t.test("missing source fails", () => {
+    const outcome = { ...completedMarketResearchOutcome(), source: "  " };
+    const result = observed.validateObservedAgentOutcome(outcome);
+    assert.equal(result.valid, false);
+    assert.ok(result.errors.includes("missing_source"));
+  });
+
   await t.test("missing objective fails", () => {
     const outcome = { ...completedMarketResearchOutcome(), objective: "" };
     const result = observed.validateObservedAgentOutcome(outcome);
@@ -107,7 +114,7 @@ test("Observed agent outcome evaluation pipeline", async (t) => {
     assert.ok(result.errors.includes("missing_evidence"));
   });
 
-  await t.test("draft outcome may omit actualOutcome and evidence", () => {
+  await t.test("draft outcome may use empty actualOutcome and evidence", () => {
     const outcome = {
       ...completedMarketResearchOutcome(),
       status: "draft",

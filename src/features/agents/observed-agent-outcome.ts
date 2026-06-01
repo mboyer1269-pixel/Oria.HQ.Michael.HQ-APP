@@ -88,6 +88,7 @@ export interface ObservedAgentOutcome {
 export type ObservedAgentOutcomeValidationError =
   | "missing_id"
   | "missing_agent_id"
+  | "missing_source"
   | "missing_objective"
   | "missing_expected_outcome"
   | "missing_actual_outcome"
@@ -173,6 +174,9 @@ export function validateObservedAgentOutcome(
   }
   if (!isNonEmptyString(outcome.agentId)) {
     errors.push("missing_agent_id");
+  }
+  if (!isNonEmptyString(outcome.source)) {
+    errors.push("missing_source");
   }
   if (!isNonEmptyString(outcome.objective)) {
     errors.push("missing_objective");
