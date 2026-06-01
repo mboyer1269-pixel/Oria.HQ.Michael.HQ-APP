@@ -9,7 +9,7 @@
 // irreversible and deferred to a separate policy. Archive hides from active
 // attention while preserving history; kill is a business decision with a reason.
 
-import type { VentureCard } from "./types";
+import type { VentureCard, VentureLifecycleStatus } from "./types";
 import type { VenturePersistenceMode } from "./venture-save-types";
 
 export type VentureActionStatus = "saved" | "error";
@@ -46,11 +46,25 @@ export type VentureLifecycleActionInput = {
   now?: string;
 };
 
+/**
+ * Advance a saved venture forward one legal step. `note` is optional context for
+ * the audit decision (promotion does not require a reason the way kill/archive
+ * do). The target must be a legal advancement for the venture's current status.
+ */
+export type VenturePromotionInput = {
+  ventureId: string;
+  targetStatus: VentureLifecycleStatus;
+  note?: string;
+  /** Optional explicit ISO timestamp (deterministic tests). */
+  now?: string;
+};
+
 export type VentureLifecycleErrorCode =
   | "not_found"
   | "invalid_reason"
   | "no_changes"
   | "not_editable"
+  | "illegal_transition"
   | "repository_error";
 
 /** Service-level outcome: a persisted card, or a sanitized error code. */

@@ -1,11 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Archive, FlaskConical, Lock, Pencil, Skull, X } from "lucide-react";
-import type { VentureCard } from "../types";
+import {
+  AlertTriangle,
+  Archive,
+  ArrowUpRight,
+  FlaskConical,
+  Lock,
+  Pencil,
+  Skull,
+  X,
+} from "lucide-react";
+import type { VentureCard, VentureLifecycleStatus } from "../types";
 import type { VentureEditableFields } from "../venture-lifecycle-types";
+import { VENTURE_STATUS_LABELS } from "../venture-promotion";
 
-type Mode = "none" | "edit" | "archive" | "kill";
+type Mode = "none" | "edit" | "archive" | "kill" | "promote";
 
 const inputClass =
   "w-full rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-amber-500/50 focus:outline-none";
@@ -16,21 +26,25 @@ export function VentureLifecycleActions({
   canManage,
   disabledReason,
   isLocked,
+  promotableTargets,
   pending,
   error,
   onEdit,
   onArchive,
   onKill,
+  onPromote,
 }: {
   card: VentureCard;
   canManage: boolean;
   disabledReason?: "demo" | "unsaved";
   isLocked: boolean;
+  promotableTargets: VentureLifecycleStatus[];
   pending: boolean;
   error: string | null;
   onEdit: (fields: VentureEditableFields) => void;
   onArchive: (reason: string) => void;
   onKill: (reason: string) => void;
+  onPromote: (targetStatus: VentureLifecycleStatus, note: string) => void;
 }) {
   const [mode, setMode] = useState<Mode>("none");
   const [name, setName] = useState(card.name);
@@ -40,6 +54,11 @@ export function VentureLifecycleActions({
   const [offer, setOffer] = useState(card.offer);
   const [primaryChannel, setPrimaryChannel] = useState(card.primaryChannel);
   const [reason, setReason] = useState("");
+  const [promoteTarget, setPromoteTarget] = useState<VentureLifecycleStatus | "">(
+    promotableTargets[0] ?? "",
+  );
+  const [promoteNote, setPromoteNote] = useState("");
+  const canPromote = promotableTargets.length > 0;
 
   if (!canManage) {
     const isUnsaved = disabledReason === "unsaved";
@@ -117,6 +136,17 @@ export function VentureLifecycleActions({
 
       {mode === "none" && (
         <div className="mt-3 flex flex-wrap gap-2">
+          {canPromote && (
+            <button
+              type="button"
+              onClick={() => setMode("promote")}
+              disabled={pending}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" />
+              Faire avancer
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setMode("edit")}
@@ -211,6 +241,60 @@ export function VentureLifecycleActions({
             </button>
           </div>
         </form>
+      )}
+
+      {mode === "promote" && (
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-sm leading-6 text-neutral-300">
+            Faire avancer la venture d&apos;une étape du cycle de vie. Décision CEO enregistrée à
+            titre d&apos;audit — aucune exécution, dépense ou envoi n&apos;est déclenché.
+          </p>
+          <label className="flex flex-col gap-1.5">
+            <span className={labelClass}>Prochaine étape</span>
+            <select
+              className={inputClass}
+              value={promoteTarget}
+              onChange={(e) => setPromoteTarget(e.target.value as VentureLifecycleStatus)}
+            >
+              {promotableTargets.map((target) => (
+                <option key={target} value={target}>
+                  {VENTURE_STATUS_LABELS[target]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={labelClass}>Note (optionnelle)</span>
+            <textarea
+              className={`${inputClass} min-h-16 resize-y`}
+              value={promoteNote}
+              onChange={(e) => setPromoteNote(e.target.value)}
+              placeholder="Contexte de la décision (facultatif)"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("none");
+                setPromoteNote("");
+              }}
+              disabled={pending}
+              className="inline-flex min-h-9 items-center rounded-lg border border-neutral-700 px-3 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => promoteTarget && onPromote(promoteTarget, promoteNote)}
+              disabled={pending || !promoteTarget}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" />
+              {pending ? "Traitement…" : "Confirmer l'avancement"}
+            </button>
+          </div>
+        </div>
       )}
 
       {(mode === "archive" || mode === "kill") && (

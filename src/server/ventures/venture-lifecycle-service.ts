@@ -22,8 +22,14 @@ import type {
   VentureEditableFields,
   VentureLifecycleActionInput,
   VentureLifecycleOutcome,
+  VenturePromotionInput,
   VentureUpdateInput,
 } from "@/features/ventures/venture-lifecycle-types";
+import {
+  advancementDecisionType,
+  isAdvancementTarget,
+  VENTURE_STATUS_LABELS,
+} from "@/features/ventures/venture-promotion";
 import { getVentureById, getVenturePersistenceMode, updateVenture } from "./venture-repository";
 
 const LOCKED_STATUSES: ReadonlySet<VentureCard["status"]> = new Set(["archived", "killed"]);
@@ -191,4 +197,48 @@ export async function killVenture(
   input: VentureLifecycleActionInput,
 ): Promise<VentureLifecycleOutcome> {
   return recordTerminalDecision(workspaceId, input, "kill", "killed");
+}
+
+/**
+ * Advances a saved venture forward one legal step (CEO-controlled). The target
+ * is validated against the lifecycle advancement guard — an illegal jump (or a
+ * terminal venture) returns `illegal_transition` and nothing is mutated. Records
+ * an audit-only VentureDecision (`promote`/`scale`/`increase_autonomy`) with an
+ * optional note, sets the new status, and persists. Authorizes no execution.
+ */
+export async function promoteVenture(
+  workspaceId: string,
+  input: VenturePromotionInput,
+): Promise<VentureLifecycleOutcome> {
+  const existing = await getVentureById(workspaceId, input.ventureId);
+  if (!existing) return { status: "error", code: "not_found" };
+
+  if (!isAdvancementTarget(existing.status, input.targetStatus)) {
+    return { status: "error", code: "illegal_transition" };
+  }
+
+  const decidedAt = nowIso(input.now);
+  const note = cleanText(input.note);
+  const fromLabel = VENTURE_STATUS_LABELS[existing.status];
+  const toLabel = VENTURE_STATUS_LABELS[input.targetStatus];
+
+  const decision: VentureDecision = {
+    id: generateDecisionId("decision-promote"),
+    type: advancementDecisionType(input.targetStatus),
+    summary: note ?? `Avancement ${fromLabel} → ${toLabel}.`,
+    decidedBy: "ceo",
+    decidedAt,
+    // Audit-only: a promotion records a CEO decision, it executes nothing.
+    noExecutionAuthorized: true,
+    humanOnTheLoop: true,
+  };
+
+  const next: VentureCard = {
+    ...existing,
+    status: input.targetStatus,
+    decisions: [...existing.decisions, decision],
+    updatedAt: decidedAt,
+  };
+
+  return persist(workspaceId, next);
 }

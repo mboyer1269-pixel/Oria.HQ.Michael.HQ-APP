@@ -14,12 +14,14 @@ import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import type {
   VentureLifecycleActionInput,
   VentureLifecycleActionResult,
+  VenturePromotionInput,
   VentureUpdateInput,
 } from "@/features/ventures/venture-lifecycle-types";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import {
   archiveVenture,
   killVenture,
+  promoteVenture,
   updateVentureDetails,
 } from "@/server/ventures/venture-lifecycle-service";
 
@@ -51,4 +53,12 @@ export async function killVentureAction(
   const workspaceId = await resolveOwnerWorkspaceId();
   if (!workspaceId) return { status: "forbidden" };
   return killVenture(workspaceId, input);
+}
+
+export async function promoteVentureAction(
+  input: VenturePromotionInput,
+): Promise<VentureLifecycleActionResult> {
+  const workspaceId = await resolveOwnerWorkspaceId();
+  if (!workspaceId) return { status: "forbidden" };
+  return promoteVenture(workspaceId, input);
 }

@@ -27,14 +27,13 @@ const FORBIDDEN_HISTORICAL_NAMES = [
   "APPAREL",
 ];
 
-// Permanent delete is intentionally absent in PR150.
+// Permanent delete is intentionally absent (PR150/PR151). Promotion IS allowed
+// from PR151 (CEO-controlled advancement) — it is NOT in this forbidden list.
 const FORBIDDEN_EXPORTS = [
   "deleteVenture",
   "hardDeleteVenture",
   "removeVenture",
   "purgeVenture",
-  "promoteVenture",
-  "scaleVenture",
 ];
 
 test("Venture lifecycle service (PR150)", async (t) => {
@@ -47,7 +46,12 @@ test("Venture lifecycle service (PR150)", async (t) => {
   });
 
   const serviceMod = await jiti.import(path.join(__dirname, "venture-lifecycle-service.ts"));
-  const { updateVentureDetails, archiveVenture, killVenture } = serviceMod;
+  const { updateVentureDetails, archiveVenture, killVenture, promoteVenture } = serviceMod;
+
+  const promotionMod = await jiti.import(
+    path.join(projectRoot, "src/features/ventures/venture-promotion.ts"),
+  );
+  const { getPromotableTargets, advancementDecisionType } = promotionMod;
 
   const repoMod = await jiti.import(path.join(__dirname, "venture-repository.ts"));
   const { createVenture, getVentureById, __clearVenturesForTests } = repoMod;
@@ -212,11 +216,96 @@ test("Venture lifecycle service (PR150)", async (t) => {
     );
   });
 
-  await t.test("no permanent-delete / promote / scale export exists", () => {
+  await t.test("no permanent-delete export exists (delete stays out of scope)", () => {
     for (const name of FORBIDDEN_EXPORTS) {
       assert.equal(serviceMod[name], undefined, `lifecycle service must not export "${name}"`);
       assert.equal(repoMod[name], undefined, `repository must not export "${name}"`);
     }
+  });
+
+  await t.test("getPromotableTargets returns only legal forward steps", () => {
+    assert.deepEqual(getPromotableTargets("candidate"), ["scored"]);
+    assert.deepEqual(getPromotableTargets("operating"), ["autonomous", "scaling"]);
+    assert.deepEqual(getPromotableTargets("archived"), []);
+    assert.deepEqual(getPromotableTargets("killed"), []);
+  });
+
+  await t.test("advancementDecisionType maps targets to audit decision types", () => {
+    assert.equal(advancementDecisionType("scored"), "promote");
+    assert.equal(advancementDecisionType("autonomous"), "increase_autonomy");
+    assert.equal(advancementDecisionType("scaling"), "scale");
+  });
+
+  await t.test("promote advances one legal step and records an audit decision", async () => {
+    const card = await seed("ws1");
+    const result = await promoteVenture("ws1", {
+      ventureId: card.id,
+      targetStatus: "scored",
+      now: "2026-06-02T00:00:00.000Z",
+    });
+    assert.equal(result.status, "saved");
+    assert.equal(result.card.status, "scored");
+    assert.equal(result.card.decisions.length, 1);
+    const decision = result.card.decisions[0];
+    assert.equal(decision.type, "promote");
+    assert.equal(decision.decidedBy, "ceo");
+    assert.equal(decision.humanOnTheLoop, true);
+    assert.equal(decision.noExecutionAuthorized, true);
+  });
+
+  await t.test("promote uses the provided note as the decision summary", async () => {
+    const card = await seed("ws1");
+    const result = await promoteVenture("ws1", {
+      ventureId: card.id,
+      targetStatus: "scored",
+      note: "Signal d'intérêt clair sur 3 entretiens.",
+    });
+    assert.equal(result.card.decisions[0].summary, "Signal d'intérêt clair sur 3 entretiens.");
+  });
+
+  await t.test("promote rejects an illegal (non-adjacent) transition", async () => {
+    const card = await seed("ws1");
+    const result = await promoteVenture("ws1", { ventureId: card.id, targetStatus: "operating" });
+    assert.equal(result.status, "error");
+    assert.equal(result.code, "illegal_transition");
+    // Unchanged.
+    assert.equal((await getVentureById("ws1", card.id)).status, "candidate");
+  });
+
+  await t.test("promote refuses a terminal venture", async () => {
+    const card = await seed("ws1");
+    await killVenture("ws1", { ventureId: card.id, reason: "Stop." });
+    const result = await promoteVenture("ws1", { ventureId: card.id, targetStatus: "scored" });
+    assert.equal(result.status, "error");
+    assert.equal(result.code, "illegal_transition");
+  });
+
+  await t.test("promote can walk the full ladder; scaling records a scale decision", async () => {
+    const card = await seed("ws1");
+    const ladder = [
+      "scored",
+      "shortlisted",
+      "approved_for_validation",
+      "validating",
+      "operating",
+      "scaling",
+    ];
+    let last;
+    for (const target of ladder) {
+      last = await promoteVenture("ws1", { ventureId: card.id, targetStatus: target });
+      assert.equal(last.status, "saved", `step to ${target} should persist`);
+      assert.equal(last.card.status, target);
+    }
+    assert.equal(last.card.decisions.length, ladder.length);
+    assert.equal(last.card.decisions.at(-1).type, "scale");
+  });
+
+  await t.test("promote is workspace-isolated", async () => {
+    const card = await seed("ws1");
+    assert.equal(
+      (await promoteVenture("ws2", { ventureId: card.id, targetStatus: "scored" })).code,
+      "not_found",
+    );
   });
 
   await t.test("no historical venture names in lifecycle output", async () => {
