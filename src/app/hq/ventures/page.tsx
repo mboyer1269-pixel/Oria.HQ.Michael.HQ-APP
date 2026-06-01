@@ -10,6 +10,11 @@ import {
 } from "@/features/ventures/lifecycle";
 import { ventureSeedCards } from "@/features/ventures/seed";
 import type { VentureCard } from "@/features/ventures/types";
+import {
+  archiveVentureAction,
+  killVentureAction,
+  updateVentureDetailsAction,
+} from "@/features/ventures/venture-lifecycle-action";
 import { saveVentureDraftAction } from "@/features/ventures/venture-save-action";
 import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
 import { requireOwnerAccess } from "@/server/auth/owner";
@@ -87,6 +92,9 @@ export default async function VenturesPage() {
         savedStorageMode={savedStorageMode}
         loadError={loadError}
         onSaveDraft={saveVentureDraftAction}
+        onUpdateDetails={updateVentureDetailsAction}
+        onArchive={archiveVentureAction}
+        onKill={killVentureAction}
       />
 
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">

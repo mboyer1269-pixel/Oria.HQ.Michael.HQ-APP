@@ -1,9 +1,16 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { AlertTriangle, CheckCircle2, FlaskConical, Plus } from "lucide-react";
+import { AlertTriangle, Archive, CheckCircle2, FlaskConical, Plus, Skull } from "lucide-react";
 import type { LocalDraftVentureInput } from "../draft";
 import type { VentureCard as VentureCardType } from "../types";
+import type {
+  VentureEditableFields,
+  VentureLifecycleActionInput,
+  VentureLifecycleActionResult,
+  VentureLifecycleErrorCode,
+  VentureUpdateInput,
+} from "../venture-lifecycle-types";
 import type {
   SaveVentureDraftActionResult,
   VenturePersistenceMode,
@@ -11,6 +18,7 @@ import type {
 import { VentureCard } from "./venture-card";
 import { VentureDetailPanel } from "./venture-detail-panel";
 import { VentureIntakeForm } from "./venture-intake-form";
+import { VentureLifecycleActions } from "./venture-lifecycle-actions";
 
 type StatusTone = "saved" | "local" | "demo" | "error";
 
@@ -23,6 +31,8 @@ type DisplayCard =
   | { kind: "demo"; card: VentureCardType }
   | { kind: "failed"; card: VentureCardType };
 
+const LOCKED_STATUSES = new Set(["archived", "killed"]);
+
 function storageModeLabel(mode: VenturePersistenceMode | null): string {
   switch (mode) {
     case "supabase":
@@ -30,13 +40,33 @@ function storageModeLabel(mode: VenturePersistenceMode | null): string {
     case "local":
       return "Fallback local de développement";
     default:
-      // Unknown/unavailable mode: stay neutral, never claim a backend.
       return "Sauvegardée via repository";
+  }
+}
+
+function lifecycleErrorMessage(code: VentureLifecycleErrorCode): string {
+  switch (code) {
+    case "not_found":
+      return "Venture introuvable dans ce workspace — rien n'a été modifié.";
+    case "invalid_reason":
+      return "Une raison non vide est obligatoire pour archiver ou tuer.";
+    case "no_changes":
+      return "Aucune modification détectée.";
+    case "not_editable":
+      return "Venture en statut terminal : édition indisponible.";
+    default:
+      return "Erreur de sauvegarde — la modification n'est pas persistée.";
   }
 }
 
 function badgeForDisplayCard(display: DisplayCard): StatusBadge {
   if (display.kind === "saved") {
+    if (display.card.status === "archived") {
+      return { label: "Archivée — historique conservé", tone: "demo" };
+    }
+    if (display.card.status === "killed") {
+      return { label: "Tuée — décision business", tone: "error" };
+    }
     const tone: StatusTone = display.storageMode === "supabase" ? "saved" : "local";
     return { label: `Candidate sauvegardée · ${storageModeLabel(display.storageMode)}`, tone };
   }
@@ -59,27 +89,29 @@ export function VentureCommandCenterClient({
   savedStorageMode,
   loadError = false,
   onSaveDraft,
+  onUpdateDetails,
+  onArchive,
+  onKill,
 }: {
   seedCards: VentureCardType[];
   savedVentures: VentureCardType[];
   savedStorageMode: VenturePersistenceMode | null;
   loadError?: boolean;
   onSaveDraft: (input: LocalDraftVentureInput) => Promise<SaveVentureDraftActionResult>;
+  onUpdateDetails: (input: VentureUpdateInput) => Promise<VentureLifecycleActionResult>;
+  onArchive: (input: VentureLifecycleActionInput) => Promise<VentureLifecycleActionResult>;
+  onKill: (input: VentureLifecycleActionInput) => Promise<VentureLifecycleActionResult>;
 }) {
-  // Ventures persisted through the repository (loaded + newly saved this session).
   const [savedCards, setSavedCards] = useState<
     Array<{ card: VentureCardType; storageMode: VenturePersistenceMode | null }>
   >(() => savedVentures.map((card) => ({ card, storageMode: savedStorageMode })));
-  // Drafts whose save FAILED — kept visible but never treated as persisted.
   const [failedCards, setFailedCards] = useState<VentureCardType[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [banner, setBanner] = useState<StatusBadge | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Demo seed cards are shown ONLY when there is nothing real to show: no saved
-  // ventures and no load error. They are always labelled as examples, never as
-  // saved ventures.
   const showDemo = savedCards.length === 0 && !loadError;
 
   const displayCards: DisplayCard[] = useMemo(() => {
@@ -97,8 +129,14 @@ export function VentureCommandCenterClient({
 
   const selected = displayCards.find((d) => d.card.id === selectedCardId) ?? null;
 
+  function selectCard(id: string) {
+    setSelectedCardId(id);
+    setLifecycleError(null);
+  }
+
   function handleCreate(input: LocalDraftVentureInput) {
     setBanner(null);
+    setLifecycleError(null);
     startTransition(async () => {
       const result = await onSaveDraft(input);
 
@@ -115,7 +153,6 @@ export function VentureCommandCenterClient({
       }
 
       if (result.status === "error") {
-        // Do NOT mark as saved. Keep the draft visible, clearly unsaved.
         setFailedCards((prev) => [result.card, ...prev]);
         setSelectedCardId(result.card.id);
         setIsFormOpen(false);
@@ -126,9 +163,84 @@ export function VentureCommandCenterClient({
         return;
       }
 
-      // forbidden — should not happen on the owner-gated surface.
       setBanner({ label: "Accès refusé : sauvegarde non autorisée.", tone: "error" });
     });
+  }
+
+  // Runs a lifecycle server action and reconciles client state with the result.
+  function runLifecycle(action: () => Promise<VentureLifecycleActionResult>, successLabel: string) {
+    setLifecycleError(null);
+    setBanner(null);
+    startTransition(async () => {
+      const result = await action();
+
+      if (result.status === "saved") {
+        setSavedCards((prev) =>
+          prev.map((entry) =>
+            entry.card.id === result.card.id
+              ? { card: result.card, storageMode: result.storageMode }
+              : entry,
+          ),
+        );
+        setSelectedCardId(result.card.id);
+        setBanner({
+          label: `${successLabel} · ${storageModeLabel(result.storageMode)}`,
+          tone: result.storageMode === "supabase" ? "saved" : "local",
+        });
+        return;
+      }
+
+      if (result.status === "forbidden") {
+        setLifecycleError("Accès refusé : action non autorisée.");
+        return;
+      }
+
+      // Failure: never pretend success. Surface a clear error, leave card as-is.
+      setLifecycleError(lifecycleErrorMessage(result.code));
+    });
+  }
+
+  function handleEdit(card: VentureCardType, fields: VentureEditableFields) {
+    runLifecycle(() => onUpdateDetails({ ventureId: card.id, fields }), "Détails mis à jour");
+  }
+  function handleArchive(card: VentureCardType, reason: string) {
+    runLifecycle(() => onArchive({ ventureId: card.id, reason }), "Venture archivée");
+  }
+  function handleKill(card: VentureCardType, reason: string) {
+    runLifecycle(() => onKill({ ventureId: card.id, reason }), "Venture tuée");
+  }
+
+  function renderActions(display: DisplayCard) {
+    const card = display.card;
+    if (display.kind !== "saved") {
+      return (
+        <VentureLifecycleActions
+          key={card.id}
+          card={card}
+          canManage={false}
+          disabledReason={display.kind === "failed" ? "unsaved" : "demo"}
+          isLocked={false}
+          pending={isPending}
+          error={null}
+          onEdit={() => {}}
+          onArchive={() => {}}
+          onKill={() => {}}
+        />
+      );
+    }
+    return (
+      <VentureLifecycleActions
+        key={card.id}
+        card={card}
+        canManage
+        isLocked={LOCKED_STATUSES.has(card.status)}
+        pending={isPending}
+        error={lifecycleError}
+        onEdit={(fields) => handleEdit(card, fields)}
+        onArchive={(reason) => handleArchive(card, reason)}
+        onKill={(reason) => handleKill(card, reason)}
+      />
+    );
   }
 
   return (
@@ -207,6 +319,10 @@ export function VentureCommandCenterClient({
                     <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
                   ) : display.kind === "failed" ? (
                     <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : display.card.status === "archived" ? (
+                    <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : display.card.status === "killed" ? (
+                    <Skull className="h-3.5 w-3.5" aria-hidden="true" />
                   ) : (
                     <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                   )}
@@ -214,7 +330,7 @@ export function VentureCommandCenterClient({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setSelectedCardId(display.card.id)}
+                  onClick={() => selectCard(display.card.id)}
                   aria-pressed={isSelected}
                   className={`flex h-full rounded-2xl text-left transition focus:outline-none ${
                     isSelected
@@ -234,6 +350,7 @@ export function VentureCommandCenterClient({
             <VentureDetailPanel
               card={selected.card}
               statusBadge={badgeForDisplayCard(selected)}
+              actions={renderActions(selected)}
             />
           ) : (
             <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-neutral-800 bg-neutral-950/40 p-6 text-center">
@@ -241,8 +358,8 @@ export function VentureCommandCenterClient({
                 Sélectionne une carte pour voir le détail
               </p>
               <p className="text-xs leading-5 text-neutral-500">
-                Vue en lecture seule. Utilise « Nouvelle venture » pour créer une candidate et la
-                sauvegarder via le repository.
+                Crée une candidate via « Nouvelle venture », puis édite, archive ou tue une venture
+                sauvegardée depuis son panneau de détail.
               </p>
             </div>
           )}
