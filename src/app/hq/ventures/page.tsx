@@ -8,6 +8,7 @@ import {
   getDefaultVisibleCandidateLimit,
 } from "@/features/ventures/lifecycle";
 import { ventureSeedCards } from "@/features/ventures/seed";
+import { ventureSuggestionSeed } from "@/features/ventures/suggestion-seed";
 import type { VentureCard } from "@/features/ventures/types";
 import {
   archiveVentureAction,
@@ -87,6 +88,7 @@ export default async function VenturesPage() {
 
       <VentureCommandCenterClient
         seedCards={ventureSeedCards}
+        suggestions={ventureSuggestionSeed}
         savedVentures={savedVentures}
         savedStorageMode={savedStorageMode}
         loadError={loadError}
