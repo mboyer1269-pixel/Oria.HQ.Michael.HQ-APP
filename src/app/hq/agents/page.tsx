@@ -1,8 +1,11 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
+import { buildAgentAutonomyCockpit } from "@/features/agents/agent-autonomy-cockpit";
+import { AgentAutonomyPolicyPanel } from "@/features/agents/components/agent-autonomy-policy-panel";
 import { AgentCard } from "@/features/agents/components/agent-card";
 import { AgentSkillPanel } from "@/features/agents/components/agent-skill-panel";
+import { getDefaultAgentAutonomyPolicy } from "@/features/agents/autonomy-policy";
 import { agentRegistry } from "@/features/agents/seed";
 import { validateAgentSkillMapping } from "@/features/agents/skill-mapping";
 import { skillsCatalog } from "@/features/skills/seed";
@@ -24,6 +27,11 @@ export default async function AgentsPage() {
   const planned = agentRegistry.filter((a) => a.status === "planned");
 
   const mappingReport = validateAgentSkillMapping(agentRegistry, skillsCatalog);
+  const autonomyCockpit = buildAgentAutonomyCockpit({
+    agents: agentRegistry,
+    skills: skillsCatalog,
+    policy: getDefaultAgentAutonomyPolicy(),
+  });
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-8 md:py-10">
@@ -73,6 +81,8 @@ export default async function AgentsPage() {
           </div>
         </aside>
       </header>
+
+      <AgentAutonomyPolicyPanel model={autonomyCockpit} />
 
       {[
         { label: "Actifs", agents: active, accent: "text-emerald-400" },
