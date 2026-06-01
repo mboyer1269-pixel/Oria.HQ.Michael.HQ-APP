@@ -3,6 +3,7 @@ import { buildCockpitReviewSignal } from "@/features/agents/agent-review-cockpit
 import { getDefaultAgentAutonomyPolicy } from "@/features/agents/autonomy-policy";
 import { agentRegistry } from "@/features/agents/seed";
 import { skillsCatalog } from "@/features/skills/seed";
+import { AgentApprovalPreviewPanel } from "@/features/cockpit/components/agent-approval-preview-panel";
 import { CockpitOverview } from "@/features/cockpit/components/cockpit-overview";
 import { CockpitReviewQueue } from "@/features/cockpit/components/cockpit-review-queue";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 // createdAt is pinned so the pure review-queue builders render the server
 // component deterministically (no Date.now() inside the builders).
 const COCKPIT_CREATED_AT = "2026-06-01T00:00:00.000Z";
+const COCKPIT_APPROVAL_EVENT_EXPIRES_AT = "2026-06-08T00:00:00.000Z";
 
 export default async function CockpitPage() {
   const access = await requireOwnerAccess("/hq/cockpit");
@@ -25,11 +27,12 @@ export default async function CockpitPage() {
   }
 
   // Real local signal: run the governance chain over the agent registry.
-  const { reviewQueue, attention } = buildCockpitReviewSignal({
+  const { reviewQueue, attention, approvalPreview } = buildCockpitReviewSignal({
     agents: agentRegistry,
     skills: skillsCatalog,
     policy: getDefaultAgentAutonomyPolicy(),
     createdAt: COCKPIT_CREATED_AT,
+    approvalEventExpiresAt: COCKPIT_APPROVAL_EVENT_EXPIRES_AT,
   });
 
   const agentCounts = {
@@ -53,6 +56,8 @@ export default async function CockpitPage() {
       <CockpitOverview attention={attention} agents={agentCounts} />
 
       <ControlChain />
+
+      <AgentApprovalPreviewPanel preview={approvalPreview} />
 
       <CockpitReviewQueue queue={reviewQueue} />
 

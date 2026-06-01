@@ -1,6 +1,14 @@
 import { buildAgentAutonomyCockpit } from "./agent-autonomy-cockpit";
 import { buildAgentKnowledgePackCatalog } from "./agent-knowledge-packs";
 import {
+  buildAgentReviewApprovalEvent,
+  type AgentReviewApprovalEvent,
+} from "./agent-review-approval-event";
+import {
+  buildAgentReviewApprovalPacket,
+  type AgentReviewApprovalPacket,
+} from "./agent-review-approval-packet";
+import {
   buildAgentQualityEvaluation,
   type AgentQualityEvaluationModel,
 } from "./agent-quality-evaluation";
@@ -38,9 +46,30 @@ export interface CockpitReviewAttention {
   topItems: AgentReviewQueueItem[];
 }
 
+export interface CockpitApprovalPreviewItem {
+  queueItem: AgentReviewQueueItem;
+  packet: AgentReviewApprovalPacket;
+  approvalEventPreview: AgentReviewApprovalEvent;
+  previewStatus: "read_only_preview";
+  futureLedgerRequired: true;
+  runtimeBlocked: true;
+}
+
+export interface CockpitApprovalPreview {
+  totalPreviewed: number;
+  items: CockpitApprovalPreviewItem[];
+  approvalRequired: true;
+  humanOnTheLoop: true;
+  noAutoApproval: true;
+  approvalEventOnly: true;
+  ledgerRequiredBeforeExecution: true;
+  noRuntimeExecutionAuthorized: true;
+}
+
 export interface CockpitReviewSignal {
   reviewQueue: AgentReviewQueue;
   attention: CockpitReviewAttention;
+  approvalPreview: CockpitApprovalPreview;
 }
 
 export interface ReviewQueueFromQualityInput {
@@ -100,9 +129,68 @@ function summarizeAttention(queue: AgentReviewQueue): CockpitReviewAttention {
   };
 }
 
+export interface BuildCockpitApprovalPreviewInput {
+  reviewQueue: AgentReviewQueue;
+  /** ISO timestamp. Caller-provided — keeps the pure builders deterministic. */
+  createdAt: string;
+  /** ISO timestamp. Caller-provided; approved event previews require expiry. */
+  approvalEventExpiresAt: string;
+}
+
+export function buildCockpitApprovalPreview(
+  input: BuildCockpitApprovalPreviewInput,
+): CockpitApprovalPreview {
+  const items = input.reviewQueue.items.slice(0, 2).map((queueItem) => {
+    const packet = buildAgentReviewApprovalPacket({
+      queueItem,
+      createdAt: input.createdAt,
+      expiresAt: input.approvalEventExpiresAt,
+    });
+    const approvalEventPreview = buildAgentReviewApprovalEvent({
+      packet,
+      reviewerId: "preview-ceo",
+      reviewerRole: "ceo",
+      decision: "approved",
+      decisionRationale: [
+        "Read-only human decision preview; no ledger write or runtime execution is authorized.",
+      ],
+      createdAt: input.createdAt,
+      expiresAt: input.approvalEventExpiresAt,
+      constraints: [
+        {
+          id: "preview-only",
+          description: "Preview only; future execution requires a separate ledgered action.",
+        },
+      ],
+    });
+
+    return {
+      queueItem,
+      packet,
+      approvalEventPreview,
+      previewStatus: "read_only_preview" as const,
+      futureLedgerRequired: true as const,
+      runtimeBlocked: true as const,
+    };
+  });
+
+  return {
+    totalPreviewed: items.length,
+    items,
+    approvalRequired: true,
+    humanOnTheLoop: true,
+    noAutoApproval: true,
+    approvalEventOnly: true,
+    ledgerRequiredBeforeExecution: true,
+    noRuntimeExecutionAuthorized: true,
+  };
+}
+
 export interface BuildCockpitReviewSignalInput extends AutonomyChainInput {
   /** ISO timestamp. Caller-provided — keeps the pure builders deterministic. */
   createdAt: string;
+  /** ISO timestamp. Caller-provided; approved event previews require expiry. */
+  approvalEventExpiresAt: string;
 }
 
 /**
@@ -113,7 +201,7 @@ export interface BuildCockpitReviewSignalInput extends AutonomyChainInput {
 export function buildCockpitReviewSignal(
   input: BuildCockpitReviewSignalInput,
 ): CockpitReviewSignal {
-  const { agents, skills, policy, createdAt } = input;
+  const { agents, skills, policy, createdAt, approvalEventExpiresAt } = input;
 
   const autonomyCockpit = buildAgentAutonomyCockpit({ agents, skills, policy });
   const knowledgeCatalog = buildAgentKnowledgePackCatalog({ agents, skills });
@@ -123,6 +211,11 @@ export function buildCockpitReviewSignal(
   });
 
   const reviewQueue = reviewQueueFromQualityEvaluation({ qualityEvaluation, createdAt });
+  const approvalPreview = buildCockpitApprovalPreview({
+    reviewQueue,
+    createdAt,
+    approvalEventExpiresAt,
+  });
 
-  return { reviewQueue, attention: summarizeAttention(reviewQueue) };
+  return { reviewQueue, attention: summarizeAttention(reviewQueue), approvalPreview };
 }
