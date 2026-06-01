@@ -8,6 +8,7 @@ import { CockpitOverview } from "@/features/cockpit/components/cockpit-overview"
 import { CockpitReviewQueue } from "@/features/cockpit/components/cockpit-review-queue";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { ControlChain } from "@/features/cockpit/components/control-chain";
+import { MorningReadinessPanel } from "@/features/cockpit/components/morning-readiness-panel";
 import { VentureSuggestions } from "@/features/cockpit/components/venture-suggestions";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { requireOwnerAccess } from "@/server/auth/owner";
@@ -54,6 +55,8 @@ export default async function CockpitPage() {
       </div>
 
       <CockpitOverview attention={attention} agents={agentCounts} />
+
+      <MorningReadinessPanel attention={attention} approvalPreview={approvalPreview} />
 
       <ControlChain />
 
