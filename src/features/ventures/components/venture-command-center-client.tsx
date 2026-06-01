@@ -27,6 +27,8 @@ import { VentureDetailPanel } from "./venture-detail-panel";
 import { VentureIntakeForm } from "./venture-intake-form";
 import { VentureLifecycleActions } from "./venture-lifecycle-actions";
 import { VentureSummaryPanel } from "./venture-summary-panel";
+import { VentureSuggestionInbox } from "./venture-suggestion-inbox";
+import type { VentureCandidateSuggestion } from "../venture-suggestions";
 
 type StatusTone = "saved" | "local" | "demo" | "error";
 
@@ -97,6 +99,7 @@ const TONE_BADGE_CLASS: Record<StatusTone, string> = {
 
 export function VentureCommandCenterClient({
   seedCards,
+  suggestions,
   savedVentures,
   savedStorageMode,
   loadError = false,
@@ -108,6 +111,7 @@ export function VentureCommandCenterClient({
   onScore,
 }: {
   seedCards: VentureCardType[];
+  suggestions: VentureCandidateSuggestion[];
   savedVentures: VentureCardType[];
   savedStorageMode: VenturePersistenceMode | null;
   loadError?: boolean;
@@ -297,6 +301,7 @@ export function VentureCommandCenterClient({
     <section className="flex flex-col gap-4">
       <VentureSummaryPanel cockpit={cockpit} />
       <VentureDecisionQueue items={cockpit.decisionQueue} />
+      <VentureSuggestionInbox suggestions={suggestions} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
