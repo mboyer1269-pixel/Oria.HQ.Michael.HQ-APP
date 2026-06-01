@@ -3,9 +3,11 @@ import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { buildAgentAutonomyCockpit } from "@/features/agents/agent-autonomy-cockpit";
 import { buildAgentKnowledgePackCatalog } from "@/features/agents/agent-knowledge-packs";
+import { buildAgentQualityEvaluation } from "@/features/agents/agent-quality-evaluation";
 import { AgentAutonomyPolicyPanel } from "@/features/agents/components/agent-autonomy-policy-panel";
 import { AgentCard } from "@/features/agents/components/agent-card";
 import { AgentKnowledgePackPanel } from "@/features/agents/components/agent-knowledge-pack-panel";
+import { AgentQualityEvaluationPanel } from "@/features/agents/components/agent-quality-evaluation-panel";
 import { AgentSkillPanel } from "@/features/agents/components/agent-skill-panel";
 import { getDefaultAgentAutonomyPolicy } from "@/features/agents/autonomy-policy";
 import { agentRegistry } from "@/features/agents/seed";
@@ -37,6 +39,10 @@ export default async function AgentsPage() {
   const knowledgePackCatalog = buildAgentKnowledgePackCatalog({
     agents: agentRegistry,
     skills: skillsCatalog,
+  });
+  const qualityEvaluation = buildAgentQualityEvaluation({
+    knowledgeCatalog: knowledgePackCatalog,
+    autonomyCockpit,
   });
 
   return (
@@ -91,6 +97,8 @@ export default async function AgentsPage() {
       <AgentAutonomyPolicyPanel model={autonomyCockpit} />
 
       <AgentKnowledgePackPanel catalog={knowledgePackCatalog} />
+
+      <AgentQualityEvaluationPanel model={qualityEvaluation} />
 
       {[
         { label: "Actifs", agents: active, accent: "text-emerald-400" },
