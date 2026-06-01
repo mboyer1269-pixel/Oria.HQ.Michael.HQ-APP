@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowLeft, Eye, Rocket } from "lucide-react";
 import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { VentureCommandCenterClient } from "@/features/ventures/components/venture-command-center-client";
-import { VentureSummaryPanel } from "@/features/ventures/components/venture-summary-panel";
 import {
   getDefaultActiveValidationSlotLimit,
   getDefaultVisibleCandidateLimit,
@@ -85,8 +84,6 @@ export default async function VenturesPage() {
           </p>
         </aside>
       </header>
-
-      <VentureSummaryPanel cards={ventureSeedCards} />
 
       <VentureCommandCenterClient
         seedCards={ventureSeedCards}

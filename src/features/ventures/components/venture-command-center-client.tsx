@@ -15,15 +15,18 @@ import type {
   VentureUpdateInput,
 } from "../venture-lifecycle-types";
 import { getPromotableTargets } from "../venture-promotion";
+import { buildVentureCockpit } from "../venture-cockpit";
 import type { VentureScoreRecommendation, VentureSubScores } from "../venture-scoring";
 import type {
   SaveVentureDraftActionResult,
   VenturePersistenceMode,
 } from "../venture-save-types";
+import { VentureDecisionQueue } from "./venture-decision-queue";
 import { VentureCard } from "./venture-card";
 import { VentureDetailPanel } from "./venture-detail-panel";
 import { VentureIntakeForm } from "./venture-intake-form";
 import { VentureLifecycleActions } from "./venture-lifecycle-actions";
+import { VentureSummaryPanel } from "./venture-summary-panel";
 
 type StatusTone = "saved" | "local" | "demo" | "error";
 
@@ -139,6 +142,14 @@ export function VentureCommandCenterClient({
       : [];
     return [...failed, ...saved, ...demo];
   }, [failedCards, savedCards, seedCards, showDemo]);
+  const cockpit = useMemo(
+    () =>
+      buildVentureCockpit({
+        savedCards: savedCards.map(({ card }) => card),
+        demoCards: showDemo ? seedCards : [],
+      }),
+    [savedCards, seedCards, showDemo],
+  );
 
   const selected = displayCards.find((d) => d.card.id === selectedCardId) ?? null;
 
@@ -284,6 +295,9 @@ export function VentureCommandCenterClient({
 
   return (
     <section className="flex flex-col gap-4">
+      <VentureSummaryPanel cockpit={cockpit} />
+      <VentureDecisionQueue items={cockpit.decisionQueue} />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
