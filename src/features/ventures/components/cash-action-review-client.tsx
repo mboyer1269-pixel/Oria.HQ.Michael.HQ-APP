@@ -4,13 +4,14 @@
 //
 // The agent prepares a concrete cash move (CashActionPacket); Michael reviews
 // it, approves it for MANUAL action (he performs the outreach himself), then
-// records the signal that came back. The system converts that signal into a
-// local CashSignalIntake and reads the proof.
+// records the signal that came back. The signal is persisted (owner-gated
+// server action → append-only repository) and the proof is read.
 //
 // Non-negotiable, enforced by construction:
 //   - No automatic send. The "Approved" button only reveals the draft to copy.
-//   - No live Stripe. No database. No external action. No server action.
-//   - All state is local to this browser session (useState only).
+//   - No live Stripe. No webhook. No external action. No runtime dispatch.
+//   - Persistence is append-only proof capture, owner/workspace-scoped. Strict
+//     accounting: only a verified financial signal can carry real cash.
 
 import { useState } from "react";
 import {
@@ -18,20 +19,30 @@ import {
   Ban,
   CheckCircle2,
   ClipboardCopy,
+  Database,
   Eye,
+  HardDriveDownload,
   Lock,
   TriangleAlert,
 } from "lucide-react";
 import type { CashActionPacket, CashSignalType } from "../cash-action-packet";
 import { CASH_SIGNAL_TYPES } from "../cash-action-packet";
 import type { CashSignalIntake } from "../cash-signal-intake";
-import { buildCashSignalIntake, validateCashSignalIntake } from "../cash-signal-intake";
+import type {
+  CashSignalIntakeRawInput,
+  SaveCashSignalIntakeAction,
+} from "../cash-signal-intake-persistence-types";
 import type { CapturedSignalSummary, CashActionDecision } from "../cash-action-review";
 import { summarizeCapturedSignal } from "../cash-action-review";
+import type { VenturePersistenceMode } from "../venture-save-types";
 
 type CashActionReviewClientProps = {
   packets: CashActionPacket[];
   generatedAt: string;
+  savedIntakes: CashSignalIntake[];
+  storageMode: VenturePersistenceMode;
+  loadError: boolean;
+  onSave: SaveCashSignalIntakeAction;
 };
 
 type SignalFormState = {
@@ -43,7 +54,7 @@ type SignalFormState = {
 };
 
 type CaptureResult =
-  | { ok: true; intake: CashSignalIntake; summary: CapturedSignalSummary }
+  | { ok: true; summary: CapturedSignalSummary; storageMode: VenturePersistenceMode }
   | { ok: false; errors: string[] };
 
 const SIGNAL_LABELS: Record<CashSignalType, string> = {
@@ -61,6 +72,12 @@ const CLASS_STYLES: Record<CapturedSignalSummary["classification"], string> = {
   exploration: "border-violet-500/30 bg-violet-500/10 text-violet-300",
 };
 
+const STORAGE_LABELS: Record<VenturePersistenceMode, string> = {
+  supabase: "Durable (Supabase)",
+  local: "Local session (dev fallback)",
+  unavailable: "Persistence unavailable",
+};
+
 function formatCents(cents: number): string {
   return `$${Math.round(cents / 100).toLocaleString("en-US")}`;
 }
@@ -75,24 +92,38 @@ function defaultForm(packet: CashActionPacket): SignalFormState {
   };
 }
 
-export function CashActionReviewClient({ packets, generatedAt }: CashActionReviewClientProps) {
+export function CashActionReviewClient({
+  packets,
+  generatedAt,
+  savedIntakes,
+  storageMode,
+  loadError,
+  onSave,
+}: CashActionReviewClientProps) {
   const [decisions, setDecisions] = useState<Record<string, CashActionDecision>>({});
   const [forms, setForms] = useState<Record<string, SignalFormState>>({});
   const [results, setResults] = useState<Record<string, CaptureResult>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Group previously-captured (persisted) proof by packet, most-recent first
+  // as returned by the repository.
+  const savedByPacket = new Map<string, CashSignalIntake[]>();
+  for (const intake of savedIntakes) {
+    const list = savedByPacket.get(intake.packetId) ?? [];
+    list.push(intake);
+    savedByPacket.set(intake.packetId, list);
+  }
 
   function decisionOf(packetId: string): CashActionDecision {
     return decisions[packetId] ?? "pending";
   }
-
   function formOf(packet: CashActionPacket): SignalFormState {
     return forms[packet.packetId] ?? defaultForm(packet);
   }
-
   function setDecision(packetId: string, decision: CashActionDecision) {
     setDecisions((prev) => ({ ...prev, [packetId]: decision }));
   }
-
   function patchForm(packetId: string, patch: Partial<SignalFormState>, packet: CashActionPacket) {
     setForms((prev) => ({ ...prev, [packetId]: { ...formOf(packet), ...patch } }));
   }
@@ -107,14 +138,14 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
     }
   }
 
-  // Convert the locally-entered signal into a CashSignalIntake and read the
-  // proof. Pure and local — nothing leaves this browser.
-  function recordSignal(packet: CashActionPacket) {
+  // Persist the locally-entered signal via the owner-gated server action. The
+  // server rebuilds, re-validates, and appends it — nothing executes.
+  async function recordSignal(packet: CashActionPacket) {
     const form = formOf(packet);
     const trimmedAmount = form.amountText.trim();
     const amountCents = trimmedAmount === "" ? undefined : Number(trimmedAmount);
 
-    const input = {
+    const input: CashSignalIntakeRawInput = {
       signalId: `signal:${packet.packetId}`,
       packetId: packet.packetId,
       ventureId: packet.ventureId,
@@ -123,21 +154,33 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
       referenceId: form.referenceId.trim(),
       isVerified: form.isVerified,
       summary: form.summary.trim(),
-      // The capture happens at click time — a real moment, not a pure render.
       capturedAt: new Date().toISOString(),
       ...(amountCents !== undefined ? { amountCents } : {}),
     };
 
-    const intake = buildCashSignalIntake(input);
-    const validation = validateCashSignalIntake(intake);
-    if (!validation.valid) {
-      setResults((prev) => ({ ...prev, [packet.packetId]: { ok: false, errors: validation.errors } }));
-      return;
+    setSaving((prev) => ({ ...prev, [packet.packetId]: true }));
+    try {
+      const result = await onSave(input);
+      if (result.status === "saved") {
+        setResults((prev) => ({
+          ...prev,
+          [packet.packetId]: {
+            ok: true,
+            summary: summarizeCapturedSignal(result.intake),
+            storageMode: result.storageMode,
+          },
+        }));
+      } else if (result.status === "error") {
+        setResults((prev) => ({ ...prev, [packet.packetId]: { ok: false, errors: result.errors } }));
+      } else {
+        setResults((prev) => ({
+          ...prev,
+          [packet.packetId]: { ok: false, errors: ["Owner access refused."] },
+        }));
+      }
+    } finally {
+      setSaving((prev) => ({ ...prev, [packet.packetId]: false }));
     }
-    setResults((prev) => ({
-      ...prev,
-      [packet.packetId]: { ok: true, intake, summary: summarizeCapturedSignal(intake) },
-    }));
   }
 
   return (
@@ -145,25 +188,50 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
         <Lock className="h-3.5 w-3.5" aria-hidden="true" />
         <span className="font-medium">
-          Aucun envoi automatique · aucun Stripe live · aucune DB · tout reste local à cette session.
+          Aucun envoi automatique · aucun Stripe live · aucun webhook · aucune action externe. Capture de preuve uniquement.
         </span>
       </div>
 
-      <p className="text-[11px] text-neutral-500">
-        {packets.length} packet{packets.length > 1 ? "s" : ""} préparé{packets.length > 1 ? "s" : ""} par les agents · généré {generatedAt}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500">
+        <span>
+          {packets.length} packet{packets.length > 1 ? "s" : ""} préparé{packets.length > 1 ? "s" : ""} par les agents · généré {generatedAt}
+        </span>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium ${
+            storageMode === "supabase"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : storageMode === "local"
+                ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
+                : "border-red-500/30 bg-red-500/10 text-red-300"
+          }`}
+        >
+          {storageMode === "supabase" ? (
+            <Database className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <HardDriveDownload className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          {STORAGE_LABELS[storageMode]}
+        </span>
+      </div>
+
+      {loadError && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+          Captured proof could not be loaded. Newly recorded signals may still save.
+        </div>
+      )}
 
       {packets.map((packet) => {
         const decision = decisionOf(packet.packetId);
         const form = formOf(packet);
         const result = results[packet.packetId];
+        const isSaving = saving[packet.packetId] === true;
+        const priorProof = savedByPacket.get(packet.packetId) ?? [];
 
         return (
           <article
             key={packet.packetId}
             className="flex flex-col gap-4 rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5"
           >
-            {/* Header: buyer + decision state */}
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-white">{packet.targetBuyer}</h3>
@@ -188,7 +256,6 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
               </span>
             </div>
 
-            {/* Pain / offer / CTA */}
             <dl className="grid gap-3 sm:grid-cols-2">
               <Field label="Pain hypothesis" value={packet.painHypothesis} />
               <Field label="Offer" value={packet.offer} />
@@ -201,11 +268,10 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
               />
             </dl>
 
-            {/* Outreach draft (draft only, copyable, never sent) */}
             <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                  Outreach draft — copy & send yourself
+                  Outreach draft — copy &amp; send yourself
                 </span>
                 <button
                   type="button"
@@ -225,7 +291,28 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
               </p>
             </div>
 
-            {/* Decision buttons */}
+            {priorProof.length > 0 && (
+              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                  Captured proof on record ({priorProof.length})
+                </span>
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {priorProof.map((intake, i) => {
+                    const s = summarizeCapturedSignal(intake);
+                    return (
+                      <li key={`${intake.signalId}-${i}`} className="text-xs text-neutral-300">
+                        <span className={`mr-2 rounded px-1.5 py-0.5 text-[10px] ${CLASS_STYLES[s.classification]}`}>
+                          {s.classification.replace(/_/g, " ")}
+                        </span>
+                        {intake.signalType.replace(/_/g, " ")} · {intake.referenceId}
+                        {s.becameRealCash ? ` · ${formatCents(s.cashAmountCents)} real cash` : ""}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -245,7 +332,6 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
               </button>
             </div>
 
-            {/* Signal capture — available once approved */}
             {decision === "approved_for_manual_action" && (
               <div className="flex flex-col gap-3 rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
@@ -314,15 +400,15 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
                 <div>
                   <button
                     type="button"
+                    disabled={isSaving}
                     onClick={() => recordSignal(packet)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-50"
                   >
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    Record signal (local)
+                    {isSaving ? "Saving…" : "Record signal"}
                   </button>
                 </div>
 
-                {/* Result: errors or the captured-proof summary */}
                 {result && !result.ok && (
                   <div className="flex flex-col gap-1 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
                     <span className="inline-flex items-center gap-1.5 font-medium">
@@ -352,6 +438,7 @@ export function CashActionReviewClient({ packets, generatedAt }: CashActionRevie
                       {result.summary.becameRealCash
                         ? ` · real cash booked: ${formatCents(result.summary.cashAmountCents)}`
                         : " · no real cash (proof not financial-verified)"}
+                      {" · "}saved: {STORAGE_LABELS[result.storageMode]}
                     </p>
                   </div>
                 )}
