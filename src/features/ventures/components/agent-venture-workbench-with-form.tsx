@@ -5,10 +5,12 @@ import {
   AGENT_VENTURE_WORKBENCH_ITEMS,
   type AgentVentureWorkbenchItem,
 } from "../agent-venture-workbench-data";
+import { buildAgentVentureOfferDrafts } from "../agent-venture-offer";
 import { buildAgentVenturePrioritizationQueue } from "../agent-venture-prioritization";
 import { AgentVentureWorkbench } from "./agent-venture-workbench";
 import { AgentOpportunityBriefForm } from "./agent-opportunity-brief-form";
 import { VenturePrioritizationQueuePanel } from "./venture-prioritization-queue-panel";
+import { VentureOfferBuilderPanel } from "./venture-offer-builder-panel";
 
 export function AgentVentureWorkbenchWithForm() {
   const [draftItem, setDraftItem] =
@@ -18,6 +20,7 @@ export function AgentVentureWorkbenchWithForm() {
     ? [draftItem, ...AGENT_VENTURE_WORKBENCH_ITEMS]
     : AGENT_VENTURE_WORKBENCH_ITEMS;
   const prioritizationQueue = buildAgentVenturePrioritizationQueue(items);
+  const offerDrafts = buildAgentVentureOfferDrafts(items);
 
   return (
     <div className="flex flex-col gap-8">
@@ -44,6 +47,19 @@ export function AgentVentureWorkbenchWithForm() {
           </p>
         </div>
         <VenturePrioritizationQueuePanel items={prioritizationQueue} />
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            Venture Offer Builder
+          </h2>
+          <p className="text-[11px] text-neutral-500">
+            Drafts a buyer-facing offer from each local workbench item. Read-only. No execution
+            authorized.
+          </p>
+        </div>
+        <VentureOfferBuilderPanel items={offerDrafts} />
       </div>
 
       <div className="flex flex-col gap-3">
