@@ -3,9 +3,10 @@
 /**
  * Pure local contract for agent next-action mandates.
  *
- * A Next Action Mandate is a planning/control-loop object. It can recommend
- * what should be considered next, but it never authorizes live or external
- * execution.
+ * A Next Action Mandate is a planning/control-loop object. It captures the
+ * next cash-oriented move, the evidence needed to justify it, and whether the
+ * agent accepts, refutes, or counter-proposes. It never authorizes live or
+ * external execution.
  */
 
 // ---------------------------------------------------------------------------
@@ -16,6 +17,7 @@ export const NextActionMandateStatus = {
   PENDING: "PENDING",
   ACCEPTED_FOR_NEXT_WORK: "ACCEPTED_FOR_NEXT_WORK",
   REFUTED: "REFUTED",
+  COUNTER_PROPOSED: "COUNTER_PROPOSED",
   IGNORED: "IGNORED",
   NEEDS_CEO_DECISION: "NEEDS_CEO_DECISION",
 } as const;
@@ -23,7 +25,22 @@ export const NextActionMandateStatus = {
 export type NextActionMandateStatus =
   (typeof NextActionMandateStatus)[keyof typeof NextActionMandateStatus];
 
+export const NextActionMandateType = {
+  FIND_BUYER: "find_buyer",
+  VALIDATE_PAIN: "validate_pain",
+  TEST_OFFER: "test_offer",
+  COLLECT_EVIDENCE: "collect_evidence",
+  TEST_PAYMENT_SIGNAL: "test_payment_signal",
+  REDUCE_COST: "reduce_cost",
+  SCALE_SIGNAL: "scale_signal",
+  CEO_DECISION: "ceo_decision",
+} as const;
+
+export type NextActionMandateType =
+  (typeof NextActionMandateType)[keyof typeof NextActionMandateType];
+
 export type NextActionMandateComplianceRisk = "none" | "low" | "medium" | "high";
+export type NextActionMandateInitiativeSignal = "none" | "low" | "medium" | "high";
 export type NextActionMandateRiskLevel = "low" | "medium" | "high" | "critical";
 
 export type NextActionMandateValidationSeverity = "error" | "warning";
@@ -44,21 +61,33 @@ export interface NextActionMandateValidation {
 // Core contract
 // ---------------------------------------------------------------------------
 
+export interface NextActionMandateCounterProposal {
+  recommendedAction: string;
+  rationale: string;
+  expectedCashImpactCents?: number;
+  expectedCostCents?: number;
+}
+
 export interface NextActionMandate {
   mandateId: string;
   previousActionId: string;
+  workOrderId?: string;
   ventureId?: string;
   agentId: string;
+  mandateType: NextActionMandateType;
   recommendedAction: string;
+  cashHypothesis: string;
   requiredEvidence: string[];
   expectedCashImpactCents?: number;
   expectedCostCents?: number;
   expectedRoiMultiple?: number;
   status: NextActionMandateStatus;
   refutationRationale?: string;
+  counterProposal?: NextActionMandateCounterProposal;
   complianceRisk: NextActionMandateComplianceRisk;
-  requiresCeoApproval: boolean;
+  initiativeSignal: NextActionMandateInitiativeSignal;
   riskLevel: NextActionMandateRiskLevel;
+  requiresCeoApproval: boolean;
   createdAt: string;
   humanOnTheLoop: true;
   noExecutionAuthorized: true;
@@ -67,16 +96,21 @@ export interface NextActionMandate {
 export interface BuildNextActionMandateInput {
   mandateId: string;
   previousActionId: string;
+  workOrderId?: string;
   ventureId?: string;
   agentId: string;
+  mandateType: NextActionMandateType;
   recommendedAction: string;
+  cashHypothesis: string;
   requiredEvidence: string[];
   expectedCashImpactCents?: number;
   expectedCostCents?: number;
   expectedRoiMultiple?: number;
   status?: NextActionMandateStatus;
   refutationRationale?: string;
+  counterProposal?: NextActionMandateCounterProposal;
   complianceRisk?: NextActionMandateComplianceRisk;
+  initiativeSignal?: NextActionMandateInitiativeSignal;
   requiresCeoApproval?: boolean;
   riskLevel?: NextActionMandateRiskLevel;
   createdAt?: string;
@@ -87,8 +121,16 @@ export interface BuildNextActionMandateInput {
 // ---------------------------------------------------------------------------
 
 const VALID_STATUSES: ReadonlySet<string> = new Set(Object.values(NextActionMandateStatus));
+const VALID_MANDATE_TYPES: ReadonlySet<string> = new Set(Object.values(NextActionMandateType));
 
 const VALID_COMPLIANCE_RISKS: ReadonlySet<string> = new Set([
+  "none",
+  "low",
+  "medium",
+  "high",
+]);
+
+const VALID_INITIATIVE_SIGNALS: ReadonlySet<string> = new Set([
   "none",
   "low",
   "medium",
@@ -103,6 +145,13 @@ const VALID_RISK_LEVELS: ReadonlySet<string> = new Set([
 ]);
 
 const COMPLIANCE_RISK_RANK: Record<NextActionMandateComplianceRisk, number> = {
+  none: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+};
+
+const INITIATIVE_SIGNAL_RANK: Record<NextActionMandateInitiativeSignal, number> = {
   none: 0,
   low: 1,
   medium: 2,
@@ -150,6 +199,10 @@ function isValidComplianceRisk(value: unknown): value is NextActionMandateCompli
   return typeof value === "string" && VALID_COMPLIANCE_RISKS.has(value);
 }
 
+function isValidInitiativeSignal(value: unknown): value is NextActionMandateInitiativeSignal {
+  return typeof value === "string" && VALID_INITIATIVE_SIGNALS.has(value);
+}
+
 function isIsoDateString(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -163,15 +216,25 @@ function hasSensitiveActionLanguage(action: unknown): boolean {
   return SENSITIVE_ACTION_PATTERNS.some((pattern) => pattern.test(action));
 }
 
+function getCounterProposalAction(counterProposal: unknown): unknown {
+  if (!counterProposal || typeof counterProposal !== "object" || Array.isArray(counterProposal)) {
+    return undefined;
+  }
+
+  return (counterProposal as Record<string, unknown>).recommendedAction;
+}
+
 function hasCeoApprovalTrigger(mandate: {
   status?: unknown;
   riskLevel?: unknown;
   recommendedAction?: unknown;
+  counterProposal?: unknown;
 }): boolean {
   return (
     mandate.status === NextActionMandateStatus.NEEDS_CEO_DECISION ||
     mandate.riskLevel === "critical" ||
-    hasSensitiveActionLanguage(mandate.recommendedAction)
+    hasSensitiveActionLanguage(mandate.recommendedAction) ||
+    hasSensitiveActionLanguage(getCounterProposalAction(mandate.counterProposal))
   );
 }
 
@@ -180,6 +243,96 @@ function complianceRiskAtLeast(
   minimum: NextActionMandateComplianceRisk,
 ): boolean {
   return COMPLIANCE_RISK_RANK[risk] >= COMPLIANCE_RISK_RANK[minimum];
+}
+
+function initiativeSignalAtLeast(
+  signal: NextActionMandateInitiativeSignal,
+  minimum: NextActionMandateInitiativeSignal,
+): boolean {
+  return INITIATIVE_SIGNAL_RANK[signal] >= INITIATIVE_SIGNAL_RANK[minimum];
+}
+
+function copyCounterProposal(
+  counterProposal: NextActionMandateCounterProposal,
+): NextActionMandateCounterProposal {
+  const copy: NextActionMandateCounterProposal = {
+    recommendedAction: counterProposal.recommendedAction,
+    rationale: counterProposal.rationale,
+  };
+
+  if (counterProposal.expectedCashImpactCents !== undefined) {
+    copy.expectedCashImpactCents = counterProposal.expectedCashImpactCents;
+  }
+  if (counterProposal.expectedCostCents !== undefined) {
+    copy.expectedCostCents = counterProposal.expectedCostCents;
+  }
+
+  return copy;
+}
+
+function validateCounterProposal(
+  counterProposal: unknown,
+  required: boolean,
+): NextActionMandateIssue[] {
+  const issues: NextActionMandateIssue[] = [];
+
+  if (!counterProposal || typeof counterProposal !== "object" || Array.isArray(counterProposal)) {
+    if (required) {
+      issues.push(mandateIssue(
+        "counter_proposal_required",
+        "COUNTER_PROPOSED mandates require a complete counterProposal",
+        "error",
+        "counterProposal",
+      ));
+    }
+    return issues;
+  }
+
+  const proposal = counterProposal as Record<string, unknown>;
+
+  if (!isNonEmptyString(proposal.recommendedAction)) {
+    issues.push(mandateIssue(
+      "counter_proposal_required",
+      "counterProposal.recommendedAction is required",
+      "error",
+      "counterProposal.recommendedAction",
+    ));
+  }
+
+  if (!isNonEmptyString(proposal.rationale)) {
+    issues.push(mandateIssue(
+      "counter_proposal_required",
+      "counterProposal.rationale is required",
+      "error",
+      "counterProposal.rationale",
+    ));
+  }
+
+  if (
+    proposal.expectedCashImpactCents !== undefined &&
+    !isNonNegativeNumber(proposal.expectedCashImpactCents)
+  ) {
+    issues.push(mandateIssue(
+      "invalid_counter_proposal_expected_cash_impact_cents",
+      "counterProposal.expectedCashImpactCents must be non-negative when present",
+      "error",
+      "counterProposal.expectedCashImpactCents",
+    ));
+  }
+
+  if (
+    proposal.expectedCostCents !== undefined &&
+    !isNonNegativeNumber(proposal.expectedCostCents)
+  ) {
+    issues.push(mandateIssue(
+      "invalid_counter_proposal_expected_cost_cents",
+      "counterProposal.expectedCostCents must be non-negative when present",
+      "error",
+      "counterProposal.expectedCostCents",
+    ));
+  }
+
+  return issues;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,6 +357,23 @@ export function deriveMandateComplianceRisk(mandate: {
 }
 
 /**
+ * Derives the initiative signal implied by the mandate status.
+ * COUNTER_PROPOSED is treated as agent initiative, not passive non-compliance.
+ */
+export function deriveMandateInitiativeSignal(mandate: {
+  status?: unknown;
+  initiativeSignal?: NextActionMandateInitiativeSignal;
+}): NextActionMandateInitiativeSignal {
+  const currentSignal = mandate.initiativeSignal ?? "none";
+
+  if (mandate.status === NextActionMandateStatus.COUNTER_PROPOSED) {
+    return initiativeSignalAtLeast(currentSignal, "medium") ? currentSignal : "medium";
+  }
+
+  return currentSignal;
+}
+
+/**
  * Returns true when a mandate is explicitly marked for CEO approval or when
  * the contract rules imply that CEO approval is required.
  */
@@ -211,6 +381,7 @@ export function mandateRequiresCeoApproval(mandate: {
   status?: unknown;
   riskLevel?: unknown;
   recommendedAction?: unknown;
+  counterProposal?: unknown;
   requiresCeoApproval?: unknown;
 }): boolean {
   return mandate.requiresCeoApproval === true || hasCeoApprovalTrigger(mandate);
@@ -231,29 +402,38 @@ export function buildNextActionMandate(
     status,
     complianceRisk: input.complianceRisk ?? "none",
   });
+  const initiativeSignal = deriveMandateInitiativeSignal({
+    status,
+    initiativeSignal: input.initiativeSignal ?? "none",
+  });
 
   const mandate: NextActionMandate = {
     mandateId: input.mandateId,
     previousActionId: input.previousActionId,
     agentId: input.agentId,
+    mandateType: input.mandateType,
     recommendedAction: input.recommendedAction,
+    cashHypothesis: input.cashHypothesis,
     requiredEvidence: Array.isArray(input.requiredEvidence)
       ? [...input.requiredEvidence]
       : [],
     status,
     complianceRisk,
+    initiativeSignal,
+    riskLevel,
     requiresCeoApproval: mandateRequiresCeoApproval({
       status,
       riskLevel,
       recommendedAction: input.recommendedAction,
+      counterProposal: input.counterProposal,
       requiresCeoApproval: input.requiresCeoApproval,
     }),
-    riskLevel,
     createdAt: input.createdAt ?? new Date().toISOString(),
     humanOnTheLoop: true,
     noExecutionAuthorized: true,
   };
 
+  if (input.workOrderId !== undefined) mandate.workOrderId = input.workOrderId;
   if (input.ventureId !== undefined) mandate.ventureId = input.ventureId;
   if (input.expectedCashImpactCents !== undefined) {
     mandate.expectedCashImpactCents = input.expectedCashImpactCents;
@@ -266,6 +446,9 @@ export function buildNextActionMandate(
   }
   if (input.refutationRationale !== undefined) {
     mandate.refutationRationale = input.refutationRationale;
+  }
+  if (input.counterProposal !== undefined) {
+    mandate.counterProposal = copyCounterProposal(input.counterProposal);
   }
 
   return mandate;
@@ -292,8 +475,37 @@ export function validateNextActionMandate(
     ));
   }
 
+  if (mandate.workOrderId !== undefined && !isNonEmptyString(mandate.workOrderId)) {
+    issues.push(mandateIssue(
+      "invalid_work_order_id",
+      "Mandate workOrderId must be non-empty when present",
+      "error",
+      "workOrderId",
+    ));
+  }
+
+  if (mandate.ventureId !== undefined && !isNonEmptyString(mandate.ventureId)) {
+    issues.push(mandateIssue(
+      "invalid_venture_id",
+      "Mandate ventureId must be non-empty when present",
+      "error",
+      "ventureId",
+    ));
+  }
+
   if (!isNonEmptyString(mandate.agentId)) {
     issues.push(mandateIssue("missing_agent_id", "Mandate is missing agentId"));
+  }
+
+  if (!isNonEmptyString(mandate.mandateType)) {
+    issues.push(mandateIssue("missing_mandate_type", "Mandate is missing mandateType"));
+  } else if (!VALID_MANDATE_TYPES.has(mandate.mandateType)) {
+    issues.push(mandateIssue(
+      "invalid_mandate_type",
+      `Unknown mandate type: "${mandate.mandateType}"`,
+      "error",
+      "mandateType",
+    ));
   }
 
   if (!isNonEmptyString(mandate.recommendedAction)) {
@@ -303,10 +515,24 @@ export function validateNextActionMandate(
     ));
   }
 
+  if (!isNonEmptyString(mandate.cashHypothesis)) {
+    issues.push(mandateIssue(
+      "missing_cash_hypothesis",
+      "Mandate is missing cashHypothesis",
+    ));
+  }
+
   if (!Array.isArray(mandate.requiredEvidence)) {
     issues.push(mandateIssue(
       "invalid_required_evidence",
       "Mandate requiredEvidence must be an array",
+      "error",
+      "requiredEvidence",
+    ));
+  } else if (mandate.requiredEvidence.length === 0) {
+    issues.push(mandateIssue(
+      "required_evidence_required",
+      "Mandate requiredEvidence must include at least one evidence requirement",
       "error",
       "requiredEvidence",
     ));
@@ -359,6 +585,20 @@ export function validateNextActionMandate(
     ));
   }
 
+  if (!isNonEmptyString(mandate.initiativeSignal)) {
+    issues.push(mandateIssue(
+      "missing_initiative_signal",
+      "Mandate is missing initiativeSignal",
+    ));
+  } else if (!VALID_INITIATIVE_SIGNALS.has(mandate.initiativeSignal)) {
+    issues.push(mandateIssue(
+      "invalid_initiative_signal",
+      `Unknown initiative signal: "${mandate.initiativeSignal}"`,
+      "error",
+      "initiativeSignal",
+    ));
+  }
+
   if (!isNonEmptyString(mandate.riskLevel)) {
     issues.push(mandateIssue("missing_risk_level", "Mandate is missing riskLevel"));
   } else if (!VALID_RISK_LEVELS.has(mandate.riskLevel)) {
@@ -405,6 +645,11 @@ export function validateNextActionMandate(
     ));
   }
 
+  issues.push(...validateCounterProposal(
+    mandate.counterProposal,
+    mandate.status === NextActionMandateStatus.COUNTER_PROPOSED,
+  ));
+
   if (
     mandate.status === NextActionMandateStatus.IGNORED &&
     isValidComplianceRisk(mandate.complianceRisk) &&
@@ -415,6 +660,19 @@ export function validateNextActionMandate(
       "IGNORED mandates require complianceRisk of at least medium",
       "error",
       "complianceRisk",
+    ));
+  }
+
+  if (
+    mandate.status === NextActionMandateStatus.COUNTER_PROPOSED &&
+    isValidInitiativeSignal(mandate.initiativeSignal) &&
+    !initiativeSignalAtLeast(mandate.initiativeSignal, "medium")
+  ) {
+    issues.push(mandateIssue(
+      "initiative_signal_too_low",
+      "COUNTER_PROPOSED mandates require initiativeSignal of at least medium",
+      "error",
+      "initiativeSignal",
     ));
   }
 

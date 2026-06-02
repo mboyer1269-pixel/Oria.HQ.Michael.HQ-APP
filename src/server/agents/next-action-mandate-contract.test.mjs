@@ -22,8 +22,10 @@ test("Next Action Mandate Contract tests", async (t) => {
   const mod = await jiti.import(contractPath);
   const {
     NextActionMandateStatus,
+    NextActionMandateType,
     buildNextActionMandate,
     deriveMandateComplianceRisk,
+    deriveMandateInitiativeSignal,
     mandateRequiresCeoApproval,
     validateNextActionMandate,
   } = mod;
@@ -32,11 +34,16 @@ test("Next Action Mandate Contract tests", async (t) => {
     return {
       mandateId: "mandate_001",
       previousActionId: "action_001",
+      workOrderId: "work_order_001",
+      ventureId: "venture_001",
       agentId: "agent_001",
-      recommendedAction: "Prepare a planning brief",
-      requiredEvidence: ["prior outcome", "current pipeline"],
+      mandateType: NextActionMandateType.TEST_OFFER,
+      recommendedAction: "Prepare a buyer discovery script",
+      cashHypothesis: "A paid pilot can be validated this week.",
+      requiredEvidence: ["buyer response", "pilot budget signal"],
       status: NextActionMandateStatus.PENDING,
       complianceRisk: "low",
+      initiativeSignal: "low",
       requiresCeoApproval: false,
       riskLevel: "low",
       createdAt: "2026-06-02T12:00:00.000Z",
@@ -55,6 +62,8 @@ test("Next Action Mandate Contract tests", async (t) => {
     assert.equal(result.valid, true);
     assert.equal(result.issues.length, 0);
     assert.equal(mandate.status, "PENDING");
+    assert.equal(mandate.mandateType, "test_offer");
+    assert.equal(mandate.cashHypothesis, "A paid pilot can be validated this week.");
     assert.equal(mandate.humanOnTheLoop, true);
     assert.equal(mandate.noExecutionAuthorized, true);
   });
@@ -66,7 +75,6 @@ test("Next Action Mandate Contract tests", async (t) => {
     assert.equal(result.valid, true);
     assert.equal(mandate.status, "ACCEPTED_FOR_NEXT_WORK");
     assert.equal(mandate.noExecutionAuthorized, true);
-    assert.notEqual(mandate.status, "EXECUTED");
   });
 
   await t.test("rejects REFUTED without refutationRationale", () => {
@@ -80,12 +88,52 @@ test("Next Action Mandate Contract tests", async (t) => {
   await t.test("accepts REFUTED with refutationRationale", () => {
     const mandate = validMandate({
       status: NextActionMandateStatus.REFUTED,
-      refutationRationale: "Evidence did not support the proposed next action.",
+      refutationRationale: "The move has weak proof and a worse cash path.",
     });
     const result = validateNextActionMandate(mandate);
 
     assert.equal(result.valid, true);
     assert.equal(result.issues.length, 0);
+  });
+
+  await t.test("COUNTER_PROPOSED requires counterProposal", () => {
+    const mandate = validMandate({ status: NextActionMandateStatus.COUNTER_PROPOSED });
+    const result = validateNextActionMandate(mandate);
+
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((issue) => issue.code === "counter_proposal_required"));
+  });
+
+  await t.test("COUNTER_PROPOSED accepts complete counterProposal", () => {
+    const mandate = validMandate({
+      status: NextActionMandateStatus.COUNTER_PROPOSED,
+      counterProposal: {
+        recommendedAction: "Test a paid pilot with the warmest buyer first",
+        rationale: "This should produce proof faster with lower cost.",
+        expectedCashImpactCents: 250000,
+        expectedCostCents: 15000,
+      },
+    });
+    const result = validateNextActionMandate(mandate);
+
+    assert.equal(result.valid, true);
+    assert.equal(result.issues.length, 0);
+  });
+
+  await t.test("COUNTER_PROPOSED increases initiative signal", () => {
+    const mandate = validMandate({
+      status: NextActionMandateStatus.COUNTER_PROPOSED,
+      initiativeSignal: "none",
+      counterProposal: {
+        recommendedAction: "Ask for a paid pilot deposit before building",
+        rationale: "This proves demand and reduces delivery risk.",
+      },
+    });
+    const result = validateNextActionMandate(mandate);
+
+    assert.equal(result.valid, true);
+    assert.equal(mandate.initiativeSignal, "medium");
+    assert.equal(deriveMandateInitiativeSignal(mandate), "medium");
   });
 
   await t.test("IGNORED raises complianceRisk at least medium", () => {
@@ -103,6 +151,7 @@ test("Next Action Mandate Contract tests", async (t) => {
   await t.test("NEEDS_CEO_DECISION requires requiresCeoApproval=true", () => {
     const mandate = {
       ...validMandate({
+        mandateType: NextActionMandateType.CEO_DECISION,
         status: NextActionMandateStatus.NEEDS_CEO_DECISION,
         requiresCeoApproval: true,
       }),
@@ -137,6 +186,21 @@ test("Next Action Mandate Contract tests", async (t) => {
     assert.equal(mandateRequiresCeoApproval(mandate), true);
   });
 
+  await t.test("sensitive counterProposal action language requires CEO approval", () => {
+    const mandate = validMandate({
+      status: NextActionMandateStatus.COUNTER_PROPOSED,
+      counterProposal: {
+        recommendedAction: "Contact customer for a signed pilot commitment",
+        rationale: "Customer proof is the fastest next cash signal.",
+      },
+      requiresCeoApproval: false,
+    });
+    const result = validateNextActionMandate(mandate);
+
+    assert.equal(result.valid, true);
+    assert.equal(mandate.requiresCeoApproval, true);
+  });
+
   await t.test("expectedCostCents must be non-negative when present", () => {
     const mandate = validMandate({ expectedCostCents: -1 });
     const result = validateNextActionMandate(mandate);
@@ -161,32 +225,48 @@ test("Next Action Mandate Contract tests", async (t) => {
     assert.ok(result.issues.some((issue) => issue.code === "invalid_expected_roi_multiple"));
   });
 
-  await t.test("rejects empty mandateId", () => {
-    const result = validateNextActionMandate(validMandate({ mandateId: " " }));
+  await t.test("counterProposal financial fields must be non-negative when present", () => {
+    const mandate = validMandate({
+      status: NextActionMandateStatus.COUNTER_PROPOSED,
+      counterProposal: {
+        recommendedAction: "Ask for a paid pilot deposit",
+        rationale: "This proves demand.",
+        expectedCashImpactCents: 100000,
+        expectedCostCents: -1,
+      },
+    });
+    const result = validateNextActionMandate(mandate);
 
     assert.equal(result.valid, false);
-    assert.ok(result.issues.some((issue) => issue.code === "missing_mandate_id"));
+    assert.ok(result.issues.some((issue) => issue.code === "invalid_counter_proposal_expected_cost_cents"));
   });
 
-  await t.test("rejects empty previousActionId", () => {
-    const result = validateNextActionMandate(validMandate({ previousActionId: "" }));
+  await t.test("rejects empty required fields", () => {
+    const mandate = validMandate({
+      mandateId: " ",
+      previousActionId: "",
+      agentId: " ",
+      recommendedAction: "",
+      cashHypothesis: " ",
+      requiredEvidence: [],
+    });
+    const result = validateNextActionMandate(mandate);
+    const codes = result.issues.map((issue) => issue.code);
 
     assert.equal(result.valid, false);
-    assert.ok(result.issues.some((issue) => issue.code === "missing_previous_action_id"));
+    assert.ok(codes.includes("missing_mandate_id"));
+    assert.ok(codes.includes("missing_previous_action_id"));
+    assert.ok(codes.includes("missing_agent_id"));
+    assert.ok(codes.includes("missing_recommended_action"));
+    assert.ok(codes.includes("missing_cash_hypothesis"));
+    assert.ok(codes.includes("required_evidence_required"));
   });
 
-  await t.test("rejects empty agentId", () => {
-    const result = validateNextActionMandate(validMandate({ agentId: " " }));
+  await t.test("rejects invalid mandateType", () => {
+    const result = validateNextActionMandate(validMandate({ mandateType: "unknown_type" }));
 
     assert.equal(result.valid, false);
-    assert.ok(result.issues.some((issue) => issue.code === "missing_agent_id"));
-  });
-
-  await t.test("rejects empty recommendedAction", () => {
-    const result = validateNextActionMandate(validMandate({ recommendedAction: "" }));
-
-    assert.equal(result.valid, false);
-    assert.ok(result.issues.some((issue) => issue.code === "missing_recommended_action"));
+    assert.ok(result.issues.some((issue) => issue.code === "invalid_mandate_type"));
   });
 
   await t.test("validates createdAt as ISO date", () => {
@@ -216,6 +296,19 @@ test("Next Action Mandate Contract tests", async (t) => {
 
     assert.equal(result.valid, false);
     assert.ok(result.issues.some((issue) => issue.code === "no_execution_authorized_required"));
+  });
+
+  await t.test("build output is deterministic when inputs are deterministic", () => {
+    const input = validInput({
+      status: NextActionMandateStatus.COUNTER_PROPOSED,
+      initiativeSignal: "low",
+      counterProposal: {
+        recommendedAction: "Ask the highest-intent buyer for a paid pilot deposit",
+        rationale: "This maximizes proof speed and cash leverage.",
+      },
+    });
+
+    assert.deepEqual(buildNextActionMandate(input), buildNextActionMandate(input));
   });
 
   await t.test("does not import runtime execution guard", () => {
