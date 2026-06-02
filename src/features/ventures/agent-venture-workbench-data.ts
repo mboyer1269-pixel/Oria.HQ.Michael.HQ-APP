@@ -24,6 +24,10 @@ import {
   validateAgentVentureWorkstream,
   fromOpportunityBriefToWorkstream,
 } from './agent-venture-workstream';
+import {
+  type AgentVentureProfitabilityScore,
+  scoreAgentVentureProfitability,
+} from './agent-venture-profitability';
 
 // ---------------------------------------------------------------------------
 // SECTION B — AgentVentureWorkbenchItem type
@@ -35,6 +39,7 @@ export type AgentVentureWorkbenchItem = {
   workstream: AgentVentureWorkstream;
   briefScore: AgentOpportunityBriefScore;
   workstreamReadiness: AgentVentureWorkstreamReadinessScore;
+  profitabilityScore: AgentVentureProfitabilityScore;
   briefValid: boolean;
   briefErrors: string[];
   workstreamValid: boolean;
@@ -52,6 +57,11 @@ export function buildAgentVentureWorkbenchItem(input: {
 }): AgentVentureWorkbenchItem {
   const briefScore = scoreAgentOpportunityBrief(input.brief);
   const workstreamReadiness = scoreAgentVentureWorkstreamReadiness(input.workstream);
+  const profitabilityScore = scoreAgentVentureProfitability({
+    brief: input.brief,
+    workstream: input.workstream,
+    workstreamReadiness,
+  });
   const bv = validateAgentOpportunityBrief(input.brief);
   const wv = validateAgentVentureWorkstream(input.workstream);
 
@@ -61,6 +71,7 @@ export function buildAgentVentureWorkbenchItem(input: {
     workstream: input.workstream,
     briefScore,
     workstreamReadiness,
+    profitabilityScore,
     briefValid: bv.valid,
     briefErrors: bv.errors,
     workstreamValid: wv.valid,
