@@ -9,7 +9,11 @@ import {
   ORYA_VENTURES,
 } from "@/features/ventures/llm-cash-action-packet-generator";
 import { composeVentureCouncilCashRun } from "@/features/ventures/venture-council-cash-run-composer";
-import type { CouncilAnalysis } from "@/features/ventures/components/cash-action-review-client";
+import { buildHermesOutreachPlanFromCashActionPacket } from "@/features/ventures/hermes-outreach-plan";
+import type {
+  CouncilAnalysis,
+  HermesPlanDisplay,
+} from "@/features/ventures/components/cash-action-review-client";
 import { saveCashSignalIntakeAction } from "@/features/ventures/cash-signal-intake-action";
 import type { CashSignalIntake } from "@/features/ventures/cash-signal-intake";
 import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
@@ -64,6 +68,34 @@ export default async function CashActionReviewPage() {
         confidenceScore: turn.confidenceScore,
       })),
       runIndex: i + 1,
+    };
+  });
+
+  // For each packet, Hermès composes a structured outreach plan server-side
+  // (pure TypeScript — no LLM, no DB, no send). It turns the cash proposal into
+  // a copy-ready operator plan: channel, sender, prospect targeting, message,
+  // proof to capture, and compliance/risk guidance. Hermès prepares; Michael
+  // approves and sends manually. Extract only display-safe plain data.
+  const hermesPlans: HermesPlanDisplay[] = packets.map((packet) => {
+    const plan = buildHermesOutreachPlanFromCashActionPacket(packet);
+    return {
+      packetId: packet.packetId,
+      channel: plan.channel,
+      senderRecommendation: plan.senderRecommendation,
+      prospectProfile: plan.prospectProfile,
+      prospectSelectionCriteria: plan.prospectSelectionCriteria,
+      personalizationBasis: plan.personalizationBasis,
+      messageDraft: plan.messageDraft,
+      cta: plan.cta,
+      expectedSignal: plan.expectedSignal,
+      requiredEvidence: [...plan.requiredEvidence],
+      complianceNotes: plan.complianceNotes,
+      riskNotes: plan.riskNotes,
+      manualSendInstructions: plan.manualSendInstructions,
+      approvalStatus: plan.approvalStatus,
+      requiresCeoApproval: plan.requiresCeoApproval,
+      requiresManualSend: plan.requiresManualSend,
+      noExecutionAuthorized: plan.noExecutionAuthorized,
     };
   });
 
@@ -122,6 +154,7 @@ export default async function CashActionReviewPage() {
       <CashActionReviewClient
         packets={packets}
         councilAnalyses={councilAnalyses}
+        hermesPlans={hermesPlans}
         generatedAt={generatedAt}
         savedIntakes={savedIntakes}
         storageMode={storageMode}
