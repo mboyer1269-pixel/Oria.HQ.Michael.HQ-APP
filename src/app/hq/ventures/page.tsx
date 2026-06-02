@@ -2,8 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, Eye, Rocket } from "lucide-react";
 import { getDefaultWorkspace } from "@/core/workspaces/registry";
-import { AgentVentureWorkbench } from "@/features/ventures/components/agent-venture-workbench";
-import { AGENT_VENTURE_WORKBENCH_ITEMS } from "@/features/ventures/agent-venture-workbench-data";
+import { AgentVentureWorkbenchWithForm } from "@/features/ventures/components/agent-venture-workbench-with-form";
 import { VentureCommandCenterClient } from "@/features/ventures/components/venture-command-center-client";
 import {
   getDefaultActiveValidationSlotLimit,
@@ -103,15 +102,7 @@ export default async function VenturesPage() {
       />
 
       <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            Agent Venture Workbench
-          </h2>
-          <p className="text-[11px] text-neutral-500">
-            Prepared by agents for CEO review. Read-only. No execution authorized.
-          </p>
-        </div>
-        <AgentVentureWorkbench items={AGENT_VENTURE_WORKBENCH_ITEMS} />
+        <AgentVentureWorkbenchWithForm />
       </section>
 
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
