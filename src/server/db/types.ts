@@ -218,6 +218,41 @@ export type CashSignalIntakeInsert = Omit<CashSignalIntakeRow, "id" | "created_a
   created_at?: string;
 };
 
+// prepared_actions — durable, append-only CEO review queue produced by the
+// Hermès iterative prep agent (migration 0013). The packet, council, and
+// hermes_plan jsonb columns mirror the PreparedAction contract in
+// src/features/ventures/prepared-action.ts; the repository owns row <->
+// PreparedAction mapping and light validation. priority and status are plain
+// text here (DB CHECK constraints enforce the whitelists) to avoid coupling the
+// DB layer to feature types. The three invariant booleans are forced true by
+// DB CHECK constraints — a prepared action can never authorize execution.
+export type PreparedActionRow = {
+  id: string;
+  workspace_id: string;
+  created_by_user_id: string;
+  prepared_action_id: string;
+  venture_id: string;
+  cash_action_packet_id: string;
+  content_hash: string;
+  supersedes_id: string | null;
+  packet: Json;
+  council: Json;
+  hermes_plan: Json;
+  priority: string;
+  priority_score: number;
+  status: string;
+  requires_ceo_approval: true;
+  requires_manual_send: true;
+  no_execution_authorized: true;
+  created_at: string;
+};
+
+// The DB assigns id and created_at (defaults), so an insert omits them.
+export type PreparedActionInsert = Omit<PreparedActionRow, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
 export type MichaelHqDatabase = {
   public: {
     Tables: {
@@ -273,6 +308,12 @@ export type MichaelHqDatabase = {
         Row: CashSignalIntakeRow;
         Insert: CashSignalIntakeInsert;
         Update: Partial<CashSignalIntakeInsert>;
+        Relationships: [];
+      };
+      prepared_actions: {
+        Row: PreparedActionRow;
+        Insert: PreparedActionInsert;
+        Update: Partial<PreparedActionInsert>;
         Relationships: [];
       };
     };
