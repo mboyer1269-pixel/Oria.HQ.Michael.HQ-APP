@@ -2,29 +2,27 @@
 //
 // LLM-backed cash action packet generator.
 //
-// Calls Anthropic server-side with a strict JSON prompt, coerces each raw
-// object into a validated CashActionPacket, and falls back to the existing
-// deterministic seed path if the LLM is unavailable or returns invalid data.
+// Calls the provider layer (Anthropic first, OpenAI fallback) with a strict
+// JSON prompt, coerces each raw object into a validated CashActionPacket, and
+// falls back to the existing deterministic seed path on any failure.
 //
 // Invariants — held regardless of what the LLM returns:
 //   - requiresCeoApproval: true   (applied by buildCashActionPacket)
 //   - noExecutionAuthorized: true (applied by buildCashActionPacket)
 //   - Every returned packet passes validateCashActionPacket
-//   - No network call if ANTHROPIC_API_KEY is absent (fallback immediately)
 //   - Never throws toward the page — all errors surface in fallbackReason
 //
 // Dependency direction:
-//   page → this module → anthropic-json-client (server)
+//   page → this module → llm-json-provider (server)
 //                      → buildCashActionPacket / validateCashActionPacket (pure)
 //                      → fallbackItems (seed, pure)
 
 import "server-only";
 
 import {
-  ANTHROPIC_JSON_DEFAULT_MODEL,
-  type AnthropicJsonResult,
-  generateJsonWithAnthropic,
-} from "@/server/ai/anthropic-json-client";
+  generateStructuredJson,
+  type LlmProvider,
+} from "@/server/ai/llm-json-provider";
 import {
   CASH_ACTION_BUYER_TYPES,
   CASH_ACTION_MIN_TEXT_LENGTH,
@@ -76,12 +74,16 @@ export const ORYA_VENTURES: readonly VentureContext[] = [
 // Generator result
 // ---------------------------------------------------------------------------
 
+export type LlmPacketSource = LlmProvider | "fallback_seed";
+
 export type LlmCashActionPacketGeneratorResult = {
   packets: CashActionPacket[];
-  source: "anthropic" | "fallback_seed";
+  source: LlmPacketSource;
   fallbackReason?: string;
   modelId?: string;
   invalidPacketCount?: number;
+  providerFallbackUsed?: boolean;
+  failureChain?: string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -167,6 +169,7 @@ function coerceLlmPacket(
   raw: RawLlmPacket,
   index: number,
   createdAt: string,
+  provider: LlmProvider,
   modelId: string,
 ): CashActionPacket | null {
   if (
@@ -188,7 +191,6 @@ function coerceLlmPacket(
     return null;
   }
 
-  // Filter evidence to known kinds only
   const requiredEvidence = (raw.requiredEvidence as unknown[]).filter(
     (k): k is (typeof EVIDENCE_KINDS)[number] =>
       typeof k === "string" && EVIDENCE_KINDS.includes(k as never),
@@ -197,7 +199,7 @@ function coerceLlmPacket(
   const packet = buildCashActionPacket({
     packetId: `llm:${raw.ventureId}:${index + 1}`,
     ventureId: raw.ventureId as string,
-    agentId: `anthropic:${modelId}`,
+    agentId: `${provider}:${modelId}`,
     targetBuyer: (raw.targetBuyer as string).trim(),
     buyerType: raw.buyerType as CashActionPacket["buyerType"],
     painHypothesis: (raw.painHypothesis as string).trim(),
@@ -221,6 +223,7 @@ function coerceLlmPacket(
 function parseLlmPackets(
   json: unknown,
   createdAt: string,
+  provider: LlmProvider,
   modelId: string,
 ): { packets: CashActionPacket[]; invalidCount: number } {
   if (!Array.isArray(json)) {
@@ -236,7 +239,7 @@ function parseLlmPackets(
       invalidCount++;
       continue;
     }
-    const packet = coerceLlmPacket(raw as RawLlmPacket, i, createdAt, modelId);
+    const packet = coerceLlmPacket(raw as RawLlmPacket, i, createdAt, provider, modelId);
     if (packet) {
       packets.push(packet);
     } else {
@@ -255,42 +258,49 @@ export async function generateLlmCashActionPacketsFromVentures(input: {
   ventures: readonly VentureContext[];
   fallbackItems: AgentVentureWorkbenchItem[];
   createdAt: string;
-  fetchFn?: typeof fetch;
+  // Per-provider fetch overrides — used in tests to inject mocks.
+  fetchFns?: {
+    anthropic?: typeof fetch;
+    openai?: typeof fetch;
+  };
+  // Override the provider preference (default: "auto" = Anthropic → OpenAI).
+  providerPreference?: LlmProvider | "auto";
 }): Promise<LlmCashActionPacketGeneratorResult> {
   const { ventures, fallbackItems, createdAt } = input;
 
-  // Build prompts
   const systemPrompt = buildSystemPrompt();
   const userPrompt = buildUserPrompt(ventures);
 
-  // Call Anthropic (fetchFn is optional override for tests)
-  let llmResult: AnthropicJsonResult;
+  let providerResult: Awaited<ReturnType<typeof generateStructuredJson>>;
   try {
-    llmResult = await generateJsonWithAnthropic(
-      { systemPrompt, userPrompt },
-      input.fetchFn,
-    );
+    providerResult = await generateStructuredJson({
+      providerPreference: input.providerPreference ?? "auto",
+      systemPrompt,
+      userPrompt,
+      fetchFns: input.fetchFns,
+    });
   } catch {
     return {
       packets: buildCashActionPacketsFromItems(fallbackItems, { createdAt }),
       source: "fallback_seed",
-      fallbackReason: "Unexpected error from Anthropic client",
+      fallbackReason: "Unexpected error from provider layer",
     };
   }
 
-  if (!llmResult.ok) {
+  if (!providerResult.ok) {
     return {
       packets: buildCashActionPacketsFromItems(fallbackItems, { createdAt }),
       source: "fallback_seed",
-      fallbackReason: llmResult.fallbackReason,
-      modelId: llmResult.modelId,
+      fallbackReason: providerResult.fallbackReason,
+      failureChain: providerResult.failureChain,
     };
   }
 
   const { packets, invalidCount } = parseLlmPackets(
-    llmResult.json,
+    providerResult.json,
     createdAt,
-    llmResult.modelId,
+    providerResult.providerUsed,
+    providerResult.modelId,
   );
 
   if (packets.length === 0) {
@@ -301,18 +311,19 @@ export async function generateLlmCashActionPacketsFromVentures(input: {
         invalidCount > 0
           ? `All ${invalidCount} LLM packet(s) failed validation`
           : "LLM returned an empty or non-array result",
-      modelId: llmResult.modelId,
+      modelId: providerResult.modelId,
       invalidPacketCount: invalidCount,
+      failureChain: providerResult.failureChain,
     };
   }
 
   return {
     packets,
-    source: "anthropic",
-    modelId: llmResult.modelId,
+    source: providerResult.providerUsed,
+    modelId: providerResult.modelId,
     invalidPacketCount: invalidCount > 0 ? invalidCount : undefined,
+    providerFallbackUsed: providerResult.fallbackUsed,
+    failureChain:
+      providerResult.failureChain.length > 0 ? providerResult.failureChain : undefined,
   };
 }
-
-// Convenience: build the Anthropic client model ID for display
-export const LLM_PACKET_GENERATOR_MODEL = ANTHROPIC_JSON_DEFAULT_MODEL;
