@@ -27,6 +27,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { AgentVentureWorkbenchItem } from "../agent-venture-workbench-data";
+import { AgentVentureProfitabilityPanel } from "./agent-venture-profitability-panel";
 
 // ---------------------------------------------------------------------------
 // Formatting helpers
@@ -391,6 +392,15 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
               </div>
             </div>
           </Section>
+
+          <AgentVentureProfitabilityPanel
+            score={item.profitabilityScore}
+            estimatedRevenuePotentialCents={item.brief.estimatedRevenuePotentialCents}
+            estimatedValidationCostCents={item.brief.estimatedValidationCostCents}
+            speedToFirstDollarDays={item.brief.speedToFirstDollarDays}
+            confidenceScore={item.brief.confidenceScore}
+            automationPotentialScore={item.brief.automationPotentialScore}
+          />
 
           {/* ---------------------------------------------------------------- */}
           {/* C. WORKSTREAM SECTION                                             */}
