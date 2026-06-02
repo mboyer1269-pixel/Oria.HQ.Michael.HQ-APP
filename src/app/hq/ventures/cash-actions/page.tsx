@@ -8,6 +8,8 @@ import {
   generateLlmCashActionPacketsFromVentures,
   ORYA_VENTURES,
 } from "@/features/ventures/llm-cash-action-packet-generator";
+import { composeVentureCouncilCashRun } from "@/features/ventures/venture-council-cash-run-composer";
+import type { CouncilAnalysis } from "@/features/ventures/components/cash-action-review-client";
 import { saveCashSignalIntakeAction } from "@/features/ventures/cash-signal-intake-action";
 import type { CashSignalIntake } from "@/features/ventures/cash-signal-intake";
 import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
@@ -39,6 +41,31 @@ export default async function CashActionReviewPage() {
   });
   const packets = llmResult.packets;
   const packetSource = llmResult.source;
+
+  // For each packet, compose a council run (pure TypeScript — no LLM, no DB).
+  // The council evaluates the packet across 5 roles and produces a readiness
+  // verdict + recommended manual action. Extract only display-safe plain data
+  // for the client component.
+  const councilAnalyses: CouncilAnalysis[] = packets.map((packet, i) => {
+    const result = composeVentureCouncilCashRun({
+      runId: `council:${packet.packetId}`,
+      cashActionPacket: packet,
+      createdAt: generatedAt,
+    });
+    return {
+      packetId: packet.packetId,
+      readiness: result.readiness,
+      verdictDecision: result.verdict.decision,
+      recommendedManualAction: result.recommendedManualAction,
+      turns: result.turns.map((turn) => ({
+        roleId: turn.roleId,
+        outputSummary: turn.outputSummary,
+        recommendation: turn.recommendation,
+        confidenceScore: turn.confidenceScore,
+      })),
+      runIndex: i + 1,
+    };
+  });
 
   // Load previously captured signals for this owner's workspace so the screen
   // can show durable, auditable proof across sessions. A repository failure
@@ -94,6 +121,7 @@ export default async function CashActionReviewPage() {
 
       <CashActionReviewClient
         packets={packets}
+        councilAnalyses={councilAnalyses}
         generatedAt={generatedAt}
         savedIntakes={savedIntakes}
         storageMode={storageMode}
