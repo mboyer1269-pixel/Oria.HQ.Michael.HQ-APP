@@ -230,19 +230,47 @@ export function applyEvidenceConfidence(
 // SECTION I — Legacy adapter
 // ---------------------------------------------------------------------------
 
+// Convert a single legacy evidence string into a typed ref. Deterministic:
+// referenceId is index-based and capturedAt is a fixed sentinel (no clock read).
+function legacyStringToRef(raw: string, index: number): EvidenceRef {
+  const trimmed = typeof raw === "string" ? raw.trim() : "";
+  return {
+    kind: "self_reported",
+    referenceId: `legacy:${index}`,
+    isVerified: false,
+    source: LEGACY_EVIDENCE_SOURCE,
+    capturedAt: LEGACY_EVIDENCE_CAPTURED_AT,
+    summary: trimmed.length > 0 ? trimmed : "legacy evidence (no detail provided)",
+  };
+}
+
 // Adapt legacy string[] evidence into typed refs. Each string becomes a
-// low-trust self_reported, unverified item tagged source="legacy". Deterministic:
-// referenceId is index-based and capturedAt is a fixed sentinel.
+// low-trust self_reported, unverified item tagged source="legacy".
 export function fromLegacyStringEvidence(strings: string[]): EvidenceRef[] {
-  return strings.map((raw, index) => {
-    const trimmed = typeof raw === "string" ? raw.trim() : "";
-    return {
-      kind: "self_reported",
-      referenceId: `legacy:${index}`,
-      isVerified: false,
-      source: LEGACY_EVIDENCE_SOURCE,
-      capturedAt: LEGACY_EVIDENCE_CAPTURED_AT,
-      summary: trimmed.length > 0 ? trimmed : "legacy evidence (no detail provided)",
-    };
-  });
+  return strings.map((raw, index) => legacyStringToRef(raw, index));
+}
+
+// Deep copy a single ref so callers cannot mutate stored evidence by reference.
+export function copyEvidenceRef(ref: EvidenceRef): EvidenceRef {
+  return {
+    kind: ref.kind,
+    referenceId: ref.referenceId,
+    isVerified: ref.isVerified,
+    source: ref.source,
+    capturedAt: ref.capturedAt,
+    summary: ref.summary,
+  };
+}
+
+// Build/ingest boundary accepts either typed refs or legacy strings.
+export type EvidenceRefInput = string | EvidenceRef;
+
+// Normalize a mixed list to typed refs: strings adapt to self_reported (legacy),
+// existing refs are deep-copied. Deterministic and pure — safe at any boundary.
+export function normalizeEvidenceList(
+  input: readonly EvidenceRefInput[],
+): EvidenceRef[] {
+  return input.map((item, index) =>
+    typeof item === "string" ? legacyStringToRef(item, index) : copyEvidenceRef(item),
+  );
 }

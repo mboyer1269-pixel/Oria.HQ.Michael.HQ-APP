@@ -53,6 +53,8 @@ test("EvidenceRef — typed revenue evidence", async (t) => {
     validateCashEvidence,
     applyEvidenceConfidence,
     fromLegacyStringEvidence,
+    copyEvidenceRef,
+    normalizeEvidenceList,
   } = mod;
 
   // -------------------------------------------------------------------------
@@ -364,10 +366,59 @@ test("EvidenceRef — typed revenue evidence", async (t) => {
         "validateCashEvidence",
         "applyEvidenceConfidence",
         "fromLegacyStringEvidence",
+        "copyEvidenceRef",
+        "normalizeEvidenceList",
       ];
       for (const key of expected) {
         assert.ok(keys.includes(key), `export "${key}" missing`);
       }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Group — normalizeEvidenceList / copyEvidenceRef (PR193 wiring helpers)
+  // -------------------------------------------------------------------------
+  await t.test("normalizeEvidenceList and copyEvidenceRef", async (t) => {
+    await t.test("normalizes legacy strings to self_reported unverified refs", () => {
+      const refs = normalizeEvidenceList(["first note", "second note"]);
+      assert.equal(refs.length, 2);
+      assert.equal(refs[0].kind, "self_reported");
+      assert.equal(refs[0].isVerified, false);
+      assert.equal(refs[0].source, "legacy");
+      assert.equal(refs[0].summary, "first note");
+      assert.equal(refs[1].referenceId, "legacy:1");
+    });
+
+    await t.test("passes through typed refs (deep-copied)", () => {
+      const original = makeRef();
+      const [copied] = normalizeEvidenceList([original]);
+      assert.deepEqual(copied, original);
+      assert.notEqual(copied, original); // different object reference
+    });
+
+    await t.test("handles mixed string and typed input", () => {
+      const refs = normalizeEvidenceList(["legacy", makeRef()]);
+      assert.equal(refs[0].kind, "self_reported");
+      assert.equal(refs[1].kind, "stripe_charge");
+    });
+
+    await t.test("normalizeEvidenceList is deterministic", () => {
+      const input = ["a legacy note", makeRef()];
+      assert.deepEqual(normalizeEvidenceList(input), normalizeEvidenceList(input));
+    });
+
+    await t.test("copyEvidenceRef produces an equal but distinct object", () => {
+      const ref = makeRef();
+      const copy = copyEvidenceRef(ref);
+      assert.deepEqual(copy, ref);
+      assert.notEqual(copy, ref);
+    });
+
+    await t.test("copyEvidenceRef does not share reference with input", () => {
+      const ref = makeRef();
+      const copy = copyEvidenceRef(ref);
+      copy.summary = "mutated";
+      assert.notEqual(ref.summary, "mutated");
     });
   });
 });

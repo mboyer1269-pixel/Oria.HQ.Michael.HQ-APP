@@ -8,11 +8,32 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
 
+function makeEvidence(overrides = {}) {
+  return {
+    kind: "email_reply",
+    referenceId: "ref-001",
+    isVerified: true,
+    source: "shared inbox",
+    capturedAt: "2026-06-02T00:00:00.000Z",
+    summary: "Buyer replied confirming interest and asked for pricing",
+    ...overrides,
+  };
+}
+
+function makeFinancialEvidence(overrides = {}) {
+  return makeEvidence({
+    kind: "stripe_charge",
+    referenceId: "ch_test_001",
+    summary: "Stripe charge captured for the paid pilot",
+    ...overrides,
+  });
+}
+
 function makeSignal(overrides = {}) {
   return {
     score: 70,
     basis: "agent observed a concrete signal",
-    evidence: ["evidence item 1"],
+    evidence: [makeEvidence()],
     ...overrides,
   };
 }
@@ -186,22 +207,73 @@ test("AgentRevenueOutcome model", async (t) => {
     await t.test("positive cash with zero payment signal -> invalid (incoherent)", () => {
       const result = validateAgentRevenueOutcome(
         makeOutcome({
-          cashGenerated: { amountCents: 5000, verified: true, evidence: ["stripe charge id"] },
+          cashGenerated: { amountCents: 5000, verified: true, evidence: [makeFinancialEvidence()] },
           paymentSignal: makeSignal({ score: 0, basis: "none yet", evidence: [] }),
         }),
       );
       assert.equal(result.valid, false);
     });
 
-    await t.test("positive cash, backed by evidence and a payment signal -> valid", () => {
+    await t.test("positive cash, backed by verified financial evidence and a payment signal -> valid", () => {
       const result = validateAgentRevenueOutcome(
         makeOutcome({
-          cashGenerated: { amountCents: 5000, verified: true, evidence: ["stripe charge id"] },
+          cashGenerated: { amountCents: 5000, verified: true, evidence: [makeFinancialEvidence()] },
           paymentSignal: makeSignal({ score: 90 }),
           cashProximity: makeSignal({ score: 95 }),
         }),
       );
       assert.equal(result.valid, true);
+    });
+
+    await t.test("positive cash with verified signed_loi -> valid", () => {
+      const result = validateAgentRevenueOutcome(
+        makeOutcome({
+          cashGenerated: {
+            amountCents: 5000,
+            verified: true,
+            evidence: [makeFinancialEvidence({ kind: "signed_loi", referenceId: "loi-001", summary: "Signed letter of intent for paid pilot" })],
+          },
+          paymentSignal: makeSignal({ score: 90 }),
+        }),
+      );
+      assert.equal(result.valid, true);
+    });
+
+    await t.test("positive cash with only self_reported evidence -> invalid", () => {
+      const result = validateAgentRevenueOutcome(
+        makeOutcome({
+          cashGenerated: {
+            amountCents: 5000,
+            verified: true,
+            evidence: [makeEvidence({ kind: "self_reported", referenceId: "note-1", summary: "I believe we made a sale" })],
+          },
+          paymentSignal: makeSignal({ score: 90 }),
+        }),
+      );
+      assert.equal(result.valid, false);
+    });
+
+    await t.test("positive cash with unverified stripe_charge -> invalid (not verified financial)", () => {
+      const result = validateAgentRevenueOutcome(
+        makeOutcome({
+          cashGenerated: {
+            amountCents: 5000,
+            verified: true,
+            evidence: [makeFinancialEvidence({ isVerified: false })],
+          },
+          paymentSignal: makeSignal({ score: 90 }),
+        }),
+      );
+      assert.equal(result.valid, false);
+    });
+
+    await t.test("structurally invalid evidence ref (empty referenceId) -> invalid", () => {
+      const result = validateAgentRevenueOutcome(
+        makeOutcome({
+          painClarity: makeSignal({ score: 80, evidence: [makeEvidence({ referenceId: "" })] }),
+        }),
+      );
+      assert.equal(result.valid, false);
     });
 
     await t.test("non-boolean verified -> invalid", () => {
@@ -285,6 +357,39 @@ test("AgentRevenueOutcome model", async (t) => {
       const built = buildAgentRevenueOutcome(input);
       built.cashGenerated.evidence.push("mutated");
       assert.equal(input.cashGenerated.evidence.includes("mutated"), false);
+    });
+
+    await t.test("adapts legacy string evidence to self_reported unverified", () => {
+      const built = buildAgentRevenueOutcome(
+        makeOutcome({
+          painClarity: makeSignal({ score: 80, evidence: ["legacy free-text note"] }),
+        }),
+      );
+      const ref = built.painClarity.evidence[0];
+      assert.equal(ref.kind, "self_reported");
+      assert.equal(ref.isVerified, false);
+      assert.equal(ref.source, "legacy");
+      assert.equal(ref.summary, "legacy free-text note");
+    });
+
+    await t.test("legacy-adapted outcome still passes validation", () => {
+      const built = buildAgentRevenueOutcome(
+        makeOutcome({
+          painClarity: makeSignal({ score: 80, evidence: ["legacy free-text note"] }),
+        }),
+      );
+      const result = validateAgentRevenueOutcome(built);
+      assert.equal(result.valid, true);
+    });
+
+    await t.test("preserves typed EvidenceRef kind through build", () => {
+      const built = buildAgentRevenueOutcome(
+        makeOutcome({
+          paymentSignal: makeSignal({ score: 70, evidence: [makeFinancialEvidence({ kind: "signed_loi", referenceId: "loi-9" })] }),
+        }),
+      );
+      assert.equal(built.paymentSignal.evidence[0].kind, "signed_loi");
+      assert.equal(built.paymentSignal.evidence[0].referenceId, "loi-9");
     });
   });
 });
