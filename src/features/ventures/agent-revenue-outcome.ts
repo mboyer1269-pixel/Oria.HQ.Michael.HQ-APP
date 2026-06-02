@@ -15,6 +15,13 @@
 // Humans remain on the loop at every step: every outcome has humanOnTheLoop,
 // approvalRequired, and noExecutionAuthorized locked to literal true.
 
+import type { EvidenceRef, EvidenceRefInput } from "./evidence-ref";
+import {
+  validateEvidenceRef,
+  validateCashEvidence,
+  normalizeEvidenceList,
+} from "./evidence-ref";
+
 // ---------------------------------------------------------------------------
 // SECTION A — Enum types
 // ---------------------------------------------------------------------------
@@ -48,15 +55,16 @@ export type AgentRevenueOutcomeProposedAction = {
 export type AgentRevenueOutcomeSignal = {
   score: number; // 0-100, integer
   basis: string;
-  evidence: string[];
+  evidence: EvidenceRef[];
 };
 
-// Realized cash. Never invented. amountCents must be backed by evidence when
-// positive, and verified states whether a human or system has confirmed it.
+// Realized cash. Never invented. A positive amount must be backed by verified
+// financial evidence (stripe_charge or signed_loi); verified states whether a
+// human or system has confirmed it.
 export type AgentRevenueOutcomeCashGenerated = {
   amountCents: number;
   verified: boolean;
-  evidence: string[];
+  evidence: EvidenceRef[];
 };
 
 // ---------------------------------------------------------------------------
@@ -137,14 +145,26 @@ function validateSignal(
   }
   if (!Array.isArray(signal.evidence)) {
     errors.push(`${key}.evidence must be an array`);
-  } else if (
-    Number.isInteger(signal.score) &&
-    signal.score >= AGENT_REVENUE_OUTCOME_EVIDENCE_REQUIRED_SCORE &&
-    signal.evidence.length === 0
-  ) {
-    errors.push(
-      `${key}.evidence must contain at least one item when score >= ${AGENT_REVENUE_OUTCOME_EVIDENCE_REQUIRED_SCORE}`,
-    );
+  } else {
+    // High-confidence claims must carry evidence; low-confidence exploration
+    // may stay empty. Any evidence that IS present must be structurally valid.
+    if (
+      Number.isInteger(signal.score) &&
+      signal.score >= AGENT_REVENUE_OUTCOME_EVIDENCE_REQUIRED_SCORE &&
+      signal.evidence.length === 0
+    ) {
+      errors.push(
+        `${key}.evidence must contain at least one item when score >= ${AGENT_REVENUE_OUTCOME_EVIDENCE_REQUIRED_SCORE}`,
+      );
+    }
+    signal.evidence.forEach((ref, i) => {
+      const result = validateEvidenceRef(ref);
+      if (!result.valid) {
+        for (const e of result.errors) {
+          errors.push(`${key}.evidence[${i}]: ${e}`);
+        }
+      }
+    });
   }
 }
 
@@ -174,12 +194,22 @@ export function validateAgentRevenueOutcome(
   }
   if (!Array.isArray(cash.evidence)) {
     errors.push("cashGenerated.evidence must be an array");
-  } else if (
-    typeof cash.amountCents === "number" &&
-    cash.amountCents > 0 &&
-    cash.evidence.length === 0
-  ) {
-    errors.push("cashGenerated.evidence must be non-empty when amountCents > 0");
+  } else {
+    // Each cash evidence item must be structurally valid.
+    cash.evidence.forEach((ref, i) => {
+      const result = validateEvidenceRef(ref);
+      if (!result.valid) {
+        for (const e of result.errors) {
+          errors.push(`cashGenerated.evidence[${i}]: ${e}`);
+        }
+      }
+    });
+    // Realized cash requires verified financial evidence (stripe_charge or
+    // signed_loi) — self-reported notes can never prove real cash on their own.
+    if (typeof cash.amountCents === "number") {
+      const cashCheck = validateCashEvidence(cash.amountCents, cash.evidence);
+      for (const e of cashCheck.errors) errors.push(e);
+    }
   }
 
   // Coherence: cash cannot be generated with no payment signal at all.
@@ -230,16 +260,47 @@ export function validateAgentRevenueOutcome(
 // SECTION G — buildAgentRevenueOutcome
 // ---------------------------------------------------------------------------
 
+// Build/ingest boundary accepts either typed refs or legacy strings for
+// evidence; the builder normalizes them to EvidenceRef[] deterministically.
+type SignalInput = {
+  score: number;
+  basis: string;
+  evidence: readonly EvidenceRefInput[];
+};
+
+type CashGeneratedInput = {
+  amountCents: number;
+  verified: boolean;
+  evidence: readonly EvidenceRefInput[];
+};
+
 export type BuildAgentRevenueOutcomeInput = Omit<
   AgentRevenueOutcome,
-  "humanOnTheLoop" | "approvalRequired" | "noExecutionAuthorized"
->;
+  | "humanOnTheLoop"
+  | "approvalRequired"
+  | "noExecutionAuthorized"
+  | "customerProof"
+  | "paymentSignal"
+  | "painClarity"
+  | "buyerIdentifiability"
+  | "offerTestability"
+  | "cashProximity"
+  | "cashGenerated"
+> & {
+  customerProof: SignalInput;
+  paymentSignal: SignalInput;
+  painClarity: SignalInput;
+  buyerIdentifiability: SignalInput;
+  offerTestability: SignalInput;
+  cashProximity: SignalInput;
+  cashGenerated: CashGeneratedInput;
+};
 
-function copySignal(signal: AgentRevenueOutcomeSignal): AgentRevenueOutcomeSignal {
+function copySignal(signal: SignalInput): AgentRevenueOutcomeSignal {
   return {
     score: signal.score,
     basis: signal.basis,
-    evidence: [...signal.evidence],
+    evidence: normalizeEvidenceList(signal.evidence),
   };
 }
 
@@ -260,7 +321,7 @@ export function buildAgentRevenueOutcome(
     cashGenerated: {
       amountCents: input.cashGenerated.amountCents,
       verified: input.cashGenerated.verified,
-      evidence: [...input.cashGenerated.evidence],
+      evidence: normalizeEvidenceList(input.cashGenerated.evidence),
     },
     evidenceSummary: input.evidenceSummary,
     nextCashAction: {
