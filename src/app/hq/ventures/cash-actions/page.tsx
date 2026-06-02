@@ -1,10 +1,18 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { ArrowLeft, Banknote, Eye } from "lucide-react";
+import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { CashActionReviewClient } from "@/features/ventures/components/cash-action-review-client";
 import { buildCashActionPacketsFromItems } from "@/features/ventures/cash-action-packet-generator";
 import { AGENT_VENTURE_WORKBENCH_ITEMS } from "@/features/ventures/agent-venture-workbench-data";
+import { saveCashSignalIntakeAction } from "@/features/ventures/cash-signal-intake-action";
+import type { CashSignalIntake } from "@/features/ventures/cash-signal-intake";
+import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
 import { requireOwnerAccess } from "@/server/auth/owner";
+import {
+  getCashSignalIntakePersistenceMode,
+  listCashSignalIntakesForWorkspace,
+} from "@/server/ventures/cash-signal-intake-repository";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +31,20 @@ export default async function CashActionReviewPage() {
   const packets = buildCashActionPacketsFromItems(AGENT_VENTURE_WORKBENCH_ITEMS, {
     createdAt: generatedAt,
   });
+
+  // Load previously captured signals for this owner's workspace so the screen
+  // can show durable, auditable proof across sessions. A repository failure
+  // surfaces as an empty-but-flagged state rather than pretending success.
+  const workspaceId = getDefaultWorkspace({ ownerUserId: access.user.id }).id;
+  let savedIntakes: CashSignalIntake[] = [];
+  let storageMode: VenturePersistenceMode = "unavailable";
+  let loadError = false;
+  try {
+    savedIntakes = await listCashSignalIntakesForWorkspace(workspaceId);
+    storageMode = getCashSignalIntakePersistenceMode();
+  } catch {
+    loadError = true;
+  }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-5 md:px-8 md:py-10">
@@ -58,7 +80,14 @@ export default async function CashActionReviewPage() {
         </aside>
       </header>
 
-      <CashActionReviewClient packets={packets} generatedAt={generatedAt} />
+      <CashActionReviewClient
+        packets={packets}
+        generatedAt={generatedAt}
+        savedIntakes={savedIntakes}
+        storageMode={storageMode}
+        loadError={loadError}
+        onSave={saveCashSignalIntakeAction}
+      />
     </main>
   );
 }

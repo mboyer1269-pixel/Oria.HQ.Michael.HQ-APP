@@ -189,6 +189,35 @@ export type VentureInsert = Omit<
   decisions?: Json;
 };
 
+// cash_signal_intakes — durable, auditable backing store for captured cash
+// signals (migration 0012). Append-only proof log. The evidence_ref jsonb
+// mirrors the EvidenceRef contract; the repository owns row <-> CashSignalIntake
+// mapping and light validation. signal_type is plain text here (a DB CHECK
+// enforces the whitelist) to avoid coupling the DB layer to feature types.
+export type CashSignalIntakeRow = {
+  id: string;
+  workspace_id: string;
+  captured_by_user_id: string;
+  signal_id: string;
+  packet_id: string;
+  venture_id: string;
+  source_agent_id: string;
+  signal_type: string;
+  reference_id: string;
+  is_verified: boolean;
+  amount_cents: number | null;
+  summary: string;
+  captured_at: string;
+  evidence_ref: Json;
+  created_at: string;
+};
+
+// The DB assigns id and created_at (defaults), so an insert omits them.
+export type CashSignalIntakeInsert = Omit<CashSignalIntakeRow, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
 export type MichaelHqDatabase = {
   public: {
     Tables: {
@@ -238,6 +267,12 @@ export type MichaelHqDatabase = {
         Row: VentureRow;
         Insert: VentureInsert;
         Update: Partial<VentureInsert>;
+        Relationships: [];
+      };
+      cash_signal_intakes: {
+        Row: CashSignalIntakeRow;
+        Insert: CashSignalIntakeInsert;
+        Update: Partial<CashSignalIntakeInsert>;
         Relationships: [];
       };
     };
