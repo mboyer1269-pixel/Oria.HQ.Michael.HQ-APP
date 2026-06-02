@@ -18,12 +18,15 @@ import {
   BadgeCheck,
   Ban,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ClipboardCopy,
   Database,
   Eye,
   HardDriveDownload,
   Lock,
   TriangleAlert,
+  Users,
 } from "lucide-react";
 import type { CashActionPacket, CashSignalType } from "../cash-action-packet";
 import { CASH_SIGNAL_TYPES } from "../cash-action-packet";
@@ -36,8 +39,31 @@ import type { CapturedSignalSummary, CashActionDecision } from "../cash-action-r
 import { summarizeCapturedSignal } from "../cash-action-review";
 import type { VenturePersistenceMode } from "../venture-save-types";
 
+// ---------------------------------------------------------------------------
+// Council analysis types — plain data extracted from the council run result.
+// Exported so the server page can build and pass it without importing
+// server-only types into this client component.
+// ---------------------------------------------------------------------------
+
+export type CouncilTurnDisplay = {
+  roleId: string;
+  outputSummary: string;
+  recommendation: string;
+  confidenceScore: number;
+};
+
+export type CouncilAnalysis = {
+  packetId: string;
+  readiness: "ready_for_ceo" | "needs_more_evidence" | "blocked_by_auditor" | "needs_refinement";
+  verdictDecision: string;
+  recommendedManualAction: string;
+  turns: CouncilTurnDisplay[];
+  runIndex: number;
+};
+
 type CashActionReviewClientProps = {
   packets: CashActionPacket[];
+  councilAnalyses?: CouncilAnalysis[];
   generatedAt: string;
   savedIntakes: CashSignalIntake[];
   storageMode: VenturePersistenceMode;
@@ -94,6 +120,7 @@ function defaultForm(packet: CashActionPacket): SignalFormState {
 
 export function CashActionReviewClient({
   packets,
+  councilAnalyses = [],
   generatedAt,
   savedIntakes,
   storageMode,
@@ -105,6 +132,11 @@ export function CashActionReviewClient({
   const [results, setResults] = useState<Record<string, CaptureResult>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedCouncil, setExpandedCouncil] = useState<Record<string, boolean>>({});
+
+  const councilByPacket = new Map<string, CouncilAnalysis>(
+    councilAnalyses.map((ca) => [ca.packetId, ca]),
+  );
 
   // Group previously-captured (persisted) proof by packet, most-recent first
   // as returned by the repository.
@@ -226,6 +258,7 @@ export function CashActionReviewClient({
         const result = results[packet.packetId];
         const isSaving = saving[packet.packetId] === true;
         const priorProof = savedByPacket.get(packet.packetId) ?? [];
+        const council = councilByPacket.get(packet.packetId);
 
         return (
           <article
@@ -290,6 +323,19 @@ export function CashActionReviewClient({
                 evidence needed: {packet.requiredEvidence.map((e) => e.replace(/_/g, " ")).join(", ")}
               </p>
             </div>
+
+            {council && (
+              <CouncilSection
+                council={council}
+                expanded={expandedCouncil[packet.packetId] === true}
+                onToggle={() =>
+                  setExpandedCouncil((prev) => ({
+                    ...prev,
+                    [packet.packetId]: !prev[packet.packetId],
+                  }))
+                }
+              />
+            )}
 
             {priorProof.length > 0 && (
               <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
@@ -456,6 +502,116 @@ function Field({ label, value }: { label: string; value: string }) {
     <div className="flex flex-col gap-1">
       <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">{label}</dt>
       <dd className="text-sm leading-6 text-neutral-200">{value}</dd>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Council section
+// ---------------------------------------------------------------------------
+
+const READINESS_STYLES: Record<CouncilAnalysis["readiness"], string> = {
+  ready_for_ceo: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  needs_more_evidence: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  blocked_by_auditor: "border-red-500/30 bg-red-500/10 text-red-300",
+  needs_refinement: "border-violet-500/30 bg-violet-500/10 text-violet-300",
+};
+
+const READINESS_LABELS: Record<CouncilAnalysis["readiness"], string> = {
+  ready_for_ceo: "Ready for CEO",
+  needs_more_evidence: "Needs evidence",
+  blocked_by_auditor: "Blocked by Auditor",
+  needs_refinement: "Needs refinement",
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  orient: "Orient",
+  t_gravity: "T-Gravity",
+  hermes: "Hermès",
+  auditor: "Auditor",
+  operator: "Operator",
+  joris_orchestrator: "Joris",
+  builder: "Builder",
+  scribe: "Scribe",
+  closer: "Closer",
+};
+
+const RECOMMENDATION_STYLES: Record<string, string> = {
+  proceed: "text-emerald-400",
+  support: "text-emerald-400",
+  refine: "text-amber-400",
+  pause: "text-amber-400",
+  abstain: "text-neutral-500",
+  needs_ceo_decision: "text-sky-400",
+  kill_candidate: "text-red-400",
+  veto: "text-red-400",
+};
+
+function CouncilSection({
+  council,
+  expanded,
+  onToggle,
+}: {
+  council: CouncilAnalysis;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Users className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            Council Run #{council.runIndex}
+          </span>
+        </div>
+        <span
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${READINESS_STYLES[council.readiness]}`}
+        >
+          {READINESS_LABELS[council.readiness]}
+        </span>
+      </div>
+
+      <p className="mt-3 text-xs leading-5 text-neutral-300">
+        <span className="text-neutral-500">Recommended action: </span>
+        {council.recommendedManualAction}
+      </p>
+
+      <button
+        type="button"
+        onClick={onToggle}
+        className="mt-3 inline-flex items-center gap-1 text-[10px] text-neutral-500 transition hover:text-neutral-300"
+      >
+        {expanded ? (
+          <ChevronDown className="h-3 w-3" aria-hidden="true" />
+        ) : (
+          <ChevronRight className="h-3 w-3" aria-hidden="true" />
+        )}
+        {expanded ? "Hide" : "Show"} agent turns ({council.turns.length})
+      </button>
+
+      {expanded && (
+        <ul className="mt-3 flex flex-col gap-2 border-t border-neutral-800 pt-3">
+          {council.turns.map((turn) => (
+            <li key={turn.roleId} className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <span className="min-w-[64px] text-[10px] font-semibold text-neutral-400">
+                  {ROLE_LABELS[turn.roleId] ?? turn.roleId}
+                </span>
+                <span
+                  className={`text-[10px] font-medium ${RECOMMENDATION_STYLES[turn.recommendation] ?? "text-neutral-400"}`}
+                >
+                  {turn.recommendation.replace(/_/g, " ")}
+                </span>
+                <span className="ml-auto text-[10px] text-neutral-600">
+                  {Math.round(turn.confidenceScore)}%
+                </span>
+              </div>
+              <p className="text-[11px] leading-4 text-neutral-500">{turn.outputSummary}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
