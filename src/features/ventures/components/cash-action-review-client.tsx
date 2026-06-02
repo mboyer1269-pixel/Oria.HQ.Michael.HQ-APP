@@ -25,6 +25,8 @@ import {
   Eye,
   HardDriveDownload,
   Lock,
+  Send,
+  ShieldCheck,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -61,9 +63,36 @@ export type CouncilAnalysis = {
   runIndex: number;
 };
 
+// ---------------------------------------------------------------------------
+// Hermès outreach plan — plain serializable data composed server-side from the
+// CashActionPacket. No functions, no governance literal-true types leak here;
+// the booleans carry the locks so the UI can keep them visible and respected.
+// ---------------------------------------------------------------------------
+
+export type HermesPlanDisplay = {
+  packetId: string;
+  channel: string;
+  senderRecommendation: string;
+  prospectProfile: string;
+  prospectSelectionCriteria: string;
+  personalizationBasis: string;
+  messageDraft: string;
+  cta: string;
+  expectedSignal: string;
+  requiredEvidence: string[];
+  complianceNotes: string;
+  riskNotes: string;
+  manualSendInstructions: string;
+  approvalStatus: string;
+  requiresCeoApproval: boolean;
+  requiresManualSend: boolean;
+  noExecutionAuthorized: boolean;
+};
+
 type CashActionReviewClientProps = {
   packets: CashActionPacket[];
   councilAnalyses?: CouncilAnalysis[];
+  hermesPlans?: HermesPlanDisplay[];
   generatedAt: string;
   savedIntakes: CashSignalIntake[];
   storageMode: VenturePersistenceMode;
@@ -121,6 +150,7 @@ function defaultForm(packet: CashActionPacket): SignalFormState {
 export function CashActionReviewClient({
   packets,
   councilAnalyses = [],
+  hermesPlans = [],
   generatedAt,
   savedIntakes,
   storageMode,
@@ -133,9 +163,13 @@ export function CashActionReviewClient({
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedCouncil, setExpandedCouncil] = useState<Record<string, boolean>>({});
+  const [expandedHermes, setExpandedHermes] = useState<Record<string, boolean>>({});
 
   const councilByPacket = new Map<string, CouncilAnalysis>(
     councilAnalyses.map((ca) => [ca.packetId, ca]),
+  );
+  const hermesByPacket = new Map<string, HermesPlanDisplay>(
+    hermesPlans.map((hp) => [hp.packetId, hp]),
   );
 
   // Group previously-captured (persisted) proof by packet, most-recent first
@@ -160,13 +194,15 @@ export function CashActionReviewClient({
     setForms((prev) => ({ ...prev, [packetId]: { ...formOf(packet), ...patch } }));
   }
 
-  async function copyDraft(packet: CashActionPacket) {
+  // Best-effort copy keyed by a caller-chosen id so multiple copy buttons on the
+  // same card (packet draft, Hermès message) can each flash "Copied" on their own.
+  async function copyText(key: string, text: string) {
     try {
-      await navigator.clipboard.writeText(packet.outreachDraft);
-      setCopiedId(packet.packetId);
+      await navigator.clipboard.writeText(text);
+      setCopiedId(key);
       window.setTimeout(() => setCopiedId(null), 1500);
     } catch {
-      // Clipboard is best-effort; the draft is visible on screen regardless.
+      // Clipboard is best-effort; the text is visible on screen regardless.
     }
   }
 
@@ -259,6 +295,7 @@ export function CashActionReviewClient({
         const isSaving = saving[packet.packetId] === true;
         const priorProof = savedByPacket.get(packet.packetId) ?? [];
         const council = councilByPacket.get(packet.packetId);
+        const hermes = hermesByPacket.get(packet.packetId);
 
         return (
           <article
@@ -308,7 +345,7 @@ export function CashActionReviewClient({
                 </span>
                 <button
                   type="button"
-                  onClick={() => copyDraft(packet)}
+                  onClick={() => copyText(packet.packetId, packet.outreachDraft)}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] text-neutral-300 transition hover:border-neutral-600 hover:text-white"
                 >
                   <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
@@ -334,6 +371,21 @@ export function CashActionReviewClient({
                     [packet.packetId]: !prev[packet.packetId],
                   }))
                 }
+              />
+            )}
+
+            {hermes && (
+              <HermesPlanSection
+                hermes={hermes}
+                expanded={expandedHermes[packet.packetId] === true}
+                onToggle={() =>
+                  setExpandedHermes((prev) => ({
+                    ...prev,
+                    [packet.packetId]: !prev[packet.packetId],
+                  }))
+                }
+                copiedKey={copiedId}
+                onCopyMessage={() => copyText(`hermes:${packet.packetId}`, hermes.messageDraft)}
               />
             )}
 
@@ -611,6 +663,152 @@ function CouncilSection({
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Hermès outreach plan section
+// ---------------------------------------------------------------------------
+
+const HERMES_CHANNEL_LABELS: Record<string, string> = {
+  email: "Email",
+  x_dm: "X DM",
+  linkedin: "LinkedIn",
+  indie_hackers: "Indie Hackers",
+  reddit: "Reddit",
+  manual: "Manual (CEO chooses)",
+};
+
+const HERMES_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  ready_for_ceo_approval: "Ready for CEO approval",
+  approved_for_manual_send: "Approved for manual send",
+  rejected: "Rejected",
+};
+
+const HERMES_STATUS_STYLES: Record<string, string> = {
+  draft: "border-neutral-700 bg-neutral-900 text-neutral-400",
+  ready_for_ceo_approval: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  approved_for_manual_send: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  rejected: "border-red-500/30 bg-red-500/10 text-red-300",
+};
+
+function humanize(value: string): string {
+  return value.replace(/_/g, " ");
+}
+
+function HermesPlanSection({
+  hermes,
+  expanded,
+  onToggle,
+  copiedKey,
+  onCopyMessage,
+}: {
+  hermes: HermesPlanDisplay;
+  expanded: boolean;
+  onToggle: () => void;
+  copiedKey: string | null;
+  onCopyMessage: () => void;
+}) {
+  const channelLabel = HERMES_CHANNEL_LABELS[hermes.channel] ?? humanize(hermes.channel);
+  const statusLabel = HERMES_STATUS_LABELS[hermes.approvalStatus] ?? humanize(hermes.approvalStatus);
+  const statusStyle =
+    HERMES_STATUS_STYLES[hermes.approvalStatus] ?? "border-neutral-700 bg-neutral-900 text-neutral-400";
+  const copyKey = `hermes:${hermes.packetId}`;
+
+  return (
+    <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Send className="h-3.5 w-3.5 text-indigo-400" aria-hidden="true" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-300/80">
+            Hermès Outreach Plan
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-medium text-indigo-200">
+            {channelLabel}
+          </span>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${statusStyle}`}
+          >
+            {statusLabel}
+          </span>
+        </div>
+      </div>
+
+      {/* Always-visible summary line: who sends, and the governance posture. */}
+      <p className="mt-3 text-xs leading-5 text-neutral-300">
+        <span className="text-neutral-500">Sender: </span>
+        {hermes.senderRecommendation}
+      </p>
+
+      {hermes.requiresCeoApproval && hermes.requiresManualSend && hermes.noExecutionAuthorized && (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-neutral-500">
+          <ShieldCheck className="h-3 w-3 text-emerald-400" aria-hidden="true" />
+          Hermès prepares · CEO approves · manual send only · no automatic execution
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={onToggle}
+        className="mt-3 inline-flex items-center gap-1 text-[10px] text-neutral-500 transition hover:text-neutral-300"
+      >
+        {expanded ? (
+          <ChevronDown className="h-3 w-3" aria-hidden="true" />
+        ) : (
+          <ChevronRight className="h-3 w-3" aria-hidden="true" />
+        )}
+        {expanded ? "Hide" : "Show"} outreach plan
+      </button>
+
+      {expanded && (
+        <div className="mt-3 flex flex-col gap-3 border-t border-neutral-800 pt-3">
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <Field label="Prospect profile" value={hermes.prospectProfile} />
+            <Field label="Prospect selection criteria" value={hermes.prospectSelectionCriteria} />
+            <Field label="Personalization basis" value={hermes.personalizationBasis} />
+            <Field label="Call to action" value={hermes.cta} />
+            <Field label="Expected signal" value={humanize(hermes.expectedSignal)} />
+            <Field
+              label="Required evidence"
+              value={hermes.requiredEvidence.map(humanize).join(", ")}
+            />
+            <Field label="Compliance notes" value={hermes.complianceNotes} />
+            <Field label="Risk notes" value={hermes.riskNotes} />
+          </dl>
+
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                Message draft — copy &amp; send yourself
+              </span>
+              <button
+                type="button"
+                onClick={onCopyMessage}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] text-neutral-300 transition hover:border-neutral-600 hover:text-white"
+              >
+                <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
+                {copiedKey === copyKey ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-200">
+              {hermes.messageDraft}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
+              Manual send instructions
+            </span>
+            <p className="mt-1.5 text-xs leading-5 text-amber-100/90">
+              {hermes.manualSendInstructions}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
