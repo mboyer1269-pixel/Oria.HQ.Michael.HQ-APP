@@ -5,9 +5,11 @@ import {
   AGENT_VENTURE_WORKBENCH_ITEMS,
   type AgentVentureWorkbenchItem,
 } from "../agent-venture-workbench-data";
+import { buildAgentRevenueValidationWorkQueue } from "../agent-revenue-validation-work-queue";
 import { buildAgentVenturePrioritizationQueue } from "../agent-venture-prioritization";
 import { AgentVentureWorkbench } from "./agent-venture-workbench";
 import { AgentOpportunityBriefForm } from "./agent-opportunity-brief-form";
+import { VentureRevenueValidationWorkQueuePanel } from "./venture-revenue-validation-work-queue-panel";
 import { VenturePrioritizationQueuePanel } from "./venture-prioritization-queue-panel";
 
 export function AgentVentureWorkbenchWithForm() {
@@ -18,6 +20,7 @@ export function AgentVentureWorkbenchWithForm() {
     ? [draftItem, ...AGENT_VENTURE_WORKBENCH_ITEMS]
     : AGENT_VENTURE_WORKBENCH_ITEMS;
   const prioritizationQueue = buildAgentVenturePrioritizationQueue(items);
+  const validationWorkQueue = buildAgentRevenueValidationWorkQueue(items);
 
   return (
     <div className="flex flex-col gap-8">
@@ -44,6 +47,19 @@ export function AgentVentureWorkbenchWithForm() {
           </p>
         </div>
         <VenturePrioritizationQueuePanel items={prioritizationQueue} />
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            Revenue Validation Agent Work Queue
+          </h2>
+          <p className="text-[11px] text-neutral-500">
+            Draft tasks for Research, Offer, Sales, Ops, and Finance agents. Read-only. No
+            execution authorized.
+          </p>
+        </div>
+        <VentureRevenueValidationWorkQueuePanel items={validationWorkQueue} />
       </div>
 
       <div className="flex flex-col gap-3">
