@@ -255,8 +255,12 @@ Interprétation produit :
 
 ## 8. Déploiement VPS Hostinger (contrôlé)
 
-- **Étape 0 (prérequis dur)** : provisionner **Supabase prod** + appliquer migrations
-  `0001 → 0013`. Sans ça, le store *throw* en prod et Hermès « prépare dans le vide ».
+- **Étape 0 (prérequis dur) — ops DB séparé, forward-only** : provisionner **Supabase
+  prod**, puis appliquer **uniquement** la migration **`0013_prepared_actions.sql`**, et
+  seulement **après un GO explicite séparé du CEO**. Ne **jamais rejouer** les migrations
+  précédentes en bloc — elles ne sont pas dans le périmètre de ce travail. Sans Supabase +
+  0013 appliquée, le store *throw* en prod et Hermès « prépare dans le vide » ; en
+  local/dev le fallback in-memory suffit (aucune migration requise pour les tests).
 - **Nginx + certbot/Let's Encrypt** : `oria-hq.cloud` → `localhost:3000`.
 - **pm2** :
   - `oria-hq` : `next build && next start`.
@@ -279,16 +283,18 @@ Interprétation produit :
 
 ## 9. Plan de livraison staggé (petites PR, chacune verte avant la suivante)
 
-| PR | Contenu | Touche | Dépend de |
-|----|---------|--------|-----------|
-| **0** (ops) | Supabase prod + migrations `0001→0012` appliquées | infra | — |
-| **A** | `prepared_actions` : model + migration `0013` + repository dual-mode + tests (clone 0011/0012) | DB + server | 0 |
-| **B** | `hermesPrepTick()` pur + dédup + priorisation + tests (sans LLM réel : injecté) | server | A |
-| **C** | Stratégie modèles : client OpenRouter + profils T0/T1 + cascade coût + garde budget + ledger + tests | server/ai | B |
-| **D** | Page cash-actions → **lit la file** au lieu de générer au load | UI | A |
-| **E** | Worker entrypoint + `ecosystem.config.js` pm2 + runbook VPS + Ollama setup | scripts + docs | B,C |
+| PR | Contenu | Touche | Dépend de | Statut |
+|----|---------|--------|-----------|--------|
+| **A** | `prepared_actions` : model + migration `0013` + repository dual-mode + tests (clone 0011/0012) | DB + server | — | ✅ mergé (#211) |
+| **B** | `hermesPrepTick()` pur + dédup + priorisation + tests (sans LLM réel : injecté) | server | A | en cours |
+| **C** | Stratégie modèles : client OpenRouter + profils T0/T1 + cascade coût + garde budget + ledger + tests | server/ai | B | à venir |
+| **D** | Page cash-actions → **lit la file** au lieu de générer au load | UI | A | à venir |
+| **E** | Worker entrypoint + `ecosystem.config.js` pm2 + runbook VPS + Ollama setup | scripts + docs | B,C | à venir |
+| **Ops DB** (séparé) | Appliquer **uniquement** `0013_prepared_actions.sql` sur Supabase prod, **après GO explicite CEO**. Forward-only. **Ne pas** rejouer `0001→0012` en bloc. | infra | A mergé | bloqué sur GO |
 
-Chaque PR : `typecheck` + `lint` + `build` + `smoke:joris` + tests ciblés verts, puis PR.
+Chaque PR de code : `typecheck` + `lint` + `build` + `smoke:joris` + tests ciblés verts, puis PR.
+Le code (PR A→E) ne dépend **pas** de l'application prod de `0013` : tests et dev tournent
+sur le fallback in-memory. L'ops DB est un acte distinct, déclenché seulement par un GO CEO.
 
 ---
 
