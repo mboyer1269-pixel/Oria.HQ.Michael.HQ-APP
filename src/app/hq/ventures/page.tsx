@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowLeft, Eye, Rocket } from "lucide-react";
+import { ArrowLeft, Banknote, Eye, Rocket } from "lucide-react";
 import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { AgentVentureWorkbenchWithForm } from "@/features/ventures/components/agent-venture-workbench-with-form";
 import { VentureCommandCenterClient } from "@/features/ventures/components/venture-command-center-client";
@@ -74,6 +74,13 @@ export default async function VenturesPage() {
           <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">
             Générer, scorer, tester et opérer des ventures rentables sous contrôle CEO.
           </p>
+          <Link
+            href={"/hq/ventures/cash-actions" as Route}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20"
+          >
+            <Banknote className="h-4 w-4" aria-hidden="true" />
+            Cash Action Review — préparer & capturer le cash
+          </Link>
         </div>
 
         <aside className="shrink-0 self-start rounded-2xl border border-neutral-800 bg-neutral-950/80 p-4 sm:w-56">
