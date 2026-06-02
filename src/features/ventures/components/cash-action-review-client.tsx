@@ -39,61 +39,29 @@ import type {
 } from "../cash-signal-intake-persistence-types";
 import type { CapturedSignalSummary, CashActionDecision } from "../cash-action-review";
 import { summarizeCapturedSignal } from "../cash-action-review";
+import type {
+  CouncilAnalysis,
+  CouncilTurnDisplay,
+  HermesPlanDisplay,
+} from "../cash-action-review-projection";
 import type { VenturePersistenceMode } from "../venture-save-types";
 
-// ---------------------------------------------------------------------------
-// Council analysis types — plain data extracted from the council run result.
-// Exported so the server page can build and pass it without importing
-// server-only types into this client component.
-// ---------------------------------------------------------------------------
-
-export type CouncilTurnDisplay = {
-  roleId: string;
-  outputSummary: string;
-  recommendation: string;
-  confidenceScore: number;
-};
-
-export type CouncilAnalysis = {
-  packetId: string;
-  readiness: "ready_for_ceo" | "needs_more_evidence" | "blocked_by_auditor" | "needs_refinement";
-  verdictDecision: string;
-  recommendedManualAction: string;
-  turns: CouncilTurnDisplay[];
-  runIndex: number;
-};
-
-// ---------------------------------------------------------------------------
-// Hermès outreach plan — plain serializable data composed server-side from the
-// CashActionPacket. No functions, no governance literal-true types leak here;
-// the booleans carry the locks so the UI can keep them visible and respected.
-// ---------------------------------------------------------------------------
-
-export type HermesPlanDisplay = {
-  packetId: string;
-  channel: string;
-  senderRecommendation: string;
-  prospectProfile: string;
-  prospectSelectionCriteria: string;
-  personalizationBasis: string;
-  messageDraft: string;
-  cta: string;
-  expectedSignal: string;
-  requiredEvidence: string[];
-  complianceNotes: string;
-  riskNotes: string;
-  manualSendInstructions: string;
-  approvalStatus: string;
-  requiresCeoApproval: boolean;
-  requiresManualSend: boolean;
-  noExecutionAuthorized: boolean;
-};
+// Display projection types live in the pure projection module so the server
+// page and this client component share one definition. Re-exported here to keep
+// existing import sites working.
+export type { CouncilAnalysis, CouncilTurnDisplay, HermesPlanDisplay };
 
 type CashActionReviewClientProps = {
   packets: CashActionPacket[];
   councilAnalyses?: CouncilAnalysis[];
   hermesPlans?: HermesPlanDisplay[];
   generatedAt: string;
+  // Where the displayed packets came from: the durable prepared-action queue
+  // ("prepared_queue") or on-open live generation ("live").
+  sourceMode?: "prepared_queue" | "live";
+  // True when the prepared-action queue could not be read (e.g. migration 0013
+  // not yet applied in prod) and the page fell back to live generation.
+  preparedQueueUnavailable?: boolean;
   savedIntakes: CashSignalIntake[];
   storageMode: VenturePersistenceMode;
   loadError: boolean;
@@ -152,6 +120,8 @@ export function CashActionReviewClient({
   councilAnalyses = [],
   hermesPlans = [],
   generatedAt,
+  sourceMode = "live",
+  preparedQueueUnavailable = false,
   savedIntakes,
   storageMode,
   loadError,
@@ -260,9 +230,17 @@ export function CashActionReviewClient({
         </span>
       </div>
 
+      {preparedQueueUnavailable && (
+        <div className="rounded-xl border border-neutral-700/60 bg-neutral-900/40 px-3 py-2 text-[11px] text-neutral-400">
+          Prepared queue unavailable — using live generation fallback.
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500">
         <span>
-          {packets.length} packet{packets.length > 1 ? "s" : ""} préparé{packets.length > 1 ? "s" : ""} par les agents · généré {generatedAt}
+          {sourceMode === "prepared_queue"
+            ? `${packets.length} action${packets.length > 1 ? "s" : ""} préparée${packets.length > 1 ? "s" : ""} par Hermès · file de revue · préparé ${generatedAt}`
+            : `${packets.length} packet${packets.length > 1 ? "s" : ""} généré${packets.length > 1 ? "s" : ""} en direct · ${generatedAt}`}
         </span>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium ${
