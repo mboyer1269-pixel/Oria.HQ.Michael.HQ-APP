@@ -37,7 +37,6 @@ const executeRequestSchema = z.object({
   autonomyLevel: z.number().int().min(0).max(5).default(2),
   ventureId: z.string().optional(),
   input: z.record(z.string(), z.unknown()).optional().default({}),
-  webhookUrl: z.string().url().optional(),
 });
 
 export async function POST(
@@ -59,7 +58,7 @@ export async function POST(
     );
   }
 
-  const { skillId, autonomyLevel, ventureId, input, webhookUrl } = parsed.data;
+  const { skillId, autonomyLevel, ventureId, input } = parsed.data;
   const ctx = getActiveWorkspaceContext();
   const proposedAt = new Date().toISOString();
 
@@ -125,7 +124,6 @@ export async function POST(
       agentId,
       skillId,
       input,
-      webhookUrl,
       workspaceId: ctx.workspace.id,
     });
   } catch (err) {

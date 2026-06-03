@@ -28,14 +28,14 @@
 
 import { serverEnv } from "@/lib/server-env";
 import { logger } from "@/lib/logger";
+import crypto from "node:crypto";
+import { resolveApprovedWebhook, type ResolvedWebhook } from "./webhook-registry";
 
 export type SkillDispatchInput = {
   agentId: string;
   skillId: string;
   input: Record<string, unknown>;
   workspaceId: string;
-  /** Optional n8n/Make/Zapier webhook URL to forward the request to. */
-  webhookUrl?: string;
 };
 
 export type SkillDispatchResult = {
@@ -46,8 +46,6 @@ export type SkillDispatchResult = {
   /** Which strategy was used. */
   strategy: "webhook" | "builtin" | "dry-run";
 };
-
-const DEFAULT_TIMEOUT_MS = 10_000;
 
 // ---------------------------------------------------------------------------
 // Public dispatcher
@@ -65,15 +63,16 @@ export async function dispatchSkillExecution(
 ): Promise<SkillDispatchResult> {
   const actionRef = `action_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-  // Strategy 1: Webhook bridge
-  if (input.webhookUrl) {
-    return dispatchViaWebhook(input, actionRef);
-  }
-
-  // Strategy 2: Built-in handler
+  // Strategy 1: Built-in handler
   const builtin = BUILTIN_HANDLERS[input.skillId];
   if (builtin) {
     return builtin(input, actionRef);
+  }
+
+  // Strategy 2: Webhook bridge via Registry
+  const webhook = resolveApprovedWebhook(input.agentId, input.skillId);
+  if (webhook) {
+    return dispatchViaWebhook(input, actionRef, webhook);
   }
 
   // Strategy 3: Dry-run (no handler configured yet)
@@ -88,7 +87,7 @@ export async function dispatchSkillExecution(
     strategy: "dry-run",
     result: {
       preview: true,
-      message: `Skill ${input.skillId} executed in dry-run mode. Wire a webhookUrl or add a built-in handler to execute live.`,
+      message: `Skill ${input.skillId} executed in dry-run mode. Wire a webhook or add a built-in handler to execute live.`,
       agentId: input.agentId,
       skillId: input.skillId,
       input: input.input,
@@ -103,6 +102,7 @@ export async function dispatchSkillExecution(
 async function dispatchViaWebhook(
   input: SkillDispatchInput,
   actionRef: string,
+  webhook: ResolvedWebhook,
 ): Promise<SkillDispatchResult> {
   const payload = {
     actionRef,
@@ -113,14 +113,35 @@ async function dispatchViaWebhook(
     dispatchedAt: new Date().toISOString(),
   };
 
+  const bodyString = JSON.stringify(payload);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (webhook.binding.requiresSignature) {
+    const secret = process.env.AGENT_WEBHOOK_SIGNING_SECRET;
+    if (!secret) {
+      throw new Error("Missing AGENT_WEBHOOK_SIGNING_SECRET in environment for signed webhook.");
+    }
+    const timestamp = Date.now().toString();
+    const signature = crypto
+      .createHmac("sha256", secret)
+      .update(`${timestamp}.${bodyString}`)
+      .digest("hex");
+
+    headers["x-orya-action-ref"] = actionRef;
+    headers["x-orya-timestamp"] = timestamp;
+    headers["x-orya-signature"] = signature;
+  }
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), webhook.binding.timeoutMs);
 
   try {
-    const response = await fetch(input.webhookUrl!, {
+    const response = await fetch(webhook.url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      headers,
+      body: bodyString,
       signal: controller.signal,
     });
 
