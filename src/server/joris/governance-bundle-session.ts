@@ -1,5 +1,23 @@
 // src/server/joris/governance-bundle-session.ts
 
+// ---------------------------------------------------------------------------
+// PRODUCTION WARNING — IN-MEMORY SESSION STORE
+// ---------------------------------------------------------------------------
+// This module uses a module-scope Map to hold pending governance bundles.
+// Same limitations as mission-draft-session.ts:
+//
+//   1. MULTI-INSTANCE / SERVERLESS: State is NOT shared across instances.
+//      A governance bundle previewed on instance A is invisible on instance B.
+//
+//   2. RESTART LOSS: In-progress governance review sessions are lost on restart.
+//
+// MIGRATION PATH (when multi-instance prod is needed):
+//   Replace the Map with a short-TTL Supabase table or Redis/Upstash store.
+//   GOVERNANCE_BUNDLE_TTL_MS (30 min) is the correct TTL value for the key.
+//
+//   Do NOT begin this migration without an explicit mandate.
+// ---------------------------------------------------------------------------
+
 /**
  * In-memory pending Governance Bundle store for Joris conversational continuity.
  *

@@ -5,6 +5,7 @@ import { requireOwnerApiSession } from "@/server/auth/owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
+import { logger } from "@/lib/logger";
 
 const requestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -20,10 +21,7 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json(
-      {
-        error: "Requête invalide.",
-        issues: parsed.error.flatten(),
-      },
+      { error: "Requete invalide.", issues: parsed.error.flatten() },
       { status: 400 },
     );
   }
@@ -31,35 +29,28 @@ export async function POST(request: Request) {
   try {
     const workspaceContext = getActiveWorkspaceContext();
     const result = await runJorisCommand(parsed.data.message, workspaceContext);
-
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof CalendarServiceError) {
       return NextResponse.json(
-        {
-          error: error.message,
-          code: error.code,
-        },
+        { error: error.message, code: error.code },
         { status: error.status },
       );
     }
 
     if (error instanceof CalendarRepositoryError) {
       return NextResponse.json(
-        {
-          error: "Le calendrier n'est pas disponible pour le moment.",
-          code: error.code,
-        },
+        { error: "Le calendrier n'est pas disponible pour le moment.", code: error.code },
         { status: 503 },
       );
     }
 
-    console.error("Joris command failed:", error instanceof Error ? error.message : "Unknown error");
+    logger.error("joris.command.failed", {
+      reason: error instanceof Error ? error.message : "unknown",
+    });
 
     return NextResponse.json(
-      {
-        error: "Joris a eu un problème serveur.",
-      },
+      { error: "Joris a eu un probleme serveur." },
       { status: 500 },
     );
   }

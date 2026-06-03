@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createContactLead } from "@/server/contact/contact-lead-service";
 import { ContactLeadRepositoryError } from "@/server/contact/contact-lead-repository";
 import { isAllowed } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 const optionalTextSchema = (max: number) =>
   z
@@ -17,7 +18,7 @@ const contactRequestSchema = z.object({
   email: z.string().trim().email("Courriel invalide.").max(254).transform((value) => value.toLowerCase()),
   phone: optionalTextSchema(40),
   company: optionalTextSchema(160),
-  message: z.string().trim().min(10, "Le message doit contenir au moins 10 caractères.").max(4000),
+  message: z.string().trim().min(10, "Le message doit contenir au moins 10 caracteres.").max(4000),
   source: z.string().trim().min(1).max(80).default("suivia-contact-form"),
   website: z.string().trim().max(200).optional().default(""),
 });
@@ -33,12 +34,12 @@ function toApiError(error: unknown) {
     );
   }
 
-  console.error("Contact API failed:", error instanceof Error ? error.message : "Unknown error");
+  logger.error("contact.api.failed", {
+    reason: error instanceof Error ? error.message : "unknown",
+  });
 
   return NextResponse.json(
-    {
-      error: "Le formulaire de contact a eu un problème serveur.",
-    },
+    { error: "Le formulaire de contact a eu un probleme serveur." },
     { status: 500 },
   );
 }
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
 
   if (!isAllowed(ip, RATE_LIMIT, RATE_WINDOW_MS)) {
     return NextResponse.json(
-      { error: "Trop de messages envoyés. Réessaie dans une heure." },
+      { error: "Trop de messages envoyes. Reessaie dans une heure." },
       { status: 429 },
     );
   }
@@ -67,10 +68,7 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json(
-      {
-        error: "Message de contact invalide.",
-        issues: parsed.error.flatten(),
-      },
+      { error: "Message de contact invalide.", issues: parsed.error.flatten() },
       { status: 400 },
     );
   }
@@ -78,11 +76,7 @@ export async function POST(request: Request) {
   // ---- Honeypot ----
   if (parsed.data.website) {
     return NextResponse.json(
-      {
-        ok: true,
-        message: "Merci, ton message a bien été reçu.",
-        notificationStatus: "skipped",
-      },
+      { ok: true, message: "Merci, ton message a bien ete recu.", notificationStatus: "skipped" },
       { status: 202 },
     );
   }
@@ -101,7 +95,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: true,
-        message: "Merci, ton message a bien été reçu. On revient vers toi sous 24-48h.",
+        message: "Merci, ton message a bien ete recu. On revient vers toi sous 24-48h.",
         leadId: result.lead.id,
         storageMode: result.lead.storageMode,
         notificationStatus: result.notificationStatus,

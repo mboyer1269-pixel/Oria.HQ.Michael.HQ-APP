@@ -1,5 +1,6 @@
 import type { CommandResult, JorisIntent, MissionPlanResult } from "@/features/hq/types";
 import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
+import { logger } from "@/lib/logger";
 import { chooseModel } from "@/server/ai/model-router";
 import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
@@ -154,8 +155,13 @@ async function handleGovernanceReviewReply(
         reviewerId: ctx.userId,
       }),
     );
-  } catch {
+  } catch (err) {
     // Audit persistence is best-effort; the dry-run response still stands.
+    logger.warn("governance.decision.persist.failed", {
+      workspaceId: ctx.workspace.id,
+      reviewerId: ctx.userId,
+      reason: err instanceof Error ? err.message : "unknown",
+    });
   }
 
   // On approved_to_plan, append a self-contained DRY-RUN planning representation

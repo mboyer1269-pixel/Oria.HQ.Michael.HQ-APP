@@ -1,7 +1,26 @@
+// ---------------------------------------------------------------------------
+// PRODUCTION WARNING -- IN-MEMORY RATE LIMITER
+// ---------------------------------------------------------------------------
+// This rate limiter stores timestamps in a module-scope Map. Limitations:
+//
+//   1. MULTI-INSTANCE / SERVERLESS: Each instance maintains its own counter.
+//      A client can exceed the limit by hitting different instances, making
+//      the rate limiter bypassable on horizontally-scaled deployments.
+//
+//   2. RESTART RESET: Counters reset on server restart (cold start, deploy).
+//
+// MIGRATION PATH (when multi-instance prod is needed):
+//   Replace the Map with an atomic Redis/Upstash sliding-window counter
+//   (e.g. Upstash Ratelimit). The function signature can stay identical --
+//   only the store backend changes.
+//
+//   Do NOT begin this migration without an explicit mandate.
+// ---------------------------------------------------------------------------
+
 /**
  * In-memory sliding-window rate limiter.
  * Keyed by any string (typically client IP).
- * State lives in module scope — not shared across server instances.
+ * State lives in module scope -- not shared across server instances.
  */
 
 const store = new Map<string, number[]>();

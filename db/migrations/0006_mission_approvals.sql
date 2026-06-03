@@ -1,3 +1,16 @@
+-- ⚠️  SUPERSEDED — DO NOT APPLY THIS FILE
+-- =========================================
+-- This file (0006_mission_approvals.sql) caused a numbering collision with
+-- 0006_arena_verdicts_restrictive_rls.sql. It has been superseded by:
+--
+--   db/migrations/0015_mission_approvals.sql
+--
+-- Apply 0015_mission_approvals.sql instead. That version is idempotent
+-- (safe to run even if this file was already applied to your Supabase instance).
+--
+-- This file is kept for git history only. Do not run it.
+-- =========================================
+
 -- Migration 0006: Create mission_approvals table and strict RLS policies
 
 create table if not exists public.mission_approvals (
