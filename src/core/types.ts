@@ -241,3 +241,79 @@ export type MissionApprovalRequirement = {
   approvedBy?: string;
   approvedAt?: string;
 };
+
+// ---------------------------------------------------------------------------
+// Execution Zone Model (PR1 -- Bounded Live Execution Layer)
+//
+// Maps the 0-5 AutonomyLevel scale to three operational zones:
+//
+//   green  -- Agent executes live autonomously. Sentinel observes.
+//             Ledger mandatory. Human reviews post-action.
+//             Levels 1-2 (read-only / internal-draft)
+//
+//   yellow -- Agent prepares the action and requests a fast GO.
+//             Human approves before dispatch. Sentinel gates.
+//             Levels 3-4 (supervised write / external)
+//
+//   red    -- Action is blocked. Never executed automatically.
+//             Level 0 (forbidden) and level 5 (financial/irreversible)
+//
+// The zone is computed from the LOWER of (agent.autonomyLevel, skill.autonomyLevel).
+// This ensures a high-autonomy agent cannot run a high-risk skill unchecked.
+// ---------------------------------------------------------------------------
+
+export type ExecutionZone = "green" | "yellow" | "red";
+
+export type ExecutionZonePolicy = {
+  zone: ExecutionZone;
+  /** Agent can execute live without human approval. */
+  allowedLive: boolean;
+  /** Human approval required before dispatch. */
+  requiresHumanApproval: boolean;
+  /** Sentinel policy engine must gate the action. */
+  requiresSentinel: boolean;
+  /** Action ledger entry is mandatory. */
+  requiresLedger: boolean;
+};
+
+/**
+ * Resolve the ExecutionZone from an AutonomyLevel.
+ * Use the effective level = min(agentLevel, skillLevel) at call sites.
+ */
+export function resolveExecutionZone(level: AutonomyLevel): ExecutionZone {
+  if (level === 0 || level === 5) return "red";
+  if (level <= 2) return "green";
+  return "yellow";
+}
+
+/** Full policy for a given AutonomyLevel. */
+export function getExecutionZonePolicy(level: AutonomyLevel): ExecutionZonePolicy {
+  const zone = resolveExecutionZone(level);
+  switch (zone) {
+    case "green":
+      return {
+        zone: "green",
+        allowedLive: true,
+        requiresHumanApproval: false,
+        requiresSentinel: true,
+        requiresLedger: true,
+      };
+    case "yellow":
+      return {
+        zone: "yellow",
+        allowedLive: false,
+        requiresHumanApproval: true,
+        requiresSentinel: true,
+        requiresLedger: true,
+      };
+    case "red":
+    default:
+      return {
+        zone: "red",
+        allowedLive: false,
+        requiresHumanApproval: false,
+        requiresSentinel: false,
+        requiresLedger: false,
+      };
+  }
+}

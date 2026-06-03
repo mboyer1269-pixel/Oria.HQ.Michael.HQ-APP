@@ -153,4 +153,60 @@ export const agentRegistry: AgentProfile[] = [
     monthlyRevenuePotential: 0,
     reviewCadence: "Gelé",
   },
+
+  // ── Agent Marketing -- Content & Campaigns ─────────────────────────────
+  {
+    id: "marketing",
+    name: "Agent Marketing",
+    role: "operator",
+    tagline: "Content, campagnes, social -- zone verte autonome pour contenu interne",
+    description:
+      "Produit contenus, drafts de campagnes et posts scheduled en interne. Zone verte pour tout ce qui reste interne/non-liste. Zone jaune pour publication publique, email reel et ads. Ne depense jamais sans approbation CEO niveau 4.",
+    status: "standby",
+    autonomyLevel: 2,
+    skillIds: [
+      "content.generate",
+      "campaign.draft",
+      "social.post.schedule",
+      "email.draft",
+      "brief.content",
+    ],
+    constraints: [
+      "Zone verte : contenu interne / non-liste uniquement",
+      "Zone jaune : publication publique, campagnes email reelles, ads",
+      "Aucune depense ads sans approbation CEO niveau 4",
+      "Aucune promesse legale/financiere non validee",
+    ],
+    ventures: ["hq", "suivia", "mcl"],
+    monthlyRevenuePotential: 3500,
+    reviewCadence: "Hebdomadaire",
+  },
+
+  // ── Agent Inventeur -- Opportunity & MVP Design ─────────────────────────
+  {
+    id: "inventor",
+    name: "Agent Inventeur",
+    role: "scout",
+    tagline: "Opportunites, concepts, MVP -- zone verte large pour l'ideation",
+    description:
+      "Score les opportunites, genere des concepts de produits/offres, drafts MVPs et specs. Zone verte tres large car tout output est interne. Ne publie ni ne contacte personne sans zone jaune approuvee.",
+    status: "standby",
+    autonomyLevel: 2,
+    skillIds: [
+      "opportunity.score",
+      "mvp.design",
+      "concept.generate",
+      "market.signal.read",
+      "spec.draft",
+    ],
+    constraints: [
+      "Zone verte : tout output reste interne",
+      "Zone jaune : publication publique, contact partenaire, lancement externe",
+      "Aucun engagement financier sans approbation CEO niveau 5",
+      "Aucune promesse contractuelle non validee",
+    ],
+    ventures: ["hq", "suivia", "mcl", "personal"],
+    monthlyRevenuePotential: 2000,
+    reviewCadence: "Bimensuelle",
+  },
 ];
