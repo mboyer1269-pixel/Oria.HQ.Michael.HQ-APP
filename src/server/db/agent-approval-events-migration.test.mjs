@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import test, { describe, it } from "node:test";
+import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,8 +20,6 @@ const migrationPath = path.join(
 );
 
 const sql = readFileSync(migrationPath, "utf-8");
-// Lowercase for case-insensitive checks
-const sqlLower = sql.toLowerCase();
 
 // Strip comment lines so prose in comments cannot accidentally satisfy assertions
 // that are meant to catch actual SQL keywords (e.g. USING (true) mentioned in a

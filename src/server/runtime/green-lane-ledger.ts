@@ -5,7 +5,7 @@ type GreenLaneParams = {
   agentId: string;
   skillId: string;
   autonomyLevel: number;
-  missionId?: string;
+  ventureId?: string;
 };
 
 export async function recordGreenLaneDecision(ctx: WorkspaceContext, params: GreenLaneParams) {
@@ -18,7 +18,6 @@ export async function recordGreenLaneDecision(ctx: WorkspaceContext, params: Gre
     workspaceId: ctx.workspace.id,
     skillId: params.skillId,
     agentId: params.agentId,
-    missionId: params.missionId,
     effect: {
       kind: "runtime_result",
       operation: "plan",
@@ -26,6 +25,7 @@ export async function recordGreenLaneDecision(ctx: WorkspaceContext, params: Gre
     },
     metadata: {
       phase: "decision",
+      ...(params.ventureId ? { ventureRef: params.ventureId } : {}),
     },
   });
 }
@@ -40,7 +40,6 @@ export async function recordGreenLanePendingDispatch(ctx: WorkspaceContext, para
     workspaceId: ctx.workspace.id,
     skillId: params.skillId,
     agentId: params.agentId,
-    missionId: params.missionId,
     effect: {
       kind: "external_call",
       operation: "execute",
@@ -48,6 +47,7 @@ export async function recordGreenLanePendingDispatch(ctx: WorkspaceContext, para
     },
     metadata: {
       phase: "pending_dispatch",
+      ...(params.ventureId ? { ventureRef: params.ventureId } : {}),
     },
   });
 }
@@ -68,7 +68,6 @@ export async function recordGreenLaneResult(
     workspaceId: ctx.workspace.id,
     skillId: params.skillId,
     agentId: params.agentId,
-    missionId: params.missionId,
     effect: {
       kind: "runtime_result",
       operation: "execute",
@@ -77,6 +76,7 @@ export async function recordGreenLaneResult(
     metadata: {
       phase: params.outcome,
       ...(params.failureCode ? { failureCode: params.failureCode } : {}),
+      ...(params.ventureId ? { ventureRef: params.ventureId } : {}),
     },
   });
 }
