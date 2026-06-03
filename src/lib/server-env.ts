@@ -29,6 +29,9 @@ const serverEnvSchema = z.object({
   CONTACT_NOTIFICATION_EMAIL: z.string().email().optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
+  // Rate limiting — Upstash Redis (optional — falls back to in-memory)
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
   // Agent webhooks (optional — fall back to built-in handlers)
   AGENT_MARKETING_WEBHOOK_URL: z.string().url().optional(),
   AGENT_INVENTOR_WEBHOOK_URL: z.string().url().optional(),

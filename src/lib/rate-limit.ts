@@ -1,45 +1,102 @@
 // ---------------------------------------------------------------------------
-// PRODUCTION WARNING -- IN-MEMORY RATE LIMITER
+// ADAPTIVE RATE LIMITER
 // ---------------------------------------------------------------------------
-// This rate limiter stores timestamps in a module-scope Map. Limitations:
+// Upstash Redis backend when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
+// are set — atomic sliding-window, safe across all server instances.
 //
-//   1. MULTI-INSTANCE / SERVERLESS: Each instance maintains its own counter.
-//      A client can exceed the limit by hitting different instances, making
-//      the rate limiter bypassable on horizontally-scaled deployments.
+// Falls back to in-memory sliding-window when Upstash is not configured
+// (local dev, single-instance deploys). The in-memory fallback is NOT safe
+// for horizontally-scaled multi-instance deployments.
 //
-//   2. RESTART RESET: Counters reset on server restart (cold start, deploy).
+// The public API (isAllowed) is identical in both modes.
+// Callers never need to know which backend is active.
 //
-// MIGRATION PATH (when multi-instance prod is needed):
-//   Replace the Map with an atomic Redis/Upstash sliding-window counter
-//   (e.g. Upstash Ratelimit). The function signature can stay identical --
-//   only the store backend changes.
-//
-//   Do NOT begin this migration without an explicit mandate.
+// Required env vars for Upstash backend:
+//   UPSTASH_REDIS_REST_URL    — from https://console.upstash.com
+//   UPSTASH_REDIS_REST_TOKEN  — from https://console.upstash.com
 // ---------------------------------------------------------------------------
 
-/**
- * In-memory sliding-window rate limiter.
- * Keyed by any string (typically client IP).
- * State lives in module scope -- not shared across server instances.
- */
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+// ---------------------------------------------------------------------------
+// Backend detection
+// ---------------------------------------------------------------------------
+
+function hasUpstashConfig(): boolean {
+  return Boolean(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Upstash backend (multi-instance safe)
+// ---------------------------------------------------------------------------
+
+let upstashLimiter: Ratelimit | null = null;
+
+function getUpstashLimiter(limit: number, windowMs: number): Ratelimit {
+  // Cache a single limiter instance per process. If limit/window differ per
+  // call site, instantiate a named limiter per use case instead.
+  if (!upstashLimiter) {
+    upstashLimiter = new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(limit, `${windowMs} ms`),
+      analytics: false,
+      prefix: "oria:rl",
+    });
+  }
+  return upstashLimiter;
+}
+
+async function isAllowedUpstash(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<boolean> {
+  const limiter = getUpstashLimiter(limit, windowMs);
+  const { success } = await limiter.limit(key);
+  return success;
+}
+
+// ---------------------------------------------------------------------------
+// In-memory backend (single-instance / dev fallback)
+// ---------------------------------------------------------------------------
 
 const store = new Map<string, number[]>();
 
-/**
- * Returns true when the request is ALLOWED, false when it should be BLOCKED.
- *
- * @param key      Unique identifier for the client (e.g. IP address)
- * @param limit    Maximum number of requests permitted within the window
- * @param windowMs Rolling window duration in milliseconds
- */
-export function isAllowed(key: string, limit: number, windowMs: number): boolean {
+function isAllowedInMemory(key: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
   const cutoff = now - windowMs;
 
-  // Keep only timestamps within the current window, then record this request.
   const timestamps = (store.get(key) ?? []).filter((t) => t > cutoff);
   timestamps.push(now);
   store.set(key, timestamps);
 
   return timestamps.length <= limit;
+}
+
+// ---------------------------------------------------------------------------
+// Public API — same signature in both modes
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when the request is ALLOWED, false when it should be BLOCKED.
+ *
+ * Uses Upstash Redis when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
+ * are set; falls back to in-memory sliding-window otherwise.
+ *
+ * @param key      Unique identifier for the client (e.g. IP address)
+ * @param limit    Maximum number of requests permitted within the window
+ * @param windowMs Rolling window duration in milliseconds
+ */
+export async function isAllowed(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<boolean> {
+  if (hasUpstashConfig()) {
+    return isAllowedUpstash(key, limit, windowMs);
+  }
+  return isAllowedInMemory(key, limit, windowMs);
 }

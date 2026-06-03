@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     request.headers.get("x-real-ip") ??
     "unknown";
 
-  if (!isAllowed(ip, RATE_LIMIT, RATE_WINDOW_MS)) {
+  if (!(await isAllowed(ip, RATE_LIMIT, RATE_WINDOW_MS))) {
     return NextResponse.json(
       { error: "Trop de messages envoyes. Reessaie dans une heure." },
       { status: 429 },
