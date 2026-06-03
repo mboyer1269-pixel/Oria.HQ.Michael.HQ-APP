@@ -30,3 +30,6 @@ Thumbs.db
 
 # Agent skill definitions (tool-local, not app code)
 .agents/
+
+# Claude Code local settings (tool-local, not app code)
+.claude/settings.local.json
