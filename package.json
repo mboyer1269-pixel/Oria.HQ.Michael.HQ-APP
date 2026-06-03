@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "check:supabase": "node --experimental-strip-types src/scripts/check-supabase-config.ts",
     "smoke:joris": "node src/scripts/smoke/joris-booking.mjs",
+    "smoke:revenue": "node src/scripts/smoke/revenue-readiness.mjs",
     "smoke:runtime": "node src/scripts/smoke/runtime-health-echo.mjs",
     "test:mission-store-guard": "node --test src/server/missions/execution-attempt-store.test.mjs",
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",
