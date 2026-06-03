@@ -34,6 +34,7 @@ import {
   createPreparedAction,
   listPreparedActionsForWorkspace,
 } from "./prepared-action-repository";
+import { snapshotWorkspaceAgentScores } from "./snapshot-workspace-agent-scores";
 
 // ---------------------------------------------------------------------------
 // Dependencies (injectable for tests)
@@ -48,9 +49,21 @@ export type HermesPrepTickDeps = {
   listExisting: (workspaceId: string) => Promise<PreparedAction[]>;
   /** Persist one prepared action. Default: repository. */
   enqueue: (workspaceId: string, userId: string, action: PreparedAction) => Promise<PreparedAction>;
+  /**
+   * Refresh agent score snapshots from captured proof after enqueueing. Returns
+   * the number of snapshots written. BEST-EFFORT — a failure never breaks the
+   * prep tick. Default: score every agent with captured signals and persist a
+   * snapshot per agent (no-op when there is no captured proof yet).
+   */
+  snapshotScores: (workspaceId: string, userId: string) => Promise<number>;
   /** Clock. Default: real ISO now. */
   now: () => string;
 };
+
+async function defaultSnapshotScores(workspaceId: string, userId: string): Promise<number> {
+  const result = await snapshotWorkspaceAgentScores({ workspaceId, userId });
+  return result.snapshots.length;
+}
 
 function defaultComposeCouncil(
   packet: CashActionPacket,
@@ -74,6 +87,7 @@ function resolveDeps(overrides?: Partial<HermesPrepTickDeps>): HermesPrepTickDep
     buildPlan: overrides?.buildPlan ?? ((packet) => buildHermesOutreachPlanFromCashActionPacket(packet)),
     listExisting: overrides?.listExisting ?? listPreparedActionsForWorkspace,
     enqueue: overrides?.enqueue ?? createPreparedAction,
+    snapshotScores: overrides?.snapshotScores ?? defaultSnapshotScores,
     now: overrides?.now ?? (() => new Date().toISOString()),
   };
 }
@@ -93,6 +107,8 @@ export type HermesPrepTickResult = {
   /** The prepared actions actually persisted, highest priority first. */
   enqueued: PreparedAction[];
   createdAt: string;
+  /** Agent score snapshots written this tick (best-effort; 0 if none/failed). */
+  snapshotsWritten: number;
 };
 
 /**
@@ -122,5 +138,14 @@ export async function runHermesPrepTick(
     enqueued.push(await deps.enqueue(input.workspaceId, input.userId, entry.action));
   }
 
-  return { plan, enqueued, createdAt };
+  // Best-effort: refresh the agent performance curve from captured proof. This
+  // must never break preparation, so a failure is swallowed and reported as 0.
+  let snapshotsWritten = 0;
+  try {
+    snapshotsWritten = await deps.snapshotScores(input.workspaceId, input.userId);
+  } catch {
+    snapshotsWritten = 0;
+  }
+
+  return { plan, enqueued, createdAt, snapshotsWritten };
 }

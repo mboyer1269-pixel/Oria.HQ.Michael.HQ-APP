@@ -253,6 +253,32 @@ export type PreparedActionInsert = Omit<PreparedActionRow, "id" | "created_at"> 
   created_at?: string;
 };
 
+// agent_score_snapshots — durable, append-only history of agent operator scores
+// over time (migration 0014). dimension_scores jsonb mirrors the
+// OperatorDimensionScores shape; the repository owns row <-> AgentScoreSnapshot
+// mapping and light validation. band/status are plain text here (DB CHECK
+// constraints enforce the whitelists).
+export type AgentScoreSnapshotRow = {
+  id: string;
+  workspace_id: string;
+  created_by_user_id: string;
+  snapshot_id: string;
+  agent_id: string;
+  scored_at: string;
+  total_operator_score: number;
+  operator_score_band: string;
+  operator_status: string;
+  dimension_scores: Json;
+  outcome_count: number;
+  created_at: string;
+};
+
+// The DB assigns id and created_at (defaults), so an insert omits them.
+export type AgentScoreSnapshotInsert = Omit<AgentScoreSnapshotRow, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
 export type MichaelHqDatabase = {
   public: {
     Tables: {
@@ -314,6 +340,12 @@ export type MichaelHqDatabase = {
         Row: PreparedActionRow;
         Insert: PreparedActionInsert;
         Update: Partial<PreparedActionInsert>;
+        Relationships: [];
+      };
+      agent_score_snapshots: {
+        Row: AgentScoreSnapshotRow;
+        Insert: AgentScoreSnapshotInsert;
+        Update: Partial<AgentScoreSnapshotInsert>;
         Relationships: [];
       };
     };
