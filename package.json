@@ -32,7 +32,8 @@
     "test:arena-candidates": "node --test src/server/arena/arena-candidate-generator.test.mjs",
     "test:arena-batch": "node --test src/server/arena/arena-batch-service.test.mjs",
     "test:arena-wra-evidence": "node --test src/server/arena/arena-wra-evidence.test.mjs",
-    "test:arena-wra-buckets": "node --test src/server/arena/arena-wra-buckets.test.mjs"
+    "test:arena-wra-buckets": "node --test src/server/arena/arena-wra-buckets.test.mjs",
+    "test:webhook-registry": "node --test src/server/runtime/webhook-registry.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
