@@ -69,15 +69,20 @@ test("autonomy level 4 is rejected", () => {
   assert.equal(decision.code, "AUTONOMY_LEVEL_TOO_HIGH");
 });
 
-test("live mode is rejected", () => {
+test("live mode green zone is ALLOWED (PR3 replaces LIVE_MODE_NOT_SUPPORTED)", () => {
+  // board.consult (level 1) + joris (level 2) -> effective level 1 -> green -> ALLOW
   const decision = canPrepareExecution(
     baseInput({
       requestedMode: "live",
     }),
   );
 
-  assert.equal(decision.allowed, false);
-  assert.equal(decision.code, "LIVE_MODE_NOT_SUPPORTED");
+  assert.equal(decision.allowed, true);
+  assert.equal(decision.mode, "live");
+  assert.equal(decision.dryRun, false);
+  assert.equal(decision.zone, "green");
+  assert.equal(decision.requiresLedger, true);
+  assert.equal(decision.requiresSentinel, true);
 });
 
 test("unknown skill is rejected", () => {
@@ -191,4 +196,117 @@ test("mission assigned to a different agent is rejected", () => {
 
   assert.equal(decision.allowed, false);
   assert.equal(decision.code, "UNSUPPORTED_SKILL");
+});
+
+// ---------------------------------------------------------------------------
+// PR3 -- Zone-based live execution tests
+// ---------------------------------------------------------------------------
+
+const {
+  evaluateLiveExecution,
+} = await jiti.import(guardPath);
+
+test("PR3: green zone live execution is ALLOWED for joris + board.consult", () => {
+  const result = evaluateLiveExecution({
+    skillId: "board.consult",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 2,
+  });
+
+  assert.equal(result.outcome, "ALLOW");
+  assert.equal(result.zone, "green");
+  assert.equal(result.requiresLedger, true);
+  assert.equal(result.requiresSentinel, true);
+  assert.equal(result.requiresHumanApproval, false);
+});
+
+test("PR3: canPrepareExecution live + green zone returns allowed:true mode:live dryRun:false", () => {
+  const decision = canPrepareExecution({
+    skillId: "board.consult",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 2,
+  });
+
+  assert.equal(decision.allowed, true);
+  assert.equal(decision.mode, "live");
+  assert.equal(decision.dryRun, false);
+  assert.equal(decision.zone, "green");
+  assert.equal(decision.requiresLedger, true);
+  assert.equal(decision.requiresSentinel, true);
+});
+
+test("PR3: hard-blocked action is BLOCKED regardless of zone", () => {
+  const result = evaluateLiveExecution({
+    skillId: "billing.modify",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 1,
+  });
+
+  assert.equal(result.outcome, "BLOCK");
+  assert.equal(result.zone, "red");
+});
+
+test("PR3: canPrepareExecution hard-blocked returns HARD_BLOCKED_ACTION", () => {
+  const decision = canPrepareExecution({
+    skillId: "billing.modify",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 1,
+  });
+
+  assert.equal(decision.allowed, false);
+  assert.equal(decision.code, "HARD_BLOCKED_ACTION");
+});
+
+test("PR3: red zone (level 0) is BLOCKED", () => {
+  const result = evaluateLiveExecution({
+    skillId: "board.consult",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 0,
+  });
+
+  assert.equal(result.outcome, "BLOCK");
+  assert.equal(result.zone, "red");
+});
+
+test("PR3: clientApprovalConfirmed is rejected even in live mode", () => {
+  const decision = canPrepareExecution({
+    skillId: "board.consult",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 2,
+    clientApprovalConfirmed: true,
+  });
+
+  assert.equal(decision.allowed, false);
+  assert.equal(decision.code, "APPROVAL_SOURCE_NOT_TRUSTED");
+});
+
+test("PR3: unknown agent is BLOCKED in live mode", () => {
+  const result = evaluateLiveExecution({
+    skillId: "board.consult",
+    agentId: "unknown-agent-xyz",
+    requestedMode: "live",
+    autonomyLevel: 2,
+  });
+
+  assert.equal(result.outcome, "BLOCK");
+  assert.equal(result.zone, "red");
+});
+
+test("PR3: effective level is min(agent, skill, requested)", () => {
+  // joris autonomyLevel=2, board.consult autonomyLevel=1 -> effective=1 -> green
+  const result = evaluateLiveExecution({
+    skillId: "board.consult",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 5,   // requested is high, but effective = min(2,1,5) = 1 -> green
+  });
+
+  assert.equal(result.outcome, "ALLOW");
+  assert.equal(result.zone, "green");
 });
