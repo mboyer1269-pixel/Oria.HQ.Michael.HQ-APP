@@ -87,13 +87,46 @@ test("Hermes prep tick (server orchestration)", async (t) => {
     const mem = makeMemoryStore();
     const result = await runHermesPrepTick(
       { workspaceId: "ws1", userId: USER, packets: [makePacket()] },
-      { composeCouncil: stubCouncil, listExisting: mem.listExisting, enqueue: mem.enqueue, now: () => AT },
+      { composeCouncil: stubCouncil, listExisting: mem.listExisting, enqueue: mem.enqueue, snapshotScores: async () => 0, now: () => AT },
     );
     assert.equal(result.plan.summary.created, 1);
     assert.equal(result.enqueued.length, 1);
     assert.equal(mem.store.length, 1);
     assert.equal(result.enqueued[0].status, "ready_for_ceo_review");
     assert.equal(result.enqueued[0].noExecutionAuthorized, true);
+  });
+
+  await t.test("calls snapshotScores and reports snapshotsWritten", async () => {
+    const mem = makeMemoryStore();
+    let calledWith = null;
+    const result = await runHermesPrepTick(
+      { workspaceId: "ws1", userId: USER, packets: [makePacket()] },
+      {
+        composeCouncil: stubCouncil,
+        listExisting: mem.listExisting,
+        enqueue: mem.enqueue,
+        now: () => AT,
+        snapshotScores: async (ws, uid) => { calledWith = { ws, uid }; return 3; },
+      },
+    );
+    assert.deepEqual(calledWith, { ws: "ws1", uid: USER });
+    assert.equal(result.snapshotsWritten, 3);
+  });
+
+  await t.test("snapshotScores failure is best-effort (never breaks the tick)", async () => {
+    const mem = makeMemoryStore();
+    const result = await runHermesPrepTick(
+      { workspaceId: "ws1", userId: USER, packets: [makePacket()] },
+      {
+        composeCouncil: stubCouncil,
+        listExisting: mem.listExisting,
+        enqueue: mem.enqueue,
+        now: () => AT,
+        snapshotScores: async () => { throw new Error("snapshot store down"); },
+      },
+    );
+    assert.equal(result.enqueued.length, 1, "prep still succeeds");
+    assert.equal(result.snapshotsWritten, 0, "failure reported as 0");
   });
 
   await t.test("dedups against the existing queue on a second tick", async () => {
