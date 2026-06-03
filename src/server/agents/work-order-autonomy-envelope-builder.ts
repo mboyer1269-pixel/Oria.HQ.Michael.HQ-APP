@@ -41,7 +41,7 @@ export function deriveAutonomyLevel(input: AutonomyEnvelopeBuilderInput): WorkOr
  * Derives the actions that require explicit approval.
  * These are the standard approval-required actions.
  */
-export function deriveApprovalRequiredActions(_input: AutonomyEnvelopeBuilderInput): WorkOrderApprovalRequiredAction[] {
+export function deriveApprovalRequiredActions(): WorkOrderApprovalRequiredAction[] {
   return [
     "publish",
     "send_message",
@@ -60,7 +60,7 @@ export function deriveApprovalRequiredActions(_input: AutonomyEnvelopeBuilderInp
  * Derives the strictly blocked actions that are never permitted.
  * These are the standard blocked actions.
  */
-export function deriveBlockedActions(_input: AutonomyEnvelopeBuilderInput): WorkOrderBlockedAction[] {
+export function deriveBlockedActions(): WorkOrderBlockedAction[] {
   return [
     "runtime_dispatch",
     "live_execution",
@@ -124,8 +124,8 @@ export function buildDefaultAutonomyEnvelope(input: AutonomyEnvelopeBuilderInput
     agentId: input.agentId,
     autonomyLevel: deriveAutonomyLevel(input),
     allowedAutonomousActions,
-    approvalRequiredActions: deriveApprovalRequiredActions(input),
-    blockedActions: deriveBlockedActions(input),
+    approvalRequiredActions: deriveApprovalRequiredActions(),
+    blockedActions: deriveBlockedActions(),
     escalationTriggers: deriveEscalationTriggers(input),
     humanOnTheLoop: true,
     noExecutionAuthorized: true,

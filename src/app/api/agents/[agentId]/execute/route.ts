@@ -6,6 +6,11 @@ import { evaluateLiveExecution } from "@/server/runtime/execution-guard";
 import { dispatchSkillExecution } from "@/server/runtime/skill-dispatcher";
 import { createAgentOutcome } from "@/server/ventures/agent-outcome-repository";
 import { logger } from "@/lib/logger";
+import {
+  recordGreenLaneDecision,
+  recordGreenLanePendingDispatch,
+  recordGreenLaneResult,
+} from "@/server/runtime/green-lane-ledger";
 
 /**
  * POST /api/agents/:agentId/execute
@@ -115,6 +120,22 @@ export async function POST(
     );
   }
 
+  // ── ALLOW: pre-dispatch ledger ────────────────────────────────────────────
+  if (sentinelle.requiresLedger) {
+    try {
+      await recordGreenLaneDecision(ctx, { agentId, skillId, autonomyLevel, missionId: ventureId });
+      await recordGreenLanePendingDispatch(ctx, { agentId, skillId, autonomyLevel, missionId: ventureId });
+    } catch (err) {
+      logger.error("agent.execute.ledger_pre_dispatch.failed", {
+        agentId, skillId, reason: err instanceof Error ? err.message : "unknown",
+      });
+      return NextResponse.json(
+        { error: "Ledger pre-dispatch failed. Execution blocked.", agentId, skillId },
+        { status: 500 },
+      );
+    }
+  }
+
   // ── ALLOW: dispatch to skill executor ─────────────────────────────────────
   const executedAt = new Date().toISOString();
   let dispatchResult: Awaited<ReturnType<typeof dispatchSkillExecution>>;
@@ -130,6 +151,14 @@ export async function POST(
     logger.error("agent.execute.dispatch.failed", {
       agentId, skillId, reason: err instanceof Error ? err.message : "unknown",
     });
+
+    if (sentinelle.requiresLedger) {
+      await recordGreenLaneResult(ctx, {
+        agentId, skillId, autonomyLevel, missionId: ventureId,
+        outcome: "failed",
+        failureCode: "DISPATCH_FAILED",
+      }).catch(() => void 0);
+    }
 
     // Record as failed
     await createAgentOutcome({
@@ -147,6 +176,13 @@ export async function POST(
       { error: "Skill dispatch failed.", agentId, skillId },
       { status: 500 },
     );
+  }
+
+  if (sentinelle.requiresLedger) {
+    await recordGreenLaneResult(ctx, {
+      agentId, skillId, autonomyLevel, missionId: ventureId,
+      outcome: "success",
+    }).catch(() => void 0);
   }
 
   // Record as pending (CEO evaluates outcome later)

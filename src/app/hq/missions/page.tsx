@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowLeft, Bot, LayoutDashboard, LayoutGrid, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Bot, LayoutDashboard, ShieldAlert } from "lucide-react";
 import { MissionCalendarFlowSection } from "@/features/missions/components/mission-calendar-flow-section";
 import { MissionKanbanBoard } from "@/features/missions/components/mission-kanban-board";
 import { MissionApprovalPanel } from "@/features/missions/components/mission-approval-panel";
