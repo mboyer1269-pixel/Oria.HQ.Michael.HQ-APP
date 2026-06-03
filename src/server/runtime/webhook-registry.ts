@@ -62,6 +62,13 @@ export function resolveApprovedWebhook(agentId: string, skillId: string): Resolv
     if (!binding.allowedHostnames.includes(parsed.hostname)) {
       return null;
     }
+
+    if (
+      process.env.NODE_ENV === "production" &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+    ) {
+      return null;
+    }
     return {
       url: rawUrl,
       binding,
