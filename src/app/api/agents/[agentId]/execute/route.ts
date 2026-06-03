@@ -6,6 +6,12 @@ import { evaluateLiveExecution } from "@/server/runtime/execution-guard";
 import { dispatchSkillExecution } from "@/server/runtime/skill-dispatcher";
 import { createAgentOutcome } from "@/server/ventures/agent-outcome-repository";
 import { logger } from "@/lib/logger";
+import {
+  recordGreenLaneDecision,
+  recordGreenLanePendingDispatch,
+  recordGreenLaneResult,
+} from "@/server/runtime/green-lane-ledger";
+import { executeGreenLaneAction } from "@/server/runtime/green-lane-execution-service";
 
 /**
  * POST /api/agents/:agentId/execute
@@ -115,61 +121,44 @@ export async function POST(
     );
   }
 
-  // ── ALLOW: dispatch to skill executor ─────────────────────────────────────
+  // ── ALLOW: execute green lane action ──────────────────────────────────────
   const executedAt = new Date().toISOString();
-  let dispatchResult: Awaited<ReturnType<typeof dispatchSkillExecution>>;
 
-  try {
-    dispatchResult = await dispatchSkillExecution({
+  const execResult = await executeGreenLaneAction(
+    {
       agentId,
       skillId,
-      input,
-      workspaceId: ctx.workspace.id,
-    });
-  } catch (err) {
-    logger.error("agent.execute.dispatch.failed", {
-      agentId, skillId, reason: err instanceof Error ? err.message : "unknown",
-    });
+      requiresLedger: sentinelle.requiresLedger,
+    },
+    {
+      recordDecision: () => recordGreenLaneDecision(ctx, { agentId, skillId, autonomyLevel, ventureId }),
+      recordPendingDispatch: () => recordGreenLanePendingDispatch(ctx, { agentId, skillId, autonomyLevel, ventureId }),
+      dispatch: () => dispatchSkillExecution({ agentId, skillId, input, workspaceId: ctx.workspace.id }),
+      recordResult: (outcome, failureCode) => recordGreenLaneResult(ctx, { agentId, skillId, autonomyLevel, ventureId, outcome, failureCode }),
+      createOutcome: (outcome, actionRef) => createAgentOutcome({
+        workspaceId: ctx.workspace.id,
+        createdByUserId: ctx.userId,
+        agentId,
+        skillId,
+        ventureId,
+        actionRef,
+        proposedAt,
+        executedAt,
+        outcome,
+      }),
+    }
+  );
 
-    // Record as failed
-    await createAgentOutcome({
-      workspaceId: ctx.workspace.id,
-      createdByUserId: ctx.userId,
-      agentId,
-      skillId,
-      ventureId,
-      proposedAt,
-      executedAt,
-      outcome: "failed",
-    }).catch(() => void 0);
-
+  if (!execResult.ok) {
     return NextResponse.json(
-      { error: "Skill dispatch failed.", agentId, skillId },
-      { status: 500 },
+      { error: execResult.error, agentId, skillId },
+      { status: execResult.status },
     );
   }
 
-  // Record as pending (CEO evaluates outcome later)
-  const outcomeRecord = await createAgentOutcome({
-    workspaceId: ctx.workspace.id,
-    createdByUserId: ctx.userId,
-    agentId,
-    skillId,
-    ventureId,
-    actionRef: dispatchResult.actionRef,
-    proposedAt,
-    executedAt,
-    outcome: "pending",
-  }).catch((err) => {
-    logger.warn("agent.execute.outcome.record.failed", {
-      agentId, skillId, reason: err instanceof Error ? err.message : "unknown",
-    });
-    return null;
-  });
-
   logger.info("agent.execute.success", {
     agentId, skillId, zone: "green", workspaceId: ctx.workspace.id,
-    outcomeId: outcomeRecord?.id,
+    outcomeId: execResult.outcomeId,
   });
 
   return NextResponse.json({
@@ -178,9 +167,9 @@ export async function POST(
     agentId,
     skillId,
     executedAt,
-    result: dispatchResult.result,
-    actionRef: dispatchResult.actionRef,
-    outcomeId: outcomeRecord?.id,
+    result: execResult.result,
+    actionRef: execResult.actionRef,
+    outcomeId: execResult.outcomeId,
     requiresLedger: sentinelle.requiresLedger,
     requiresSentinel: sentinelle.requiresSentinel,
   });
