@@ -43,8 +43,21 @@ import {
   isBundleApprovedToPlan,
 } from "@/server/agents/work-order-governance-plan";
 import { buildGovernanceDecisionContinuityNote } from "@/server/joris/governance-decision-continuity";
+import { readVerifiedVaultContext } from "@/server/memory/memory-vault-repository";
+import type { MemoryVaultReadResult } from "@/server/memory/memory-vault-types";
 
 const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
+
+/**
+ * Formats verified Memory Vault entries as a concise context note for Joris.
+ * Returns null when no entries are available (no noise on empty vault).
+ */
+function buildVaultContextNote(vault: MemoryVaultReadResult): string | null {
+  if (vault.entries.length === 0) return null;
+
+  const lines = vault.entries.map((e) => `[${e.type.toUpperCase()}] ${e.title}: ${e.content}`);
+  return `--- Mémoire opérationnelle (${vault.entries.length} entrée${vault.entries.length > 1 ? "s" : ""} vérifiée${vault.entries.length > 1 ? "s" : ""}) ---\n${lines.join("\n")}\n---`;
+}
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
@@ -189,6 +202,13 @@ export async function runJorisCommand(
   workspaceContext: WorkspaceContext = getActiveWorkspaceContext(),
 ): Promise<CommandResult> {
   const ctx = workspaceContext;
+
+  // Memory Vault — read verified entries at the start of every brain invocation.
+  // Workspace-scoped, verified only, max 20 entries (contract §Joris read rules).
+  // This context is available to all downstream handlers in this invocation.
+  const vaultContext = readVerifiedVaultContext(ctx.workspace.id);
+  const vaultNote = buildVaultContextNote(vaultContext);
+
   const route = chooseModel({
     message,
     highImpact: false,
@@ -309,10 +329,13 @@ export async function runJorisCommand(
 
   if (intent === "brief.generate") {
     const brief = await buildCeoBriefSnapshot();
+    const briefSummary = vaultNote
+      ? `${brief.headline} ${brief.focusLine}\n\n${vaultNote}`
+      : `${brief.headline} ${brief.focusLine}`;
 
     return {
       intent,
-      summary: `${brief.headline} ${brief.focusLine}`,
+      summary: briefSummary,
       modelId: routedModel.model.id,
       costMode: routedModel.mode,
       ...workspaceMeta,
@@ -450,9 +473,15 @@ export async function runJorisCommand(
     };
   }
 
+  const fallbackSummary = buildFallbackSummary(intent, message);
+  const finalSummary =
+    intent === "board.consult" && vaultNote
+      ? `${fallbackSummary}\n\n${vaultNote}`
+      : fallbackSummary;
+
   return {
     intent,
-    summary: buildFallbackSummary(intent, message),
+    summary: finalSummary,
     modelId: routedModel.model.id,
     costMode: routedModel.mode,
     ...workspaceMeta,

@@ -1,10 +1,77 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Clock, FileText, BookOpen, StickyNote, Link2 } from "lucide-react";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { requireOwnerAccess } from "@/server/auth/owner";
+import { listAllVaultEntriesForWorkspace } from "@/server/memory/memory-vault-repository";
+import type { MemoryVaultEntry, MemoryVaultEntryType, MemoryVaultTrustLevel } from "@/server/memory/memory-vault-types";
 
 export const dynamic = "force-dynamic";
+
+function trustLevelBadge(level: MemoryVaultTrustLevel) {
+  const map: Record<MemoryVaultTrustLevel, { label: string; className: string }> = {
+    verified: { label: "Vérifié", className: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" },
+    proposed: { label: "Proposé", className: "bg-amber-500/10 text-amber-400 border border-amber-500/20" },
+    draft: { label: "Draft", className: "bg-neutral-700 text-neutral-400 border border-neutral-600" },
+  };
+  const { label, className } = map[level];
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>
+      {level === "verified" && <ShieldCheck className="h-3 w-3" />}
+      {label}
+    </span>
+  );
+}
+
+function typeIcon(type: MemoryVaultEntryType) {
+  const map: Record<MemoryVaultEntryType, { icon: React.ReactNode; label: string; className: string }> = {
+    decision: { icon: <ShieldCheck className="h-3.5 w-3.5" />, label: "Décision", className: "text-violet-400" },
+    sop: { icon: <BookOpen className="h-3.5 w-3.5" />, label: "SOP", className: "text-sky-400" },
+    note: { icon: <StickyNote className="h-3.5 w-3.5" />, label: "Note", className: "text-amber-400" },
+    source: { icon: <Link2 className="h-3.5 w-3.5" />, label: "Source", className: "text-teal-400" },
+    doc: { icon: <FileText className="h-3.5 w-3.5" />, label: "Doc", className: "text-neutral-400" },
+  };
+  const { icon, label, className } = map[type];
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium ${className}`}>
+      {icon}
+      {label}
+    </span>
+  );
+}
+
+function MemoryEntryCard({ entry }: { entry: MemoryVaultEntry }) {
+  return (
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 transition hover:border-neutral-700">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {typeIcon(entry.type)}
+          {trustLevelBadge(entry.trustLevel)}
+        </div>
+        <span className="flex items-center gap-1 text-xs text-neutral-600">
+          <Clock className="h-3 w-3" />
+          {entry.updatedAt.slice(0, 10)}
+        </span>
+      </div>
+      <h3 className="mt-3 text-sm font-semibold leading-snug text-white">{entry.title}</h3>
+      <p className="mt-1.5 text-xs leading-5 text-neutral-400">{entry.content}</p>
+      {entry.tags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {entry.tags.map((tag) => (
+            <span key={tag} className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-500">
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+      {entry.sourceRef && (
+        <p className="mt-2 truncate text-xs text-neutral-600">
+          <span className="text-neutral-500">Ref:</span> {entry.sourceRef}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default async function MemoryPage() {
   const access = await requireOwnerAccess("/hq/memory");
@@ -13,9 +80,13 @@ export default async function MemoryPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
+  const entries = listAllVaultEntriesForWorkspace("michael-hq");
+  const verifiedCount = entries.filter((e) => e.trustLevel === "verified").length;
+  const proposedCount = entries.filter((e) => e.trustLevel === "proposed").length;
+
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-4 py-10 md:px-8">
-      <section className="rounded-3xl border border-neutral-800 bg-neutral-950/80 p-6 md:p-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-10 md:px-8">
+      <div className="mb-8">
         <Link
           href={"/hq" as Route}
           className="inline-flex items-center gap-1.5 text-xs text-neutral-500 transition hover:text-neutral-300"
@@ -24,19 +95,45 @@ export default async function MemoryPage() {
           Michael HQ
         </Link>
         <h1 className="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">
-          Module retiré temporairement
+          Memory Vault
         </h1>
-        <p className="mt-4 text-sm leading-6 text-neutral-400">
-          Cette section était une maquette non éditable. Elle sera reconstruite plus tard avec un vrai modèle de
-          données, édition, permissions et audit trail.
+        <p className="mt-2 text-sm leading-6 text-neutral-400">
+          Mémoire opérationnelle workspace-scoped. Seules les entrées{" "}
+          <span className="text-emerald-400">vérifiées</span> sont injectées dans le contexte de Joris.
         </p>
-        <Link
-          href={"/hq" as Route}
-          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400"
-        >
-          Retour à Michael HQ
-        </Link>
-      </section>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-center">
+            <div className="text-xl font-bold text-white">{entries.length}</div>
+            <div className="text-xs text-neutral-500">Total</div>
+          </div>
+          <div className="rounded-xl border border-emerald-900/40 bg-emerald-950/30 px-3 py-2 text-center">
+            <div className="text-xl font-bold text-emerald-400">{verifiedCount}</div>
+            <div className="text-xs text-emerald-600">Vérifiés</div>
+          </div>
+          {proposedCount > 0 && (
+            <div className="rounded-xl border border-amber-900/40 bg-amber-950/30 px-3 py-2 text-center">
+              <div className="text-xl font-bold text-amber-400">{proposedCount}</div>
+              <div className="text-xs text-amber-600">En attente</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {entries.length === 0 ? (
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-8 text-center">
+          <p className="text-sm text-neutral-500">Aucune entrée dans la vault pour ce workspace.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {entries.map((entry) => (
+            <MemoryEntryCard key={entry.id} entry={entry} />
+          ))}
+        </div>
+      )}
+
+      <p className="mt-8 text-center text-xs text-neutral-700">
+        Vue lecture seule · Persistance Supabase verrouillée jusqu&apos;au prochain mandat
+      </p>
     </main>
   );
 }
