@@ -1,133 +1,125 @@
-# Oria HQ — Multi-Agent Venture Operating System
+# Oria HQ — Workspace-First Agentic Operator Platform
 
 > **Owner:** Michael Boyer (President / Capital Allocator)  
-> **Operating Partner:** Joris (L2)  
-> **Workspace:** Michael HQ
+> **Operating Partner:** Joris (L2 assistant)  
+> **Workspace:** Michael HQ  
+> **Last synced:** 2026-06-03 · main · PR #221
 
-Orya HQ is a **private operating system** for building, validating, and operating ventures with AI agents.  
+Oria HQ is a **private operating platform** for running, validating, and governing ventures with AI agents.  
 It is **not** a generic chatbot or a GPT wrapper.  
-It is a **controlled agentic workspace** where agents propose, score, route, and prepare actions under strict human approval and safety guardrails.
+It is a **controlled agentic workspace** where agents propose, score, draft, and execute actions under strict human approval, audit trails, and safety guardrails.
 
 ---
 
-## Current state — what actually exists today
+## Vision & direction
 
-This README reflects the current codebase on `main`. It deliberately separates:
+> **Observer → Journaliser → Approuver → Persister → Auditer → Exécuter**
 
-- **Current implemented state** — features that exist and are wired.
-- **Active development track** — work in progress on this repo.
-- **Roadmap / doctrine** — where the system is heading next.
+Oria must become a **CEO operating system augmented by agents** — not an autonomous execution engine.
 
-### Michael HQ workspace
+The product evolves from the current single-owner foundation toward configurable workspaces, assistant profiles, permissioned actions, and runtime adapters — without baking any one person, assistant, or venture into core application contracts.
 
-- **Owner-only workspace** for Michael HQ (authenticated HQ surfaces under `/hq`).
-- **Joris** acts as **operating partner / orchestrator**, not as a free agent runner.
-- HQ surfaces include:
-  - `/hq` — cockpit entry point.
-  - `/hq/agents` — agent review and autonomy cockpit.
-  - `/hq/cockpit` — control chain and agent review queue.
-  - `/hq/ventures` — read-only Venture Command Center.
+Every sprint must answer one question:
 
-### Governance & runtime guardrails
+> Does this make Oria more controllable, more audited, more sellable, or more secure?
 
-- **Runtime execution guard** under `src/server/runtime`:
-  - `canPrepareExecution` and `buildDryRunExecutionPlan` enforce dry-run / guarded modes.
-  - No direct live execution path without going through the guard.
-- **Action ledger & approvals** (governance wave) exist in the codebase:
-  - Governance decisions are persisted and traced.
-  - Sensitive actions are designed to be approval-gated and auditable.
-- **Control loop stays planning-first**:
-  - Work orders, mandates, arenas, and scoring engines operate in planning / evaluation space.
-  - Execution remains behind explicit guardrails and is not auto-triggered by scores.
+If not — it waits.
 
-### Ventures workbench & profitability tooling
+---
 
-Under `src/features/ventures` the current venture engine includes:
+## Current state — what actually exists on `main`
 
-- **Venture models & workbench**
-  - `agent-venture-workstream.ts` and related files for agent venture workstreams.
-  - Venture draft, suggestions, and cockpit helpers.
-- **Revenue validation queues**
-  - `agent-venture-prioritization.ts` — prioritisation of venture work.
-  - `agent-revenue-validation-work-queue.ts` — queue of revenue validation work items.
-  - `agent-venture-profitability.ts` — profitability-oriented aggregation.
-- **EvidenceRef proof layer**
-  - `evidence-ref.ts` defines **typed, trust-classified revenue evidence**:
-    - Evidence kinds such as `stripe_charge`, `signed_loi`, `email_reply`, `analytics_event`, `screenshot`, `manual_note`, `self_reported`.
-    - Only verified financial kinds (`stripe_charge`, `signed_loi`) can back realized cash.
-    - `validateEvidenceRef`, `classifyEvidenceTrust`, `validateCashEvidence`, and `fromLegacyStringEvidence` harden “what counts as proof”.
-  - This is the **anti-gaming foundation**: fake cash is blocked at the evidence layer.
-- **AgentRevenueOutcome — venture work outcomes**
-  - `agent-revenue-outcome.ts` captures the **cash-oriented outcome** of a single venture task:
-    - Six signals: `customerProof`, `paymentSignal`, `painClarity`, `buyerIdentifiability`, `offerTestability`, `cashProximity`.
-    - `cashGenerated` with `amountCents`, `verified`, `evidence`.
-    - `nextCashAction` proposal (never execution).
-    - Governance locks: `humanOnTheLoop: true`, `approvalRequired: true`, `noExecutionAuthorized: true`.
-- **VentureCashScore — venture cash scoring**
-  - `venture-cash-score.ts` scores **ventures**, not agents:
-    - Weights cash and payment signals most heavily.
-    - Produces `VentureCashScore` with:
-      - `totalCashScore`, `cashScoreBand` (`blocked` → `cash_ready`).
-      - `survivalStatus` (`insufficient_evidence`, `kill_candidate`, `pivot_candidate`, `continue_candidate`, `cash_ready`).
-      - `shouldContinue`, `shouldPivot`, `isKillCandidate`, `shouldRequestCeoDecision`.
-      - Governance locks: human-on-the-loop, approval-required, no-execution-authorized.
-- **AgentOperatorScore — agent operator scoring**
-  - `auto-agent-operator-score.ts` scores **agents as economic operators**:
-    - Dimensions: `revenueImpact`, `economicInitiative`, `executionEfficiency`, `productionQuality`, `credibility`, `usefulInnovation`, `skillGrowth`.
-    - Produces `AgentOperatorScore` with operator bands (`underperforming` → `elite_operator`) and flags:
-      - `shouldAssignMoreWork`, `shouldRequireStrongerEvidence`, `shouldPairWithAgent`, `shouldFlagForReview`.
-      - Governance locks: human-on-the-loop, approval-required, no-execution-authorized.
-- **ExecutiveSelectionIndex — routing, not execution**
-  - `executive-selection-index.ts` combines `VentureCashScore` and `AgentOperatorScore` into **allocation decisions**:
-    - Ventures: `deserves_more_compute`, `maintain_allocation`, `should_be_paused`, `needs_ceo_review`, `kill_candidate`.
-    - Agents: `deserves_more_work`, `maintain_allocation`, `needs_stronger_evidence`, `should_be_paired`, `flag_for_review`.
-    - Always **proposals**, never direct execution; governance locks are pinned to true.
+This README reflects the codebase as of **PR #221**. It separates:
 
-### ROI Arena — value & ROI evaluation
+- **Live** — exists, wired, validated.
+- **Partial / prototype** — exists, not production-ready.
+- **Locked** — deliberately not built yet.
 
-Under `src/server/arena/roi-arena.ts`:
+### HQ surfaces
 
-- Defines `ArenaCandidate` and `ArenaVerdict` for **mission / idea / agent-action** candidates.
-- `estimateCandidateValue` and `REVENUE_SANITY_CEILING_CENTS` implement:
-  - Deterministic net value and ROI multiple based on caller-supplied revenue and cost.
-  - A hard sanity ceiling to catch obviously invalid revenue inputs.
-- The arena:
-  - Classifies candidates as `promising`, `marginal`, `reject`, or `not-evaluable`.
-  - Produces dry-run execution plans guarded by the runtime execution guard.
-  - Never executes or persists anything directly.
+| Surface | Status | Notes |
+|---------|--------|-------|
+| `/hq` | Live | Cockpit overview — Operator Snapshot + Ledger Activity panels |
+| `/hq/missions` | Live | Mission pipeline UI; dry-run planning + draft gate |
+| `/hq/agents` | Live | Agent registry (7 agents, seed) |
+| `/hq/skills` | Live | Skills catalog (15 skills, seed) |
+| `/hq/ventures` | Live | Venture Command Center; read-only venture engine view |
+| `/hq/runtime` | Live | Local prototype status (read-only narrative) |
+| `/hq/memory` | Partial | Shell / placeholder |
+| `/dashboard/documents` | Live | Owner documents |
+| `/contact` | Live | Public contact form |
+| `/login` | Live | Supabase auth (optional in dev) |
 
-### Next Action Mandate / thermostat track (in progress)
+### Joris — orchestrator & controlled executor
 
-A new **Next Action Mandate** contract (PR193 wave) is being added under `src/server/agents`:
+Joris is the **operating partner**, not a free agent runner. All sensitive actions require human confirmation.
 
-- `next-action-mandate-contract.ts` defines:
-  - `NextActionMandateStatus`: `PENDING`, `ACCEPTED_FOR_NEXT_WORK`, `REFUTED`, `COUNTER_PROPOSED`, `IGNORED`, `NEEDS_CEO_DECISION`.
-  - Mandate type, cash hypothesis, required evidence, expected cash impact, expected cost, expected ROI multiple.
-  - Governance fields: `humanOnTheLoop: true`, `noExecutionAuthorized: true`.
-- The mandate is a **planning / control-loop object**:
-  - It captures the **next cash-oriented move**, not its execution.
-  - It encodes whether the agent accepts, refutes, or counter-proposes the next action.
-  - It is designed to be adapted into work-order planning, not into live runtime dispatch.
+- **Two-step Mission Draft gate** — `calendar.book` intents produce a structured preview first; confirmed only on explicit reply (`confirme`, `oui`, `go`). Pending drafts have a 10-minute TTL.
+- **Workspace context** — every Joris action injects `workspaceId`, `modeId`, `assistantProfileId` into the ledger.
+- **Joris Brain** (`src/server/joris/brain.ts`) routes intents: `mission.draft`, `mission.plan`, `calendar.book`, governance checks.
+- **Smoke test**: `npm run smoke:joris` — full two-step flow + `missionId` tracing on ledger.
+
+### Action ledger & governance
+
+- **Ledger write path**: every `calendar.book` records a `decision` event _before_ the calendar write, then an `action` event _after_. Compensating delete on ledger failure.
+- **Ledger Activity panel** on `/hq` — read-only; classifies each row as **Liée** (known missionId), **Orphelin** (no missionId), or **Réf. inconnue**.
+- **Mission ↔ Ledger traceability** — `missionId` flows from Mission Draft confirmation through calendar write into ledger metadata.
+- **Workspace-scoped** — all ledger rows, calendar events, and decisions carry `workspaceId`.
+
+### Venture engine
+
+Under `src/features/ventures` and `src/server/ventures`:
+
+- **EvidenceRef** — typed, trust-classified revenue evidence (`stripe_charge`, `signed_loi`, `email_reply`, `screenshot`, `manual_note`, etc.). Only verified financial kinds back realized cash. Anti-gaming foundation.
+- **AgentRevenueOutcome** — structured venture work outcomes: six signals (customerProof, paymentSignal, painClarity, buyerIdentifiability, offerTestability, cashProximity), `cashGenerated`, `nextCashAction`.
+- **VentureCashScore** — scores ventures on cash readiness: `totalCashScore`, `cashScoreBand` (`blocked` → `cash_ready`), `survivalStatus` (`kill_candidate` → `cash_ready`).
+- **AgentOperatorScore** — scores agents as economic operators: revenueImpact, economicInitiative, executionEfficiency, credibility, skillGrowth. Bands from `underperforming` to `elite_operator`.
+- **ExecutiveSelectionIndex** — combines both scores into allocation decisions (proposals only, no execution).
+- **Hermes Prep Agent** (`hermesPrepTick`) — pure planner for outreach prep cycles; produces `OutreachPlan` proposals stored in the `prepared_actions` durable store. No live execution.
+- **Prepared Actions store** (`prepared_actions`) — durable store for agent-prepared actions pending CEO review.
+- **Agent economics loop** — score history persisted; loop closed from evidence → outcome → score → selection.
+- **ROI Arena** (`src/server/arena/roi-arena.ts`) — evaluates mission/idea/action candidates with ROI multiples, sanity ceilings, and dry-run execution plans.
+
+### Live Execution Layer (bounded, guarded)
+
+Under `src/server/runtime` and `src/features/agents`:
+
+- **Bounded Live Execution Layer** (PR #218) — foundation for controlled live execution. No unguarded dispatch.
+- **Sentinelle Policy Engine** (PR #219) — zone-based execution policies. Each action zone has explicit allowed operations, approval thresholds, and hard blocks.
+- **Green Lane Execute** (PR #220) — pre-approved, low-risk actions can flow through a fast-path with lightweight confirmation. ROI meter validates value-to-cost ratio before dispatch.
+- **Webhook Bridge** (PR #220) — n8n webhook integration for external action triggers. All inbound webhooks pass through the Sentinelle policy check.
+- **Smoke test**: `npm run smoke:agent-execute` — validates guard, policy check, and execution attempt logging.
+
+All live execution remains behind:
+- `humanOnTheLoop: true` contract invariant.
+- Sentinelle policy zone check.
+- Ledger entry before and after any execution attempt.
+- `POST /api/missions/execute` **does not exist** by design.
 
 ---
 
 ## Architecture map
 
-High-level code structure for the current system:
-
 | Path | Role |
 |------|------|
-| `src/app/` | Next.js App Router surfaces (`/hq`, `/hq/agents`, `/hq/cockpit`, `/hq/ventures`, etc.). |
-| `src/features/ventures/` | Venture models, evidence (`EvidenceRef`), outcomes (`AgentRevenueOutcome`), scoring (`VentureCashScore`, `AgentOperatorScore`), workbench, profitability panels, queues. |
-| `src/features/agents/` | Agent review queue, autonomy cockpit, knowledge packs, quality evaluation, observed agent outcomes, approval packets. |
-| `src/features/cockpit/` | HQ cockpit shell, control chain, Joris dock, venture suggestions, morning readiness panel. |
-| `src/server/agents/` | Agent server-side contracts (work orders, autonomy envelopes, next-action mandate), governance helpers, and planning-only invariants. |
-| `src/server/arena/` | ROI Arena (`roi-arena.ts`) for value / ROI evaluation of mission / idea / agent-action candidates. |
-| `src/server/runtime/` | Execution guard and runtime safety primitives (dry-run planning, not live execution). |
-| `src/server/ventures/` | Venture repository, lifecycle service, row mapping, and save service for the venture domain. |
-| `src/scripts/smoke/` | Smoke tests (`joris-booking.mjs`, runtime health checks) to validate critical flows. |
-| `db/` | Migrations and verification SQL for ventures and governance tables. |
-| `docs/` | Doctrine, governance specs, approval packet schemas, and operating model documents. |
+| `src/app/` | Next.js App Router surfaces (`/hq`, `/hq/missions`, `/hq/agents`, `/hq/ventures`, etc.). |
+| `src/features/ventures/` | Venture models, EvidenceRef, AgentRevenueOutcome, scoring, Hermes plans, workbench, profitability panels. |
+| `src/features/agents/` | Agent registry, autonomy cockpit, knowledge packs, quality evaluation, approval packets, bounded execution layer. |
+| `src/features/cockpit/` | HQ cockpit shell, Operator Snapshot, Ledger Activity, control chain, Joris dock, morning readiness. |
+| `src/features/hq/` | HQ page-level components (operator-snapshot, ledger-activity read model). |
+| `src/server/agents/` | Agent contracts: work orders, autonomy envelopes, Next Action Mandate, governance helpers, Sentinelle policy engine. |
+| `src/server/arena/` | ROI Arena — value/ROI evaluation, verdicts, batch ranking, candidate generator. |
+| `src/server/joris/` | Joris brain, intent detection, governance bundles, mission router, work-order review, mission-draft gate. |
+| `src/server/missions/` | Mission draft builder, confirmation, pending-draft session (TTL), plan endpoint. |
+| `src/server/runtime/` | Execution guard, runtime safety, Green Lane, webhook bridge, local prototype. |
+| `src/server/ventures/` | Venture repository, lifecycle service, prepared_actions store, Hermes orchestration. |
+| `src/server/actions/` | Action ledger repository — local and Supabase paths, workspace metadata helpers. |
+| `src/server/calendar/` | Calendar service — workspace-scoped, ledger-wrapped, mission-draft–gated. |
+| `src/core/workspaces/` | Workspace config registry, workspace context types. |
+| `src/config/workspaces/` | Workspace seed definitions. |
+| `src/scripts/smoke/` | Smoke tests (joris two-step, agent-execute, runtime health, revenue operational-value). |
+| `db/` | Migrations and verification SQL for ventures, governance, and workspace tables. |
+| `docs/` | Doctrine, governance specs, approval schemas, operating model, current state canonical. |
 
 ---
 
@@ -135,138 +127,112 @@ High-level code structure for the current system:
 
 ### Agents may:
 
-- **research** (collect information, scan options).
-- **analyze** (compare options, critique, highlight risks).
-- **score** (produce VentureCashScore / AgentOperatorScore / ROI Arena scores).
-- **draft** (internal plans, briefs, scripts, offers).
-- **compare** (ventures, agents, options, outcomes).
-- **estimate ROI** (via ROI Arena and profitability engines).
-- **prepare internal plans** (dry-run execution plans, validation paths).
-- **propose next work** (Next Action Mandate, `nextCashAction`, routing suggestions).
+- **research** — collect information, scan options.
+- **analyze** — compare options, critique, highlight risks.
+- **score** — produce VentureCashScore / AgentOperatorScore / ROI Arena scores.
+- **draft** — internal plans, briefs, outreach prep, offers.
+- **compare** — ventures, agents, options, outcomes.
+- **estimate ROI** — via ROI Arena and profitability engines.
+- **prepare** — Hermes outreach plans, prepared actions for CEO review.
+- **propose next work** — Next Action Mandate, `nextCashAction`, routing suggestions.
+- **execute (Green Lane)** — pre-approved, low-risk actions with Sentinelle policy clearance and ledger trace.
 
-### Agents may **not** do without explicit approval and guardrails:
+### Agents may **not** do without explicit approval and logged guardrails:
 
-- **contact customers** (send emails, messages, or book meetings).
-- **spend money** (payments, transfers, purchases).
-- **publish** (public content, posts, docs).
-- **deploy** (infrastructure, code, config to production).
-- **modify database** (schema or data writes outside the venture services).
-- **connect external tools** (new external integrations).
-- **bypass approvals** (no silent auto-approval flows).
-- **perform live execution** (runtime dispatch without human-on-the-loop and logging).
+- **contact customers** — send emails, messages, or book meetings without Mission Draft confirmation.
+- **spend money** — payments, transfers, purchases.
+- **publish** — public content, posts, docs.
+- **deploy** — infrastructure, code, config to production.
+- **modify database** — schema or data writes outside venture services and migrations.
+- **connect external tools** — new integrations without explicit scope.
+- **bypass approvals** — no silent auto-approval flows.
+- **execute outside policy zones** — any action not cleared by Sentinelle is blocked.
 
 These constraints are enforced by:
 
-- Contract-level invariants (`humanOnTheLoop`, `approvalRequired`, `noExecutionAuthorized`).
-- Central runtime guard (`execution-guard`) for any candidate that might be executed.
-- Governance / ledger layers which record decisions and approvals.
+- Contract-level invariants (`humanOnTheLoop: true`, `approvalRequired: true`, `noExecutionAuthorized: true`).
+- Central runtime guard (`execution-guard`) for any candidate execution.
+- Sentinelle Policy Engine — zone-based hard blocks and approval thresholds.
+- Governance / ledger layers — every decision and action is recorded and traced.
 
 ---
 
 ## Venture profitability loop
 
-The core profitability loop can be summarised as:
+> **Evidence → Outcome → Score → ROI → Selection → Mandate → Prepared Action → CEO Review**
 
-> **Evidence → Outcome → Score → ROI → Selection → Mandate → Next Work**
-
-In more detail:
-
-- **Evidence (`EvidenceRef`)**
-  - Typed evidence with trust levels.
-  - Weak signals (manual notes, self-reports) are allowed but always low trust.
-  - Verified financial evidence (`stripe_charge`, `signed_loi`) is required to back real cash.
-- **Outcome (`AgentRevenueOutcome`)**
-  - Agent submits structured venture work outcomes with scores, basis, and evidence.
-  - Positive `cashGenerated.amountCents` must be backed by evidence and a non-zero payment signal.
-- **Score (`VentureCashScore`, `AgentOperatorScore`)**
-  - Ventures are scored on cash readiness and survival status.
-  - Agents are scored on operator quality and evidence discipline.
-- **ROI (ROI Arena)**
-  - Missions / ideas / agent-actions are evaluated with ROI arena.
-  - Hard sanity ceilings guarantee financial inputs remain in a valid range.
-- **Selection (ExecutiveSelectionIndex)**
-  - Combines venture and agent scores into allocation decisions:
-    - Which ventures deserve more compute or should be paused.
-    - Which agents should receive more missions or be flagged for review.
-- **Mandate (Next Action Mandate)**
-  - Encodes the next cash-oriented move, plus required evidence and risk.
-  - Agent can accept, refute, or counter-propose — preserving initiative.
-- **Next Work**
-  - Mandate is intended to be adapted into work-order planning, **not** into live execution.
-
-**Exploration remains flexible**:
-
-- Weak signals and low-trust evidence are allowed and preserved as such.
-- Agents can propose next work even when evidence is early or incomplete.
-
-**Accounting is strict**:
-
-- Fake cash is blocked:
-  - Positive cash requires verified financial evidence and non-zero payment signal.
-  - ROI Arena enforces non-negative and ceiling-bounded financial inputs.
-- High-confidence signals require evidence:
-  - Claims scored ≥ thresholds must carry evidence arrays.
+- **Evidence** (`EvidenceRef`) — typed, trust-classified. Only `stripe_charge` / `signed_loi` backs real cash.
+- **Outcome** (`AgentRevenueOutcome`) — structured venture work result; positive cash requires verified financial evidence.
+- **Score** (`VentureCashScore`, `AgentOperatorScore`) — survival status and operator quality.
+- **ROI** (ROI Arena) — net value and ROI multiples with sanity ceilings.
+- **Selection** (`ExecutiveSelectionIndex`) — allocation decisions (proposals only).
+- **Mandate** (`NextActionMandate`) — next cash-oriented move; agent accepts, refutes, or counter-proposes.
+- **Prepared Action** (Hermes + `prepared_actions` store) — durable store; CEO reviews before any outreach or external contact.
+- **CEO Review** — explicit approval gate; no action leaves the system without it.
 
 ---
 
 ## Validation
 
-From the repo root (`C:\Users\micha\Oria.HQ.Michael.HQ-APP`) using Windows PowerShell:
+From the repo root using Windows PowerShell:
 
 ```powershell
-npm run typecheck   # TypeScript strict
-npm run lint        # ESLint
-npm run build       # Next.js build
-npm run smoke:joris # Joris smoke test
+npm run typecheck     # TypeScript strict
+npm run lint          # ESLint
+npm run build         # Next.js build
+npm run smoke:joris   # Joris two-step mission draft + ledger trace
 ```
 
-These four commands should pass before considering a merge.
+Full validation suite:
+
+```powershell
+npm run smoke:agent-execute         # Bounded execution layer smoke
+npm run test:mission-draft          # Mission draft gate + TTL
+npm run test:calendar-ledger-atomicity
+npm run test:ledger-events
+npm run test:ledger-activity-read
+npm run smoke:revenue               # Venture operational-value check
+```
+
+All checks must pass before merge.
 
 ---
 
 ## Development rules
 
-Repository-wide working rules:
-
-- **Small PRs** — small, well-scoped changes are easier to validate and review.
-- **Pure/local models first** — add contracts and pure helpers before wiring runtime or DB.
+- **Small PRs** — one branch = one mandate = one PR = one validation.
+- **Diagnosis first** — every session starts read-only (`git status`, `git log`, `git diff`).
+- **Pure/local models first** — contracts and pure helpers before wiring runtime or DB.
 - **No DB/API/runtime changes** without an explicit mandate and clear scope.
-- **No duplicate concepts** — one canonical owner for each domain type
-  (`EvidenceRef`, `AgentRevenueOutcome`, `VentureCashScore`, `AgentOperatorScore`, `NextActionMandate`, etc.).
+- **No duplicate concepts** — one canonical owner per domain type.
 - **No hardcoded secrets** — configuration via environment / tooling only.
-- **No approval bypass** — all sensitive actions must flow through governance and guardrails.
-- **No unguarded live execution** — runtime dispatch must always go through the execution guard and ledger.
+- **No approval bypass** — all sensitive actions flow through governance and guardrails.
+- **No unguarded live execution** — runtime dispatch must always go through the execution guard, Sentinelle policy check, and ledger.
 
 ---
 
-## Roadmap (short)
+## Roadmap (near-term)
 
-Near-term direction for Orya HQ:
+| Priority | Sprint | Objective |
+|----------|--------|-----------|
+| P0 | **Memory Vault** | Workspace-bound typed memory (decision, SOP, note, source). Joris read rules. No vector DB yet. |
+| P0 | **Money / ROI Cockpit** | Runway, AI spend, ROI by agent/mission. Manual model first — no banking, no billing. |
+| P1 | **Mission Persistence** | Missions, approval records, execution attempts in DB. Docs/migration proposal first; staging gate before prod. |
+| P1 | **n8n Webhook Hardening** | Auth, replay protection, rate limits on inbound webhook bridge. |
+| P2 | **Workspace Configuration** | Multi-workspace seed expansion; configurable assistant profiles. |
+| P2 | **Runtime HTTP endpoint** | Only after ledger, mission, and memory are observable and stable. |
 
-- **EvidenceRef integrated end-to-end** into `AgentRevenueOutcome`.
-  - Typed, trust-aware evidence instead of raw string arrays.
-- **Typed evidence-aware scoring** across VentureCashScore and AgentOperatorScore.
-  - Higher-trust evidence yields higher confidence; low-trust evidence is down-weighted.
-- **ROI Arena denominator & deeper integration**
-  - Use net value and ROI multiple more systematically when routing ventures and missions.
-- **Next Action Mandate → Work Order planning**
-  - Adapter from mandates into work-order / mission planning, staying strictly planning-only.
-- **Closed-loop work-order planning**
-  - Evidence → outcome → scoring → selection → mandate → planned work → new evidence.
-- **Later: persistence / runtime wiring after audit**
-  - Only once the planning and governance layers are proven; execution remains gated.
-
-This README is intentionally conservative: it describes the system as it exists and the immediate, already-coded directions, without over-claiming future capabilities.
+Rule: no new phase starts without an explicit mandate from Michael.
 
 ---
 
 ## Contact
 
-This is a private, owner-operated workspace.
-If you are collaborating on Orya HQ and need additional context, start from:
+Private, owner-operated workspace.  
+Collaborators start from:
 
-- `docs/AGENT_GOVERNANCE_REVIEW_LOOP.md`
-- `docs/AGENT_APPROVAL_PERSISTENCE_SCHEMA.md`
-- `docs/AGENT_APPROVAL_PACKET_LEDGER_MAPPING.md`
-
-and then reach out to Michael HQ via the internal channels agreed for this repository.
+- `docs/ORIA_HQ_CURRENT_STATE.md` — canonical current state.
+- `docs/AGENTS.md` → `AGENTS.md` at repo root — operating rules for agents.
+- `docs/AGENT_GOVERNANCE_REVIEW_LOOP.md` — governance and review loop.
+- `docs/VENTURE_ENGINE_RECALIBRATION.md` — venture engine direction.
+- `SOUL.md` — agent posture and values.
