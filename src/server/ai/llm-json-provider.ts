@@ -48,6 +48,7 @@ export type LlmJsonProviderSuccess = {
   providerUsed: LlmProvider;
   fallbackUsed: boolean;
   failureChain: string[];
+  tokenUsage?: { input: number; output: number };
 };
 
 export type LlmJsonProviderErrorCode =
@@ -133,6 +134,7 @@ export async function generateStructuredJson(
         providerUsed: provider,
         fallbackUsed: !isFirstAttempt,
         failureChain,
+        tokenUsage: result.tokenUsage,
       };
     }
 

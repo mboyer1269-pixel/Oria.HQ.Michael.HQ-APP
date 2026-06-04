@@ -48,6 +48,7 @@ export type OpenAiJsonSuccess = {
   json: unknown;
   rawText: string;
   modelId: string;
+  tokenUsage?: { input: number; output: number };
 };
 
 export type OpenAiJsonErrorCode =
@@ -136,6 +137,7 @@ export async function generateJsonWithOpenAI(
 
     const data = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
 
     const rawText = data?.choices?.[0]?.message?.content ?? "";
@@ -163,7 +165,12 @@ export async function generateJsonWithOpenAI(
       };
     }
 
-    return { ok: true, json, rawText, modelId };
+    const tokenUsage =
+      data.usage?.prompt_tokens !== undefined && data.usage?.completion_tokens !== undefined
+        ? { input: data.usage.prompt_tokens, output: data.usage.completion_tokens }
+        : undefined;
+
+    return { ok: true, json, rawText, modelId, tokenUsage };
   } catch (err) {
     clearTimeout(timeoutId);
 

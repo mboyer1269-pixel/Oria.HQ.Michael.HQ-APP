@@ -47,6 +47,7 @@ export type AnthropicJsonSuccess = {
   json: unknown;
   rawText: string;
   modelId: string;
+  tokenUsage?: { input: number; output: number };
 };
 
 export type AnthropicJsonErrorCode =
@@ -137,6 +138,7 @@ export async function generateJsonWithAnthropic(
 
     const data = (await response.json()) as {
       content?: Array<{ type: string; text?: string }>;
+      usage?: { input_tokens?: number; output_tokens?: number };
     };
 
     const rawText = data?.content?.[0]?.text ?? "";
@@ -164,7 +166,12 @@ export async function generateJsonWithAnthropic(
       };
     }
 
-    return { ok: true, json, rawText, modelId };
+    const tokenUsage =
+      data.usage?.input_tokens !== undefined && data.usage?.output_tokens !== undefined
+        ? { input: data.usage.input_tokens, output: data.usage.output_tokens }
+        : undefined;
+
+    return { ok: true, json, rawText, modelId, tokenUsage };
   } catch (err) {
     clearTimeout(timeoutId);
 
