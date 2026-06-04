@@ -54,9 +54,13 @@ const _parsed = parseServerEnv();
 
 // ---------------------------------------------------------------------------
 // Production fail-fast — runs at module load in production only.
-// Throws with a clear list of missing critical variables.
+// Skipped during next build (NEXT_PHASE=phase-production-build) so CI
+// does not require real API keys to compile the app.
+// Throws with a clear list of missing critical variables at runtime.
 // ---------------------------------------------------------------------------
-if (process.env.NODE_ENV === "production") {
+const isNextBuild = process.env.NEXT_PHASE === "phase-production-build";
+
+if (process.env.NODE_ENV === "production" && !isNextBuild) {
   const criticalMissing: string[] = [];
 
   // At least one AI key must be present — the model router needs it.

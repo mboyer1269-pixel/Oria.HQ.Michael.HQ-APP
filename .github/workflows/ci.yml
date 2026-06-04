@@ -34,10 +34,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          MICHAEL_HQ_OWNER_ID: ${{ secrets.MICHAEL_HQ_OWNER_ID }}
-          NODE_ENV: production
 
       - name: Runtime smoke test
         run: npm run smoke:runtime
