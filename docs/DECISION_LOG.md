@@ -4,6 +4,18 @@ Registre des décisions produit et architecturales. Chaque entrée est immuable 
 
 ---
 
+## 2026-06-04 — Agent Autonomy Policy
+
+**Décision :** Formalisation de l'Agent Autonomy Policy (PR-A). La politique sépare strictement l'AutonomyTier de l'AgentExecutionLicense. Les actions autonomes (green) requièrent la validation de 13 conditions strictes, incluant notamment un plan de rollback testé ("réversible" ne signifie pas seulement "petit"). La base de données en production n'est pas automatiquement "red" (les écritures en ajout seul comme le ledger peuvent être "green").
+
+**Principes de sécurité :** Un superviseur LLM peut uniquement réduire le risque (downgrade), jamais contourner un blocage déterministe. Par défaut, l'inconnu n'est jamais "green" (fail-safe exigeant BLOCK ou REQUIRE_APPROVAL). De plus, les corridors "green" sont non-composables avec un plafond d'effet global pour éviter les combinaisons dangereuses. La promotion est gouvernée, la rétrogradation peut être automatique.
+
+**Ce qui reste verrouillé :** Aucune intégration Mastra ou runtime n'est incluse (hors périmètre). Aucun effet de bord réel n'est débloqué par cette PR purement documentaire.
+
+**Références :** `docs/AGENT_AUTONOMY_POLICY.md`, `.agents/rules/orya-agent-autonomy-policy.md`
+
+---
+
 ## 2026-06-03 — Revenue Execution Lane v2
 
 **Décision :** Orya devient un Revenue Execution OS borné. La première voie d'exécution live est
