@@ -17,6 +17,14 @@ test.after(() => {
 test("checkExecutionAttempt fails fast in production", async () => {
   process.env.NODE_ENV = "production";
 
+  // Provide mock production environment variables to bypass server-env import validation
+  // so we can test the actual checkExecutionAttempt function logic instead of the module load.
+  process.env.ANTHROPIC_API_KEY = "test-key";
+  process.env.MICHAEL_HQ_OWNER_ID = "test-owner";
+  process.env.MICHAEL_HQ_OWNER_EMAIL = "test@example.com";
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
+
   const { createJiti } = await import("jiti");
   const jiti = createJiti(import.meta.url, {
     alias: {
@@ -37,6 +45,12 @@ test("checkExecutionAttempt fails fast in production", async () => {
       }),
     InMemoryExecutionStoreError,
   );
+
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.MICHAEL_HQ_OWNER_ID;
+  delete process.env.MICHAEL_HQ_OWNER_EMAIL;
+  delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
 
 test("checkExecutionAttempt remains available in development", async () => {
