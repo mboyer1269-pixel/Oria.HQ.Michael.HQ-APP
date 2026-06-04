@@ -25,7 +25,7 @@ import type {
   SuppressionEntry,
   AgentBudgetGuard,
   OrgBudgetGuard,
-} from "./outbound-types";
+} from "./outbound-types.ts";
 
 export type OutboundPolicyInput = {
   batch: OutboundBatch;

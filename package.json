@@ -13,7 +13,7 @@
     "smoke:revenue": "node src/scripts/smoke/revenue-readiness.mjs",
     "smoke:runtime": "node src/scripts/smoke/runtime-health-echo.mjs",
     "smoke:agent-execute": "node src/scripts/smoke/agent-execute.mjs",
-    "test": "node --test 'src/**/*.test.mjs'",
+    "test": "node run-tests.mjs",
     "test:mission-store-guard": "node --test src/server/missions/execution-attempt-store.test.mjs",
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",
     "test:mission-draft": "node --test src/server/missions/mission-draft.test.mjs",
