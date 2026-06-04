@@ -13,8 +13,8 @@
 // See docs/REVENUE_EXECUTION_LANE.md §3 and §10
 // ---------------------------------------------------------------------------
 
-import type { OutboundBatch } from "./outbound-types";
-import { isBatchTransitionAllowed } from "./outbound-types";
+import type { OutboundBatch } from "./outbound-types.ts";
+import { isBatchTransitionAllowed } from "./outbound-types.ts";
 
 // ---------------------------------------------------------------------------
 // Approval token
