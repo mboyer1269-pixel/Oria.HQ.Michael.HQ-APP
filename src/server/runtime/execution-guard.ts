@@ -29,7 +29,8 @@ import { agentRegistry } from "@/features/agents/seed";
 import type { AgentProfile } from "@/features/agents/types";
 import type { LedgerEventType, SkillProfile, SkillSideEffect } from "@/features/skills/types";
 import { skillsCatalog } from "@/features/skills/seed";
-import { isHardBlocked, isYellowAction } from "@/server/agents/agent-execution-license";
+import { canExecuteAutonomously } from "@/server/agents/autonomy-tier";
+import { getAgentLicense } from "@/server/agents/agent-execution-license";
 
 // ---------------------------------------------------------------------------
 // Existing types (unchanged -- backward compatible)
@@ -78,6 +79,8 @@ export type ExecutionDecision =
 
 export type ExecutionGuardInput = {
   skillId: string;
+  /** Policy action evaluated by the autonomy licence gate. Defaults to skillId for legacy callers. */
+  actionId?: string;
   agentId: string;
   requestedMode: ExecutionMode | "live";
   autonomyLevel: number;
@@ -197,6 +200,22 @@ function buildBlockedDecision(code: ExecutionGuardRejectedCode, reason: string):
   return { allowed: false, code, reason };
 }
 
+function policyActionId(input: ExecutionGuardInput): string {
+  return input.actionId ?? input.skillId;
+}
+
+function toPolicyAutonomyLevel(requestedLevel: number): AutonomyLevel | undefined {
+  if (!Number.isInteger(requestedLevel) || requestedLevel < 0 || requestedLevel > 5) {
+    return undefined;
+  }
+
+  return requestedLevel as AutonomyLevel;
+}
+
+function isHardBlockedByLicense(agentId: string, actionId: string): boolean {
+  return getAgentLicense(agentId)?.hardBlocks.includes(actionId) === true;
+}
+
 /**
  * Compute the effective autonomy level for a live execution request.
  * Takes the LOWER of agent level, skill level, and requested level to ensure
@@ -308,11 +327,28 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
 
   // ── Live mode -- PR3 zone-based Sentinelle policy ───────────────────────
 
-  // Hard-blocked actions are unconditionally blocked regardless of zone.
-  if (isHardBlocked(input.agentId, input.skillId)) {
+  const actionId = policyActionId(input);
+  const autonomyDecision = canExecuteAutonomously(
+    input.agentId,
+    actionId,
+    toPolicyAutonomyLevel(input.autonomyLevel),
+  );
+
+  if (autonomyDecision.tier === "blocked") {
+    const code = isHardBlockedByLicense(input.agentId, actionId)
+      ? "HARD_BLOCKED_ACTION"
+      : "RED_ZONE_BLOCKED";
+
     return buildBlockedDecision(
-      "HARD_BLOCKED_ACTION",
-      `Action ${input.skillId} is hard-blocked for agent ${input.agentId} and cannot execute.`,
+      code,
+      autonomyDecision.blockReason ?? `Action ${actionId} is blocked by autonomy policy.`,
+    );
+  }
+
+  if (autonomyDecision.tier === "supervised") {
+    return buildBlockedDecision(
+      "YELLOW_ZONE_REQUIRES_APPROVAL",
+      autonomyDecision.blockReason ?? `Action ${actionId} requires human approval before dispatch.`,
     );
   }
 
@@ -351,7 +387,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
     );
   }
 
-  if (zone === "yellow" || isYellowAction(input.agentId, input.skillId)) {
+  if (zone === "yellow") {
     return buildBlockedDecision(
       "YELLOW_ZONE_REQUIRES_APPROVAL",
       `Skill ${skill.id} is yellow zone (level ${effLevel}) -- human approval required before dispatch.`,
@@ -395,6 +431,7 @@ export function assertExecutionAllowed(input: ExecutionGuardInput): void {
 export function evaluateLiveExecution(input: ExecutionGuardInput): SentinelleDecision {
   // Always force live mode for this function.
   const liveInput: ExecutionGuardInput = { ...input, requestedMode: "live" };
+  const actionId = policyActionId(liveInput);
   const decision = canPrepareExecution(liveInput);
 
   if (decision.allowed) {
@@ -409,7 +446,7 @@ export function evaluateLiveExecution(input: ExecutionGuardInput): SentinelleDec
       outcome: "ALLOW",
       zone: "green",
       agentId: input.agentId,
-      actionId: input.skillId,
+      actionId,
       reason: decision.reason,
       requiresLedger: policy.requiresLedger,
       requiresSentinel: policy.requiresSentinel,
@@ -423,7 +460,7 @@ export function evaluateLiveExecution(input: ExecutionGuardInput): SentinelleDec
       outcome: "REQUIRE_APPROVAL",
       zone: "yellow",
       agentId: input.agentId,
-      actionId: input.skillId,
+      actionId,
       reason: decision.reason,
       requiresLedger: true,
       requiresSentinel: true,
@@ -435,7 +472,7 @@ export function evaluateLiveExecution(input: ExecutionGuardInput): SentinelleDec
     outcome: "BLOCK",
     zone: "red",
     agentId: input.agentId,
-    actionId: input.skillId,
+    actionId,
     reason: decision.reason,
     requiresLedger: false,
     requiresSentinel: false,

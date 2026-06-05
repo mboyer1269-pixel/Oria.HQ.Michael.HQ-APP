@@ -16,6 +16,7 @@ const jiti = createJiti(import.meta.url, {
 });
 
 const guardPath = path.join(projectRoot, "src/server/runtime/execution-guard.ts");
+const licensePath = path.join(projectRoot, "src/server/agents/agent-execution-license.ts");
 
 const {
   assertExecutionAllowed,
@@ -24,6 +25,8 @@ const {
   classifyExecutionRisk,
   ExecutionGuardError,
 } = await jiti.import(guardPath);
+
+const { agentLicenseRegistry } = await jiti.import(licensePath);
 
 function baseInput(overrides = {}) {
   return {
@@ -70,10 +73,13 @@ test("autonomy level 4 is rejected", () => {
 });
 
 test("live mode green zone is ALLOWED (PR3 replaces LIVE_MODE_NOT_SUPPORTED)", () => {
-  // board.consult (level 1) + joris (level 2) -> effective level 1 -> green -> ALLOW
+  // brief.generate is a green policy action for Joris and a runtime skill assigned to Joris.
   const decision = canPrepareExecution(
     baseInput({
+      skillId: "brief.generate",
+      actionId: "brief.generate",
       requestedMode: "live",
+      autonomyLevel: 2,
     }),
   );
 
@@ -206,9 +212,10 @@ const {
   evaluateLiveExecution,
 } = await jiti.import(guardPath);
 
-test("PR3: green zone live execution is ALLOWED for joris + board.consult", () => {
+test("PR3: green policy action live execution is ALLOWED for joris + brief.generate", () => {
   const result = evaluateLiveExecution({
-    skillId: "board.consult",
+    skillId: "brief.generate",
+    actionId: "brief.generate",
     agentId: "joris",
     requestedMode: "live",
     autonomyLevel: 2,
@@ -223,7 +230,8 @@ test("PR3: green zone live execution is ALLOWED for joris + board.consult", () =
 
 test("PR3: canPrepareExecution live + green zone returns allowed:true mode:live dryRun:false", () => {
   const decision = canPrepareExecution({
-    skillId: "board.consult",
+    skillId: "brief.generate",
+    actionId: "brief.generate",
     agentId: "joris",
     requestedMode: "live",
     autonomyLevel: 2,
@@ -263,7 +271,8 @@ test("PR3: canPrepareExecution hard-blocked returns HARD_BLOCKED_ACTION", () => 
 
 test("PR3: red zone (level 0) is BLOCKED", () => {
   const result = evaluateLiveExecution({
-    skillId: "board.consult",
+    skillId: "brief.generate",
+    actionId: "brief.generate",
     agentId: "joris",
     requestedMode: "live",
     autonomyLevel: 0,
@@ -298,15 +307,69 @@ test("PR3: unknown agent is BLOCKED in live mode", () => {
   assert.equal(result.zone, "red");
 });
 
-test("PR3: effective level is min(agent, skill, requested)", () => {
-  // joris autonomyLevel=2, board.consult autonomyLevel=1 -> effective=1 -> green
+test("PR3: requested red boundary level 5 is BLOCKED before runtime min routing", () => {
   const result = evaluateLiveExecution({
-    skillId: "board.consult",
+    skillId: "brief.generate",
+    actionId: "brief.generate",
     agentId: "joris",
     requestedMode: "live",
-    autonomyLevel: 5,   // requested is high, but effective = min(2,1,5) = 1 -> green
+    autonomyLevel: 5,
   });
 
-  assert.equal(result.outcome, "ALLOW");
-  assert.equal(result.zone, "green");
+  assert.equal(result.outcome, "BLOCK");
+  assert.equal(result.zone, "red");
+});
+
+test("PR3: suspended agent licence is BLOCKED before runtime min routing", () => {
+  const jorisLicense = agentLicenseRegistry.find((license) => license.agentId === "joris");
+  assert.ok(jorisLicense);
+
+  const previousSuspended = jorisLicense.suspended;
+  jorisLicense.suspended = true;
+
+  try {
+    const result = evaluateLiveExecution({
+      skillId: "brief.generate",
+      actionId: "brief.generate",
+      agentId: "joris",
+      requestedMode: "live",
+      autonomyLevel: 2,
+    });
+
+    assert.equal(result.outcome, "BLOCK");
+    assert.equal(result.zone, "red");
+  } finally {
+    if (previousSuspended === undefined) {
+      delete jorisLicense.suspended;
+    } else {
+      jorisLicense.suspended = previousSuspended;
+    }
+  }
+});
+
+test("PR3: unknown policy action is BLOCKED before runtime min routing", () => {
+  const result = evaluateLiveExecution({
+    skillId: "brief.generate",
+    actionId: "unknown.policy.action",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 2,
+  });
+
+  assert.equal(result.outcome, "BLOCK");
+  assert.equal(result.zone, "red");
+});
+
+test("PR3: yellow policy action requires approval before runtime min routing", () => {
+  const result = evaluateLiveExecution({
+    skillId: "mission.plan",
+    actionId: "mission.confirm",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 2,
+  });
+
+  assert.equal(result.outcome, "REQUIRE_APPROVAL");
+  assert.equal(result.zone, "yellow");
+  assert.equal(result.requiresHumanApproval, true);
 });
