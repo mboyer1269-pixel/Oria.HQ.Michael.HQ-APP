@@ -44,6 +44,23 @@ export type ActionLedgerInsert = Omit<ActionLedgerRow, "id" | "created_at"> & {
   created_at?: string;
 };
 
+export type EventRow = {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  stream_id: string;
+  type: "idea.captured";
+  payload: Json;
+  valid_from: string | null;
+  valid_to: string | null;
+  recorded_at: string;
+};
+
+export type EventInsert = Omit<EventRow, "id" | "recorded_at"> & {
+  id?: string;
+  recorded_at?: string;
+};
+
 export type ContactLeadRow = {
   id: string;
   name: string;
@@ -292,6 +309,12 @@ export type MichaelHqDatabase = {
         Row: ActionLedgerRow;
         Insert: ActionLedgerInsert;
         Update: Partial<ActionLedgerInsert>;
+        Relationships: [];
+      };
+      events: {
+        Row: EventRow;
+        Insert: EventInsert;
+        Update: Partial<EventInsert>;
         Relationships: [];
       };
       contact_leads: {

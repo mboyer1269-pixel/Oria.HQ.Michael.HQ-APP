@@ -5,13 +5,12 @@ import {
   Bot,
   Building2,
   CircleDot,
+  Clock,
   FileText,
   LayoutDashboard,
   ListChecks,
-  Search,
   Sparkles,
 } from "lucide-react";
-import { JorisDock } from "./joris-dock";
 import { Tooltip } from "./ui";
 
 // ---------------------------------------------------------------------------
@@ -84,7 +83,7 @@ export function CockpitShell({
             O
           </span>
           <span className="hidden md:block">
-            <span className="block text-[15px] font-bold text-[#eff1fb]">Orya HQ</span>
+            <span className="block text-[15px] font-bold text-[#eff1fb]">ORIA HQ</span>
             <span className="block text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#646c8e]">
               Michael
             </span>
@@ -118,28 +117,13 @@ export function CockpitShell({
           </div>
           <div className="flex-1" />
           <Tooltip
-            title="Joris partout"
-            detail="Joris reste accessible en bas à droite dans ce cockpit. La palette de commandes arrive."
-            meta="Bientôt : ⌘K"
-            align="right"
-          >
-            <span className="hidden items-center gap-2.5 rounded-xl border border-white/10 bg-[#141a2c]/60 px-3 py-2 text-[13px] text-[#98a1c4] sm:flex">
-              <Search className="h-[15px] w-[15px]" aria-hidden="true" />
-              Demander à Joris…
-              <span className="ml-2 flex gap-1">
-                <kbd className="rounded border border-white/10 bg-black/30 px-1.5 text-[11px] text-[#646c8e]">⌘</kbd>
-                <kbd className="rounded border border-white/10 bg-black/30 px-1.5 text-[11px] text-[#646c8e]">K</kbd>
-              </span>
-            </span>
-          </Tooltip>
-          <Tooltip
-            title="Statut Joris"
-            detail="Chat owner-gated. Toute action réelle reste soumise aux permissions, au ledger et au human-on-the-loop."
+            title="Joris"
+            detail="Joris est volontairement absent de PR-1. Le cockpit affiche seulement un stub à venir."
             align="right"
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141a2c]/60 px-3 py-1.5 text-xs font-semibold text-[#98a1c4]">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Joris prêt
+              <Clock className="h-3.5 w-3.5 text-amber-200" aria-hidden="true" />
+              Joris à venir
             </span>
           </Tooltip>
           <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-gradient-to-br from-[#1e2440] to-[#2c376a] text-sm font-bold text-[#eff1fb]">
@@ -152,7 +136,6 @@ export function CockpitShell({
         </main>
       </div>
 
-      <JorisDock />
     </div>
   );
 }
