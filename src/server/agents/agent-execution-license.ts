@@ -16,7 +16,7 @@
  *   - No license may grant level-5 actions (financial / irreversible external).
  */
 
-import type { ExecutionZone } from "@/core/types";
+import type { ExecutionZone } from "../../core/types.ts";
 
 export type AllowedVisibility = "internal" | "unlisted" | "public";
 
@@ -48,6 +48,8 @@ export type AgentExecutionLicense = {
   requiresSentinel: boolean;
   /** Ledger entry required for every live action (should always be true). */
   requiresLedger: boolean;
+  /** Revokes this licence immediately without removing registry history. */
+  suspended?: boolean;
   /** Actions this agent can never perform, regardless of zone. */
   hardBlocks: string[];
 };
