@@ -41,6 +41,7 @@ test("INV-A1: unknown agentId → blocked (no licence = no permission)", () => {
   assert.strictEqual(result.tier, "blocked",
     "Agent without a registered licence must always be blocked");
   assert.strictEqual(result.zone, "red");
+  assert.strictEqual(result.executionTier, "red");
   assert.strictEqual(result.reasonCode, "unauthorized_action");
   assert.deepEqual(result.clearedBy, [],
     "No gate cleared — clearedBy must be empty on block");
@@ -92,6 +93,7 @@ test("INV-A3: action in hardBlocks → blocked unconditionally", () => {
 
   assert.strictEqual(result.tier, "blocked",
     "Hard-blocked action must be blocked regardless of autonomy level");
+  assert.strictEqual(result.executionTier, "red");
   assert.strictEqual(result.reasonCode, "action_policy_blocked");
   assert.deepEqual(result.clearedBy, []);
   assert.ok(result.blockReason?.includes("hard-blocked"),
@@ -156,6 +158,7 @@ test("NOM-1: green action at requestedLevel ≤ 2 → full_autonomous", () => {
   assert.strictEqual(result.tier, "full_autonomous",
     "Explicitly listed green action at level 1 must be full_autonomous");
   assert.strictEqual(result.zone, "green");
+  assert.strictEqual(result.executionTier, "green");
   assert.strictEqual(result.reasonCode, "allowed_by_policy");
   assert.strictEqual(result.requiresLedger, true,
     "Ledger is always required in green zone");
@@ -177,6 +180,7 @@ test("NOM-1c: green action at level 3 → supervised (above green ceiling → do
   const result = canExecuteAutonomously("joris", "mission.draft.create", 3);
   assert.strictEqual(result.tier, "supervised",
     "Level 3 on a green action exceeds the green ceiling — must downgrade to supervised");
+  assert.strictEqual(result.executionTier, "yellow");
   assert.strictEqual(result.reasonCode, "action_policy_requires_approval");
   assert.ok(result.blockReason?.includes("exceeds the green zone ceiling"));
 });
@@ -188,6 +192,7 @@ test("NOM-2: yellow action → supervised (never full_autonomous)", () => {
   assert.strictEqual(result.tier, "supervised",
     "Yellow zone action must never be full_autonomous regardless of level");
   assert.strictEqual(result.zone, "yellow");
+  assert.strictEqual(result.executionTier, "yellow");
   assert.strictEqual(result.reasonCode, "action_policy_requires_approval");
   assert.ok(result.blockReason?.includes("yellow zone"),
     "blockReason must state yellow zone routing");

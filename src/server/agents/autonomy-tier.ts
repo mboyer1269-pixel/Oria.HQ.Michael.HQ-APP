@@ -119,6 +119,7 @@ export type AutonomyDecision = {
   actionId: string;
   reasonCode: AutonomyDecisionReason;
   zone: ExecutionZone;
+  executionTier: ExecutionZone;
   requiresLedger: boolean;
   requiresSentinel: boolean;
   /** Which gates positively cleared this decision. Empty = blocked. */
@@ -143,6 +144,7 @@ function blocked(
     actionId,
     reasonCode,
     zone: "red",
+    executionTier: "red",
     requiresLedger: false,
     requiresSentinel: false,
     clearedBy: [],
@@ -167,6 +169,7 @@ function fromZonePolicy(
     actionId,
     reasonCode,
     zone,
+    executionTier: zone,
     requiresLedger: policy.requiresLedger,
     requiresSentinel: policy.requiresSentinel,
     clearedBy: ["general"],

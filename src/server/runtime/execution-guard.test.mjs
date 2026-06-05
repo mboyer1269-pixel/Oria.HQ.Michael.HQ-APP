@@ -45,6 +45,7 @@ test("read-only dry-run level 1 is accepted", () => {
   assert.equal(decision.allowed, true);
   assert.equal(decision.mode, "dry-run");
   assert.equal(decision.dryRun, true);
+  assert.equal(decision.executionTier, "green");
   assert.match(decision.reason, /read-only|internal draft/i);
 });
 
@@ -88,6 +89,7 @@ test("live mode green zone is ALLOWED (PR3 replaces LIVE_MODE_NOT_SUPPORTED)", (
   assert.equal(decision.mode, "live");
   assert.equal(decision.dryRun, false);
   assert.equal(decision.zone, "green");
+  assert.equal(decision.executionTier, "green");
   assert.equal(decision.reasonCode, "allowed_by_policy");
   assert.equal(decision.requiresLedger, true);
   assert.equal(decision.requiresSentinel, true);
@@ -113,6 +115,7 @@ test("effectful skill is rejected without trusted approval", () => {
 
   assert.equal(decision.allowed, false);
   assert.equal(decision.code, "EFFECTFUL_SKILL_REQUIRES_APPROVAL");
+  assert.equal(decision.executionTier, "yellow");
 });
 
 test("approvalConfirmed from the client is rejected", () => {
@@ -225,6 +228,7 @@ test("PR3: green policy action live execution is ALLOWED for joris + brief.gener
 
   assert.equal(result.outcome, "ALLOW");
   assert.equal(result.zone, "green");
+  assert.equal(result.executionTier, "green");
   assert.equal(result.reasonCode, "allowed_by_policy");
   assert.equal(result.requiresLedger, true);
   assert.equal(result.requiresSentinel, true);
@@ -244,6 +248,7 @@ test("PR3: canPrepareExecution live + green zone returns allowed:true mode:live 
   assert.equal(decision.mode, "live");
   assert.equal(decision.dryRun, false);
   assert.equal(decision.zone, "green");
+  assert.equal(decision.executionTier, "green");
   assert.equal(decision.reasonCode, "allowed_by_policy");
   assert.equal(decision.requiresLedger, true);
   assert.equal(decision.requiresSentinel, true);
@@ -259,6 +264,7 @@ test("PR3: hard-blocked action is BLOCKED regardless of zone", () => {
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.executionTier, "red");
   assert.equal(result.reasonCode, "action_policy_blocked");
 });
 
@@ -272,6 +278,7 @@ test("PR3: canPrepareExecution hard-blocked returns HARD_BLOCKED_ACTION", () => 
 
   assert.equal(decision.allowed, false);
   assert.equal(decision.code, "HARD_BLOCKED_ACTION");
+  assert.equal(decision.executionTier, "red");
   assert.equal(decision.reasonCode, "action_policy_blocked");
 });
 
@@ -286,6 +293,7 @@ test("PR3: red zone (level 0) is BLOCKED", () => {
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.executionTier, "red");
   assert.equal(result.reasonCode, "requested_level_blocked");
 });
 
@@ -312,6 +320,7 @@ test("PR3: unknown agent is BLOCKED in live mode", () => {
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.executionTier, "red");
   assert.equal(result.reasonCode, "unauthorized_action");
 });
 
@@ -326,6 +335,7 @@ test("PR3: requested red boundary level 5 is BLOCKED before runtime min routing"
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.executionTier, "red");
   assert.equal(result.reasonCode, "requested_level_blocked");
 });
 
@@ -347,6 +357,7 @@ test("PR3: suspended agent licence is BLOCKED before runtime min routing", () =>
 
     assert.equal(result.outcome, "BLOCK");
     assert.equal(result.zone, "red");
+    assert.equal(result.executionTier, "red");
     assert.equal(result.reasonCode, "agent_suspended");
   } finally {
     if (previousSuspended === undefined) {
@@ -368,6 +379,7 @@ test("PR3: unknown policy action is BLOCKED before runtime min routing", () => {
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.executionTier, "red");
   assert.equal(result.reasonCode, "unknown_action_policy");
 });
 
@@ -382,6 +394,7 @@ test("PR3: yellow policy action requires approval before runtime min routing", (
 
   assert.equal(result.outcome, "REQUIRE_APPROVAL");
   assert.equal(result.zone, "yellow");
+  assert.equal(result.executionTier, "yellow");
   assert.equal(result.reasonCode, "action_policy_requires_approval");
   assert.equal(result.requiresHumanApproval, true);
 });
@@ -397,6 +410,7 @@ test("PR4: unauthorized runtime skill exposes unauthorized_action reason", () =>
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.executionTier, "red");
   assert.equal(result.reasonCode, "unauthorized_action");
 });
 
@@ -418,6 +432,7 @@ test("PR4: runtime min rejection exposes runtime_min_not_met reason", () => {
 
     assert.equal(result.outcome, "BLOCK");
     assert.equal(result.zone, "red");
+    assert.equal(result.executionTier, "red");
     assert.equal(result.reasonCode, "runtime_min_not_met");
   } finally {
     skill.autonomyLevel = previousAutonomyLevel;
