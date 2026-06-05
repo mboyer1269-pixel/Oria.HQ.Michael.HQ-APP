@@ -29,7 +29,7 @@ import { agentRegistry } from "@/features/agents/seed";
 import type { AgentProfile } from "@/features/agents/types";
 import type { LedgerEventType, SkillProfile, SkillSideEffect } from "@/features/skills/types";
 import { skillsCatalog } from "@/features/skills/seed";
-import { canExecuteAutonomously } from "@/server/agents/autonomy-tier";
+import { canExecuteAutonomously, type AutonomyDecisionReason } from "@/server/agents/autonomy-tier";
 import { getAgentLicense } from "@/server/agents/agent-execution-license";
 
 // ---------------------------------------------------------------------------
@@ -54,10 +54,16 @@ export type ExecutionGuardRejectedCode =
   | "YELLOW_ZONE_REQUIRES_APPROVAL"
   | "RED_ZONE_BLOCKED";
 
+export type ExecutionDecisionReason =
+  | AutonomyDecisionReason
+  | "approval_source_not_trusted"
+  | "runtime_min_not_met";
+
 export type ExecutionDecision =
   | {
       allowed: true;
       mode: ExecutionMode;
+      reasonCode: ExecutionDecisionReason;
       reason: string;
       dryRun: true;
     }
@@ -66,6 +72,7 @@ export type ExecutionDecision =
       allowed: true;
       mode: "live";
       zone: "green";
+      reasonCode: ExecutionDecisionReason;
       reason: string;
       dryRun: false;
       requiresLedger: true;
@@ -73,6 +80,7 @@ export type ExecutionDecision =
     }
   | {
       allowed: false;
+      reasonCode: ExecutionDecisionReason;
       reason: string;
       code: ExecutionGuardRejectedCode;
     };
@@ -156,6 +164,7 @@ export type SentinelleDecision = {
   zone: ExecutionZone;
   agentId: string;
   actionId: string;
+  reasonCode: ExecutionDecisionReason;
   reason: string;
   /** Ledger entry is mandatory for ALLOW outcomes. */
   requiresLedger: boolean;
@@ -196,8 +205,12 @@ function ledgerEventsForRisk(risk: ExecutionRiskClass): LedgerEventType[] {
   }
 }
 
-function buildBlockedDecision(code: ExecutionGuardRejectedCode, reason: string): ExecutionDecision {
-  return { allowed: false, code, reason };
+function buildBlockedDecision(
+  code: ExecutionGuardRejectedCode,
+  reasonCode: ExecutionDecisionReason,
+  reason: string,
+): ExecutionDecision {
+  return { allowed: false, code, reasonCode, reason };
 }
 
 function policyActionId(input: ExecutionGuardInput): string {
@@ -273,6 +286,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
   if (input.approvalConfirmed !== undefined || input.clientApprovalConfirmed !== undefined) {
     return buildBlockedDecision(
       "APPROVAL_SOURCE_NOT_TRUSTED",
+      "approval_source_not_trusted",
       "Client-supplied approval state is not trusted for controlled execution.",
     );
   }
@@ -282,19 +296,21 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
     if (!Number.isInteger(input.autonomyLevel) || input.autonomyLevel < 1 || input.autonomyLevel > 3) {
       return buildBlockedDecision(
         "AUTONOMY_LEVEL_TOO_HIGH",
+        "requested_level_blocked",
         "Execution guard only allows autonomy levels 1 through 3.",
       );
     }
 
     const agent = resolveAgent(input.agentId);
     if (!agent) {
-      return buildBlockedDecision("UNSUPPORTED_SKILL", `Unknown agent: ${input.agentId}.`);
+      return buildBlockedDecision("UNSUPPORTED_SKILL", "unauthorized_action", `Unknown agent: ${input.agentId}.`);
     }
 
     const skill = resolveSkill(input.skillId);
     if (!skill || !supportsExecution(skill) || !agent.skillIds.includes(skill.id)) {
       return buildBlockedDecision(
         "UNSUPPORTED_SKILL",
+        "unauthorized_action",
         `Skill ${input.skillId} is not available to agent ${input.agentId}.`,
       );
     }
@@ -302,6 +318,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
     if (input.mission && input.mission.assignedAgentId !== input.agentId) {
       return buildBlockedDecision(
         "UNSUPPORTED_SKILL",
+        "unauthorized_action",
         `Mission ${input.mission.id} is assigned to ${input.mission.assignedAgentId}, not ${input.agentId}.`,
       );
     }
@@ -310,6 +327,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
     if (risk === "effectful" || risk === "external") {
       return buildBlockedDecision(
         "EFFECTFUL_SKILL_REQUIRES_APPROVAL",
+        "action_policy_requires_approval",
         `Skill ${skill.id} is ${risk} and requires approval in planning mode.`,
       );
     }
@@ -317,6 +335,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
     return {
       allowed: true,
       mode: input.requestedMode,
+      reasonCode: "allowed_by_policy",
       reason:
         risk === "internal-draft"
           ? `Skill ${skill.id} can be prepared as an internal draft in ${input.requestedMode} mode.`
@@ -341,6 +360,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
 
     return buildBlockedDecision(
       code,
+      autonomyDecision.reasonCode,
       autonomyDecision.blockReason ?? `Action ${actionId} is blocked by autonomy policy.`,
     );
   }
@@ -348,19 +368,21 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
   if (autonomyDecision.tier === "supervised") {
     return buildBlockedDecision(
       "YELLOW_ZONE_REQUIRES_APPROVAL",
+      autonomyDecision.reasonCode,
       autonomyDecision.blockReason ?? `Action ${actionId} requires human approval before dispatch.`,
     );
   }
 
   const agent = resolveAgent(input.agentId);
   if (!agent) {
-    return buildBlockedDecision("UNSUPPORTED_SKILL", `Unknown agent: ${input.agentId}.`);
+    return buildBlockedDecision("UNSUPPORTED_SKILL", "unauthorized_action", `Unknown agent: ${input.agentId}.`);
   }
 
   const skill = resolveSkill(input.skillId);
   if (!skill || !supportsExecution(skill) || !agent.skillIds.includes(skill.id)) {
     return buildBlockedDecision(
       "UNSUPPORTED_SKILL",
+      "unauthorized_action",
       `Skill ${input.skillId} is not available to agent ${input.agentId}.`,
     );
   }
@@ -368,6 +390,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
   if (input.mission && input.mission.assignedAgentId !== input.agentId) {
     return buildBlockedDecision(
       "UNSUPPORTED_SKILL",
+      "unauthorized_action",
       `Mission ${input.mission.id} is assigned to ${input.mission.assignedAgentId}, not ${input.agentId}.`,
     );
   }
@@ -383,6 +406,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
   if (zone === "red") {
     return buildBlockedDecision(
       "RED_ZONE_BLOCKED",
+      "runtime_min_not_met",
       `Effective autonomy level ${effLevel} is red zone -- action blocked unconditionally.`,
     );
   }
@@ -390,6 +414,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
   if (zone === "yellow") {
     return buildBlockedDecision(
       "YELLOW_ZONE_REQUIRES_APPROVAL",
+      "runtime_min_not_met",
       `Skill ${skill.id} is yellow zone (level ${effLevel}) -- human approval required before dispatch.`,
     );
   }
@@ -399,6 +424,7 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
     allowed: true,
     mode: "live",
     zone: "green",
+    reasonCode: "allowed_by_policy",
     reason: `Skill ${skill.id} is green zone (level ${effLevel}) for agent ${agent.name}. Sentinelle observes. Ledger required.`,
     dryRun: false,
     requiresLedger: true,
@@ -447,6 +473,7 @@ export function evaluateLiveExecution(input: ExecutionGuardInput): SentinelleDec
       zone: "green",
       agentId: input.agentId,
       actionId,
+      reasonCode: decision.reasonCode,
       reason: decision.reason,
       requiresLedger: policy.requiresLedger,
       requiresSentinel: policy.requiresSentinel,
@@ -461,6 +488,7 @@ export function evaluateLiveExecution(input: ExecutionGuardInput): SentinelleDec
       zone: "yellow",
       agentId: input.agentId,
       actionId,
+      reasonCode: decision.reasonCode,
       reason: decision.reason,
       requiresLedger: true,
       requiresSentinel: true,
@@ -473,6 +501,7 @@ export function evaluateLiveExecution(input: ExecutionGuardInput): SentinelleDec
     zone: "red",
     agentId: input.agentId,
     actionId,
+    reasonCode: decision.reasonCode,
     reason: decision.reason,
     requiresLedger: false,
     requiresSentinel: false,

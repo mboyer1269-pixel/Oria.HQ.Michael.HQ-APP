@@ -63,6 +63,19 @@ import {
 export type AutonomyTier = "full_autonomous" | "supervised" | "blocked";
 
 /**
+ * Stable machine-readable reason for autonomy gate decisions.
+ * This complements blockReason, which remains human-readable.
+ */
+export type AutonomyDecisionReason =
+  | "agent_suspended"
+  | "requested_level_blocked"
+  | "action_policy_blocked"
+  | "action_policy_requires_approval"
+  | "unknown_action_policy"
+  | "unauthorized_action"
+  | "allowed_by_policy";
+
+/**
  * Gate identifiers for the clearedBy trace.
  * "general" = this file's gate cleared.
  * "corridor" = a domain-specific gate (outbound, payments…) cleared.
@@ -104,6 +117,7 @@ export type AutonomyDecision = {
   tier: AutonomyTier;
   agentId: string;
   actionId: string;
+  reasonCode: AutonomyDecisionReason;
   zone: ExecutionZone;
   requiresLedger: boolean;
   requiresSentinel: boolean;
@@ -120,12 +134,14 @@ export type AutonomyDecision = {
 function blocked(
   agentId: string,
   actionId: string,
+  reasonCode: AutonomyDecisionReason,
   reason: string,
 ): AutonomyDecision {
   return {
     tier: "blocked",
     agentId,
     actionId,
+    reasonCode,
     zone: "red",
     requiresLedger: false,
     requiresSentinel: false,
@@ -139,6 +155,7 @@ function fromZonePolicy(
   actionId: string,
   zone: ExecutionZone,
   tier: AutonomyTier,
+  reasonCode: AutonomyDecisionReason,
   reason?: string,
 ): AutonomyDecision {
   const policy = getExecutionZonePolicy(
@@ -148,6 +165,7 @@ function fromZonePolicy(
     tier,
     agentId,
     actionId,
+    reasonCode,
     zone,
     requiresLedger: policy.requiresLedger,
     requiresSentinel: policy.requiresSentinel,
@@ -194,32 +212,32 @@ export function canExecuteAutonomously(
   // INVARIANT 1 — No licence
   const license: AgentExecutionLicense | undefined = getAgentLicense(agentId);
   if (!license) {
-    return blocked(agentId, actionId,
+    return blocked(agentId, actionId, "unauthorized_action",
       `No execution licence registered for agent '${agentId}' — blocked by policy`);
   }
 
   // INVARIANT 2 — Suspended/revoked licence
   if (license.suspended === true) {
-    return blocked(agentId, actionId,
+    return blocked(agentId, actionId, "agent_suspended",
       `Execution licence for agent '${agentId}' is suspended — blocked until reinstated`);
   }
 
   // INVARIANT 3 — Hard block (unconditional, checked before any zone logic)
   if (license.hardBlocks.includes(actionId)) {
-    return blocked(agentId, actionId,
+    return blocked(agentId, actionId, "action_policy_blocked",
       `Action '${actionId}' is hard-blocked for agent '${agentId}' — no override possible`);
   }
 
   // INVARIANT 4 — Missing autonomy level (ambiguity closes the gate)
   if (requestedLevel === undefined) {
-    return blocked(agentId, actionId,
+    return blocked(agentId, actionId, "requested_level_blocked",
       `Requested autonomy level is undefined — fail-safe: blocked (unknown level is never green)`);
   }
 
   // INVARIANT 5 — Red autonomy boundary. Must run before yellow routing:
   // level 5 is never "supervised"; it is blocked.
   if (requestedLevel === 0 || requestedLevel === 5) {
-    return blocked(agentId, actionId,
+    return blocked(agentId, actionId, "requested_level_blocked",
       `Requested level ${requestedLevel} maps to red zone — blocked unconditionally`);
   }
 
@@ -229,13 +247,13 @@ export function canExecuteAutonomously(
   const isKnown = isExplicitlyGreen || isExplicitlyYellow;
 
   if (!isKnown) {
-    return blocked(agentId, actionId,
+    return blocked(agentId, actionId, "unknown_action_policy",
       `Action '${actionId}' is not listed in any zone for agent '${agentId}' — unknown actions are never green`);
   }
 
   // INVARIANT 7 — Composability guard (sequence cumulative effect)
   if (sequenceContext && sequenceContext.cumulativeEffectLevel >= 5) {
-    return blocked(agentId, actionId,
+    return blocked(agentId, actionId, "action_policy_blocked",
       `Sequence cumulativeEffectLevel reached 5 — the action chain has hit a red threshold. ` +
       `canExecuteAutonomously() evaluates actions in isolation; this block comes from the ` +
       `AutonomySequenceGuard (PR-C) via sequenceContext. Composability is NOT guaranteed ` +
@@ -244,7 +262,7 @@ export function canExecuteAutonomously(
 
   // INVARIANT 9 — Yellow zone (approval required, corridor cannot promote to green)
   if (isExplicitlyYellow) {
-    return fromZonePolicy(agentId, actionId, "yellow", "supervised",
+    return fromZonePolicy(agentId, actionId, "yellow", "supervised", "action_policy_requires_approval",
       `Action '${actionId}' is in the yellow zone for agent '${agentId}' — human approval required`);
   }
 
@@ -253,12 +271,12 @@ export function canExecuteAutonomously(
   // Level 3–4 in a green-listed action → supervised (downgrade, not block).
   if (requestedLevel <= 2) {
     // INVARIANT 8 — full_autonomous
-    return fromZonePolicy(agentId, actionId, "green", "full_autonomous");
+    return fromZonePolicy(agentId, actionId, "green", "full_autonomous", "allowed_by_policy");
   }
 
   // Level 3 or 4 in a green-listed action → downgrade to supervised
   // (high autonomy level requested for a green action = escalate to yellow treatment)
-  return fromZonePolicy(agentId, actionId, "yellow", "supervised",
+  return fromZonePolicy(agentId, actionId, "yellow", "supervised", "action_policy_requires_approval",
     `Requested level ${requestedLevel} exceeds the green zone ceiling (2) ` +
     `for action '${actionId}' — downgraded to supervised`);
 }

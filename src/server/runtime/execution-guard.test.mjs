@@ -27,6 +27,7 @@ const {
 } = await jiti.import(guardPath);
 
 const { agentLicenseRegistry } = await jiti.import(licensePath);
+const { skillsCatalog } = await jiti.import("@/features/skills/seed");
 
 function baseInput(overrides = {}) {
   return {
@@ -87,6 +88,7 @@ test("live mode green zone is ALLOWED (PR3 replaces LIVE_MODE_NOT_SUPPORTED)", (
   assert.equal(decision.mode, "live");
   assert.equal(decision.dryRun, false);
   assert.equal(decision.zone, "green");
+  assert.equal(decision.reasonCode, "allowed_by_policy");
   assert.equal(decision.requiresLedger, true);
   assert.equal(decision.requiresSentinel, true);
 });
@@ -223,6 +225,7 @@ test("PR3: green policy action live execution is ALLOWED for joris + brief.gener
 
   assert.equal(result.outcome, "ALLOW");
   assert.equal(result.zone, "green");
+  assert.equal(result.reasonCode, "allowed_by_policy");
   assert.equal(result.requiresLedger, true);
   assert.equal(result.requiresSentinel, true);
   assert.equal(result.requiresHumanApproval, false);
@@ -241,6 +244,7 @@ test("PR3: canPrepareExecution live + green zone returns allowed:true mode:live 
   assert.equal(decision.mode, "live");
   assert.equal(decision.dryRun, false);
   assert.equal(decision.zone, "green");
+  assert.equal(decision.reasonCode, "allowed_by_policy");
   assert.equal(decision.requiresLedger, true);
   assert.equal(decision.requiresSentinel, true);
 });
@@ -255,6 +259,7 @@ test("PR3: hard-blocked action is BLOCKED regardless of zone", () => {
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.reasonCode, "action_policy_blocked");
 });
 
 test("PR3: canPrepareExecution hard-blocked returns HARD_BLOCKED_ACTION", () => {
@@ -267,6 +272,7 @@ test("PR3: canPrepareExecution hard-blocked returns HARD_BLOCKED_ACTION", () => 
 
   assert.equal(decision.allowed, false);
   assert.equal(decision.code, "HARD_BLOCKED_ACTION");
+  assert.equal(decision.reasonCode, "action_policy_blocked");
 });
 
 test("PR3: red zone (level 0) is BLOCKED", () => {
@@ -280,6 +286,7 @@ test("PR3: red zone (level 0) is BLOCKED", () => {
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.reasonCode, "requested_level_blocked");
 });
 
 test("PR3: clientApprovalConfirmed is rejected even in live mode", () => {
@@ -305,6 +312,7 @@ test("PR3: unknown agent is BLOCKED in live mode", () => {
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.reasonCode, "unauthorized_action");
 });
 
 test("PR3: requested red boundary level 5 is BLOCKED before runtime min routing", () => {
@@ -318,6 +326,7 @@ test("PR3: requested red boundary level 5 is BLOCKED before runtime min routing"
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.reasonCode, "requested_level_blocked");
 });
 
 test("PR3: suspended agent licence is BLOCKED before runtime min routing", () => {
@@ -338,6 +347,7 @@ test("PR3: suspended agent licence is BLOCKED before runtime min routing", () =>
 
     assert.equal(result.outcome, "BLOCK");
     assert.equal(result.zone, "red");
+    assert.equal(result.reasonCode, "agent_suspended");
   } finally {
     if (previousSuspended === undefined) {
       delete jorisLicense.suspended;
@@ -358,6 +368,7 @@ test("PR3: unknown policy action is BLOCKED before runtime min routing", () => {
 
   assert.equal(result.outcome, "BLOCK");
   assert.equal(result.zone, "red");
+  assert.equal(result.reasonCode, "unknown_action_policy");
 });
 
 test("PR3: yellow policy action requires approval before runtime min routing", () => {
@@ -371,5 +382,44 @@ test("PR3: yellow policy action requires approval before runtime min routing", (
 
   assert.equal(result.outcome, "REQUIRE_APPROVAL");
   assert.equal(result.zone, "yellow");
+  assert.equal(result.reasonCode, "action_policy_requires_approval");
   assert.equal(result.requiresHumanApproval, true);
+});
+
+test("PR4: unauthorized runtime skill exposes unauthorized_action reason", () => {
+  const result = evaluateLiveExecution({
+    skillId: "does.not.exist",
+    actionId: "brief.generate",
+    agentId: "joris",
+    requestedMode: "live",
+    autonomyLevel: 2,
+  });
+
+  assert.equal(result.outcome, "BLOCK");
+  assert.equal(result.zone, "red");
+  assert.equal(result.reasonCode, "unauthorized_action");
+});
+
+test("PR4: runtime min rejection exposes runtime_min_not_met reason", () => {
+  const skill = skillsCatalog.find((entry) => entry.id === "brief.generate");
+  assert.ok(skill);
+
+  const previousAutonomyLevel = skill.autonomyLevel;
+  skill.autonomyLevel = 0;
+
+  try {
+    const result = evaluateLiveExecution({
+      skillId: "brief.generate",
+      actionId: "brief.generate",
+      agentId: "joris",
+      requestedMode: "live",
+      autonomyLevel: 2,
+    });
+
+    assert.equal(result.outcome, "BLOCK");
+    assert.equal(result.zone, "red");
+    assert.equal(result.reasonCode, "runtime_min_not_met");
+  } finally {
+    skill.autonomyLevel = previousAutonomyLevel;
+  }
 });
