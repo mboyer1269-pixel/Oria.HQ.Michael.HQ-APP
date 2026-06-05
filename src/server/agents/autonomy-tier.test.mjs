@@ -29,6 +29,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 const { canExecuteAutonomously } = await import("./autonomy-tier.ts");
+const { agentLicenseRegistry } = await import("./agent-execution-license.ts");
 
 // ---------------------------------------------------------------------------
 // INVARIANT TESTS — fail-safe doctrine
@@ -40,6 +41,7 @@ test("INV-A1: unknown agentId → blocked (no licence = no permission)", () => {
   assert.strictEqual(result.tier, "blocked",
     "Agent without a registered licence must always be blocked");
   assert.strictEqual(result.zone, "red");
+  assert.strictEqual(result.reasonCode, "unauthorized_action");
   assert.deepEqual(result.clearedBy, [],
     "No gate cleared — clearedBy must be empty on block");
   assert.ok(result.blockReason?.includes("No execution licence"),
@@ -47,18 +49,24 @@ test("INV-A1: unknown agentId → blocked (no licence = no permission)", () => {
 });
 
 test("INV-A2: suspended licence → blocked (revocation bites immediately)", () => {
-  // We cannot mutate the live registry in a pure test, so we test
-  // canExecuteAutonomously directly via the contract: the function must
-  // check the suspended flag. We verify this by reading the source contract.
-  // The suspension path is covered by the contract test at the bottom.
-  //
-  // Practical test: the function returns blocked for a known agent when we
-  // override the module's getAgentLicense through the registry.
-  // Since we're testing purity, we verify via a known agent + hardBlock
-  // (suspension is a stronger form of block — the logic is the same path).
-  const result = canExecuteAutonomously("joris", "billing.modify", 1);
-  assert.strictEqual(result.tier, "blocked",
-    "Hard-blocked action on joris must return blocked — suspension uses same path");
+  const joris = agentLicenseRegistry.find((l) => l.agentId === "joris");
+  assert.ok(joris, "joris licence must be in registry");
+
+  const previousSuspended = joris.suspended;
+  joris.suspended = true;
+
+  try {
+    const result = canExecuteAutonomously("joris", "brief.generate", 1);
+    assert.strictEqual(result.tier, "blocked",
+      "Suspended licence must block even known green actions");
+    assert.strictEqual(result.reasonCode, "agent_suspended");
+  } finally {
+    if (previousSuspended === undefined) {
+      delete joris.suspended;
+    } else {
+      joris.suspended = previousSuspended;
+    }
+  }
 });
 
 test("INV-A2b: suspended field on licence contract is honoured", async () => {
@@ -84,6 +92,7 @@ test("INV-A3: action in hardBlocks → blocked unconditionally", () => {
 
   assert.strictEqual(result.tier, "blocked",
     "Hard-blocked action must be blocked regardless of autonomy level");
+  assert.strictEqual(result.reasonCode, "action_policy_blocked");
   assert.deepEqual(result.clearedBy, []);
   assert.ok(result.blockReason?.includes("hard-blocked"),
     "blockReason must name hard-block explicitly");
@@ -103,6 +112,7 @@ test("INV-A4: requestedLevel undefined → blocked (ambiguity closes the gate)",
 
   assert.strictEqual(result.tier, "blocked",
     "Undefined autonomy level must always block — ambiguity is never green");
+  assert.strictEqual(result.reasonCode, "requested_level_blocked");
   assert.ok(result.blockReason?.includes("undefined"),
     "blockReason must mention undefined level");
 });
@@ -113,6 +123,7 @@ test("INV-A5: action not in any zone → blocked (unknown ≠ green)", () => {
 
   assert.strictEqual(result.tier, "blocked",
     "An action not explicitly listed in any zone must be blocked");
+  assert.strictEqual(result.reasonCode, "unknown_action_policy");
   assert.ok(result.blockReason?.includes("unknown actions are never green"),
     "blockReason must state the fail-safe doctrine explicitly");
 });
@@ -127,6 +138,7 @@ test("INV-A6: sequenceContext.cumulativeEffectLevel === 5 → blocked (composabi
 
   assert.strictEqual(result.tier, "blocked",
     "A sequence reaching cumulative level 5 must block even on individual green actions");
+  assert.strictEqual(result.reasonCode, "action_policy_blocked");
   assert.ok(result.blockReason?.includes("cumulativeEffectLevel"),
     "blockReason must name the composability guard");
   assert.ok(result.blockReason?.includes("AutonomySequenceGuard"),
@@ -144,6 +156,7 @@ test("NOM-1: green action at requestedLevel ≤ 2 → full_autonomous", () => {
   assert.strictEqual(result.tier, "full_autonomous",
     "Explicitly listed green action at level 1 must be full_autonomous");
   assert.strictEqual(result.zone, "green");
+  assert.strictEqual(result.reasonCode, "allowed_by_policy");
   assert.strictEqual(result.requiresLedger, true,
     "Ledger is always required in green zone");
   assert.strictEqual(result.requiresSentinel, true,
@@ -164,6 +177,7 @@ test("NOM-1c: green action at level 3 → supervised (above green ceiling → do
   const result = canExecuteAutonomously("joris", "mission.draft.create", 3);
   assert.strictEqual(result.tier, "supervised",
     "Level 3 on a green action exceeds the green ceiling — must downgrade to supervised");
+  assert.strictEqual(result.reasonCode, "action_policy_requires_approval");
   assert.ok(result.blockReason?.includes("exceeds the green zone ceiling"));
 });
 
@@ -174,6 +188,7 @@ test("NOM-2: yellow action → supervised (never full_autonomous)", () => {
   assert.strictEqual(result.tier, "supervised",
     "Yellow zone action must never be full_autonomous regardless of level");
   assert.strictEqual(result.zone, "yellow");
+  assert.strictEqual(result.reasonCode, "action_policy_requires_approval");
   assert.ok(result.blockReason?.includes("yellow zone"),
     "blockReason must state yellow zone routing");
   assert.deepEqual(result.clearedBy, ["general"]);
@@ -184,6 +199,7 @@ test("NOM-2b: yellow action at level 5 → blocked (red zone level, not yellow p
   const result = canExecuteAutonomously("joris", "mission.confirm", 5);
   assert.strictEqual(result.tier, "blocked",
     "Level 5 is a red zone boundary — must block even on yellow-listed actions");
+  assert.strictEqual(result.reasonCode, "requested_level_blocked");
 });
 
 // ---------------------------------------------------------------------------
