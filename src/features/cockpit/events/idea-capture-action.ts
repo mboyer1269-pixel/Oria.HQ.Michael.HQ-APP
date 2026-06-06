@@ -16,10 +16,6 @@ export type CaptureIdeaActionState = {
   submittedAt?: string;
 };
 
-export const initialCaptureIdeaActionState: CaptureIdeaActionState = {
-  status: "idle",
-};
-
 function toValidationErrors(error: unknown): string[] {
   if (error instanceof ZodError) {
     return error.issues.map((issue) => issue.message);
