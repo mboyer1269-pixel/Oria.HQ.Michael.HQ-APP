@@ -1,13 +1,10 @@
 import type { Route } from "next";
-import Link from "next/link";
 import {
   Activity,
-  ArrowLeft,
   CheckCircle2,
   LockKeyhole,
   Server,
   ShieldCheck,
-  XCircle,
   Zap,
 } from "lucide-react";
 import {
@@ -20,6 +17,14 @@ import {
 } from "@/server/runtime/local-runtime";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
+import {
+  HqMetric,
+  HqPageHeader,
+  HqPageShell,
+  HqSummaryRail,
+  HqWidget,
+  HqWidgetGrid,
+} from "@/features/hq/components/hq-widget-system";
 
 export const dynamic = "force-dynamic";
 
@@ -139,62 +144,40 @@ export default async function RuntimePage() {
   ];
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-8 md:py-10">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <Link
-            href={"/hq" as Route}
-            className="inline-flex items-center gap-1.5 text-xs text-neutral-500 transition hover:text-neutral-300"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Michael HQ
-          </Link>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-300">
-            <Server className="h-3.5 w-3.5" />
-            Runtime Status
-          </div>
-          <h1 className="mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">
-            Runtime Oria
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">
+    <HqPageShell>
+      <HqPageHeader
+        backHref={"/hq" as Route}
+        eyebrow="Runtime Status"
+        icon={Server}
+        tone="violet"
+        title="Runtime Oria"
+        description={
+          <>
             Statut du plan d&apos;exécution agent. Phase 1 — prototype local actif. L&apos;exécuteur
             live reste verrouillé jusqu&apos;au Red Team pass (Phase 5).
-          </p>
-        </div>
-
-        <aside className="shrink-0 rounded-2xl border border-neutral-800 bg-neutral-950/80 p-4 sm:w-52">
+          </>
+        }
+      >
+        <HqSummaryRail>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
             Canary check
           </p>
-          <div className="mt-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              {canary.ok ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              ) : (
-                <XCircle className="h-4 w-4 text-red-400" />
-              )}
-              <span className={canary.ok ? "text-emerald-300" : "text-red-300"}>
-                {canary.ok ? "Round-trip OK" : "Échec"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              {canary.verified ? (
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              ) : (
-                <XCircle className="h-4 w-4 text-red-400" />
-              )}
-              <span className={canary.verified ? "text-emerald-300" : "text-red-300"}>
-                {canary.verified ? "Signature vérifiée" : "Signature invalide"}
-              </span>
-            </div>
+          <div className="mt-3 grid gap-2">
+            <HqMetric
+              label="Round-trip"
+              value={canary.ok ? "OK" : "Échec"}
+              tone={canary.ok ? "emerald" : "rose"}
+            />
+            <HqMetric
+              label="Signature"
+              value={canary.verified ? "OK" : "Invalide"}
+              tone={canary.verified ? "emerald" : "rose"}
+            />
           </div>
-        </aside>
-      </header>
+        </HqSummaryRail>
+      </HqPageHeader>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-          État du runtime
-        </h2>
+      <HqWidget title="État du runtime" eyebrow="Guarded systems" icon={Server}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {statusItems.map((item) => {
             const styles = LEVEL_STYLES[item.level];
@@ -222,12 +205,9 @@ export default async function RuntimePage() {
             );
           })}
         </div>
-      </section>
+      </HqWidget>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-          Plan de déploiement — 7 phases
-        </h2>
+      <HqWidget title="Plan de déploiement — 7 phases" eyebrow="Unlock path" icon={LockKeyhole}>
         <div className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/70">
           {DEPLOYMENT_PHASES.map((phase, index) => (
             <div
@@ -268,13 +248,10 @@ export default async function RuntimePage() {
             </div>
           ))}
         </div>
-      </section>
+      </HqWidget>
 
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-          Prochains déverrouillages
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <HqWidget title="Prochains déverrouillages" eyebrow="Readiness" icon={Activity}>
+        <HqWidgetGrid className="lg:grid-cols-2">
           <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-amber-400" />
@@ -297,13 +274,10 @@ export default async function RuntimePage() {
               Nécessite l&apos;audit Codex d&apos;abord.
             </p>
           </div>
-        </div>
-      </section>
+        </HqWidgetGrid>
+      </HqWidget>
 
-      <section className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-          Contrat runtime
-        </p>
+      <HqWidget title="Contrat runtime" eyebrow="Execution contract" icon={ShieldCheck}>
         <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: "Signature", value: "HMAC-SHA256" },
@@ -321,7 +295,7 @@ export default async function RuntimePage() {
             </div>
           ))}
         </div>
-      </section>
-    </main>
+      </HqWidget>
+    </HqPageShell>
   );
 }

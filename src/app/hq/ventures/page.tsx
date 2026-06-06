@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import Link from "next/link";
-import { ArrowLeft, Banknote, Eye, Rocket } from "lucide-react";
+import { Banknote, Eye, Rocket, ShieldCheck } from "lucide-react";
 import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { AgentVentureWorkbenchWithForm } from "@/features/ventures/components/agent-venture-workbench-with-form";
 import { VentureCommandCenterClient } from "@/features/ventures/components/venture-command-center-client";
@@ -26,6 +26,13 @@ import {
   listVenturesForWorkspace,
 } from "@/server/ventures/venture-repository";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
+import {
+  HqMetric,
+  HqPageHeader,
+  HqPageShell,
+  HqSummaryRail,
+  HqWidget,
+} from "@/features/hq/components/hq-widget-system";
 
 export const dynamic = "force-dynamic";
 
@@ -54,26 +61,16 @@ export default async function VenturesPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-8 md:py-10">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <Link
-            href={"/hq" as Route}
-            className="inline-flex items-center gap-1.5 text-xs text-neutral-500 transition hover:text-neutral-300"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Michael HQ
-          </Link>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
-            <Rocket className="h-3.5 w-3.5" />
-            Venture Engine
-          </div>
-          <h1 className="mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">
-            Venture Engine
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">
+    <HqPageShell>
+      <HqPageHeader
+        backHref={"/hq" as Route}
+        eyebrow="Venture Engine"
+        icon={Rocket}
+        tone="amber"
+        title="Venture Engine"
+        description={
+          <>
             Générer, scorer, tester et opérer des ventures rentables sous contrôle CEO.
-          </p>
           <Link
             href={"/hq/ventures/cash-actions" as Route}
             className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20"
@@ -81,9 +78,10 @@ export default async function VenturesPage() {
             <Banknote className="h-4 w-4" aria-hidden="true" />
             Cash Action Review — préparer & capturer le cash
           </Link>
-        </div>
-
-        <aside className="shrink-0 self-start rounded-2xl border border-neutral-800 bg-neutral-950/80 p-4 sm:w-56">
+          </>
+        }
+      >
+        <HqSummaryRail>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
             Lecture seule
@@ -91,34 +89,34 @@ export default async function VenturesPage() {
           <p className="mt-3 text-xs leading-5 text-neutral-500">
             Aucune écriture, aucune dépense, aucun envoi déclenché depuis cet écran.
           </p>
-        </aside>
-      </header>
+          <div className="mt-3 grid gap-2">
+            <HqMetric label="Candidats visibles" value={candidateLimit} tone="amber" />
+            <HqMetric label="Validations actives" value={validationSlotLimit} tone="emerald" />
+          </div>
+        </HqSummaryRail>
+      </HqPageHeader>
 
-      <VentureCommandCenterClient
-        seedCards={ventureSeedCards}
-        suggestions={ventureSuggestionSeed}
-        savedVentures={savedVentures}
-        savedStorageMode={savedStorageMode}
-        loadError={loadError}
-        onSaveDraft={saveVentureDraftAction}
-        onUpdateDetails={updateVentureDetailsAction}
-        onArchive={archiveVentureAction}
-        onKill={killVentureAction}
-        onPromote={promoteVentureAction}
-        onScore={scoreVentureAction}
-      />
+      <HqWidget title="Command Center" eyebrow="Venture pipeline" icon={Rocket}>
+        <VentureCommandCenterClient
+          seedCards={ventureSeedCards}
+          suggestions={ventureSuggestionSeed}
+          savedVentures={savedVentures}
+          savedStorageMode={savedStorageMode}
+          loadError={loadError}
+          onSaveDraft={saveVentureDraftAction}
+          onUpdateDetails={updateVentureDetailsAction}
+          onArchive={archiveVentureAction}
+          onKill={killVentureAction}
+          onPromote={promoteVentureAction}
+          onScore={scoreVentureAction}
+        />
+      </HqWidget>
 
-      <section className="flex flex-col gap-3">
+      <HqWidget title="Agent workbench" eyebrow="Assisted prep" icon={Rocket}>
         <AgentVentureWorkbenchWithForm />
-      </section>
+      </HqWidget>
 
-      <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">
-          Doctrine Venture Engine
-        </p>
-        <h2 className="mt-2 text-xl font-semibold text-white">
-          Garde-fous appliqués par défaut
-        </h2>
+      <HqWidget title="Garde-fous appliqués par défaut" eyebrow="Doctrine Venture Engine" icon={ShieldCheck}>
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           <li className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4 text-sm leading-6 text-neutral-300">
             <span className="font-semibold text-white">{candidateLimit} candidats visibles</span> —
@@ -139,7 +137,7 @@ export default async function VenturesPage() {
             — dépense, publication, contact externe et changement de données restent bloqués.
           </li>
         </ul>
-      </section>
-    </main>
+      </HqWidget>
+    </HqPageShell>
   );
 }
