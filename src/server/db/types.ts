@@ -49,7 +49,8 @@ export type EventRow = {
   workspace_id: string;
   user_id: string;
   stream_id: string;
-  type: "idea.captured";
+  /** All known event types persisted to the events table. Extend as new types land. */
+  type: "idea.captured" | "daily.direction.generated";
   payload: Json;
   valid_from: string | null;
   valid_to: string | null;
@@ -59,6 +60,16 @@ export type EventRow = {
 export type EventInsert = Omit<EventRow, "id" | "recorded_at"> & {
   id?: string;
   recorded_at?: string;
+};
+
+export type CockpitLayoutRow = {
+  user_id: string;
+  widget_order: Json;
+  updated_at: string;
+};
+
+export type CockpitLayoutInsert = Omit<CockpitLayoutRow, "updated_at"> & {
+  updated_at?: string;
 };
 
 export type ContactLeadRow = {
@@ -315,6 +326,12 @@ export type MichaelHqDatabase = {
         Row: EventRow;
         Insert: EventInsert;
         Update: Partial<EventInsert>;
+        Relationships: [];
+      };
+      cockpit_layout: {
+        Row: CockpitLayoutRow;
+        Insert: CockpitLayoutInsert;
+        Update: Partial<CockpitLayoutInsert>;
         Relationships: [];
       };
       contact_leads: {

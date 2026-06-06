@@ -34,13 +34,19 @@
     "test:arena-batch": "node --test src/server/arena/arena-batch-service.test.mjs",
     "test:arena-wra-evidence": "node --test src/server/arena/arena-wra-evidence.test.mjs",
     "test:arena-wra-buckets": "node --test src/server/arena/arena-wra-buckets.test.mjs",
-    "test:webhook-registry": "node --test src/server/runtime/webhook-registry.test.mjs"
+    "test:webhook-registry": "node --test src/server/runtime/webhook-registry.test.mjs",
+    "test:daily-direction-projection": "node --test src/features/cockpit/events/daily-direction-projection.test.mjs",
+    "test:daily-direction-generator": "node --test src/server/joris/daily-direction-generator.test.mjs"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "2.105.4",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
+    "cmdk": "^1.1.1",
     "inngest": "^3.54.2",
     "lucide-react": "1.14.0",
     "mammoth": "^1.12.0",

@@ -5,8 +5,12 @@ import { useFormStatus } from "react-dom";
 import { AlertCircle, CheckCircle2, Loader2, Plus } from "lucide-react";
 import {
   captureIdeaAction,
-  initialCaptureIdeaActionState,
+  type CaptureIdeaActionState,
 } from "@/features/cockpit/events/idea-capture-action";
+
+const initialCaptureIdeaActionState: CaptureIdeaActionState = {
+  status: "idle",
+};
 
 function SubmitButton() {
   const { pending } = useFormStatus();
