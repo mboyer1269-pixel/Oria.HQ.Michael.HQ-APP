@@ -4,11 +4,15 @@ import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { EventInsert, EventRow, Json } from "@/server/db/types";
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
 import {
+  dailyDirectionEventRecordSchema,
   eventRecordSchema,
   parseEventPayload,
+  type DailyDirectionEventRecord,
+  type DailyDirectionPayload,
   type EventPayload,
   type EventRecord,
   type EventType,
+  type IdeaCapturedPayload,
 } from "./event-record";
 
 export type EventPersistenceMode = "supabase" | "local" | "unavailable";
@@ -18,7 +22,7 @@ export type AppendEventInput = {
   userId: string;
   streamId: string;
   type: EventType;
-  payload: EventPayload;
+  payload: IdeaCapturedPayload | DailyDirectionPayload;
   validFrom?: string | null;
   validTo?: string | null;
 };
@@ -26,6 +30,14 @@ export type AppendEventInput = {
 export type ListIdeaCapturedEventsInput = {
   workspaceId: string;
   userId: string;
+  limit?: number;
+};
+
+export type ListDailyDirectionEventsInput = {
+  workspaceId: string;
+  userId: string;
+  /** Filter by date YYYY-MM-DD (matches payload.dateIso). Null = all dates. */
+  dateIso?: string | null;
   limit?: number;
 };
 
@@ -86,6 +98,20 @@ function mapRowToEventRecord(row: EventRow): EventRecord {
   });
 }
 
+function mapRowToDailyDirectionRecord(row: EventRow): DailyDirectionEventRecord {
+  return dailyDirectionEventRecordSchema.parse({
+    id: row.id,
+    workspaceId: row.workspace_id,
+    userId: row.user_id,
+    streamId: row.stream_id,
+    type: row.type,
+    payload: row.payload,
+    validFrom: row.valid_from,
+    validTo: row.valid_to,
+    recordedAt: row.recorded_at,
+  });
+}
+
 function toInsert(input: AppendEventInput): EventInsert {
   return {
     workspace_id: input.workspaceId,
@@ -98,7 +124,7 @@ function toInsert(input: AppendEventInput): EventInsert {
   };
 }
 
-export async function appendEvent(input: AppendEventInput): Promise<EventRecord> {
+export async function appendEvent(input: AppendEventInput): Promise<EventRecord | DailyDirectionEventRecord> {
   const insert = toInsert(input);
   const db = getSupabaseClient();
 
@@ -110,6 +136,9 @@ export async function appendEvent(input: AppendEventInput): Promise<EventRecord>
       recorded_at: new Date().toISOString(),
     };
     localEvents.push(cloneRow(row));
+    if (row.type === "daily.direction.generated") {
+      return mapRowToDailyDirectionRecord(row);
+    }
     return mapRowToEventRecord(row);
   }
 
@@ -118,6 +147,9 @@ export async function appendEvent(input: AppendEventInput): Promise<EventRecord>
     throw new EventClientError("append");
   }
 
+  if (data.type === "daily.direction.generated") {
+    return mapRowToDailyDirectionRecord(data);
+  }
   return mapRowToEventRecord(data);
 }
 
@@ -158,6 +190,58 @@ export async function listIdeaCapturedEvents(
   return (data ?? []).map(mapRowToEventRecord);
 }
 
+/**
+ * Lists daily.direction.generated events for the given workspace/user,
+ * optionally filtered to a specific date (payload.dateIso).
+ */
+export async function listDailyDirectionEvents(
+  input: ListDailyDirectionEventsInput,
+): Promise<DailyDirectionEventRecord[]> {
+  const limit = input.limit ?? 10;
+  const db = getSupabaseClient();
+
+  if (!db) {
+    assertLocalFallbackAvailable();
+    return localEvents
+      .filter((row) => {
+        if (row.workspace_id !== input.workspaceId) return false;
+        if (row.user_id !== input.userId) return false;
+        if (row.type !== "daily.direction.generated") return false;
+        if (input.dateIso) {
+          const payload = row.payload as { dateIso?: string };
+          if (payload.dateIso !== input.dateIso) return false;
+        }
+        return true;
+      })
+      .sort(byRecordedAtDesc)
+      .slice(0, limit)
+      .map((row) => mapRowToDailyDirectionRecord(cloneRow(row)));
+  }
+
+  let query = db
+    .from("events")
+    .select("*")
+    .eq("workspace_id", input.workspaceId)
+    .eq("user_id", input.userId)
+    .eq("type", "daily.direction.generated")
+    .order("recorded_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit);
+
+  // Supabase supports jsonb path filtering: payload->>'dateIso' = '2026-06-06'
+  if (input.dateIso) {
+    query = query.filter("payload->>dateIso", "eq", input.dateIso);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new EventClientError("list");
+  }
+
+  return (data ?? []).map(mapRowToDailyDirectionRecord);
+}
+
 export function getEventPersistenceMode(): EventPersistenceMode {
   if (getSupabaseClient()) return "supabase";
   return isLocalPersistenceFallbackAllowed() ? "local" : "unavailable";
@@ -166,3 +250,6 @@ export function getEventPersistenceMode(): EventPersistenceMode {
 export function __clearCockpitEventsForTests(): void {
   localEvents.length = 0;
 }
+
+// Re-export EventPayload for callers that typed against the old union.
+export type { EventPayload };

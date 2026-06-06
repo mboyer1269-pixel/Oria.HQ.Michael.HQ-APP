@@ -49,7 +49,8 @@ export type EventRow = {
   workspace_id: string;
   user_id: string;
   stream_id: string;
-  type: "idea.captured";
+  /** All known event types persisted to the events table. Extend as new types land. */
+  type: "idea.captured" | "daily.direction.generated";
   payload: Json;
   valid_from: string | null;
   valid_to: string | null;

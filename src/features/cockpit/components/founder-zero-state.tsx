@@ -1,20 +1,24 @@
 import { CalendarDays, Database, Lightbulb, Lock, Rows3, ShieldCheck } from "lucide-react";
 import { IdeaIntakeForm } from "@/features/cockpit/components/idea-intake-form";
+import { JorisPresence } from "@/features/cockpit/components/joris-presence";
+import { DailyDirectionWidget } from "@/features/cockpit/components/daily-direction-widget";
 import type { IdeaProjection } from "@/features/cockpit/events/idea-projection";
 import type { EventPersistenceMode } from "@/features/cockpit/events/event-client";
+import type { DailyDirectionProjection } from "@/features/cockpit/events/daily-direction-projection";
 import { parseWidgetManifest, type WidgetManifest } from "@/features/cockpit/widgets/widget-manifest";
 
+// Remaining stubs — daily-direction is now a real widget (PR-2).
 const comingSoonWidgets: WidgetManifest[] = [
   {
-    id: "daily-direction",
-    title: "Daily Direction",
-    description: "Direction quotidienne fondée sur des événements réels.",
+    id: "revenue-proof",
+    title: "Revenue Proof",
+    description: "Preuve de revenu reliée à des signaux vérifiés.",
     renderKind: "stub_card",
     dataTruth: "stub",
     source: {
       kind: "stub",
       eventTypes: [],
-      description: "Aucune source réelle connectée en PR-1.",
+      description: "Aucune preuve de revenu connectée en PR-2.",
     },
     lifecycleStatus: "coming_soon",
     createdBy: "system",
@@ -27,15 +31,15 @@ const comingSoonWidgets: WidgetManifest[] = [
     layout: { region: "stubs", order: 0, minColumnSpan: 1 },
   },
   {
-    id: "revenue-proof",
-    title: "Revenue Proof",
-    description: "Preuve de revenu reliée à des signaux vérifiés.",
+    id: "ledger-pulse",
+    title: "Ledger Pulse",
+    description: "Lecture de santé du ledger et des décisions.",
     renderKind: "stub_card",
     dataTruth: "stub",
     source: {
       kind: "stub",
       eventTypes: [],
-      description: "Aucune preuve de revenu connectée en PR-1.",
+      description: "Aucun signal ledger réel connecté à cette carte en PR-2.",
     },
     lifecycleStatus: "coming_soon",
     createdBy: "system",
@@ -48,15 +52,15 @@ const comingSoonWidgets: WidgetManifest[] = [
     layout: { region: "stubs", order: 1, minColumnSpan: 1 },
   },
   {
-    id: "ledger-pulse",
-    title: "Ledger Pulse",
-    description: "Lecture de santé du ledger et des décisions.",
+    id: "missions",
+    title: "Missions",
+    description: "Missions approuvées et ledger d'actions.",
     renderKind: "stub_card",
     dataTruth: "stub",
     source: {
       kind: "stub",
       eventTypes: [],
-      description: "Aucun signal ledger réel connecté à cette carte en PR-1.",
+      description: "PR-4 — hors scope PR-2.",
     },
     lifecycleStatus: "coming_soon",
     createdBy: "system",
@@ -67,27 +71,6 @@ const comingSoonWidgets: WidgetManifest[] = [
       allowedEventTypes: [],
     },
     layout: { region: "stubs", order: 2, minColumnSpan: 1 },
-  },
-  {
-    id: "joris",
-    title: "Joris",
-    description: "Assistant opérateur relié à la boucle de décision.",
-    renderKind: "stub_card",
-    dataTruth: "stub",
-    source: {
-      kind: "stub",
-      eventTypes: [],
-      description: "Joris est volontairement absent de PR-1.",
-    },
-    lifecycleStatus: "coming_soon",
-    createdBy: "system",
-    constraints: {
-      noGeneratedCode: true,
-      noRuntimeExecution: true,
-      noJorisWidgetCreation: true,
-      allowedEventTypes: [],
-    },
-    layout: { region: "stubs", order: 3, minColumnSpan: 1 },
   },
 ].map(parseWidgetManifest);
 
@@ -192,13 +175,18 @@ export function FounderZeroStateCockpit({
   ideas,
   loadError,
   storageMode,
+  todayDirection,
+  todayIso,
 }: {
   ideas: IdeaProjection[];
   loadError: boolean;
   storageMode: EventPersistenceMode;
+  todayDirection: DailyDirectionProjection | null;
+  todayIso: string;
 }) {
   return (
     <div className="flex flex-col gap-6">
+      {/* Header + Joris Presence */}
       <section className="grid gap-5 border-b border-white/[0.06] pb-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div>
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-amber-200">
@@ -220,6 +208,16 @@ export function FounderZeroStateCockpit({
               Source events: {storageLabel(storageMode)}
             </span>
           </div>
+
+          {/* Joris Presence — état opérationnel réel */}
+          <div className="mt-5 max-w-sm">
+            <JorisPresence
+              ideas={ideas}
+              todayDirection={todayDirection}
+              loadError={loadError}
+              todayIso={todayIso}
+            />
+          </div>
         </div>
 
         <aside className="rounded-lg border border-white/[0.07] bg-[#111827]/55 p-4">
@@ -238,12 +236,16 @@ export function FounderZeroStateCockpit({
             </li>
             <li className="flex gap-2">
               <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-200" aria-hidden="true" />
-              Refresh = relecture depuis events.
+              Daily Direction dérivée des events réels.
             </li>
           </ul>
         </aside>
       </section>
 
+      {/* Daily Direction Widget — plan du jour Joris */}
+      <DailyDirectionWidget initialDirection={todayDirection} />
+
+      {/* Idea Intake + Decision Queue */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <section className="rounded-lg border border-white/[0.07] bg-[#111827]/55 p-5">
           <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-200">
@@ -263,6 +265,7 @@ export function FounderZeroStateCockpit({
         <DecisionQueue ideas={ideas} loadError={loadError} />
       </div>
 
+      {/* Remaining stubs */}
       <section className="border-t border-white/[0.06] pt-6">
         <div className="flex items-end justify-between gap-3">
           <div>
@@ -272,7 +275,7 @@ export function FounderZeroStateCockpit({
             <h2 className="mt-2 text-xl font-extrabold text-[#eff1fb]">Stubs honnêtes</h2>
           </div>
         </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {comingSoonWidgets.map((widget) => (
             <StubCard key={widget.id} widget={widget} />
           ))}
