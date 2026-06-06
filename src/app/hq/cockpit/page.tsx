@@ -1,6 +1,7 @@
 import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { FounderZeroStateCockpit } from "@/features/cockpit/components/founder-zero-state";
+import { getCockpitLayout } from "@/features/cockpit/actions/cockpit-layout";
 import {
   getEventPersistenceMode,
   listDailyDirectionEvents,
@@ -28,6 +29,8 @@ export default async function CockpitPage() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const storageMode = getEventPersistenceMode();
 
+  const initialOrder = await getCockpitLayout(userId);
+
   let loadError = false;
   let ideas: IdeaProjection[] = [];
   let todayDirection: DailyDirectionProjection | null = null;
@@ -52,6 +55,7 @@ export default async function CockpitPage() {
         storageMode={storageMode}
         todayDirection={todayDirection}
         todayIso={todayIso}
+        initialOrder={initialOrder}
       />
     </CockpitShell>
   );

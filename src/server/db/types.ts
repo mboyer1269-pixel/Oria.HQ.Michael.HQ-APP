@@ -62,6 +62,16 @@ export type EventInsert = Omit<EventRow, "id" | "recorded_at"> & {
   recorded_at?: string;
 };
 
+export type CockpitLayoutRow = {
+  user_id: string;
+  widget_order: Json;
+  updated_at: string;
+};
+
+export type CockpitLayoutInsert = Omit<CockpitLayoutRow, "updated_at"> & {
+  updated_at?: string;
+};
+
 export type ContactLeadRow = {
   id: string;
   name: string;
@@ -316,6 +326,12 @@ export type MichaelHqDatabase = {
         Row: EventRow;
         Insert: EventInsert;
         Update: Partial<EventInsert>;
+        Relationships: [];
+      };
+      cockpit_layout: {
+        Row: CockpitLayoutRow;
+        Insert: CockpitLayoutInsert;
+        Update: Partial<CockpitLayoutInsert>;
         Relationships: [];
       };
       contact_leads: {
