@@ -5,13 +5,13 @@ import {
   Bot,
   Building2,
   CircleDot,
-  Clock,
   FileText,
   LayoutDashboard,
   ListChecks,
   Sparkles,
 } from "lucide-react";
 import { Tooltip } from "./ui";
+import { CockpitTopbar } from "./cockpit-topbar";
 
 // ---------------------------------------------------------------------------
 // Cockpit shell — persistent sidebar + topbar + omnipresent Joris dock.
@@ -111,31 +111,12 @@ export function CockpitShell({
 
       {/* Main */}
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3.5 border-b border-white/[0.06] bg-[#080b16]/75 px-5 py-3 backdrop-blur-xl">
-          <div className="text-[13px] text-[#646c8e]">
-            Orya HQ&nbsp;/&nbsp;<span className="text-[#eff1fb]">{crumb}</span>
-          </div>
-          <div className="flex-1" />
-          <Tooltip
-            title="Joris"
-            detail="Joris est volontairement absent de PR-1. Le cockpit affiche seulement un stub à venir."
-            align="right"
-          >
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141a2c]/60 px-3 py-1.5 text-xs font-semibold text-[#98a1c4]">
-              <Clock className="h-3.5 w-3.5 text-amber-200" aria-hidden="true" />
-              Joris à venir
-            </span>
-          </Tooltip>
-          <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-gradient-to-br from-[#1e2440] to-[#2c376a] text-sm font-bold text-[#eff1fb]">
-            {userInitial}
-          </span>
-        </header>
+        <CockpitTopbar crumb={crumb} userInitial={userInitial} />
 
         <main className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
           {children}
         </main>
       </div>
-
     </div>
   );
 }
