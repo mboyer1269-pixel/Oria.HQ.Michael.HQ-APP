@@ -5,7 +5,6 @@ import {
   Bot,
   Building2,
   CircleDot,
-  Clock,
   FileText,
   LayoutDashboard,
   ListChecks,
@@ -118,12 +117,12 @@ export function CockpitShell({
           <div className="flex-1" />
           <Tooltip
             title="Joris"
-            detail="Joris est volontairement absent de PR-1. Le cockpit affiche seulement un stub à venir."
+            detail="Joris alimente le plan du jour et les signaux du cockpit. Les actions live restent gouvernées."
             align="right"
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141a2c]/60 px-3 py-1.5 text-xs font-semibold text-[#98a1c4]">
-              <Clock className="h-3.5 w-3.5 text-amber-200" aria-hidden="true" />
-              Joris à venir
+              <Bot className="h-3.5 w-3.5 text-violet-400" aria-hidden="true" />
+              Joris · actif
             </span>
           </Tooltip>
           <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-gradient-to-br from-[#1e2440] to-[#2c376a] text-sm font-bold text-[#eff1fb]">
