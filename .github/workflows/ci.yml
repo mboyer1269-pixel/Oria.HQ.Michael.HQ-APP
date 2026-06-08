@@ -55,3 +55,6 @@ jobs:
 
       - name: Mission persistence migration draft check
         run: npm run mission:check-migration-draft
+
+      - name: Mission persistence not-live guard
+        run: npm run mission:guard-not-live
