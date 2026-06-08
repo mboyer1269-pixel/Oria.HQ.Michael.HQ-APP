@@ -49,3 +49,6 @@ jobs:
 
       - name: Ledger hash-chain migration draft check
         run: npm run ledger:check-migration-draft
+
+      - name: Ledger hash-chain not-live guard
+        run: npm run ledger:guard-not-live
