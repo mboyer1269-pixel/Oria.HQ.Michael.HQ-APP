@@ -46,3 +46,6 @@ jobs:
 
       - name: Ledger hash-chain audit
         run: npm run ledger:audit
+
+      - name: Ledger hash-chain migration draft check
+        run: npm run ledger:check-migration-draft
