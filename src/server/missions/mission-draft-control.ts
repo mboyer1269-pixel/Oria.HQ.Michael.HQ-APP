@@ -7,7 +7,7 @@ import {
   buildMissionDraftFromCalendar,
   createMissionDraftId,
 } from "@/server/missions/mission-draft-builder";
-import { createLocalMissionDraft } from "@/server/missions/mission-draft-repository";
+import { saveMissionDraft } from "@/server/missions/mission-draft-repository";
 import {
   cacheMissionDraftConfirmation,
   clearPendingMissionDraft,
@@ -230,7 +230,10 @@ export async function confirmPendingMissionDraft(
     pendingDraftId: pending.pendingDraftId,
   });
 
-  createLocalMissionDraft(missionDraft);
+  // Persist via the flag-selected path. Default (flag OFF) is the local
+  // in-memory repository — identical to before. Durable Supabase persistence is
+  // opt-in (staging first) and does not change this flow when the flag is OFF.
+  await saveMissionDraft(missionDraft);
 
   try {
     const { event, ledgerStatus } = await createCalendarEvent(
