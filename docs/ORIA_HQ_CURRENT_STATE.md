@@ -1,7 +1,7 @@
 # Oria HQ — Current State Sync
 
 Last updated: 2026-06-08  
-Branch at time of writing: `main` at `d400b46`  
+Branch at time of writing: `main` at `f4d2b4f`  
 Sprint board: GitHub issue [#91](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/issues/91) (Task Manager)
 
 This document is the **canonical source of truth** for what is live, partial, or locked in Oria HQ after the observability sprint (PRs #88–#92), the mission-draft gate (PRs #94–#96), the green-lane ledger pre-dispatch hardening (PR #218), and the Action Ledger hash-chain immutability sprint (PRs #234–#246). Historical snapshots (`ORIA_HQ_PHASE2_SNAPSHOT.md`, `MISSION_CONTROL_COMPLETION_SNAPSHOT.md`) remain for archaeology; prefer this file for current operations.
@@ -42,6 +42,20 @@ Do not advance to runtime HTTP endpoints, VPS provisioning, workers, or live exe
 | [#234](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/234)–[#246](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/246) | `87976e7…aa8498d` | **Action Ledger hash-chain immutability**: verifier + seal-service foundations, golden vectors (31), edge guards (33), canonicalization regressions (37), bad-input matrix (68), test fixtures, and an **in-memory hash-chain shadow writer** (#244). Shadow path only — does not yet alter the live ledger write path |
 | [#247](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/247) | `d400b46` | Contact rate limiter **production-safety hardening**: testable backend diagnostics + one-time warning when production runs on the in-memory fallback (Upstash required for multi-instance) |
 
+## Recently merged (hash-chain operator audit + CI layer)
+
+| PR | Merge commit | What shipped |
+| --- | --- | --- |
+| [#248](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/248) | `a1999f0` | Current-state docs sync after the hash-chain + rate-limit sprints |
+| [#249](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/249) | `d3d58a2` | **`auditChain()`** — operator-facing report over `verifyChain()` (verified count, genesis/tip, hmac flag, break index/reason, one-line summary). Pure; no DB/env |
+| [#250](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/250) | `536ad82` | **`scripts/audit/ledger-hash-chain-audit.mjs`** + `npm run ledger:audit`, wired into CI `verify` (read-only, fail-closed) |
+| [#251](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/251) | `cf0e61d` | Audit self-test covers all three tamper vectors (content, linkage, hmac) |
+| [#252](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/252) | `dd5960d` | Nightly scheduled hash-chain audit workflow (`ledger-audit-nightly.yml`) |
+| [#253](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/253) | `8e02ba5` | `npm run test:ledger-hash-chain` — targeted runner for the nine hash-chain test files (228 tests) |
+| [#254](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/254) | `f4d2b4f` | Audit script gains a **JSON chain-snapshot** mode (audit an exported chain offline; entry_hash + linkage, no hmac key) |
+
+The hash-chain remains **shadow-only**: this layer is read-only audit tooling over in-memory/exported chains. Promoting the chain into the live `action_ledger` write path (columns, write-time sealing, backfill) is a separate, mandate-gated step.
+
 ---
 
 ## Module inventory
@@ -65,7 +79,7 @@ Do not advance to runtime HTTP endpoints, VPS provisioning, workers, or live exe
 | CEO brief (`/api/brief/ceo`) | Live | Brief generation |
 | Health (`/api/health`) | Live | Liveness |
 | Local runtime (`local-runtime.ts`) | Prototype | `runtime.health.echo` smoke only; **no** runtime API route |
-| CI (`.github/workflows/ci.yml`) | Live | `verify` on PRs |
+| CI (`.github/workflows/ci.yml`) | Live | `verify` on PRs (incl. `npm run ledger:audit`); nightly hash-chain audit via `ledger-audit-nightly.yml` |
 
 ---
 
@@ -223,6 +237,8 @@ npm run test:execution-guard
 npm run test:ledger-events
 npm run test:calendar-ledger-atomicity
 npm run test:ledger-activity-read
+npm run test:ledger-hash-chain
+npm run ledger:audit
 npm run test:mission-draft
 npm run test:mission-display
 git diff --check
@@ -241,7 +257,7 @@ git diff --check
 
 **Shipped on main (board #91):** Ledger Activity (#94), mission traceability labels (#95), Joris Mission Draft gate (#96).
 
-**Shipped since (audit foundation):** ledger pre-dispatch hardening (#218), Action Ledger hash-chain immutability — verifier/seal foundations + full test matrices + in-memory shadow writer (#234–#246), contact rate-limit production hardening (#247). The hash-chain is **shadow-only**: promoting it into the live ledger write path is a separate, mandate-gated step (aligned with the **Auditer** phase, before **Exécuter**).
+**Shipped since (audit foundation):** ledger pre-dispatch hardening (#218), Action Ledger hash-chain immutability — verifier/seal foundations + full test matrices + in-memory shadow writer (#234–#246), contact rate-limit production hardening (#247), and the **hash-chain operator audit + CI layer** — `auditChain()`, the read-only `ledger:audit` script (CI + nightly), 3-vector tamper self-test, and JSON snapshot mode (#248–#254). The hash-chain is **shadow-only**: promoting it into the live ledger write path is a separate, mandate-gated step (aligned with the **Auditer** phase, before **Exécuter**).
 
 ---
 
@@ -264,6 +280,7 @@ git diff --check
 
 | Date | Change |
 | --- | --- |
+| 2026-06-08 | #248–#254: hash-chain operator audit + CI layer (`auditChain`, `ledger:audit` script, 3-vector self-test, nightly cron, `test:ledger-hash-chain`, JSON snapshot mode); `main` @ `f4d2b4f` |
 | 2026-05-27 | #99: Mission Control alignment on `/hq/missions` (flux calendrier vs mock approval) |
 | 2026-05-27 | #98: HQ Mission Draft Control (bandeau + API pending/confirm/cancel) |
 | 2026-05-27 | Post-#96 sync: Mission Draft gate, Ledger Activity (#94–#95), `main` @ `4af014c` |
