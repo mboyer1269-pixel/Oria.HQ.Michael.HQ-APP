@@ -1,10 +1,10 @@
 # Oria HQ — Current State Sync
 
-Last updated: 2026-05-27  
-Branch at time of writing: `main` at `4af014c`  
+Last updated: 2026-06-08  
+Branch at time of writing: `main` at `d400b46`  
 Sprint board: GitHub issue [#91](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/issues/91) (Task Manager)
 
-This document is the **canonical source of truth** for what is live, partial, or locked in Oria HQ after the observability sprint (PRs #88–#92) and the mission-draft gate (PRs #94–#96). Historical snapshots (`ORIA_HQ_PHASE2_SNAPSHOT.md`, `MISSION_CONTROL_COMPLETION_SNAPSHOT.md`) remain for archaeology; prefer this file for current operations.
+This document is the **canonical source of truth** for what is live, partial, or locked in Oria HQ after the observability sprint (PRs #88–#92), the mission-draft gate (PRs #94–#96), the green-lane ledger pre-dispatch hardening (PR #218), and the Action Ledger hash-chain immutability sprint (PRs #234–#246). Historical snapshots (`ORIA_HQ_PHASE2_SNAPSHOT.md`, `MISSION_CONTROL_COMPLETION_SNAPSHOT.md`) remain for archaeology; prefer this file for current operations.
 
 For venture product direction, [`VENTURE_ENGINE_RECALIBRATION.md`](VENTURE_ENGINE_RECALIBRATION.md) is canonical. Historical portfolio docs and named venture examples do not define the new Venture Engine model.
 
@@ -31,6 +31,16 @@ Do not advance to runtime HTTP endpoints, VPS provisioning, workers, or live exe
 | [#94](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/94) | `0ac5704` | **Ledger Activity** read-only panel on `/hq` (`#ledger-activity`) |
 | [#95](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/95) | `9c91561` | Mission ↔ ledger traceability in Ledger Activity (**Liée** / **Orphelin** / **Réf. inconnue**) |
 | [#96](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/96) | `4af014c` | **Joris → Mission Draft** gate before confirmed `calendar.book` (pending draft + explicit confirm) |
+
+## Recently merged (ledger hardening + hash-chain immutability sprint)
+
+| PR | Merge commit | What shipped |
+| --- | --- | --- |
+| [#218](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/218) | `841ce0b` | **Green-lane ledger pre-dispatch** enforced for live executions (ledger sequence before dispatch) |
+| [#227](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/227) | `0193d81` | **Action ledger workspace scope** hardened |
+| [#228](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/228) | `942f970` | **Workspace auth context contract** documented |
+| [#234](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/234)–[#246](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/246) | `87976e7…aa8498d` | **Action Ledger hash-chain immutability**: verifier + seal-service foundations, golden vectors (31), edge guards (33), canonicalization regressions (37), bad-input matrix (68), test fixtures, and an **in-memory hash-chain shadow writer** (#244). Shadow path only — does not yet alter the live ledger write path |
+| [#247](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/247) | `d400b46` | Contact rate limiter **production-safety hardening**: testable backend diagnostics + one-time warning when production runs on the in-memory fallback (Upstash required for multi-instance) |
 
 ---
 
@@ -224,12 +234,14 @@ git diff --check
 
 | Priority | Track | Type | Depends on |
 | --- | --- | --- | --- |
-| 1 | Current State Sync (post-#96) | Docs | — (this document) |
+| 1 | Current State Sync (post hash-chain sprint) | Docs | — (this document) |
 | 2 | Mission persistence | Schema + wiring | CEO mandate + staging |
 | 3 | Runtime echo endpoint audit | Docs/review | Persistence clarity |
 | 4 | Memory vault / Money cockpit | Plan only | Later phases |
 
 **Shipped on main (board #91):** Ledger Activity (#94), mission traceability labels (#95), Joris Mission Draft gate (#96).
+
+**Shipped since (audit foundation):** ledger pre-dispatch hardening (#218), Action Ledger hash-chain immutability — verifier/seal foundations + full test matrices + in-memory shadow writer (#234–#246), contact rate-limit production hardening (#247). The hash-chain is **shadow-only**: promoting it into the live ledger write path is a separate, mandate-gated step (aligned with the **Auditer** phase, before **Exécuter**).
 
 ---
 
