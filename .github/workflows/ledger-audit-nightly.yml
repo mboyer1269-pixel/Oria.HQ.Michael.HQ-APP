@@ -1,0 +1,33 @@
+name: Ledger hash-chain audit (nightly)
+
+# Read-only nightly proof of the action-ledger hash chain (plan item #3,
+# docs/security/action-ledger-hash-chain-plan.md). Runs `npm run ledger:audit`,
+# which audits the in-memory fixture chains and a tamper-detection self-test and
+# fails closed (exit 1) on any break. No DB, no secrets, no migration, no live
+# action_ledger access. Also runnable on demand via workflow_dispatch.
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # 03:17 UTC daily
+  workflow_dispatch: {}
+
+jobs:
+  ledger-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ledger hash-chain audit
+        run: npm run ledger:audit
