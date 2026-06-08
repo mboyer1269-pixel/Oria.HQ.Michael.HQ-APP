@@ -55,21 +55,43 @@ for (const { label, entries } of INTACT_CHAINS) {
   if (!report.ok) failures++;
 }
 
-// Fail-closed self-test: a deliberately tampered chain MUST be reported broken.
-// This exercises the exit-1 detection path, so a green run proves both that
-// clean chains pass AND that tampering is caught.
+// Fail-closed self-test: each deliberately broken chain MUST be reported broken.
+// Covers all three tamper vectors (content, linkage, hmac) so a green run proves
+// the auditor catches every break type — not just edited content.
 console.log("");
-console.log("[ledger:audit] tamper-detection self-test (expect BROKEN):");
-const tampered = [...chain3];
-tampered[1] = { ...chain3[1], summary: "TAMPERED CONTENT" };
-const tamperReport = auditChain(tampered, HMAC_OPTIONS);
-if (tamperReport.ok) {
-  console.log(
-    "  [FAIL] tampered chain was NOT detected as broken — auditor is not fail-closed",
-  );
-  failures++;
-} else {
-  console.log(`  [ok] tampering detected: ${tamperReport.summary}`);
+console.log("[ledger:audit] tamper-detection self-test (each expect BROKEN):");
+
+const BREAK_CASES = [
+  {
+    label: "content tamper (entry #1 summary)",
+    mutate: (chain) => {
+      chain[1] = { ...chain[1], summary: "TAMPERED CONTENT" };
+    },
+  },
+  {
+    label: "linkage break (entry #2 prev_hash)",
+    mutate: (chain) => {
+      chain[2] = { ...chain[2], prev_hash: "f".repeat(64) };
+    },
+  },
+  {
+    label: "hmac forge (entry #2 hmac)",
+    mutate: (chain) => {
+      chain[2] = { ...chain[2], hmac: "0".repeat(64) };
+    },
+  },
+];
+
+for (const { label, mutate } of BREAK_CASES) {
+  const broken = [...chain3];
+  mutate(broken);
+  const report = auditChain(broken, HMAC_OPTIONS);
+  if (report.ok) {
+    console.log(`  [FAIL] ${label}: NOT detected — auditor is not fail-closed`);
+    failures++;
+  } else {
+    console.log(`  [ok] ${label}: ${report.summary}`);
+  }
 }
 
 console.log("");
