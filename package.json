@@ -13,6 +13,7 @@
     "smoke:revenue": "node src/scripts/smoke/revenue-readiness.mjs",
     "smoke:runtime": "node src/scripts/smoke/runtime-health-echo.mjs",
     "smoke:agent-execute": "node src/scripts/smoke/agent-execute.mjs",
+    "ledger:audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audit/ledger-hash-chain-audit.mjs",
     "test": "node run-tests.mjs",
     "test:mission-store-guard": "node --test src/server/missions/execution-attempt-store.test.mjs",
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",
