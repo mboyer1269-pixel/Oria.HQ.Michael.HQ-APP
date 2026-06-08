@@ -1,6 +1,6 @@
 # Execution Phase Status
 
-Last updated: 2026-06-03  
+Last updated: 2026-06-08  
 Maintained by: CEO / Senior Engineer  
 
 ---
@@ -41,7 +41,8 @@ Action marked ready_to_send (approved_for_manual_send)
 | Mission draft → confirm → calendar booking | ✅ **Implemented** | `src/server/missions/mission-draft-session.ts`, `src/server/joris/brain.ts` |
 | Prepared actions queue (CEO review queue) | ✅ **Implemented** | `src/server/ventures/prepared-action-repository.ts`, `db/migrations/0013_prepared_actions.sql` |
 | Hermès prep tick (enqueue, dedup, prioritize) | ✅ **Implemented** | `src/server/ventures/hermes-prep-tick.ts` |
-| Execution guard (blocks live/effectful/external) | ✅ **Implemented** | `src/server/runtime/execution-guard.ts` |
+| Execution guard (zone-gates live: green allowed, yellow needs approval, red/hard-block blocked) | ✅ **Implemented** | `src/server/runtime/execution-guard.ts` → `evaluateLiveExecution()` |
+| Green-lane ledger pre-dispatch guard (journal-then-act) | ✅ **Implemented** | PR #218; `src/server/runtime/green-lane-execution-service.ts`, `src/server/runtime/green-lane-ledger.ts` |
 | `ready_to_send` / `approved_for_manual_send` status | ✅ **Implemented as status only** — no dispatch |
 | **External dispatch worker** | ❌ **NOT IMPLEMENTED — future phase** | Planned: `src/server/runtime/dispatch-worker.ts` (does not exist) |
 | **Auto-send / outbound API call** | ❌ **NOT IMPLEMENTED — by design** | No code triggers external calls automatically |
@@ -65,6 +66,29 @@ dispatch worker is designed, audited, and approved.
 
 ---
 
+## Green-Lane Live Execution (PR #218)
+
+A separate, bounded path exists for **green-zone** actions that the execution
+guard returns as ALLOW (`evaluateLiveExecution()`). This is distinct from the
+manual-send flow above:
+
+- A ledger **decision** event and a **pending-dispatch** event are recorded
+  **before** any skill dispatch.
+- If either pre-dispatch ledger write fails, **dispatch does not happen** — the
+  request is blocked (HTTP 500). This is the ledger-before-dispatch guarantee.
+- On dispatch failure, a `result` event (`failed` / `DISPATCH_FAILED`) is
+  recorded; on success, a `result` event is recorded best-effort.
+
+This implements the *Journal → Act → Persist* sequence for the autonomous green
+lane. Yellow-zone actions still require explicit CEO approval; red-zone
+(level 0/5) and hard-blocked actions are refused.
+
+Lives in `src/server/runtime/green-lane-execution-service.ts` and
+`src/server/runtime/green-lane-ledger.ts`, called from
+`src/app/api/agents/[agentId]/execute/route.ts`.
+
+---
+
 ## Safety Invariants That Must Not Be Changed
 
 The following are enforced at both the TypeScript and database levels:
@@ -77,7 +101,8 @@ The following are enforced at both the TypeScript and database levels:
 | `human_on_the_loop = true` on all governance decisions | DB CHECK constraint (migration 0008) |
 | `no_execution_authorized = true` on all governance decisions | DB CHECK constraint (migration 0008) |
 | `clientApprovalConfirmed` is always rejected | `src/server/runtime/execution-guard.ts` → `canPrepareExecution()` |
-| Live mode blocked | `src/server/runtime/execution-guard.ts` → `LIVE_MODE_NOT_SUPPORTED` |
+| Red-zone (level 0/5) and hard-blocked actions are always refused — never ALLOW | `src/server/runtime/execution-guard.ts` → `evaluateLiveExecution()` |
+| Green-lane live dispatch requires a pre-dispatch ledger entry (journal-then-act) | `src/server/runtime/green-lane-execution-service.ts` |
 
 These invariants must never be relaxed without a security audit and explicit
 CEO mandate.
@@ -90,7 +115,7 @@ When the time comes to build the controlled execution worker, it must:
 
 1. **Have an explicit CEO mandate** documented in this file before any code is written.
 2. **Be idempotent** — use the `idempotency_key` pattern from `src/server/missions/idempotency-contract.ts`.
-3. **Log every dispatch attempt** to a durable audit table before and after the call.
+3. **Log every dispatch attempt** to the action ledger before and after the call — follow the green-lane pre-dispatch pattern (`recordDecision` + `recordPendingDispatch` before the side-effect; see PR #218).
 4. **Be reversible** where possible — implement undo/cancel within 60 seconds for reversible actions.
 5. **Enforce the guard** — call `assertExecutionAllowed()` from `execution-guard.ts` before executing.
 6. **Never be triggered by client-side code** — only a server-side authenticated, workspace-scoped trigger.
