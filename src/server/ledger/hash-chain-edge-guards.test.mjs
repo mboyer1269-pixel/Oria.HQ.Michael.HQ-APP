@@ -258,6 +258,7 @@ test("verifyChain: entry missing entry_hash field fails", () => {
     hmacKey: TEST_HMAC_KEY,
   });
   const { entry_hash, ...withoutHash } = sealed;
+  assert.ok(entry_hash, "sealed entry should carry an entry_hash before removal");
   const result = verifyChain([withoutHash], { hmacKey: TEST_HMAC_KEY });
   assert.equal(result.ok, false);
 });
@@ -268,6 +269,7 @@ test("verifyChain: entry missing hmac field fails", () => {
     hmacKey: TEST_HMAC_KEY,
   });
   const { hmac, ...withoutHmac } = sealed;
+  assert.ok(hmac, "sealed entry should carry an hmac before removal");
   const result = verifyChain([withoutHmac], { hmacKey: TEST_HMAC_KEY });
   assert.equal(result.ok, false);
 });
