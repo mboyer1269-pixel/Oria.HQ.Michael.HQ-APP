@@ -6,17 +6,20 @@
  * harness (sibling to scripts/audit/repo-truth.ps1) that runs auditChain() and
  * emits an operator/CI-readable summary, failing CLOSED on any break.
  *
- * Two modes:
+ * Modes:
  *
- *   1. Fixture mode (no args) — audits the known-good in-memory fixture chains
- *      and runs a tamper-detection self-test (content / linkage / hmac). This is
- *      the CI proof: a green run means clean chains pass AND every tamper vector
- *      is caught.
+ *   1. Fixture mode (no path arg) — audits the known-good in-memory fixture
+ *      chains and runs a tamper-detection self-test (content / linkage / hmac).
+ *      A green run means clean chains pass AND every tamper vector is caught.
  *
  *   2. Snapshot mode (`<path-to-chain.json>`) — audits an exported chain snapshot
  *      (a JSON array of ledger chain entries) for entry_hash + linkage integrity.
  *      hmac is intentionally NOT checked here: the hmac seal needs the workspace
  *      key, which lives server-side, never in this script.
+ *
+ *   --json — emit one machine-readable JSON result instead of human log lines
+ *            (for a future Ledger Health panel / dashboards). Exit code is the
+ *            same; only the output format changes.
  *
  * Side effects: none beyond reading the snapshot file you explicitly pass.
  *   - reads NOTHING from the database (Supabase) or environment,
@@ -44,11 +47,13 @@ const HMAC_OPTIONS = { hmacKey: TEST_HMAC_KEY };
 
 // ─── Fixture mode ─────────────────────────────────────────────────────────────
 
-function runFixtureSelfTest() {
-  console.log(
+function runFixtureSelfTest(json) {
+  const log = json ? () => {} : (msg = "") => console.log(msg);
+
+  log(
     "[ledger:audit] hash-chain audit — read-only, in-memory fixtures (no DB, no secrets, no live action_ledger)",
   );
-  console.log("");
+  log("");
 
   let failures = 0;
 
@@ -59,18 +64,20 @@ function runFixtureSelfTest() {
     { label: "chain5 (genesis + 4)", entries: chain5 },
   ];
 
-  console.log("[ledger:audit] integrity checks (expect intact):");
+  log("[ledger:audit] integrity checks (expect intact):");
+  const chains = [];
   for (const { label, entries } of INTACT_CHAINS) {
     const report = auditChain(entries, HMAC_OPTIONS);
-    console.log(`  [${report.ok ? "ok" : "BROKEN"}] ${label}: ${report.summary}`);
+    log(`  [${report.ok ? "ok" : "BROKEN"}] ${label}: ${report.summary}`);
     if (!report.ok) failures++;
+    chains.push({ label, ok: report.ok, summary: report.summary });
   }
 
   // Fail-closed self-test: each deliberately broken chain MUST be reported broken.
   // Covers all three tamper vectors (content, linkage, hmac) so a green run proves
   // the auditor catches every break type — not just edited content.
-  console.log("");
-  console.log("[ledger:audit] tamper-detection self-test (each expect BROKEN):");
+  log("");
+  log("[ledger:audit] tamper-detection self-test (each expect BROKEN):");
 
   const BREAK_CASES = [
     {
@@ -93,58 +100,65 @@ function runFixtureSelfTest() {
     },
   ];
 
+  const selfTest = [];
   for (const { label, mutate } of BREAK_CASES) {
     const broken = [...chain3];
     mutate(broken);
     const report = auditChain(broken, HMAC_OPTIONS);
-    if (report.ok) {
-      console.log(`  [FAIL] ${label}: NOT detected — auditor is not fail-closed`);
-      failures++;
+    const detected = !report.ok;
+    if (detected) {
+      log(`  [ok] ${label}: ${report.summary}`);
     } else {
-      console.log(`  [ok] ${label}: ${report.summary}`);
+      log(`  [FAIL] ${label}: NOT detected — auditor is not fail-closed`);
+      failures++;
     }
+    selfTest.push({ label, detected, summary: detected ? report.summary : null });
   }
 
-  console.log("");
-  if (failures > 0) {
+  log("");
+  const ok = failures === 0;
+  if (ok) {
+    log("[ledger:audit] PASS — hash-chain audit intact and tamper-evident");
+  } else if (!json) {
     console.error(`[ledger:audit] FAIL — ${failures} check(s) failed`);
-    return 1;
   }
-  console.log("[ledger:audit] PASS — hash-chain audit intact and tamper-evident");
-  return 0;
+
+  return { exitCode: ok ? 0 : 1, payload: { mode: "fixtures", ok, failures, chains, selfTest } };
 }
 
 // ─── Snapshot mode ────────────────────────────────────────────────────────────
 
-function runSnapshotAudit(filePath) {
+function runSnapshotAudit(filePath, json) {
+  const log = json ? () => {} : (msg = "") => console.log(msg);
   const resolved = path.resolve(process.cwd(), filePath);
-  console.log(`[ledger:audit] hash-chain audit — snapshot: ${resolved}`);
-  console.log(
+
+  const fail = (error) => {
+    if (!json) console.error(`[ledger:audit] FAIL — ${error}`);
+    return { exitCode: 1, payload: { mode: "snapshot", file: resolved, ok: false, error } };
+  };
+
+  log(`[ledger:audit] hash-chain audit — snapshot: ${resolved}`);
+  log(
     "[ledger:audit] (read-only; entry_hash + linkage only — hmac is sealed/verified server-side where the key lives)",
   );
-  console.log("");
+  log("");
 
   let raw;
   try {
     raw = readFileSync(resolved, "utf8");
   } catch (err) {
-    console.error(`[ledger:audit] FAIL — cannot read ${resolved}: ${err.message}`);
-    return 1;
+    return fail(`cannot read ${resolved}: ${err.message}`);
   }
 
   let entries;
   try {
     entries = JSON.parse(raw);
   } catch (err) {
-    console.error(`[ledger:audit] FAIL — ${resolved} is not valid JSON: ${err.message}`);
-    return 1;
+    return fail(`${resolved} is not valid JSON: ${err.message}`);
   }
 
   if (!Array.isArray(entries)) {
-    console.error(
-      "[ledger:audit] FAIL — snapshot must be a JSON array of ledger chain entries",
-    );
-    return 1;
+    return fail("snapshot must be a JSON array of ledger chain entries");
   }
 
   // No hmac key: an offline snapshot proves content + linkage integrity; the
@@ -153,15 +167,20 @@ function runSnapshotAudit(filePath) {
   try {
     report = auditChain(entries);
   } catch (err) {
-    console.error(`[ledger:audit] FAIL — could not audit snapshot: ${err.message}`);
-    return 1;
+    return fail(`could not audit snapshot: ${err.message}`);
   }
 
-  console.log(`  [${report.ok ? "ok" : "BROKEN"}] ${report.summary}`);
-  return report.ok ? 0 : 1;
+  log(`  [${report.ok ? "ok" : "BROKEN"}] ${report.summary}`);
+  return { exitCode: report.ok ? 0 : 1, payload: { mode: "snapshot", file: resolved, ok: report.ok, report } };
 }
 
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
 
-const fileArg = process.argv.slice(2).find((arg) => !arg.startsWith("-"));
-process.exitCode = fileArg ? runSnapshotAudit(fileArg) : runFixtureSelfTest();
+const args = process.argv.slice(2);
+const json = args.includes("--json");
+const fileArg = args.find((arg) => !arg.startsWith("-"));
+
+const result = fileArg ? runSnapshotAudit(fileArg, json) : runFixtureSelfTest(json);
+
+if (json) console.log(JSON.stringify(result.payload, null, 2));
+process.exitCode = result.exitCode;
