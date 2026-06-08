@@ -5,6 +5,9 @@ Repo: `C:\Users\micha\Dev\Oria.HQ` (canonical — never the OneDrive copy).
 Reconciled on: 2026-06-08. Author: roadmap auditor.
 Method: GitHub merged-PR state and current repo files were treated as ground
 truth; the A-to-Z strategic plan was treated as vision, not execution state.
+Updated 2026-06-08: **PR #218 (green-lane ledger pre-dispatch guard) merged** —
+the previous #1 next-PR candidate. State recorded in §2/§4; next-PR ranking in
+§5/§7 advanced accordingly.
 
 > This document does NOT replace the A-to-Z plan. It pins the A-to-Z plan against
 > what is actually merged so agents stop acting on stale instructions (e.g.
@@ -35,7 +38,7 @@ next. Use the A-to-Z plan only for direction and phase intent.
 
 ## 2. Confirmed merged work (GitHub truth)
 
-All four confirmed via `gh pr view`. Dates are GitHub `mergedAt` (UTC).
+All confirmed via `gh pr view`. Dates are GitHub `mergedAt` (UTC).
 
 | PR | GitHub title | Merged | What it actually delivered |
 |----|--------------|--------|----------------------------|
@@ -43,11 +46,13 @@ All four confirmed via `gh pr view`. Dates are GitHub `mergedAt` (UTC).
 | **#227** | `audit: harden action ledger workspace scope` | 2026-06-07 | Migration `db/migrations/0020_action_ledger_workspace_scope.sql`: `workspace_id` backfilled to `michael-hq`, set `NOT NULL`, RLS enabled on `public.action_ledger`, workspace index added. **No** unsupported `app.workspace_id` policy; **no** `using(true)`. Schema hardening only. |
 | **#228** | `security: document workspace auth context contract` | 2026-06-07 | `docs/security/workspace-auth-context-contract.md`: documents that workspace context is app-derived (single-owner env identity), service-role bypasses RLS and is server-only, app-level filtering is the current isolation boundary, and full workspace DB RLS is deferred. Doc-only. |
 | **#229** | `test(runtime): add execution guard autonomy matrix` | 2026-06-08 | `src/server/runtime/execution-guard-autonomy-matrix.test.mjs`: the full **36-case** autonomy matrix (6 levels × 2 agent known/unknown × 3 action classes green/yellow/unknown) **plus** a cross-check that no `blocked` gate decision becomes `ALLOW` in the guard. File runs **67 tests** (36 matrix + 28 blocked cross-check + 3 structural). Test-only; no source/migration change. |
+| **#218** | `security(runtime): enforce ledger pre-dispatch sequence for live executions` | 2026-06-08 | `src/server/runtime/green-lane-execution-service.ts` + `green-lane-ledger.ts`: the green-lane ALLOW path now records a ledger **decision** and **pending-dispatch** event **before** any skill dispatch; if either pre-dispatch ledger write fails, **dispatch never happens**. Refactors the existing `POST /api/agents/:agentId/execute` route. No migration, no env, no service-role change, no new endpoint. |
 
 These map onto the strategic-order items the plan cares about: **#221** = the
 execution-guard alignment the plan called "the next PR"; **#229** = the 36-case
 matrix the plan attached to that work; **#227/#228** = ledger workspace hardening
-and the workspace-auth boundary that gate any future RLS.
+and the workspace-auth boundary that gate any future RLS; **#218** = the ledger
+pre-dispatch guard (this doc's prior #1 next-PR candidate), now shipped.
 
 ---
 
@@ -96,6 +101,7 @@ and the workspace-auth boundary that gate any future RLS.
 | Autonomy-tier guardrails (fail-safe, unknown=blocked) | ✅ In place | `src/server/agents/autonomy-tier.ts` (`canExecuteAutonomously`) |
 | Execution-guard hard-block propagation | ✅ In place | PR #221; `execution-guard.ts` calls the gate first, BLOCK on `blocked` |
 | Execution-guard autonomy matrix (36 cases + no-blocked→ALLOW) | ✅ In place | PR #229; `execution-guard-autonomy-matrix.test.mjs` (67 tests) |
+| Green-lane ledger pre-dispatch guard | ✅ In place | PR #218; `green-lane-execution-service.ts` records ledger decision + pending-dispatch **before** dispatch; dispatch blocked if a pre-dispatch ledger write fails |
 | Action-ledger workspace schema hardening | ✅ In place | PR #227; migration `0020` (`workspace_id` NOT NULL, RLS enabled, index) |
 | Workspace auth/session context | ✅ Documented (contract only) | PR #228; `docs/security/workspace-auth-context-contract.md` |
 | Full workspace **DB** RLS enforcement | ⏸️ **Deferred** | RLS enabled on `action_ledger` but **no workspace policy**; runtime uses service-role (bypasses RLS); deferred per #228 until a real workspace auth/session context exists |
@@ -112,20 +118,21 @@ execution remains correctly gated.
 
 Ranked against repo truth, not the A-to-Z numbering.
 
-1. **Ledger pre-dispatch guard** — *already in flight as open **PR #218*** (
-   `security(runtime): enforce ledger pre-dispatch sequence for live exec…`,
-   branch `claude/security-ledger-pre-dispatch-clean`, OPEN, not draft). Highest
-   leverage: it extends the just-merged #221/#229 guard work and is the missing
-   runtime safety step before any live execution. Finish/review/land this rather
-   than open anything new.
-2. **Repo-truth / roadmap audit script** — a read-only diagnostic (git log,
+> ✅ The previous #1 — **ledger pre-dispatch guard** — shipped as **PR #218**
+> (merged 2026-06-08). The ranking below is advanced accordingly.
+
+1. **Repo-truth / roadmap audit script** — a read-only diagnostic (git log,
    migrations list, RLS coverage, test count, TODO count) emitting a dated
    `docs/audit/REPO_TRUTH_*.md`. Directly prevents the exact drift this
    reconciliation had to fix. Medium urgency; cheap; doc/script only.
-3. **Ledger hash-chain planning / proof doc (NOT a migration)** — a design+proof
+2. **Ledger hash-chain planning / proof doc (NOT a migration)** — a design+proof
    document for append-only + `prev_hash`/`entry_hash`/HMAC + advisory lock +
    immutability trigger. **No SQL, no migration** until explicitly approved. This
    de-risks the eventual 🔴 ledger migration without touching prod.
+3. **Refresh `docs/EXECUTION_PHASE_STATUS.md`** — retire the stale "Live mode
+   blocked → `LIVE_MODE_NOT_SUPPORTED`" invariant (superseded by the PR3 zone
+   model and the #218 green-lane path) and record the ledger-before-dispatch
+   guarantee. Doc-only.
 
 ---
 
@@ -150,14 +157,16 @@ no commit/push/merge without explicit approval.
 
 ## 7. Final recommendation — one next PR
 
-**Land PR #218 (ledger pre-dispatch guard) as the single next step.**
+**With #218 merged, the single next step is the repo-truth / roadmap audit
+script.**
 
-Rationale: it is already open and non-draft, it sits exactly on top of the
-guard alignment that just merged (#221) and is now matrix-proven (#229), and it
-closes the remaining runtime-sequencing gap before any live execution is
-contemplated. The repo-truth audit script (candidate #2) and the hash-chain
-*planning* doc (candidate #3) are valuable but lower-urgency and can follow once
-#218 is reviewed and merged. The hash-chain **migration** stays deferred (🔴, GO
-required) — only its planning/proof doc is in scope before approval.
+Rationale: the runtime-safety gap that blocked everything — ledger-before-dispatch
+— is now closed (#218, on top of #221/#229). The cheapest, highest-leverage next
+move is a read-only audit script that emits a dated `docs/audit/REPO_TRUTH_*.md`,
+because it institutionalizes exactly the reconciliation this document had to do by
+hand and stops future drift. The hash-chain **planning** doc and the
+`EXECUTION_PHASE_STATUS.md` refresh follow; the hash-chain **migration** stays
+deferred (🔴, GO required) — only its planning/proof doc is in scope before
+approval.
 
-One PR at a time. Review #218 first; do not open parallel runtime work.
+One PR at a time. The audit script is read-only; do not open parallel runtime work.
