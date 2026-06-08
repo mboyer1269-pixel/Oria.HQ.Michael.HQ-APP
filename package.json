@@ -16,6 +16,7 @@
     "ledger:audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audit/ledger-hash-chain-audit.mjs",
     "ledger:check-migration-draft": "node scripts/audit/check-hash-chain-migration-draft.mjs",
     "ledger:guard-not-live": "node scripts/audit/guard-hash-chain-not-live.mjs",
+    "mission:check-migration-draft": "node scripts/audit/check-mission-persistence-migration-draft.mjs",
     "test": "node run-tests.mjs",
     "test:mission-store-guard": "node --test src/server/missions/execution-attempt-store.test.mjs",
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",

@@ -52,3 +52,6 @@ jobs:
 
       - name: Ledger hash-chain not-live guard
         run: npm run ledger:guard-not-live
+
+      - name: Mission persistence migration draft check
+        run: npm run mission:check-migration-draft
