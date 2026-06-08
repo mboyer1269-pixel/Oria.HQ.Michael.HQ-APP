@@ -77,6 +77,62 @@ function isAllowedInMemory(key: string, limit: number, windowMs: number): boolea
 }
 
 // ---------------------------------------------------------------------------
+// Production-safety diagnostics
+// ---------------------------------------------------------------------------
+
+export type RateLimitBackend = "upstash" | "memory";
+
+/** Which backend isAllowed() will use given the current environment. */
+export function getRateLimitBackend(): RateLimitBackend {
+  return hasUpstashConfig() ? "upstash" : "memory";
+}
+
+/**
+ * Pure diagnostics for the active rate-limit backend (no Redis I/O). Safe to
+ * call at startup or from a health check.
+ *
+ * `productionFallbackRisk` is true when running in production on the in-memory
+ * fallback: that store is per-instance, so behind multiple instances the limit
+ * under-counts and the protection weakens. Surfacing this lets ops catch a
+ * missing UPSTASH_REDIS_REST_URL/TOKEN before it matters.
+ */
+export function getRateLimitDiagnostics(): {
+  backend: RateLimitBackend;
+  multiInstanceSafe: boolean;
+  productionFallbackRisk: boolean;
+} {
+  const backend = getRateLimitBackend();
+  return {
+    backend,
+    multiInstanceSafe: backend === "upstash",
+    productionFallbackRisk:
+      backend === "memory" && process.env.NODE_ENV === "production",
+  };
+}
+
+let warnedProductionFallback = false;
+
+/**
+ * Emits a one-time warning when production is running on the in-memory
+ * fallback. Deliberately does NOT throw: rate limiting must stay fail-open so a
+ * misconfiguration never takes the public contact form offline — but the
+ * degradation is no longer silent.
+ */
+function warnOnInsecureProductionFallback(): void {
+  if (warnedProductionFallback) return;
+  if (getRateLimitDiagnostics().productionFallbackRisk) {
+    warnedProductionFallback = true;
+    console.warn(
+      "[rate-limit] Production is running WITHOUT Upstash Redis " +
+        "(UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN unset). Falling back " +
+        "to the in-memory sliding-window, which is per-instance and NOT " +
+        "multi-instance safe — limits under-count behind multiple instances. " +
+        "Configure Upstash for reliable production rate limiting.",
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Public API — same signature in both modes
 // ---------------------------------------------------------------------------
 
@@ -98,5 +154,6 @@ export async function isAllowed(
   if (hasUpstashConfig()) {
     return isAllowedUpstash(key, limit, windowMs);
   }
+  warnOnInsecureProductionFallback();
   return isAllowedInMemory(key, limit, windowMs);
 }
