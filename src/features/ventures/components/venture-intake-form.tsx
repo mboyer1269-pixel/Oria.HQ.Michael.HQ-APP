@@ -201,7 +201,7 @@ export function VentureIntakeForm({
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className={labelClass}>Budget cap (€)</span>
+          <span className={labelClass}>Budget cap ($ CA)</span>
           <input
             type="number"
             min={0}

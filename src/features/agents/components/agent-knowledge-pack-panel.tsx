@@ -35,7 +35,7 @@ function PackCard({ pack }: { pack: AgentKnowledgePackBlueprint }) {
         <div>
           <p className="mb-1.5 flex items-center gap-1.5 font-medium text-neutral-300">
             <Target className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
-            Metrics
+            Métriques
           </p>
           <ul className="space-y-1 font-mono text-[11px] text-neutral-500">
             {topMetrics.map((metric) => (
@@ -120,15 +120,15 @@ export function AgentKnowledgePackPanel({ catalog }: { catalog: AgentKnowledgePa
       <div className="mt-4 grid gap-2 text-xs text-neutral-500 md:grid-cols-3">
         <p className="flex items-center gap-2">
           <BookOpen className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
-          Context comes from the registry, skills catalog, memory, ledger summaries, and policy.
+          Le contexte provient du registre, du catalogue de skills, de la mémoire, des résumés ledger et de la politique.
         </p>
         <p className="flex items-center gap-2">
           <Target className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
-          Metrics stay business-oriented without inventing revenue.
+          Les métriques restent orientées business, sans inventer de revenus.
         </p>
         <p className="flex items-center gap-2">
           <ShieldCheck className="h-3.5 w-3.5 text-violet-400" aria-hidden="true" />
-          Human-on-the-loop and no-execution remain explicit.
+          Human-on-the-loop et non-exécution restent explicites.
         </p>
       </div>
     </section>

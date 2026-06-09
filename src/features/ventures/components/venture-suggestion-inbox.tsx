@@ -26,12 +26,12 @@ const ACTION_TONE_CLASS: Record<VentureCandidateSuggestion["suggestedNextAction"
 
 function formatCurrency(cents?: number): string {
   if (!cents || cents <= 0) {
-    return "0 € — aucune dépense pré-autorisée";
+    return "0 $ — aucune dépense pré-autorisée";
   }
 
-  return (cents / 100).toLocaleString("fr-FR", {
+  return (cents / 100).toLocaleString("fr-CA", {
     style: "currency",
-    currency: "EUR",
+    currency: "CAD",
     maximumFractionDigits: 0,
   });
 }

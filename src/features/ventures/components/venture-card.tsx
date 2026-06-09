@@ -99,14 +99,13 @@ const RECOMMENDATION_STYLES: Record<VentureScore["recommendation"], string> = {
 
 function formatBudgetCents(cents: number): string {
   if (cents <= 0) {
-    return "0 € — aucune dépense pré-autorisée";
+    return "0 $ — aucune dépense pré-autorisée";
   }
-  const euros = (cents / 100).toLocaleString("fr-FR", {
+  return (cents / 100).toLocaleString("fr-CA", {
     style: "currency",
-    currency: "EUR",
+    currency: "CAD",
     maximumFractionDigits: 0,
   });
-  return euros;
 }
 
 function summarizeAutonomy(card: VentureCardType): {

@@ -60,11 +60,11 @@ const AGENT_STATUS_LABELS: Record<VentureCard["assignedAgents"][number]["status"
 
 function formatBudgetCents(cents: number): string {
   if (cents <= 0) {
-    return "0 € — aucune dépense pré-autorisée";
+    return "0 $ — aucune dépense pré-autorisée";
   }
-  return (cents / 100).toLocaleString("fr-FR", {
+  return (cents / 100).toLocaleString("fr-CA", {
     style: "currency",
-    currency: "EUR",
+    currency: "CAD",
     maximumFractionDigits: 0,
   });
 }

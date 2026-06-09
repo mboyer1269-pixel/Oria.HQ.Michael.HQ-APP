@@ -53,7 +53,7 @@ const privateLinks = [
     href: "#mission-draft-pending",
   },
   {
-    label: "Operator Snapshot",
+    label: "Aperçu opérateur",
     href: "#operator-snapshot",
   },
   {
