@@ -15,6 +15,7 @@ import { Tooltip } from "./ui";
 import { CockpitTopbar } from "./cockpit-topbar";
 import { CommandPalette } from "./command-palette";
 import { GovernanceBar } from "./governance-bar";
+import { ActivityRail } from "./activity-rail";
 
 // ---------------------------------------------------------------------------
 // Cockpit shell — persistent sidebar + topbar + omnipresent Joris dock.
@@ -119,6 +120,9 @@ export function CockpitShell({
 
         {/* Read-only governance doctrine bar (no execution). */}
         <GovernanceBar />
+
+        {/* Read-only activity rail (no fabricated events, no ledger writes). */}
+        <ActivityRail />
 
         <main className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
           {children}
