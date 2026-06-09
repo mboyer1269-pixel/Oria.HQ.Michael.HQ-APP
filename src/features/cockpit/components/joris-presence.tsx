@@ -61,7 +61,7 @@ function derivePresenceState(input: {
 
     return {
       state: "pulse",
-      label: "Ideas en attente",
+      label: "Idées en attente",
       detail: `${input.ideas.length} idée${input.ideas.length > 1 ? "s" : ""} capturée${input.ideas.length > 1 ? "s" : ""} — direction pas encore générée.`,
     };
   }

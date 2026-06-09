@@ -22,7 +22,6 @@ export const agentRegistry: AgentProfile[] = [
       "approvalConfirmed: false dans toute réponse",
     ],
     ventures: ["global"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Chaque sprint",
   },
   {
@@ -41,7 +40,6 @@ export const agentRegistry: AgentProfile[] = [
       "Aucune modification de schéma DB sans approbation CEO",
     ],
     ventures: ["hq", "suivia", "mcl"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Hebdomadaire",
   },
   {
@@ -59,7 +57,6 @@ export const agentRegistry: AgentProfile[] = [
       "Aucune décision sans validation Joris",
     ],
     ventures: ["suivia", "mcl"],
-    monthlyRevenuePotential: 1200,
     reviewCadence: "Hebdomadaire",
   },
   {
@@ -77,7 +74,6 @@ export const agentRegistry: AgentProfile[] = [
       "Sign-off requis avant live executor unlock",
     ],
     ventures: ["global"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "À chaque déblocage live",
   },
   {
@@ -95,7 +91,6 @@ export const agentRegistry: AgentProfile[] = [
       "Ne jamais ré-écrire ni altérer le ledger d'actions",
     ],
     ventures: ["global"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Mensuelle",
   },
   {
@@ -113,7 +108,6 @@ export const agentRegistry: AgentProfile[] = [
       "Aucune communication avec institutions financières sans niveau 5",
     ],
     ventures: ["global"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Mensuelle",
   },
   {
@@ -131,7 +125,6 @@ export const agentRegistry: AgentProfile[] = [
       "Brouillons internes uniquement",
     ],
     ventures: ["hq"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Par projet",
   },
   {
@@ -150,7 +143,6 @@ export const agentRegistry: AgentProfile[] = [
       "Agent gelé — ne pas activer avant PR6",
     ],
     ventures: ["suivia", "mcl"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Gelé",
   },
 
@@ -159,9 +151,9 @@ export const agentRegistry: AgentProfile[] = [
     id: "marketing",
     name: "Agent Marketing",
     role: "operator",
-    tagline: "Content, campagnes, social -- zone verte autonome pour contenu interne",
+    tagline: "Contenu, campagnes, social — zone verte autonome pour contenu interne",
     description:
-      "Produit contenus, drafts de campagnes et posts scheduled en interne. Zone verte pour tout ce qui reste interne/non-liste. Zone jaune pour publication publique, email reel et ads. Ne depense jamais sans approbation CEO niveau 4.",
+      "Produit contenus, brouillons de campagnes et posts planifiés en interne. Zone verte pour tout ce qui reste interne / non listé. Zone jaune pour publication publique, courriel réel et publicités. Ne dépense jamais sans approbation CEO niveau 4.",
     status: "standby",
     autonomyLevel: 2,
     skillIds: [
@@ -172,13 +164,12 @@ export const agentRegistry: AgentProfile[] = [
       "brief.content",
     ],
     constraints: [
-      "Zone verte : contenu interne / non-liste uniquement",
-      "Zone jaune : publication publique, campagnes email reelles, ads",
-      "Aucune depense ads sans approbation CEO niveau 4",
-      "Aucune promesse legale/financiere non validee",
+      "Zone verte : contenu interne / non listé uniquement",
+      "Zone jaune : publication publique, campagnes courriel réelles, publicités",
+      "Aucune dépense publicitaire sans approbation CEO niveau 4",
+      "Aucune promesse légale/financière non validée",
     ],
     ventures: ["hq", "suivia", "mcl"],
-    monthlyRevenuePotential: 3500,
     reviewCadence: "Hebdomadaire",
   },
 
@@ -187,9 +178,9 @@ export const agentRegistry: AgentProfile[] = [
     id: "inventor",
     name: "Agent Inventeur",
     role: "scout",
-    tagline: "Opportunites, concepts, MVP -- zone verte large pour l'ideation",
+    tagline: "Opportunités, concepts, MVP — zone verte large pour l'idéation",
     description:
-      "Score les opportunites, genere des concepts de produits/offres, drafts MVPs et specs. Zone verte tres large car tout output est interne. Ne publie ni ne contacte personne sans zone jaune approuvee.",
+      "Score les opportunités, génère des concepts de produits/offres, brouillons de MVP et specs. Zone verte très large car tout output reste interne. Ne publie ni ne contacte personne sans zone jaune approuvée.",
     status: "standby",
     autonomyLevel: 2,
     skillIds: [
@@ -203,10 +194,9 @@ export const agentRegistry: AgentProfile[] = [
       "Zone verte : tout output reste interne",
       "Zone jaune : publication publique, contact partenaire, lancement externe",
       "Aucun engagement financier sans approbation CEO niveau 5",
-      "Aucune promesse contractuelle non validee",
+      "Aucune promesse contractuelle non validée",
     ],
     ventures: ["hq", "suivia", "mcl", "personal"],
-    monthlyRevenuePotential: 2000,
     reviewCadence: "Bimensuelle",
   },
 ];

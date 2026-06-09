@@ -34,8 +34,6 @@ export type AgentProfile = {
   constraints: string[];
   /** Venture contexts where this agent operates. */
   ventures: AgentVenture[];
-  /** MANUAL estimate, labelled as such. Never self-declared by the agent. */
-  monthlyRevenuePotential: number;
   /** Human review cadence. */
   reviewCadence: string;
 };

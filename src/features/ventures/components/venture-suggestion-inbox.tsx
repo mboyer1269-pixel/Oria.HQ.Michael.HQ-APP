@@ -26,12 +26,12 @@ const ACTION_TONE_CLASS: Record<VentureCandidateSuggestion["suggestedNextAction"
 
 function formatCurrency(cents?: number): string {
   if (!cents || cents <= 0) {
-    return "0 € — aucune dépense pré-autorisée";
+    return "0 $ — aucune dépense pré-autorisée";
   }
 
-  return (cents / 100).toLocaleString("fr-FR", {
+  return (cents / 100).toLocaleString("fr-CA", {
     style: "currency",
-    currency: "EUR",
+    currency: "CAD",
     maximumFractionDigits: 0,
   });
 }
@@ -210,7 +210,7 @@ export function VentureSuggestionInbox({
                     Coût validation : {formatCurrency(suggestion.estimatedCostToValidateCents)}
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-950 px-2.5 py-1 text-neutral-300">
-                    Délai 1er euro :{" "}
+                    Délai 1er dollar :{" "}
                     {suggestion.estimatedTimeToFirstDollarDays ?? "—"}
                     {suggestion.estimatedTimeToFirstDollarDays ? " jours" : ""}
                   </span>

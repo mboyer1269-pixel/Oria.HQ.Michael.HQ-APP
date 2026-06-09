@@ -31,7 +31,6 @@ export interface AgentKnowledgePackBlueprint {
   successMetrics: string[];
   guardrails: string[];
   reviewCadence: string;
-  manualMonthlyRevenuePotential: number;
   humanOnTheLoop: true;
   noExecutionAuthorized: true;
   modelProviderLockIn: false;
@@ -133,17 +132,17 @@ function buildSkillContext(skill: SkillProfile): AgentRequiredContextItem {
 function buildRequiredContext(agent: AgentProfile, matchedSkills: SkillProfile[]): AgentRequiredContextItem[] {
   return [
     {
-      label: "Agent purpose",
+      label: "Rôle de l'agent",
       detail: agent.description,
       source: "agent",
     },
     {
-      label: "Operating contexts",
+      label: "Contextes d'opération",
       detail: agent.ventures.join(", "),
       source: "business",
     },
     {
-      label: "Review cadence",
+      label: "Cadence de revue",
       detail: agent.reviewCadence,
       source: "governance",
     },
@@ -161,10 +160,6 @@ function buildSuccessMetrics(agent: AgentProfile): string[] {
     "guardrail_compliance",
     "useful_output_rate",
   ];
-
-  if (agent.monthlyRevenuePotential > 0) {
-    baseMetrics.push("manual_revenue_potential_review");
-  }
 
   return unique([...ROLE_SUCCESS_METRICS[agent.role], ...baseMetrics]);
 }
@@ -200,7 +195,6 @@ function buildKnowledgePack(
     successMetrics: buildSuccessMetrics(agent),
     guardrails: buildGuardrails(agent),
     reviewCadence: agent.reviewCadence,
-    manualMonthlyRevenuePotential: agent.monthlyRevenuePotential,
     humanOnTheLoop: true,
     noExecutionAuthorized: true,
     modelProviderLockIn: false,

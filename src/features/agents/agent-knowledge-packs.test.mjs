@@ -90,7 +90,6 @@ test("Agent knowledge pack blueprints", async (t) => {
           skillIds: ["missing.skill"],
           constraints: [],
           ventures: ["hq"],
-          monthlyRevenuePotential: 0,
           reviewCadence: "Weekly",
         },
       ],

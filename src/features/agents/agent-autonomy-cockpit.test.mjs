@@ -70,7 +70,6 @@ test("Agent autonomy cockpit view model", async (t) => {
           skillIds: ["missing.skill"],
           constraints: [],
           ventures: ["hq"],
-          monthlyRevenuePotential: 0,
           reviewCadence: "Test",
         },
       ],
