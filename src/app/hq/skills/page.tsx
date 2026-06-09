@@ -1,9 +1,9 @@
 import type { Route } from "next";
 import { Zap } from "lucide-react";
+import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import {
   HqMetric,
   HqPageHeader,
-  HqPageShell,
   HqSummaryRail,
   HqWidget,
 } from "@/features/hq/components/hq-widget-system";
@@ -44,7 +44,7 @@ export default async function SkillsPage() {
   })).filter(({ skills }) => skills.length > 0);
 
   return (
-    <HqPageShell>
+    <CockpitShell active="skills" crumb="Skills">
       <HqPageHeader
         backHref={"/hq" as Route}
         eyebrow="Skills Catalog"
@@ -80,6 +80,6 @@ export default async function SkillsPage() {
           </div>
         </HqWidget>
       ))}
-    </HqPageShell>
+    </CockpitShell>
   );
 }

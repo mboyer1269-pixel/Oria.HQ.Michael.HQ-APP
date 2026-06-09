@@ -10,10 +10,10 @@ import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listMissionsForWorkspace } from "@/server/missions";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
+import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import {
   HqMetric,
   HqPageHeader,
-  HqPageShell,
   HqSummaryRail,
   HqWidget,
 } from "@/features/hq/components/hq-widget-system";
@@ -37,7 +37,7 @@ export default async function MissionsPage() {
   const hasMissions = summary.total > 0;
 
   return (
-    <HqPageShell>
+    <CockpitShell active="missions" crumb="Missions">
       <HqPageHeader
         backHref={"/hq" as Route}
         eyebrow="Mission Control"
@@ -135,6 +135,6 @@ export default async function MissionsPage() {
           Calendar.book : gate live sur /hq (#96–#98). Exécuteur autonome verrouillé — Phase 2 après Red Team.
         </p>
       </footer>
-    </HqPageShell>
+    </CockpitShell>
   );
 }

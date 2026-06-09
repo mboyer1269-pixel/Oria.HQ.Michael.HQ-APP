@@ -16,10 +16,10 @@ import { validateAgentSkillMapping } from "@/features/agents/skill-mapping";
 import { skillsCatalog } from "@/features/skills/seed";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
+import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import {
   HqMetric,
   HqPageHeader,
-  HqPageShell,
   HqSummaryRail,
   HqWidget,
 } from "@/features/hq/components/hq-widget-system";
@@ -64,7 +64,7 @@ export default async function AgentsPage() {
   });
 
   return (
-    <HqPageShell>
+    <CockpitShell active="agents" crumb="Agents">
       <HqPageHeader
         backHref={"/hq" as Route}
         eyebrow="Agent Registry"
@@ -160,6 +160,6 @@ export default async function AgentsPage() {
           </div>
         )}
       </HqWidget>
-    </HqPageShell>
+    </CockpitShell>
   );
 }
