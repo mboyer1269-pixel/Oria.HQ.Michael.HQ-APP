@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Tooltip } from "./ui";
 import { CockpitTopbar } from "./cockpit-topbar";
+import { CommandPalette } from "./command-palette";
 
 // ---------------------------------------------------------------------------
 // Cockpit shell — persistent sidebar + topbar + omnipresent Joris dock.
@@ -119,6 +120,9 @@ export function CockpitShell({
           {children}
         </main>
       </div>
+
+      {/* Global ⌘K navigation palette (navigation-only, no execution). */}
+      <CommandPalette />
     </div>
   );
 }
