@@ -20,6 +20,7 @@ import { CeoBriefSection } from "@/features/hq/components/ceo-brief-section";
 import { LedgerActivity } from "@/features/hq/components/ledger-activity";
 import { OperatorSnapshot } from "@/features/hq/components/operator-snapshot";
 import { PrivateHqOverview } from "@/features/hq/components/private-hq-overview";
+import { HqOverviewWidgets } from "@/features/hq/components/hq-overview-widgets";
 import { AgenticFactoryStatus } from "@/features/hq/components/agentic-factory-status";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import {
@@ -177,6 +178,8 @@ export default async function HqPage() {
           </form>
         </HqSummaryRail>
       </HqPageHeader>
+
+      <HqOverviewWidgets />
 
       <HqWidget title="Workspace map" eyebrow="Private HQ" icon={LayoutDashboard}>
         <PrivateHqOverview />
