@@ -7,6 +7,7 @@ import {
 } from "@/server/missions";
 import { deriveMissionApprovalConfirmation } from "@/server/missions/approval-derivation";
 import { checkExecutionAttempt, recordAttempt } from "@/server/missions/execution-attempt-store";
+import { evaluateExecutionAttemptBoundary } from "@/server/missions/execution-attempt-boundary";
 
 /**
  * POST /api/missions/plan
@@ -90,22 +91,34 @@ export async function POST(request: NextRequest) {
 
   const attemptCheck = checkExecutionAttempt(attemptInput);
 
-  if (!attemptCheck.allowed) {
-    if (attemptCheck.reason === "duplicate_key") {
+  // approvalConfirmed is NEVER accepted from the caller.
+  // It is derived server-side from a verified MissionApprovalRecord.
+  // Until mission_approval_records persistence is live (PR #19C sign-off required),
+  // this is always false — any mission requiring approval will return allowed: false.
+  // Pure derivation — safe to compute before the attempt check / reservation.
+  const approvalDerivation = deriveMissionApprovalConfirmation(mission, null);
+
+  // Compose the idempotency/rate-limit check with the derived approval into the
+  // single boundary decision (was inline here). Idempotency/rate-limit blocking
+  // takes precedence and maps to the same HTTP statuses as before.
+  const boundary = evaluateExecutionAttemptBoundary({ attemptCheck, approval: approvalDerivation });
+
+  if (!boundary.reservable) {
+    if (boundary.reason === "duplicate_key") {
       return NextResponse.json(
         { error: "Requête dupliquée — même clé d'idempotence déjà reçue." },
-        { status: 409 },
+        { status: boundary.status },
       );
     }
-    if (attemptCheck.reason === "rate_limit_exceeded") {
+    if (boundary.reason === "rate_limit_exceeded") {
       return NextResponse.json(
         { error: "Limite de fréquence atteinte. Réessayez dans quelques secondes." },
-        { status: 429 },
+        { status: boundary.status },
       );
     }
     return NextResponse.json(
       { error: "Tentative d'exécution invalide." },
-      { status: 400 },
+      { status: boundary.status },
     );
   }
 
@@ -115,12 +128,6 @@ export async function POST(request: NextRequest) {
   // If buildDryRunMissionExecutionPlan() throws after this point, the key is
   // consumed — acceptable for a planning endpoint where safety > retry convenience.
   recordAttempt(attemptInput);
-
-  // approvalConfirmed is NEVER accepted from the caller.
-  // It is derived server-side from a verified MissionApprovalRecord.
-  // Until mission_approval_records persistence is live (PR #19C sign-off required),
-  // this is always false — any mission requiring approval will return allowed: false.
-  const approvalDerivation = deriveMissionApprovalConfirmation(mission, null);
 
   // Build dry-run plan — no execution, no writes, no AI calls, no ledger.record()
   let result: ReturnType<typeof buildDryRunMissionExecutionPlan>;
