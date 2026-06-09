@@ -6,6 +6,7 @@ import {
   Building2,
   CircleDot,
   FileText,
+  Home,
   LayoutDashboard,
   ListChecks,
   Sparkles,
@@ -31,6 +32,7 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
+  { key: "hq", label: "HQ", href: "/hq", icon: Home, group: "Pilotage", tipTitle: "HQ", tipDetail: "Command surface privée — workspace overview, CEO brief, ledger, modules." },
   { key: "cockpit", label: "Cockpit", href: "/hq/cockpit", icon: LayoutDashboard, group: "Pilotage", tipTitle: "Cockpit", tipDetail: "Tout ce qui requiert ton attention aujourd'hui, en un écran." },
   { key: "missions", label: "Missions", href: "/hq/missions", icon: ListChecks, group: "Pilotage", tipTitle: "Missions", tipDetail: "Drafts, approbations et suivi d'exécution contrôlée." },
   { key: "agents", label: "Agents", href: "/hq/agents", icon: Bot, group: "Pilotage", tipTitle: "Agents · gouvernance", tipDetail: "Autonomie, knowledge packs, scorecards et file de revue." },
