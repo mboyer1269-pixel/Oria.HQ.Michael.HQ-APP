@@ -2,6 +2,7 @@
 
 import { Bot, Search } from "lucide-react";
 import { Tooltip } from "./ui";
+import { SystemPopover } from "./system-popover";
 import { LanguageToggle } from "../../hq/components/language-toggle";
 import { useUILanguage } from "../../hq/i18n/ui-language";
 import { getUICopy } from "../../hq/i18n/ui-copy";
@@ -41,6 +42,7 @@ export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
           ⌘K
         </kbd>
       </button>
+      <SystemPopover />
       <Tooltip
         title="Joris"
         detail={copy.jorisTooltip}
