@@ -44,7 +44,7 @@ const NAV: NavItem[] = [
   { key: "skills", label: "Skills", href: "/hq/skills", icon: Sparkles, group: "Pilotage", tipTitle: "Skills", tipDetail: "Catalogue des compétences gouvernées." },
   { key: "runtime", label: "Runtime", href: "/hq/runtime", icon: CircleDot, group: "Pilotage", tipTitle: "Runtime", tipDetail: "Exécution verrouillée tant qu'une action n'est pas ledgerée et bornée.", tipMeta: "Verrouillé" },
   { key: "ventures", label: "Ventures", href: "/hq/ventures", icon: Building2, group: "Pilotage", tipTitle: "Ventures", tipDetail: "Portefeuille et file de décisions stratégiques." },
-  { key: "documents", label: "Documents", href: "/dashboard/documents", icon: FileText, group: "Espace", disabled: true, tipTitle: "Documents", tipDetail: "Module retiré temporairement. Sera reconstruit avec dossiers, édition, permissions et audit trail.", tipMeta: "Indisponible" },
+  { key: "documents", label: "Documents", href: "/dashboard/documents", icon: FileText, group: "Espace", tipTitle: "Documents", tipDetail: "En reconstruction — dossiers ouvrables, édition, permissions et audit trail.", tipMeta: "Bientôt" },
 ];
 
 function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -108,9 +108,22 @@ export function CockpitShell({
       {/* Sidebar */}
       <aside className="sticky top-0 flex h-screen flex-col gap-1.5 overflow-auto border-r border-white/[0.06] bg-gradient-to-b from-[#0c1020]/95 to-[#080b18]/95 p-3.5 backdrop-blur-xl">
         <div className="flex items-center gap-3 px-2 pb-4 pt-1.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 font-extrabold text-white shadow-[0_0_0_1px_rgba(139,92,246,.3)]">
-            O
-          </span>
+          <svg
+            viewBox="0 0 512 512"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+            className="h-9 w-9 shrink-0 rounded-xl shadow-[0_0_0_1px_rgba(245,158,11,.25)]"
+          >
+            <rect width="512" height="512" rx="112" fill="#0A0A0A" />
+            <path
+              d="M256 80L336 144V272C336 316.183 300.183 352 256 352C211.817 352 176 316.183 176 272V144L256 80Z"
+              fill="#F59E0B"
+            />
+            <path d="M160 392H352" stroke="#E5E5E5" strokeWidth="32" strokeLinecap="round" />
+            <path d="M224 176H288" stroke="#0A0A0A" strokeWidth="28" strokeLinecap="round" />
+            <path d="M224 240H288" stroke="#0A0A0A" strokeWidth="28" strokeLinecap="round" />
+          </svg>
           <span className="hidden md:block">
             <span className="block text-[15px] font-bold text-[#eff1fb]">ORIA HQ</span>
             <span className="block text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#646c8e]">
