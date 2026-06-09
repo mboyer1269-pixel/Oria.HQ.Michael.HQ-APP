@@ -28,7 +28,7 @@ export function ActivityRail() {
           Lecture seule
         </span>
         <Link
-          href={"/hq" as Route}
+          href={"/hq#ledger-activity" as Route}
           className="ml-auto inline-flex items-center gap-1 font-semibold text-sky-300/90 transition hover:text-sky-200"
         >
           <ScrollText className="h-3 w-3" aria-hidden="true" />

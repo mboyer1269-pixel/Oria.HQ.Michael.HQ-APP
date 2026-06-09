@@ -189,9 +189,11 @@ export default async function HqPage() {
         <OperatorSnapshot />
       </HqWidget>
 
-      <HqWidget title="Ledger activity" eyebrow="Audit trail" icon={CheckCircle2}>
-        <LedgerActivity />
-      </HqWidget>
+      <div id="ledger-activity" className="scroll-mt-6">
+        <HqWidget title="Ledger activity" eyebrow="Audit trail" icon={CheckCircle2}>
+          <LedgerActivity />
+        </HqWidget>
+      </div>
 
       <HqWidget title="CEO brief" eyebrow="Daily context" icon={Sparkles}>
         <CeoBriefSection />

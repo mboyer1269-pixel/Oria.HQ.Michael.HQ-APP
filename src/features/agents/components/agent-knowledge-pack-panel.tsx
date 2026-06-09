@@ -12,9 +12,6 @@ function PackCard({ pack }: { pack: AgentKnowledgePackBlueprint }) {
         <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-400">
           {pack.role}
         </span>
-        <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-300">
-          {pack.operatingContexts.join(", ")}
-        </span>
       </div>
 
       <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-500">{pack.purpose}</p>
