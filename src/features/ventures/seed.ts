@@ -123,7 +123,7 @@ export const ventureSeedCards: VentureCard[] = [
     validationPlan: {
       windowDays: 30,
       hypothesis:
-        "Au moins 2 équipes ops paieront 2 000 € pour un audit IA d'une durée de 2 semaines.",
+        "Au moins 2 équipes ops paieront 2 000 $ CA pour un audit IA d'une durée de 2 semaines.",
       successMetrics: [
         "2 audits vendus",
         "Score NPS > 8 sur les livrables",

@@ -25,7 +25,7 @@ export type ScoreDimension = {
 /** Ordered for display; covers exactly the 11 sub-score keys. */
 export const SCORE_DIMENSIONS: readonly ScoreDimension[] = [
   { key: "revenuePotential", label: "Potentiel de revenu", polarity: "positive" },
-  { key: "speedToFirstDollar", label: "Vitesse au 1er euro", polarity: "positive" },
+  { key: "speedToFirstDollar", label: "Vitesse au 1er dollar", polarity: "positive" },
   { key: "costToValidate", label: "Coût de validation", polarity: "negative" },
   { key: "automationPotential", label: "Potentiel d'automatisation", polarity: "positive" },
   { key: "ownerInvolvementRequired", label: "Implication CEO requise", polarity: "negative" },

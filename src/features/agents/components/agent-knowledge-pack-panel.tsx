@@ -23,7 +23,7 @@ function PackCard({ pack }: { pack: AgentKnowledgePackBlueprint }) {
         <div>
           <p className="mb-1.5 flex items-center gap-1.5 font-medium text-neutral-300">
             <BookOpen className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
-            Context
+            Contexte
           </p>
           <ul className="space-y-1 text-neutral-500">
             {topContext.map((item) => (
@@ -81,7 +81,7 @@ export function AgentKnowledgePackPanel({ catalog }: { catalog: AgentKnowledgePa
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-400">
             Chaque agent a un pack de contexte attendu: sources fiables, connaissances requises,
-            metrics business et guardrails. Ces packs sont des blueprints en lecture seule.
+            métriques business et guardrails. Ces packs sont des blueprints en lecture seule.
           </p>
         </div>
 

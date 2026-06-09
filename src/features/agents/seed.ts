@@ -22,7 +22,6 @@ export const agentRegistry: AgentProfile[] = [
       "approvalConfirmed: false dans toute réponse",
     ],
     ventures: ["global"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Chaque sprint",
   },
   {
@@ -41,7 +40,6 @@ export const agentRegistry: AgentProfile[] = [
       "Aucune modification de schéma DB sans approbation CEO",
     ],
     ventures: ["hq", "suivia", "mcl"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Hebdomadaire",
   },
   {
@@ -59,7 +57,6 @@ export const agentRegistry: AgentProfile[] = [
       "Aucune décision sans validation Joris",
     ],
     ventures: ["suivia", "mcl"],
-    monthlyRevenuePotential: 1200,
     reviewCadence: "Hebdomadaire",
   },
   {
@@ -77,7 +74,6 @@ export const agentRegistry: AgentProfile[] = [
       "Sign-off requis avant live executor unlock",
     ],
     ventures: ["global"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "À chaque déblocage live",
   },
   {
@@ -95,7 +91,6 @@ export const agentRegistry: AgentProfile[] = [
       "Ne jamais ré-écrire ni altérer le ledger d'actions",
     ],
     ventures: ["global"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Mensuelle",
   },
   {
@@ -113,7 +108,6 @@ export const agentRegistry: AgentProfile[] = [
       "Aucune communication avec institutions financières sans niveau 5",
     ],
     ventures: ["global"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Mensuelle",
   },
   {
@@ -131,7 +125,6 @@ export const agentRegistry: AgentProfile[] = [
       "Brouillons internes uniquement",
     ],
     ventures: ["hq"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Par projet",
   },
   {
@@ -150,7 +143,6 @@ export const agentRegistry: AgentProfile[] = [
       "Agent gelé — ne pas activer avant PR6",
     ],
     ventures: ["suivia", "mcl"],
-    monthlyRevenuePotential: 0,
     reviewCadence: "Gelé",
   },
 
@@ -178,7 +170,6 @@ export const agentRegistry: AgentProfile[] = [
       "Aucune promesse légale/financière non validée",
     ],
     ventures: ["hq", "suivia", "mcl"],
-    monthlyRevenuePotential: 3500,
     reviewCadence: "Hebdomadaire",
   },
 
@@ -206,7 +197,6 @@ export const agentRegistry: AgentProfile[] = [
       "Aucune promesse contractuelle non validée",
     ],
     ventures: ["hq", "suivia", "mcl", "personal"],
-    monthlyRevenuePotential: 2000,
     reviewCadence: "Bimensuelle",
   },
 ];
