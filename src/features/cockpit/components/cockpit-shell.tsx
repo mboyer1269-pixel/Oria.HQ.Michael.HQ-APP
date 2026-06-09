@@ -14,6 +14,7 @@ import {
 import { Tooltip } from "./ui";
 import { CockpitTopbar } from "./cockpit-topbar";
 import { CommandPalette } from "./command-palette";
+import { GovernanceBar } from "./governance-bar";
 
 // ---------------------------------------------------------------------------
 // Cockpit shell — persistent sidebar + topbar + omnipresent Joris dock.
@@ -115,6 +116,9 @@ export function CockpitShell({
       {/* Main */}
       <div className="flex min-w-0 flex-col">
         <CockpitTopbar crumb={crumb} userInitial={userInitial} />
+
+        {/* Read-only governance doctrine bar (no execution). */}
+        <GovernanceBar />
 
         <main className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
           {children}
