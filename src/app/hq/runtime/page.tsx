@@ -17,10 +17,10 @@ import {
 } from "@/server/runtime/local-runtime";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
+import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import {
   HqMetric,
   HqPageHeader,
-  HqPageShell,
   HqSummaryRail,
   HqWidget,
   HqWidgetGrid,
@@ -144,7 +144,7 @@ export default async function RuntimePage() {
   ];
 
   return (
-    <HqPageShell>
+    <CockpitShell active="runtime" crumb="Runtime">
       <HqPageHeader
         backHref={"/hq" as Route}
         eyebrow="Runtime Status"
@@ -296,6 +296,6 @@ export default async function RuntimePage() {
           ))}
         </div>
       </HqWidget>
-    </HqPageShell>
+    </CockpitShell>
   );
 }

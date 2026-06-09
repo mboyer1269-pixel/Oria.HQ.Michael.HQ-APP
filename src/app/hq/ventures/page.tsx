@@ -26,10 +26,10 @@ import {
   listVenturesForWorkspace,
 } from "@/server/ventures/venture-repository";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
+import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import {
   HqMetric,
   HqPageHeader,
-  HqPageShell,
   HqSummaryRail,
   HqWidget,
 } from "@/features/hq/components/hq-widget-system";
@@ -61,7 +61,7 @@ export default async function VenturesPage() {
   }
 
   return (
-    <HqPageShell>
+    <CockpitShell active="ventures" crumb="Ventures">
       <HqPageHeader
         backHref={"/hq" as Route}
         eyebrow="Venture Engine"
@@ -138,6 +138,6 @@ export default async function VenturesPage() {
           </li>
         </ul>
       </HqWidget>
-    </HqPageShell>
+    </CockpitShell>
   );
 }
