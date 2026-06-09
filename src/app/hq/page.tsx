@@ -21,10 +21,10 @@ import { LedgerActivity } from "@/features/hq/components/ledger-activity";
 import { OperatorSnapshot } from "@/features/hq/components/operator-snapshot";
 import { PrivateHqOverview } from "@/features/hq/components/private-hq-overview";
 import { AgenticFactoryStatus } from "@/features/hq/components/agentic-factory-status";
+import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import {
   HqMetric,
   HqPageHeader,
-  HqPageShell,
   HqSummaryRail,
   HqWidget,
   HqWidgetGrid,
@@ -109,7 +109,7 @@ export default async function HqPage() {
   }
 
   return (
-    <HqPageShell>
+    <CockpitShell active="hq" crumb="HQ">
       <HqPageHeader
         eyebrow="Oria · Michael HQ"
         icon={Sparkles}
@@ -305,6 +305,6 @@ export default async function HqPage() {
           ))}
         </div>
       </section>
-    </HqPageShell>
+    </CockpitShell>
   );
 }
