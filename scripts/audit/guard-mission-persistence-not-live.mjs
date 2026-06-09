@@ -6,10 +6,11 @@
  * Durable mission-draft persistence is staging-gated. This guard fails CLOSED if
  * the repo drifts toward live activation without an explicit GO:
  *
- *   1. No NUMBERED migration (db/migrations/NNNN_*.sql) may create the
- *      mission_execution_attempts table. The migration must stay under
- *      db/migrations/drafts/ until an intentional GO promotion (relaxed in the
- *      same reviewed PR).
+ *   1. The mission_execution_attempts DDL may appear in a NUMBERED migration
+ *      ONLY inside the explicitly approved staging-promotion slot (0021), and
+ *      ONLY when that forward migration also ships its read-only verify and its
+ *      revert siblings (no promotion without a rollback path). The DDL in any
+ *      other numbered file fails CLOSED — keep it under db/migrations/drafts/.
  *   2. The durable flag (mission-persistence-flag.ts) must keep its fail-safe
  *      OFF default — no unconditional enable.
  *
@@ -26,9 +27,21 @@ const migrationsDir = path.join(repoRoot, "db", "migrations");
 
 const failures = [];
 
-// ── Check 1: mission_execution_attempts not in the numbered apply sequence ────
+// ── Check 1: mission_execution_attempts only in the approved promotion slot ───
 const NUMBERED = /^\d{4}_.*\.sql$/i;
 const ATTEMPTS_DDL = /create table[^;]*\bmission_execution_attempts\b/i;
+
+// Explicit, reviewed GO promotion (staging-first). The forward migration may
+// live in the numbered sequence ONLY at this slot, and ONLY alongside its
+// read-only verify and its revert (the rollback path). Anything else fails.
+const PROMOTIONS = [{ forward: "0021_mission_persistence_completion.sql" }];
+const allow = new Set();
+for (const p of PROMOTIONS) {
+  const base = p.forward.replace(/\.sql$/i, "");
+  p.verify = `${base}_verify.sql`;
+  p.revert = `${base}_revert.sql`;
+  allow.add(p.forward).add(p.verify).add(p.revert);
+}
 
 let numbered = [];
 try {
@@ -37,15 +50,25 @@ try {
 } catch (err) {
   failures.push(`cannot read ${migrationsDir}: ${err.message}`);
 }
+const numberedSet = new Set(numbered);
 
+// 1a) The DDL may appear only inside an allowlisted promotion unit.
 for (const file of numbered) {
   const body = readFileSync(path.join(migrationsDir, file), "utf8");
-  if (ATTEMPTS_DDL.test(body)) {
+  if (ATTEMPTS_DDL.test(body) && !allow.has(file)) {
     failures.push(
-      `numbered migration ${file} creates mission_execution_attempts. This activates durable mission persistence. ` +
-        `Promotion requires explicit GO — relax this guard in the same reviewed PR.`,
+      `numbered migration ${file} creates mission_execution_attempts outside the approved promotion slot. ` +
+        `This activates durable mission persistence without GO — keep it under db/migrations/drafts/ ` +
+        `or use the reviewed 0021 promotion slot.`,
     );
   }
+}
+
+// 1b) A promoted forward must ship its verify + revert (no rollback-less GO).
+for (const p of PROMOTIONS) {
+  if (!numberedSet.has(p.forward)) continue; // not promoted yet — drafts-only state
+  if (!numberedSet.has(p.verify)) failures.push(`promoted ${p.forward} is missing its read-only verify (${p.verify}).`);
+  if (!numberedSet.has(p.revert)) failures.push(`promoted ${p.forward} is missing its revert (${p.revert}).`);
 }
 
 // ── Check 2: durable mission-draft flag stays OFF by default ───────────────────
@@ -68,7 +91,7 @@ if (failures.length > 0) {
   process.exitCode = 1;
 } else {
   console.log(
-    "[guard-mission-not-live] OK — mission_execution_attempts not in the numbered migration sequence; durable flag defaults OFF",
+    "[guard-mission-not-live] OK — mission_execution_attempts DDL only in the approved 0021 promotion (verify + revert present); durable flag defaults OFF",
   );
   process.exitCode = 0;
 }
