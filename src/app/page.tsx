@@ -5,8 +5,8 @@ import { ArrowRight, Bot, CalendarCheck, FileText, LockKeyhole, Mail, ShieldChec
 const pillars = [
   {
     icon: Bot,
-    title: "Agent relationnel",
-    text: "Joris pilote les demandes, les bookings et les décisions dans le bon contexte.",
+    title: "Agents orchestrés",
+    text: "Joris et vos agents prennent en charge les demandes, les bookings et les décisions dans le bon contexte.",
   },
   {
     icon: CalendarCheck,
@@ -15,13 +15,13 @@ const pillars = [
   },
   {
     icon: FileText,
-    title: "Mémoire privée",
-    text: "Décisions, SOPs et contexte utilisateur restent attachés au workspace actif.",
+    title: "Mémoire auditable",
+    text: "Décisions, SOPs et contexte restent attachés au workspace actif et traçables.",
   },
   {
     icon: UsersRound,
     title: "Modes métier",
-    text: "Immobilier, conseiller financier et autres niches deviennent des couches spécialisées.",
+    text: "Immobilier, conseil financier et autres niches deviennent des couches spécialisées.",
   },
 ];
 
@@ -32,21 +32,22 @@ export default function Home() {
         <section className="min-w-0">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300">
             <Sparkles className="h-3.5 w-3.5" />
-            Oria · Michael HQ
+            Oria HQ
           </div>
           <h1 className="mt-4 text-[2.55rem] font-bold leading-[0.98] text-white sm:text-5xl md:text-6xl">
-            Un assistant personnel, professionnel et extensible par métier.
+            Un cockpit privé pour orchestrer vos agents, sous votre contrôle.
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400 md:text-lg">
-            Oria est le système central. Michael HQ est le premier workspace privé : Joris, agenda, mémoire et
-            modes métier, sans mélange de contexte. Le cockpit opérationnel s&apos;ouvre après connexion propriétaire.
+            Oria HQ réunit vos agents, votre agenda et votre mémoire de travail dans un espace privé et isolé. Les
+            actions sensibles sont proposées, puis approuvées par le propriétaire avant exécution, et restent
+            traçables. Le cockpit opérationnel s&apos;ouvre après connexion propriétaire.
           </p>
-          <nav className="mt-6 flex flex-col gap-3 sm:flex-row" aria-label="Accès Michael HQ">
+          <nav className="mt-6 flex flex-col gap-3 sm:flex-row" aria-label="Accès au cockpit Oria HQ">
             <Link
               href={"/hq" as Route}
               className="inline-flex min-h-11 items-center justify-center rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400"
             >
-              Ouvrir Michael HQ
+              Ouvrir le cockpit
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
             <Link
@@ -68,10 +69,10 @@ export default function Home() {
         <aside className="rounded-3xl border border-neutral-800 bg-neutral-950/85 p-5 shadow-2xl shadow-amber-950/10">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Workspace privé</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Michael HQ reste isolé.</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Cockpit privé</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Michael HQ reste l&apos;instance privée.</h2>
               <p className="mt-3 text-sm leading-6 text-neutral-400">
-                La page publique présente Oria. Les modules opérationnels passent par `/hq`, protégé côté serveur
+                La page publique présente Oria HQ. Les modules opérationnels passent par `/hq`, protégé côté serveur
                 avec le guard propriétaire.
               </p>
             </div>
@@ -88,7 +89,7 @@ export default function Home() {
         </aside>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-4" aria-label="Modules privés de Michael HQ">
+      <section className="grid gap-4 md:grid-cols-4" aria-label="Capacités du cockpit Oria HQ">
         {pillars.map((pillar) => {
           const Icon = pillar.icon;
           return (

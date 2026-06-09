@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Oria | Michael HQ",
-  description: "Assistant personnel et professionnel avec workspace prive, Joris et modes metier.",
+  title: "Oria HQ",
+  description: "Cockpit prive pour orchestrer Joris et vos agents, avec approbation proprietaire et tracabilite.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",
