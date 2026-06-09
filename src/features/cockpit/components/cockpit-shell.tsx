@@ -32,6 +32,8 @@ interface NavItem {
   tipDetail: string;
   tipMeta?: string;
   count?: number;
+  /** Inactive area: shown for context but not presented as a live, clickable module. */
+  disabled?: boolean;
 }
 
 const NAV: NavItem[] = [
@@ -42,13 +44,35 @@ const NAV: NavItem[] = [
   { key: "skills", label: "Skills", href: "/hq/skills", icon: Sparkles, group: "Pilotage", tipTitle: "Skills", tipDetail: "Catalogue des compétences gouvernées." },
   { key: "runtime", label: "Runtime", href: "/hq/runtime", icon: CircleDot, group: "Pilotage", tipTitle: "Runtime", tipDetail: "Exécution verrouillée tant qu'une action n'est pas ledgerée et bornée.", tipMeta: "Verrouillé" },
   { key: "ventures", label: "Ventures", href: "/hq/ventures", icon: Building2, group: "Pilotage", tipTitle: "Ventures", tipDetail: "Portefeuille et file de décisions stratégiques." },
-  { key: "documents", label: "Documents", href: "/dashboard/documents", icon: FileText, group: "Espace", tipTitle: "Documents", tipDetail: "Coffre privé : notes, décisions, SOPs." },
+  { key: "documents", label: "Documents", href: "/dashboard/documents", icon: FileText, group: "Espace", disabled: true, tipTitle: "Documents", tipDetail: "Module retiré temporairement. Sera reconstruit avec dossiers, édition, permissions et audit trail.", tipMeta: "Indisponible" },
 ];
 
 function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
   const base =
     "relative flex items-center gap-3 rounded-xl border px-[11px] py-2.5 text-[13px] font-semibold transition";
+
+  // Inactive area: render as a non-interactive, dimmed row so it reads as
+  // "present but not yet available" rather than a live, broken module.
+  if (item.disabled) {
+    return (
+      <Tooltip title={item.tipTitle} detail={item.tipDetail} meta={item.tipMeta} align="left" className="w-full">
+        <span
+          aria-disabled="true"
+          className={`${base} w-full cursor-not-allowed border-transparent text-[#5a6080] opacity-60`}
+        >
+          <Icon className="h-[17px] w-[17px] shrink-0" aria-hidden="true" />
+          <span className="hidden md:inline">{item.label}</span>
+          {item.tipMeta ? (
+            <span className="ml-auto hidden rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#646c8e] md:inline">
+              {item.tipMeta}
+            </span>
+          ) : null}
+        </span>
+      </Tooltip>
+    );
+  }
+
   const state = active
     ? "border-violet-500/40 bg-gradient-to-br from-violet-500/22 to-indigo-500/[0.13] text-white"
     : "border-transparent text-[#98a1c4] hover:border-white/10 hover:bg-white/[0.04] hover:text-[#eff1fb]";

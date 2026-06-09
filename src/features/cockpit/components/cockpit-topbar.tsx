@@ -27,7 +27,7 @@ export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-3.5 border-b border-white/[0.06] bg-[#080b16]/75 px-5 py-3 backdrop-blur-xl">
       <div className="text-[13px] text-[#646c8e]">
-        Orya HQ&nbsp;/&nbsp;<span className="text-[#eff1fb]">{crumb}</span>
+        Oria HQ&nbsp;/&nbsp;<span className="text-[#eff1fb]">{crumb}</span>
       </div>
       <div className="flex-1" />
       <button

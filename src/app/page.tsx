@@ -16,7 +16,7 @@ const pillars = [
   {
     icon: FileText,
     title: "Mémoire privée",
-    text: "Documents, décisions, SOPs et contexte utilisateur restent attachés au workspace actif.",
+    text: "Décisions, SOPs et contexte utilisateur restent attachés au workspace actif.",
   },
   {
     icon: UsersRound,
@@ -38,8 +38,8 @@ export default function Home() {
             Un assistant personnel, professionnel et extensible par métier.
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400 md:text-lg">
-            Oria est le système central. Michael HQ est le premier workspace privé: Joris, agenda, documents,
-            permissions et modes métier sans mélange de contexte.
+            Oria est le système central. Michael HQ est le premier workspace privé : Joris, agenda, mémoire et
+            modes métier, sans mélange de contexte. Le cockpit opérationnel s&apos;ouvre après connexion propriétaire.
           </p>
           <nav className="mt-6 flex flex-col gap-3 sm:flex-row" aria-label="Accès Michael HQ">
             <Link
