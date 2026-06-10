@@ -39,8 +39,7 @@ export default function Home() {
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400 md:text-lg">
             Oria HQ réunit vos agents, votre agenda et votre mémoire de travail dans un espace privé et isolé. Les
-            actions sensibles sont proposées, puis approuvées par le propriétaire avant exécution, et restent
-            traçables. Le cockpit opérationnel s&apos;ouvre après connexion propriétaire.
+            actions sensibles sont proposées, puis approuvées avant exécution, et restent traçables.
           </p>
           <nav className="mt-6 flex flex-col gap-3 sm:flex-row" aria-label="Accès au cockpit Oria HQ">
             <Link
