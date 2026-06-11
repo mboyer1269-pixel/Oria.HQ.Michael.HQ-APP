@@ -12,7 +12,9 @@
 
 Quel que soit le modèle, le runtime ou le déploiement :
 - jamais d'email / DM / contact prospect automatique ;
-- jamais de Gmail / SMTP / Resend en envoi ;
+- jamais de Gmail / SMTP / Resend / Twilio en envoi **initié par agent** — un envoi
+  déclenché par clic CEO dans le Send Desk (`ceo_single_send`, cf.
+  `REVENUE_EXECUTION_LANE.md` §3.1, décision 2026-06-10) satisfait `requiresManualSend` ;
 - jamais de scraping agressif ;
 - jamais d'exécution externe ni de contournement de l'approbation CEO ;
 - les locks `requiresCeoApproval` / `requiresManualSend` / `noExecutionAuthorized`
