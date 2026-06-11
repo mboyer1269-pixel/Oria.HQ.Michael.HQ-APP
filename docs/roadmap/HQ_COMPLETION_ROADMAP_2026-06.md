@@ -88,6 +88,45 @@ Infra : Vercel cron ou le VPS Hostinger (son premier vrai rôle).
 
 ---
 
+### P6 — élargie : Canal CEO (addendum 2026-06-11, idée CEO)
+Le SMS n'est pas qu'une alerte — c'est le canal de commandement mobile :
+- **Notifications Joris par SMS (Twilio)** : réponse de prospect, approbation
+  requise (la chaîne ne bloque jamais parce que tu n'es pas devant l'écran),
+  brief du matin avec l'ordre de la journée, alerte kill-metric, alerte Market Watch.
+- **Approbation par lien profond sécurisé** : le SMS notifie avec contexte clair
+  (« Relance J+4 prête pour Wavo — approuver : [lien] »), le clic se fait dans le
+  HQ. Jamais d'approbation par réponse texto en v1 (SIM swap ; l'invariant
+  « clic CEO dans le HQ » reste le seul déclencheur). Pattern validé par la
+  littérature human-in-the-loop 2026 : SMS pour l'urgent/high-value, contexte
+  explicite, tout journalisé.
+- **Centre de préférences** (`/hq/settings/notifications`) : toggle par type de
+  notification + **profils** : Normal (réponses + approbations urgentes),
+  Voyage (tout par SMS, brief matin inclus), Focus (rien sauf réponses
+  prospect), Silence. Chaque changement de profil = événement ledger.
+
+### P8 — Venture Launch Kit (idée CEO 2026-06-11)
+Quand une venture passe candidate → approved_for_validation, le HQ prépare
+automatiquement le kit de lancement — **tout en prepared actions à approuver,
+rien d'exécuté seul** :
+- 5 noms d'entreprise candidats (LLM, étage premium) + **vérification de
+  disponibilité de domaine** (RDAP — gratuit, sans clé API) pour chaque nom ;
+- courriel dédié suggéré + entrée pré-remplie au registre d'actifs ;
+- brief de landing page (structure, copy hero, CTA) prêt pour exécution ;
+- checklist d'actifs par étape (le stage-readiness existant fait le suivi).
+**Boucle d'apprentissage** (exigence CEO : « des employés qui apprennent ») :
+chaque livrable approuvé/rejeté/édité par le CEO est enregistré via
+`agent-outcome-repository` (existe déjà) et nourrit les golden examples (P5 RAG).
+L'édition CEO d'un brouillon EST le signal d'apprentissage : les agents
+convergent vers ton goût sans réglage manuel.
+
+### P9 — Réorganisation du dashboard
+Refonte information-architecture + user-friendly. **Séquencée APRÈS P3
+volontairement** : l'architecture d'information doit suivre le modèle de
+décision (le cockpit s'organise autour de « quelle est LA prochaine action »),
+sinon on réorganise deux fois. S'exécute avec la commande de direction
+artistique Claude Code déjà ratifiée (3 actes : direction → système → moments
+signature).
+
 ## Matrice de décision
 
 | Pièce | Impact revenue | Effort | Dépend de |
@@ -99,8 +138,11 @@ Infra : Vercel cron ou le VPS Hostinger (son premier vrai rôle).
 | P5 RAG | ★★★★ (qualité = levier #1) | 2-3 j | P2 (pgvector) |
 | P6 Boucle fermée | ★★★★ (vitesse réponse) | 2 j | P1, config Resend/Twilio |
 | P7 Proactifs | ★★★ (constance) | 1 j | P3, P4 |
+| P6+ Canal CEO (SMS Joris + préférences) | ★★★★ (mobilité, chaîne jamais bloquée) | +1 j sur P6 | P6, A2P Twilio |
+| P8 Venture Launch Kit | ★★★ (poids mental, apprentissage) | 2 j | P5 (outcomes→RAG) |
+| P9 Réorg dashboard | ★★★ (adoption quotidienne) | 2-3 j | P3 |
 
-**Chemin critique : P1 → P2 → P3 → P6, avec P4/P5/P7 en intercalaire.**
+**Chemin critique : P1 → P2 → P3 → P6/P6+ , avec P4/P5/P7 en intercalaire, puis P8/P9.**
 Horizon réaliste : ~2 semaines de build discipliné, livré par vagues mergeables.
 
 ## Garde-fous inchangés
