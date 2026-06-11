@@ -84,6 +84,52 @@ export function HqPageHeader({
   );
 }
 
+const WIDGET_TONES = {
+  neutral: {
+    eyebrow: "text-neutral-500",
+    bar: "from-neutral-500/60 via-neutral-500/20 to-transparent",
+    iconChip: "border-white/10 bg-white/[0.04] text-neutral-300",
+    glow: "",
+  },
+  emerald: {
+    eyebrow: "text-emerald-400/90",
+    bar: "from-emerald-400/80 via-emerald-400/25 to-transparent",
+    iconChip:
+      "border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-300 shadow-[0_0_18px_-6px_rgba(52,211,153,0.45)]",
+    glow: "bg-emerald-500/[0.05]",
+  },
+  amber: {
+    eyebrow: "text-amber-400/90",
+    bar: "from-amber-400/80 via-amber-400/25 to-transparent",
+    iconChip:
+      "border-amber-500/25 bg-amber-500/[0.08] text-amber-300 shadow-[0_0_18px_-6px_rgba(251,191,36,0.45)]",
+    glow: "bg-amber-500/[0.05]",
+  },
+  sky: {
+    eyebrow: "text-sky-400/90",
+    bar: "from-sky-400/80 via-sky-400/25 to-transparent",
+    iconChip:
+      "border-sky-500/25 bg-sky-500/[0.08] text-sky-300 shadow-[0_0_18px_-6px_rgba(56,189,248,0.45)]",
+    glow: "bg-sky-500/[0.05]",
+  },
+  violet: {
+    eyebrow: "text-violet-400/90",
+    bar: "from-violet-400/80 via-violet-400/25 to-transparent",
+    iconChip:
+      "border-violet-500/25 bg-violet-500/[0.08] text-violet-300 shadow-[0_0_18px_-6px_rgba(167,139,250,0.45)]",
+    glow: "bg-violet-500/[0.05]",
+  },
+  rose: {
+    eyebrow: "text-rose-400/90",
+    bar: "from-rose-400/80 via-rose-400/25 to-transparent",
+    iconChip:
+      "border-rose-500/25 bg-rose-500/[0.08] text-rose-300 shadow-[0_0_18px_-6px_rgba(251,113,133,0.45)]",
+    glow: "bg-rose-500/[0.05]",
+  },
+} as const;
+
+export type HqWidgetTone = keyof typeof WIDGET_TONES;
+
 export function HqWidget({
   title,
   eyebrow,
@@ -91,6 +137,7 @@ export function HqWidget({
   action,
   children,
   className = "",
+  tone = "neutral",
 }: {
   title?: string;
   eyebrow?: string;
@@ -98,16 +145,25 @@ export function HqWidget({
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Optional accent tone — colors the eyebrow, accent bar and icon chip. */
+  tone?: HqWidgetTone;
 }) {
+  const t = WIDGET_TONES[tone];
   return (
-    <section
-      className={`scroll-mt-6 ${className}`}
-    >
+    <section className={`group/widget relative scroll-mt-6 ${className}`}>
+      {tone !== "neutral" ? (
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute -inset-x-2 -top-4 h-24 rounded-full blur-3xl ${t.glow}`}
+        />
+      ) : null}
       {(title || eyebrow || Icon || action) && (
-        <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="relative mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             {eyebrow ? (
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500">
+              <p
+                className={`text-[10px] font-extrabold uppercase tracking-[0.22em] ${t.eyebrow}`}
+              >
                 {eyebrow}
               </p>
             ) : null}
@@ -116,11 +172,17 @@ export function HqWidget({
                 {title}
               </h2>
             ) : null}
+            <div
+              aria-hidden
+              className={`mt-2 h-px w-24 bg-gradient-to-r ${t.bar} transition-all duration-500 group-hover/widget:w-40`}
+            />
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {action}
             {Icon ? (
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-neutral-300">
+              <span
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-2xl border transition-transform duration-300 group-hover/widget:scale-105 ${t.iconChip}`}
+              >
                 <Icon className="h-4 w-4" />
               </span>
             ) : null}
@@ -148,8 +210,12 @@ export function HqWidgetGrid({
 
 export function HqSummaryRail({ children }: { children: ReactNode }) {
   return (
-    <aside className="rounded-2xl border border-white/[0.07] bg-black/25 p-4">
-      {children}
+    <aside className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] via-black/25 to-black/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/[0.03] blur-2xl"
+      />
+      <div className="relative grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{children}</div>
     </aside>
   );
 }
@@ -158,10 +224,13 @@ export function HqMetric({
   label,
   value,
   tone = "neutral",
+  delta,
 }: {
   label: string;
   value: ReactNode;
   tone?: "neutral" | "emerald" | "amber" | "rose" | "sky" | "violet";
+  /** Optional trend, e.g. { text: "+3 cette sem.", direction: "up" }. */
+  delta?: { text: string; direction: "up" | "down" | "flat" };
 }) {
   const text = {
     neutral: "text-neutral-300",
@@ -171,11 +240,35 @@ export function HqMetric({
     sky: "text-sky-300",
     violet: "text-violet-300",
   }[tone];
+  const dot = {
+    neutral: "bg-neutral-500",
+    emerald: "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]",
+    amber: "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]",
+    rose: "bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.8)]",
+    sky: "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]",
+    violet: "bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.8)]",
+  }[tone];
+  const deltaColor =
+    delta?.direction === "up"
+      ? "text-emerald-400"
+      : delta?.direction === "down"
+        ? "text-rose-400"
+        : "text-neutral-500";
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] px-3 py-2">
-      <span className={`text-xs font-semibold ${text}`}>{label}</span>
-      <span className="tabular-nums text-sm font-bold text-white">{value}</span>
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] px-3 py-2 transition-colors hover:border-white/[0.12] hover:bg-white/[0.05]">
+      <span className="flex min-w-0 items-center gap-2">
+        <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+        <span className={`truncate text-xs font-semibold ${text}`}>{label}</span>
+      </span>
+      <span className="flex shrink-0 items-baseline gap-1.5">
+        <span className="tabular-nums text-sm font-bold text-white">{value}</span>
+        {delta ? (
+          <span className={`text-[10px] font-semibold ${deltaColor}`}>
+            {delta.direction === "up" ? "▲" : delta.direction === "down" ? "▼" : "—"} {delta.text}
+          </span>
+        ) : null}
+      </span>
     </div>
   );
 }
