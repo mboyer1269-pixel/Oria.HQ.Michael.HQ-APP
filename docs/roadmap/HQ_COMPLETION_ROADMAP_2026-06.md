@@ -13,7 +13,7 @@ et pont prepared-actions → Send Desk manquant.
 
 ## Les 7 pièces maîtresses (ordre d'exécution)
 
-### P1 — Le Pont (Vague A+) — EN COURS
+### P1 — Le Pont (Vague A+) — LIVRÉ (PR #296, merge en attente)
 Le flux cible → préparation → envoi devient 100 % in-app.
 - Store de cibles loi96 (import `ventures/loi96/pipeline.json`), workspace-scoped.
 - **Brancher `hermes-prep-tick` → Send Desk** : action « Préparer » sur une cible →
@@ -201,7 +201,7 @@ direct, reprenable après interruption, avec coût par nœud affiché.
 
 | Pièce | Impact revenue | Effort | Dépend de |
 |---|---|---|---|
-| P1 Pont | ★★★★★ direct | 1-2 j | rien — EN COURS |
+| P1 Pont | ★★★★★ direct | 1-2 j | rien — LIVRÉ (PR #296) |
 | P2 Durabilité | ★★★★ (confiance) | 1 j + GO migrations | P1 |
 | P3 Decision Spine | ★★★★★ (cadence) | 2 j | P1 (signaux pipeline) |
 | P4 Cost Ladder + Watch | ★★ (échelle) | 1-2 j | rien |

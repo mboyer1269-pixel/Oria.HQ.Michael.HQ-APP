@@ -3,7 +3,7 @@
 > **Owner:** Michael Boyer (President / Capital Allocator)  
 > **Operating Partner:** Joris (L2 assistant)  
 > **Workspace:** Michael HQ  
-> **Last synced:** 2026-06-03 · main · PR #221
+> **Last synced:** 2026-06-11 · main · PR wave #289–#299 (send desk, loi96 pipeline, UI uplift, roadmap P1–P11)
 
 Oria HQ is a **private operating platform** for running, validating, and governing ventures with AI agents.  
 It is **not** a generic chatbot or a GPT wrapper.  
@@ -29,7 +29,7 @@ If not — it waits.
 
 ## Current state — what actually exists on `main`
 
-This README reflects the codebase as of **PR #221**. It separates:
+This README reflects the codebase as of the **2026-06-11 PR wave (#289–#299)**. It separates:
 
 - **Live** — exists, wired, validated.
 - **Partial / prototype** — exists, not production-ready.
@@ -43,8 +43,11 @@ This README reflects the codebase as of **PR #221**. It separates:
 | `/hq/missions` | Live | Mission pipeline UI; dry-run planning + draft gate |
 | `/hq/agents` | Live | Agent registry (7 agents, seed) |
 | `/hq/skills` | Live | Skills catalog (15 skills, seed) |
-| `/hq/ventures` | Live | Venture Command Center; read-only venture engine view |
-| `/hq/runtime` | Live | Local prototype status (read-only narrative) |
+| `/hq/ventures` | Live | Venture Command Center; venture engine view + progressive asset registry |
+| `/hq/ventures/loi96` | Live | Loi 96 pipeline board — targets, statuses, Préparer → Send Desk bridge (PR #296) |
+| `/hq/outbound` | Live | Send Desk — prepared sends queue, CEO click = only send trigger (PR #293) |
+| `/hq/notes` | Live | CEO Notes workspace — two-pane editor, debounced autosave (PR #298) |
+| `/hq/runtime` | Live | Runtime status + live agent flow map (agents → governance → execution → ledger) |
 | `/hq/memory` | Partial | Shell / placeholder |
 | `/dashboard/documents` | Live | Owner documents |
 | `/contact` | Live | Public contact form |
@@ -65,6 +68,16 @@ Joris is the **operating partner**, not a free agent runner. All sensitive actio
 - **Ledger Activity panel** on `/hq` — read-only; classifies each row as **Liée** (known missionId), **Orphelin** (no missionId), or **Réf. inconnue**.
 - **Mission ↔ Ledger traceability** — `missionId` flows from Mission Draft confirmation through calendar write into ledger metadata.
 - **Workspace-scoped** — all ledger rows, calendar events, and decisions carry `workspaceId`.
+
+### Outbound Send Desk (`ceo_single_send`)
+
+Under `src/server/outbound` and `/hq/outbound` (PR wave #289–#293, doctrine in `docs/`):
+
+- **Channel abstraction** — typed email/SMS descriptors with structural guardrails: `requiresManualSend` forced `true`, cold SMS structurally Red, fail-safe validation.
+- **Owner-gated send API** — `POST /api/outbound/send`, workspace-scoped store, ledger entry before dispatch.
+- **Live bridge** — Resend email adapter; exactly one send per explicit CEO action. No batch, no auto-send.
+- **Send Desk UI** — `/hq/outbound` queue of prepared sends; the CEO click is the only send trigger.
+- **Loi 96 bridge (P1 « Le Pont »)** — target store over `ventures/loi96/pipeline.json`, audit email builder, pipeline board at `/hq/ventures/loi96` (PR #295–#296).
 
 ### Venture engine
 
@@ -112,7 +125,10 @@ All live execution remains behind:
 | `src/server/joris/` | Joris brain, intent detection, governance bundles, mission router, work-order review, mission-draft gate. |
 | `src/server/missions/` | Mission draft builder, confirmation, pending-draft session (TTL), plan endpoint. |
 | `src/server/runtime/` | Execution guard, runtime safety, Green Lane, webhook bridge, local prototype. |
-| `src/server/ventures/` | Venture repository, lifecycle service, prepared_actions store, Hermes orchestration. |
+| `src/server/ventures/` | Venture repository, lifecycle service, prepared_actions store, Hermes orchestration, venture assets, loi96 target store. |
+| `src/server/outbound/` | Send Desk core: channel abstraction, send service/store, queue intake, live executor, Resend adapter, outbound ledger. |
+| `src/features/notes/` + `src/server/notes/` | CEO Notes workspace and note repository. |
+| `ventures/loi96/` | Loi 96 venture working data: sales plan, pipeline.json, simulation results. |
 | `src/server/actions/` | Action ledger repository — local and Supabase paths, workspace metadata helpers. |
 | `src/server/calendar/` | Calendar service — workspace-scoped, ledger-wrapped, mission-draft–gated. |
 | `src/core/workspaces/` | Workspace config registry, workspace context types. |
@@ -211,18 +227,45 @@ All checks must pass before merge.
 
 ---
 
-## Roadmap (near-term)
+## Roadmap
 
-| Priority | Sprint | Objective |
-|----------|--------|-----------|
-| P0 | **Memory Vault** | Workspace-bound typed memory (decision, SOP, note, source). Joris read rules. No vector DB yet. |
-| P0 | **Money / ROI Cockpit** | Runway, AI spend, ROI by agent/mission. Manual model first — no banking, no billing. |
-| P1 | **Mission Persistence** | Missions, approval records, execution attempts in DB. Docs/migration proposal first; staging gate before prod. |
-| P1 | **n8n Webhook Hardening** | Auth, replay protection, rate limits on inbound webhook bridge. |
-| P2 | **Workspace Configuration** | Multi-workspace seed expansion; configurable assistant profiles. |
-| P2 | **Runtime HTTP endpoint** | Only after ledger, mission, and memory are observable and stable. |
+**Canonical roadmap:** [`docs/roadmap/HQ_COMPLETION_ROADMAP_2026-06.md`](docs/roadmap/HQ_COMPLETION_ROADMAP_2026-06.md) — ratified by the CEO (session 2026-06-11). Eleven pieces to close the revenue loop in-app:
+
+| Piece | Objective | Status |
+|-------|-----------|--------|
+| P1 **Le Pont** | Loi 96 target → preparation → send, 100% in-app | Delivered — PR #296 |
+| P2 **Durabilité** | Supabase migrations for send desk, notes, assets, targets (CEO GO required) | Pending |
+| P3 **Decision Spine** | Deterministic, auditable next-best-action engine | Pending |
+| P4 **Cost Ladder + Market Watch** | Token-smart model routing, free-tier first, zero lock-in | Pending |
+| P5 **Mémoire RAG** | pgvector retrieval — golden examples feed audit quality | Pending |
+| P6/P6+ **Boucle fermée + Canal CEO** | Resend webhooks, J+4/J+9 relances, Twilio SMS command channel | Pending |
+| P7 **Réveil des proactifs** | Daily-direction, ceo-brief, market-watch crons | Pending |
+| P8 **Venture Launch Kit** | Auto-prepared launch assets on venture approval | Pending |
+| P9 **Réorg dashboard** | Typographic voices IA refonte (after P3) | Pending |
+| P10 **Argus** | AI-watch agent — weekly intelligence report | Pending |
+| P11 **Graphe d'orchestration** | Governance-native executable orchestration graph | Pending |
+
+Critical path: **P1 → P2 → P3 → P6/P6+**, with P4/P5/P7 interleaved, then P8/P9.
 
 Rule: no new phase starts without an explicit mandate from Michael.
+
+### Open PR wave (2026-06-11)
+
+Merge order: #289 → #290 → #291 → #292 → #293 → #294 → #295 → #296, then #297/#298 (parallel), #299 + this PR (docs) anytime.
+
+| PR | Branch | Content |
+|----|--------|---------|
+| #289 | `docs/send-desk-doctrine` | Send desk doctrine — `ceo_single_send` |
+| #290 | `feat/outbound-channel-abstraction` | Channel abstraction + structural guardrails |
+| #291 | `feat/outbound-live-bridge-email` | Live single-send bridge, Resend adapter |
+| #292 | `feat/outbound-send-api` | Owner-gated send API, workspace-scoped store |
+| #293 | `feat/outbound-send-desk-ui` | Send Desk UI + queue intake (`/hq/outbound`) |
+| #294 | `feat/venture-asset-registry` | Progressive asset registry, stage readiness |
+| #295 | `chore/loi96-data-restore` | Loi 96 venture data restore |
+| #296 | `feat/loi96-pipeline-bridge` | P1 Le Pont — pipeline, audit email, bridge |
+| #297 | `feat/agent-pantheon` | Mythological agent pantheon |
+| #298 | `feat/hq-ui-uplift` | CEO notes, widgets v2, agent flow map, landing |
+| #299 | `docs/hq-roadmap-p11-clean` | HQ completion roadmap P1–P11 |
 
 ---
 
