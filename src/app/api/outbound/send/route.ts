@@ -8,6 +8,9 @@ import {
   createResendEmailAdapterFromEnv,
   ResendAdapterConfigError,
 } from "@/server/outbound/resend-email-adapter-env";
+import { getOutboundSendCandidate } from "@/server/outbound/outbound-send-store";
+import { listVentureAssets } from "@/server/ventures/venture-asset-repository";
+import { getVentureSendIdentity } from "@/features/ventures/venture-asset";
 
 // POST /api/outbound/send — `ceo_single_send`
 //
@@ -38,9 +41,19 @@ export async function POST(request: Request) {
     );
   }
 
+  // Venture Asset Registry hook: when the action belongs to a venture that
+  // has an active dedicated_email, replies route to that address.
+  const candidate = getOutboundSendCandidate(ctx.workspace.id, parsed.data.actionId);
+  const ventureId = candidate?.batch.ventureId;
+  const ventureReplyTo = ventureId
+    ? getVentureSendIdentity(listVentureAssets(ctx.workspace.id, ventureId))
+    : null;
+
   let channelSend;
   try {
-    channelSend = createResendEmailAdapterFromEnv();
+    channelSend = createResendEmailAdapterFromEnv(
+      ventureReplyTo ? { replyTo: ventureReplyTo } : undefined,
+    );
   } catch (error) {
     if (error instanceof ResendAdapterConfigError) {
       return NextResponse.json(

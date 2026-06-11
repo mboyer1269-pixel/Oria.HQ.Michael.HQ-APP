@@ -15,8 +15,15 @@ export class ResendAdapterConfigError extends Error {
   }
 }
 
-/** Production wiring. Throws when env is incomplete — fail closed, never a silent no-op. */
-export function createResendEmailAdapterFromEnv(): ChannelSendPort {
+/**
+ * Production wiring. Throws when env is incomplete — fail closed, never a
+ * silent no-op. `replyTo` lets a venture's dedicated email (Venture Asset
+ * Registry) receive the replies while the verified send domain does the
+ * sending.
+ */
+export function createResendEmailAdapterFromEnv(options?: {
+  replyTo?: string;
+}): ChannelSendPort {
   const apiKey = serverEnv.resendApiKey;
   const fromEmail = serverEnv.resendFromEmail;
   if (!apiKey || !fromEmail) {
@@ -24,7 +31,12 @@ export function createResendEmailAdapterFromEnv(): ChannelSendPort {
       "Resend adapter requires RESEND_API_KEY and RESEND_FROM_EMAIL to be configured.",
     );
   }
-  return createResendEmailAdapter({ fromEmail, fromName: "Orya HQ" }, async () => {
+  const config = {
+    fromEmail,
+    fromName: "Orya HQ",
+    ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
+  };
+  return createResendEmailAdapter(config, async () => {
     const { Resend } = await import("resend");
     return new Resend(apiKey) as unknown as ResendLikeClient;
   });

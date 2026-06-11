@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { LOCAL_DRAFT_VENTURE_LABEL } from "../draft";
+import { VentureAssetPanel } from "./venture-asset-panel";
 import type {
   VentureCard,
   VentureLifecycleStatus,
@@ -338,6 +339,10 @@ export function VentureDetailPanel({
           <p className="mt-2 text-sm text-neutral-500">Aucune décision enregistrée.</p>
         )}
       </section>
+
+      {!isLocalDraft ? (
+        <VentureAssetPanel ventureId={card.id} ventureStatus={card.status} />
+      ) : null}
 
       {actions}
 
