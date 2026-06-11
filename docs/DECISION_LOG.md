@@ -4,6 +4,31 @@ Registre des décisions produit et architecturales. Chaque entrée est immuable 
 
 ---
 
+## 2026-06-10 — Send Desk multi-canal : mode `ceo_single_send`
+
+**Décision :** Mandat CEO explicite (session du 10 juin 2026). Le HQ obtient sa première voie
+d'exécution réelle : le **Send Desk**, une file d'envoi multi-canal (Email via Resend, SMS via
+Twilio) où chaque envoi est déclenché par un clic CEO sur une action individuelle. Le mode
+`ceo_single_send` est ajouté à la Revenue Execution Lane : plus strict que le Yellow batch —
+l'approbation ET le déclenchement sont humains, une action à la fois.
+
+**Ce qui s'ouvre :** envoi email live (audit-cadeau Loi 96 + relances) via bridge Resend ;
+SMS sortant limité aux leads ayant déjà répondu ; alerte SMS interne à Michael sur réponse
+entrante (Green, notification interne). Architecture channel-agnostic : interface
+`OutboundChannel`, adapters par fournisseur.
+
+**Ce qui reste verrouillé :** SMS froid (Red structurel au policy engine), envoi initié par
+agent, boucles batch automatiques, paiements, budgets ads. `requiresManualSend` et
+`noExecutionAuthorized` restent forcés à `true` au niveau DB — le clic CEO **est** l'envoi manuel.
+
+**Clarification d'invariant :** l'invariant Hermès « jamais de Resend en envoi » est précisé :
+il interdit l'envoi *initié par agent*. Un envoi déclenché par clic CEO dans le Send Desk
+satisfait `requiresManualSend`.
+
+**Références :** `docs/REVENUE_EXECUTION_LANE.md` §3.1, `docs/HERMES_ITERATIVE_PREP_AGENT.md` §0.
+
+---
+
 ## 2026-06-04 — Agent Autonomy Policy
 
 **Décision :** Formalisation de l'Agent Autonomy Policy (PR-A). La politique sépare strictement l'AutonomyTier de l'AgentExecutionLicense. Les actions autonomes (green) requièrent la validation de 13 conditions strictes, incluant notamment un plan de rollback testé ("réversible" ne signifie pas seulement "petit"). La base de données en production n'est pas automatiquement "red" (les écritures en ajout seul comme le ledger peuvent être "green").

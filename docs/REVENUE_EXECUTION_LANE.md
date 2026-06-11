@@ -64,6 +64,31 @@ Règle d'or : **Michael approuve un batch borné, jamais un agent.**
 
 ---
 
+
+### 3.1 Mode `ceo_single_send` (ajout 2026-06-10, mandat CEO)
+
+En complément du Yellow batch, le mode **`ceo_single_send`** couvre la phase de démarrage
+(volume faible, valeur par envoi élevée) : Michael approuve **et déclenche** chaque action
+individuellement depuis le Send Desk (`/hq/outbound`). C'est le mode le plus strict :
+
+- une action par clic ; aucune boucle batch ;
+- validations identiques au bridge (état, approvalToken vs contentHash, suppression list,
+  cap quotidien, circuit-breaker) ;
+- événement ledger avant confirmation UI (pattern green-lane pre-dispatch) ;
+- idempotencyKey : un double-clic ne produit jamais deux envois.
+
+**Matrice canal (v1) :**
+
+| Canal | Usage autorisé | Consentement | Policy défaut |
+|-------|----------------|--------------|---------------|
+| Email (Resend) | Audit-cadeau + relances J+4/J+9 | Implicite vérifié (B2B, adresse publiée) | Yellow → clic CEO |
+| SMS sortant (Twilio) | Uniquement leads ayant déjà répondu | Implicite réel (la réponse) | Yellow → clic CEO |
+| SMS interne (Twilio) | Alerte à Michael « réponse reçue » | n/a (interne) | Green |
+| SMS froid | **Interdit v1** | — | **Red structurel** |
+
+Le SMS froid est bloqué par le policy engine, pas par discipline. L'ajout d'un canal =
+un adapter `OutboundChannel` ; les garde-fous transversaux sont partagés.
+
 ## 4. Machine à états (lifecycle) — backbone obligatoire
 
 Toute action et tout batch ont un cycle de vie explicite. C'est le squelette qui rend possibles la
