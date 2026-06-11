@@ -10,6 +10,8 @@ import {
   LayoutDashboard,
   ListChecks,
   Sparkles,
+  SendHorizonal,
+  StickyNote,
 } from "lucide-react";
 import { Tooltip } from "./ui";
 import { CockpitTopbar } from "./cockpit-topbar";
@@ -44,6 +46,8 @@ const NAV: NavItem[] = [
   { key: "skills", label: "Skills", href: "/hq/skills", icon: Sparkles, group: "Pilotage", tipTitle: "Skills", tipDetail: "Catalogue des compétences gouvernées." },
   { key: "runtime", label: "Runtime", href: "/hq/runtime", icon: CircleDot, group: "Pilotage", tipTitle: "Runtime", tipDetail: "Exécution verrouillée tant qu'une action n'est pas ledgerée et bornée.", tipMeta: "Verrouillé" },
   { key: "ventures", label: "Ventures", href: "/hq/ventures", icon: Building2, group: "Pilotage", tipTitle: "Ventures", tipDetail: "Portefeuille et file de décisions stratégiques." },
+  { key: "outbound", label: "Send Desk", href: "/hq/outbound", icon: SendHorizonal, group: "Pilotage", tipTitle: "Send Desk", tipDetail: "File d'envoi ceo_single_send — un clic, un envoi, une preuve au ledger." },
+  { key: "notes", label: "Notes", href: "/hq/notes", icon: StickyNote, group: "Espace", tipTitle: "Notes CEO", tipDetail: "Scratchpad exécutif avec autosave." },
   { key: "documents", label: "Documents", href: "/dashboard/documents", icon: FileText, group: "Espace", tipTitle: "Documents", tipDetail: "En reconstruction — dossiers ouvrables, édition, permissions et audit trail.", tipMeta: "Bientôt" },
 ];
 

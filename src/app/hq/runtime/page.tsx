@@ -18,6 +18,10 @@ import {
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
+import { AgentFlowMap, type AgentFlowData } from "@/features/runtime/components/agent-flow-map";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
+import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
+import { Network } from "lucide-react";
 import {
   HqMetric,
   HqPageHeader,
@@ -98,6 +102,62 @@ export default async function RuntimePage() {
 
   const canary = runCanaryCheck();
 
+  // Agent Flow Map — live data from the Action Ledger (read-only).
+  const { activeWorkspace } = getActiveWorkspaceContext();
+  let flowData: AgentFlowData = {
+    agents: [],
+    decisions: 0,
+    actions: 0,
+    results: 0,
+    surfaces: { sendDesk: 0, calendar: 0, missions: 0 },
+    recentEvents: [],
+  };
+  try {
+    const ledger = await listActionLedgerForWorkspace({
+      workspaceId: activeWorkspace.id,
+      limit: 50,
+    });
+    const byAgent = new Map<string, number>();
+    let decisions = 0;
+    let actions = 0;
+    let results = 0;
+    const surfaces = { sendDesk: 0, calendar: 0, missions: 0 };
+    for (const entry of ledger.entries) {
+      const agentKey = entry.agentId ?? "système";
+      byAgent.set(agentKey, (byAgent.get(agentKey) ?? 0) + 1);
+      if (entry.eventType === "decision") decisions += 1;
+      if (entry.eventType === "action") actions += 1;
+      if (entry.eventType === "result") results += 1;
+      if (entry.actionType.startsWith("outbound.")) surfaces.sendDesk += 1;
+      else if (entry.actionType.includes("calendar")) surfaces.calendar += 1;
+      else surfaces.missions += 1;
+    }
+    const knownAgents = [...byAgent.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([id, eventCount]) => ({ id, label: id, eventCount }));
+    flowData = {
+      agents: knownAgents.length > 0 ? knownAgents : [
+        { id: "joris", label: "Joris", eventCount: 0 },
+        { id: "agent_hermes", label: "Hermès", eventCount: 0 },
+      ],
+      decisions,
+      actions,
+      results,
+      surfaces,
+      recentEvents: ledger.entries.slice(0, 12).map((entry) => ({
+        id: entry.id,
+        ...(entry.agentId ? { agentId: entry.agentId } : {}),
+        actionType: entry.actionType,
+        ...(entry.eventType ? { eventType: entry.eventType } : {}),
+        summary: entry.summary,
+        createdAt: entry.createdAt,
+      })),
+    };
+  } catch {
+    // Ledger unavailable (e.g. prod without Supabase) — render the empty map.
+  }
+
   const statusItems: StatusItem[] = [
     {
       label: "Local runtime prototype",
@@ -176,6 +236,15 @@ export default async function RuntimePage() {
           </div>
         </HqSummaryRail>
       </HqPageHeader>
+
+      <HqWidget
+        title="Chemin d'exécution des agents"
+        eyebrow="Flux en direct — ledger"
+        icon={Network}
+        tone="emerald"
+      >
+        <AgentFlowMap data={flowData} />
+      </HqWidget>
 
       <HqWidget title="État du runtime" eyebrow="Guarded systems" icon={Server}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
