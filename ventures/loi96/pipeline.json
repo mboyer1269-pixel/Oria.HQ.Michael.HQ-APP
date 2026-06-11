@@ -1,0 +1,61 @@
+{
+  "updated": "2026-06-11",
+  "restoredFromSessionMemory": "2026-06-11 — fichiers non commités disparus; reconstruit fidèlement; cibles 5+ à re-vérifier (lecture partielle)",
+  "venture": "Conformité Loi 96",
+  "weeklyGoal": { "auditsSent": 15, "label": "audits envoyés/semaine" },
+  "killMetrics": [
+    "Moins de 2 % de réponse après 40 audits : changer ciblage ou message",
+    "Zéro client signé à J45 (25 juillet) : fallback gigs marketplace",
+    "Zéro client signé à J75 (24 août) : kill complet, post-mortem 1 page"
+  ],
+  "targets": [
+    {
+      "name": "Métal Leetwo inc.",
+      "domain": "leetwo.com",
+      "tier": 1,
+      "status": "audit_to_rebuild",
+      "audit": "audits/AUDIT_LEETWO.md (PERDU — à régénérer)",
+      "contact": "sales@leetwo.com",
+      "angle": "Liste OQLF + certifié marchandises contrôlées (contrats publics en jeu)",
+      "sentDate": null,
+      "replyDate": null,
+      "signedValue": 0
+    },
+    {
+      "name": "Wavo.me inc.",
+      "domain": "wavo.me",
+      "tier": 1,
+      "status": "audit_to_rebuild",
+      "audit": "audits/AUDIT_WAVO.md (PERDU — à régénérer)",
+      "contact": "formulaire wavo.me/contact",
+      "angle": "Liste OQLF, site 100 % EN, tech montréalaise",
+      "sentDate": null,
+      "replyDate": null,
+      "signedValue": 0
+    },
+    {
+      "name": "EMPWR Canada inc.",
+      "domain": "empwrnutrition.com",
+      "tier": 1,
+      "status": "to_verify",
+      "audit": null,
+      "contact": null,
+      "angle": "Liste OQLF, structure /en à vérifier",
+      "sentDate": null,
+      "replyDate": null,
+      "signedValue": 0
+    },
+    {
+      "name": "Literie Primo (Primo International)",
+      "domain": "primointernational.com",
+      "tier": 2,
+      "status": "to_verify",
+      "audit": null,
+      "contact": null,
+      "angle": "À re-vérifier (reconstruction partielle)",
+      "sentDate": null,
+      "replyDate": null,
+      "signedValue": 0
+    }
+  ]
+}
