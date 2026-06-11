@@ -166,8 +166,8 @@ export const agentRegistry: AgentProfile[] = [
   {
     id: "marketing",
     lore:
-      "Messagère des dieux au manteau arc-en-ciel. Là où Hermès parle à un, Iris parle à tous : campagnes, contenus, visibilité — sa voix traverse le ciel.",
-    name: "Iris",
+      "Déesse de la renommée — celle qui répand la nouvelle jusqu'aux confins du monde. Là où Hermès parle à un, Phémé parle à tous : campagnes, contenus, visibilité. La fama se construit, message par message.",
+    name: "Phémé",
     role: "operator",
     tagline: "Contenu, campagnes, social — zone verte autonome pour contenu interne",
     description:
