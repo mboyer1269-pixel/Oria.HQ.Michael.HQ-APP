@@ -126,6 +126,19 @@ décision (le cockpit s'organise autour de « quelle est LA prochaine action »)
 sinon on réorganise deux fois. S'exécute avec la commande de direction
 artistique Claude Code déjà ratifiée (3 actes : direction → système → moments
 signature).
+**Principe directeur ratifié (feedback CEO 2026-06-11) : les voix typographiques.**
+Aujourd'hui tout le texte se lit pareil — une seule voix, donc une page uniforme.
+Chaque type de contenu reçoit sa voix distincte, reconnaissable avant lecture :
+- **Tâches / checklists** : compactes, casse haute condensée, cases d'état — se
+  scannent, ne se lisent pas ;
+- **Commandes & réponses Joris** : voix « terminal » — monospace, préfixe
+  d'invite, fond distinct — on voit que c'est un dialogue machine ;
+- **Preuves (ids ledger, hashs, compteurs)** : monospace tabulaire, ton froid —
+  la donnée judiciaire ;
+- **Narration / descriptions** : sans-serif lisible, la seule voix « prose » ;
+- **Métriques** : chiffres display bold tabulaires, libellés discrets.
+Règle : si deux types de contenu différents ont le même traitement typographique,
+c'est un bug de design.
 
 ## Matrice de décision
 
