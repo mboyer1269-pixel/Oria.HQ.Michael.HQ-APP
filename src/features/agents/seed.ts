@@ -8,6 +8,8 @@ import type { AgentProfile } from "./types";
 export const agentRegistry: AgentProfile[] = [
   {
     id: "joris",
+    lore:
+      "Le majordome du HQ. Pendant que les dieux s'agitent, Joris tient la maison : il comprend, il route, il orchestre — et rien ne part sans le sceau du patron.",
     name: "Joris",
     role: "orchestrator",
     tagline: "Chef d'orchestre — intention, routage cerveau, missions, approbation",
@@ -26,6 +28,8 @@ export const agentRegistry: AgentProfile[] = [
   },
   {
     id: "hermes",
+    lore:
+      "Le messager aux sandales ailées, dieu des voyageurs et du commerce. Il porte les mots du HQ vers le monde — vite, précis, jamais sans mandat.",
     name: "Hermès",
     role: "operator",
     tagline: "Opérateur exécutif contrôlé — SOPs, workflows, exécution gouvernée",
@@ -44,6 +48,8 @@ export const agentRegistry: AgentProfile[] = [
   },
   {
     id: "orion",
+    lore:
+      "Le chasseur géant placé parmi les étoiles. Il traque les signaux de marché comme des proies : opportunités, cibles, fenêtres qui s'ouvrent.",
     name: "Orion",
     role: "scout",
     tagline: "Recherche marché — opportunités, leads, signaux",
@@ -61,7 +67,9 @@ export const agentRegistry: AgentProfile[] = [
   },
   {
     id: "sentinel",
-    name: "Sentinel",
+    lore:
+      "Titanide de la justice et de l'ordre, celle qui tient la balance. Chaque action passe sous sa pesée : Green, Yellow ou Red — la loi avant le geste.",
+    name: "Thémis",
     role: "auditor",
     tagline: "Red Team — risque, sécurité, conformité, guardrails",
     description:
@@ -78,7 +86,9 @@ export const agentRegistry: AgentProfile[] = [
   },
   {
     id: "scribe",
-    name: "Scribe",
+    lore:
+      "Titanide de la mémoire, mère des neuf Muses. Rien de ce que le HQ apprend ne se perd : décisions, leçons, preuves — elle se souvient pour que les autres créent.",
+    name: "Mnémosyne",
     role: "memory",
     tagline: "Mémoire — décisions, journal quotidien, résumés (n'écrit pas le ledger)",
     description:
@@ -95,7 +105,9 @@ export const agentRegistry: AgentProfile[] = [
   },
   {
     id: "finops",
-    name: "FinOps",
+    lore:
+      "Dieu de la richesse. Il compte chaque cenne qui entre et qui sort, surveille les budgets des agents, et rappelle que le profit est la seule preuve finale.",
+    name: "Ploutos",
     role: "money",
     tagline: "ROI & runway — cash, coûts IA, budget",
     description:
@@ -112,7 +124,9 @@ export const agentRegistry: AgentProfile[] = [
   },
   {
     id: "builder",
-    name: "Builder",
+    lore:
+      "Dieu de la forge, artisan des armes des dieux. Il bâtit les outils, les pages et les systèmes — boiteux peut-être, mais rien ne sort de sa forge sans être solide.",
+    name: "Héphaïstos",
     role: "builder",
     tagline: "Construction MVP — specs, plans, prototypes (brouillons internes)",
     description:
@@ -129,7 +143,9 @@ export const agentRegistry: AgentProfile[] = [
   },
   {
     id: "closer",
-    name: "Closer",
+    lore:
+      "Déesse de la persuasion, compagne d'Aphrodite. Quand un prospect hésite, c'est sa voix qui transforme l'intérêt en signature. Le closing est un art divin.",
+    name: "Peithô",
     role: "closer",
     tagline: "Vente & conversion — GELÉ (comm. externe = trop tôt)",
     description:
@@ -149,7 +165,9 @@ export const agentRegistry: AgentProfile[] = [
   // ── Agent Marketing -- Content & Campaigns ─────────────────────────────
   {
     id: "marketing",
-    name: "Agent Marketing",
+    lore:
+      "Déesse de la renommée — celle qui répand la nouvelle jusqu'aux confins du monde. Là où Hermès parle à un, Phémé parle à tous : campagnes, contenus, visibilité. La fama se construit, message par message.",
+    name: "Phémé",
     role: "operator",
     tagline: "Contenu, campagnes, social — zone verte autonome pour contenu interne",
     description:
@@ -176,7 +194,9 @@ export const agentRegistry: AgentProfile[] = [
   // ── Agent Inventeur -- Opportunity & MVP Design ─────────────────────────
   {
     id: "inventor",
-    name: "Agent Inventeur",
+    lore:
+      "L'inventeur du labyrinthe, le génie que même les rois s'arrachaient. Il imagine les ventures de demain — et sait qu'il ne faut jamais voler trop près du soleil.",
+    name: "Dédale",
     role: "scout",
     tagline: "Opportunités, concepts, MVP — zone verte large pour l'idéation",
     description:

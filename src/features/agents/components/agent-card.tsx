@@ -58,7 +58,18 @@ export function AgentCard({ agent }: { agent: AgentProfile }) {
             <Icon className="h-4 w-4 text-neutral-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-white">{agent.name}</h3>
+            <h3 className="font-semibold text-white">
+              {agent.lore ? (
+                <span
+                  title={agent.lore}
+                  className="cursor-help underline decoration-amber-500/40 decoration-dotted underline-offset-4 transition-colors hover:decoration-amber-400"
+                >
+                  {agent.name}
+                </span>
+              ) : (
+                agent.name
+              )}
+            </h3>
             <p className="text-xs text-neutral-500">{agent.tagline}</p>
           </div>
         </div>

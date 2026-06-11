@@ -23,6 +23,8 @@ export type AgentVenture = "hq" | "suivia" | "mcl" | "personal" | "global";
 export type AgentProfile = {
   id: string;
   name: string;
+  /** Origin story of the agent's name — shown on hover. Gives the HQ a soul. */
+  lore?: string;
   role: AgentRoleId;
   tagline: string;
   description: string;
