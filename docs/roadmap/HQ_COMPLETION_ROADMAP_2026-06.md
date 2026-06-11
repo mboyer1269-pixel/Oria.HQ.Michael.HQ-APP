@@ -99,10 +99,20 @@ Le SMS n'est pas qu'une alerte — c'est le canal de commandement mobile :
   « clic CEO dans le HQ » reste le seul déclencheur). Pattern validé par la
   littérature human-in-the-loop 2026 : SMS pour l'urgent/high-value, contexte
   explicite, tout journalisé.
-- **Centre de préférences** (`/hq/settings/notifications`) : toggle par type de
-  notification + **profils** : Normal (réponses + approbations urgentes),
-  Voyage (tout par SMS, brief matin inclus), Focus (rien sauf réponses
-  prospect), Silence. Chaque changement de profil = événement ledger.
+- **Centre de préférences** (`/hq/settings/notifications`) — décision CEO
+  2026-06-11 : pas de profils abstraits, des **interrupteurs simples et
+  explicites**, un par fonction :
+  | Interrupteur | Défaut |
+  |---|---|
+  | 📱 Texto — briefing du matin | OFF |
+  | 📱 Texto — alerte (réponse prospect, kill metric, Market Watch) | ON |
+  | 📱 Texto — autorisation requise (lien d'approbation) | ON |
+  | 📱 Texto — rapport de veille Argus | OFF (cockpit par défaut) |
+  Chaque bascule = événement ledger.
+- **Économie SMS structurelle** (exigence CEO « toujours penser à économiser ») :
+  cap dur de SMS/jour (constante), regroupement en digest quand plusieurs alertes
+  tombent dans la même heure, et fallback cockpit-seulement quand le cap est
+  atteint — l'information n'est jamais perdue, juste le canal change.
 
 ### P8 — Venture Launch Kit (idée CEO 2026-06-11)
 Quand une venture passe candidate → approved_for_validation, le HQ prépare
@@ -118,6 +128,29 @@ chaque livrable approuvé/rejeté/édité par le CEO est enregistré via
 `agent-outcome-repository` (existe déjà) et nourrit les golden examples (P5 RAG).
 L'édition CEO d'un brouillon EST le signal d'apprentissage : les agents
 convergent vers ton goût sans réglage manuel.
+
+### P10 — Argus, l'agent de veille IA (idée CEO 2026-06-11)
+Nommé d'après le gardien aux cent yeux de la mythologie — celui qui ne dort
+jamais. Les choses bougent trop vite en IA pour qu'un humain suive seul ;
+Argus est l'agent-employé dont c'est le métier.
+- **Mandat** : surveiller ce qui sort — nouveaux modèles (absorbe le Model
+  Market Watch de P4), outils agentiques, techniques (context engineering,
+  patterns d'orchestration), changements d'API et de prix — et filtrer par
+  UN critère : « est-ce que ça rend le HQ ou ses agents meilleurs ? »
+- **Livrable** : rapport de veille hebdomadaire structuré (Top 3 opportunités
+  actionnables · Menaces/dépréciations · À tester · À ignorer et pourquoi),
+  déposé au cockpit + notification selon les interrupteurs. Chaque
+  recommandation = prepared action approuvable (ex. « tester Kimi K3 sur les
+  relances »), jamais d'adoption automatique.
+- **Économie** : scanning avec modèles FREE de la Cost Ladder (c'est de la
+  classification/résumé), synthèse hebdo seule en premium. Sources gratuites :
+  API OpenRouter, flux RSS/changelogs des labs, HN/arXiv.
+- **Autonomie** : domaine research/market-scanning = Green selon ta doctrine
+  d'autonomie existante — Argus peut être ton premier agent réellement
+  autonome de bout en bout, parce que son output est de l'information, pas
+  de l'action externe. Le cron market-scout (stub 501) devient son moteur.
+**Done quand :** lundi matin, le rapport Argus t'attend et au moins une
+recommandation par mois se transforme en amélioration mesurable du HQ.
 
 ### P9 — Réorganisation du dashboard
 Refonte information-architecture + user-friendly. **Séquencée APRÈS P3
@@ -154,6 +187,7 @@ c'est un bug de design.
 | P6+ Canal CEO (SMS Joris + préférences) | ★★★★ (mobilité, chaîne jamais bloquée) | +1 j sur P6 | P6, A2P Twilio |
 | P8 Venture Launch Kit | ★★★ (poids mental, apprentissage) | 2 j | P5 (outcomes→RAG) |
 | P9 Réorg dashboard | ★★★ (adoption quotidienne) | 2-3 j | P3 |
+| P10 Argus (veille IA) | ★★★ (avantage informationnel composé) | 1-2 j | P4 (ladder), P7 (cron) |
 
 **Chemin critique : P1 → P2 → P3 → P6/P6+ , avec P4/P5/P7 en intercalaire, puis P8/P9.**
 Horizon réaliste : ~2 semaines de build discipliné, livré par vagues mergeables.
