@@ -173,6 +173,30 @@ Chaque type de contenu reçoit sa voix distincte, reconnaissable avant lecture :
 Règle : si deux types de contenu différents ont le même traitement typographique,
 c'est un bug de design.
 
+### P11 — Graphe d'orchestration exécutable (décision CEO 2026-06-11)
+Le visuel runtime actuel lit le ledger réel mais reste une *projection*. P11 fait
+du graphe LA structure d'exécution elle-même — LangGraph-adjacent, mais
+gouvernance-native (notre différenciation, personne n'a ça) :
+- **Node = invocation de skill sous policy** (Thémis évalue chaque nœud avant
+  exécution — Green passe, Yellow attend le clic, Red bloque) ;
+- **Edge = transition journalisée** (le ledger est le checkpointer : reprise
+  exacte après crash, replay auditable — ce que LangGraph fait avec ses
+  checkpoints, nous on l'a déjà en hash-chain) ;
+- **Économie de tokens structurelle** : routage Cost Ladder par nœud (chaque
+  nœud déclare son plancher de qualité), cache des sorties de nœuds
+  (un sous-graphe déjà exécuté avec les mêmes entrées ne se re-paie pas),
+  et contexte minimal par nœud (chaque nœud reçoit SES entrées, pas tout
+  l'historique — fini le contexte qui enfle) ;
+- **La carte runtime devient live** : SSE/polling sur le ledger — on regarde
+  les nœuds s'allumer pendant que la mission s'exécute. Pas du bla-bla :
+  chaque pulsation à l'écran correspond à un événement ledger réel ;
+- Fondations existantes : MISSION_STATE_MACHINE.md, execution-guard,
+  green-lane-ledger, skill-dispatcher — P11 les compose en graphe, il ne
+  réécrit rien.
+Séquence : après P3 (le Decision Spine fournit les graphes à exécuter).
+**Done quand :** une mission multi-étapes s'exécute comme graphe visible en
+direct, reprenable après interruption, avec coût par nœud affiché.
+
 ## Matrice de décision
 
 | Pièce | Impact revenue | Effort | Dépend de |
@@ -188,6 +212,7 @@ c'est un bug de design.
 | P8 Venture Launch Kit | ★★★ (poids mental, apprentissage) | 2 j | P5 (outcomes→RAG) |
 | P9 Réorg dashboard | ★★★ (adoption quotidienne) | 2-3 j | P3 |
 | P10 Argus (veille IA) | ★★★ (avantage informationnel composé) | 1-2 j | P4 (ladder), P7 (cron) |
+| P11 Graphe d'orchestration exécutable | ★★★★ (différenciation + tokens) | 3-4 j | P3 |
 
 **Chemin critique : P1 → P2 → P3 → P6/P6+ , avec P4/P5/P7 en intercalaire, puis P8/P9.**
 Horizon réaliste : ~2 semaines de build discipliné, livré par vagues mergeables.
