@@ -44,7 +44,6 @@ const guarantees = [
 export default function Home() {
   return (
     <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 overflow-x-clip px-4 py-5 sm:gap-8 md:px-8 md:py-10">
-      {/* Ambient backdrop — same visual language as the HQ cockpit. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-amber-500/[0.07] blur-3xl" />
         <div className="absolute right-[-10rem] top-64 h-80 w-80 rounded-full bg-emerald-500/[0.05] blur-3xl" />
@@ -75,4 +74,49 @@ export default function Home() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
             <Link
-  
+              href={"/contact" as Route}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-500/30 px-4 text-sm font-semibold text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-500/10"
+            >
+              <Mail className="h-4 w-4" />
+              Contact
+            </Link>
+          </nav>
+
+          <ul className="mt-8 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-x-6" aria-label="Garanties de gouvernance">
+            {guarantees.map((guarantee) => {
+              const Icon = guarantee.icon;
+              return (
+                <li key={guarantee.text} className="inline-flex items-center gap-2 text-xs text-neutral-500">
+                  <Icon className="h-3.5 w-3.5 text-emerald-400/80" />
+                  {guarantee.text}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </header>
+
+      <section className="grid gap-4 md:grid-cols-4" aria-label="Capacités du cockpit Oria HQ">
+        {pillars.map((pillar) => {
+          const Icon = pillar.icon;
+          return (
+            <article
+              key={pillar.title}
+              className="group rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4 transition duration-300 hover:-translate-y-0.5 hover:border-amber-500/25 hover:bg-neutral-950 hover:shadow-[0_8px_40px_-16px_rgba(251,191,36,0.25)]"
+            >
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/15 bg-amber-500/[0.06] transition-transform duration-300 group-hover:scale-105">
+                <Icon className="h-5 w-5 text-amber-400" />
+              </span>
+              <h2 className="mt-4 font-semibold text-white">{pillar.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-neutral-400">{pillar.text}</p>
+            </article>
+          );
+        })}
+      </section>
+
+      <footer className="border-t border-neutral-900 py-6 text-center text-xs text-neutral-600">
+        Oria HQ — vos agents agissent dans des corridors approuvés. Rien ne part sans votre clic.
+      </footer>
+    </main>
+  );
+}
