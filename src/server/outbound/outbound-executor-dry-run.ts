@@ -31,7 +31,7 @@ import { isBatchTransitionAllowed } from "./outbound-types.ts";
 import { isBatchApprovalStillValid, isSendWindowOpen } from "./outbound-batch-approval.ts";
 
 // ---------------------------------------------------------------------------
-// Webhook payload shape (n8n → Orya-approved format)
+// Webhook payload shape (n8n → Oria-approved format)
 // ---------------------------------------------------------------------------
 
 export type N8nWebhookPayload = {
@@ -52,7 +52,7 @@ export type N8nWebhookPayload = {
 };
 
 // ---------------------------------------------------------------------------
-// Signed callback (n8n → Orya result)
+// Signed callback (n8n → Oria result)
 // ---------------------------------------------------------------------------
 
 export type SignedCallback = {

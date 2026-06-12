@@ -1,6 +1,6 @@
 // src/features/ventures/prepared-action.ts
 //
-// Pure model for a PREPARED ACTION — one unit of work Hermès (the iterative
+// Pure model for a PREPARED ACTION — one unit of work Relay (the iterative
 // prep agent) has prepared and queued for CEO review. It bundles, for a single
 // cash move:
 //   - the CashActionPacket (what to sell, to whom, the draft),
@@ -193,7 +193,7 @@ export function validatePreparedAction(action: PreparedAction): PreparedActionVa
     }
   }
 
-  // Bundled Hermès plan — must be present and itself valid.
+  // Bundled Relay plan — must be present and itself valid.
   if (!action.hermesPlan || typeof action.hermesPlan !== "object") {
     errors.push("hermesPlan must be present");
   } else {

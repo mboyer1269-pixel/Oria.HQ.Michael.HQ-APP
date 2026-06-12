@@ -75,7 +75,7 @@ export function selectReviewablePreparedActions(
 // Display projection
 // ---------------------------------------------------------------------------
 
-// Map a stored Hermès outreach plan to the display-safe projection the client
+// Map a stored Relay outreach plan to the display-safe projection the client
 // renders. Plain serializable data only; requiredEvidence is copied.
 export function toHermesPlanDisplay(
   packetId: string,

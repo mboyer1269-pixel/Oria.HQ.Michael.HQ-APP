@@ -2,7 +2,7 @@
 //
 // Pure builder: Loi 96 audit-offer email from a pipeline target.
 // v1 is template-based (deterministic, no LLM call — the CEO reviews every
-// word in the Send Desk before clicking). The Hermès/LLM personalization
+// word in the Send Desk before clicking). The Relay/LLM personalization
 // upgrade (P5 RAG + golden examples) replaces the body builder later without
 // touching the bridge.
 //
@@ -47,7 +47,7 @@ Michael Boyer
 
 --
 Cet audit porte exclusivement sur le contenu web et marketing. Il ne constitue
-pas un avis juridique. Préparé avec l'assistance d'agents Orya HQ.
+pas un avis juridique. Préparé avec l'assistance d'agents Oria HQ.
 Pour ne plus recevoir de communications de notre part, répondez « retirer ».`;
 
   return { subject, body };

@@ -2,7 +2,7 @@
 
 /**
  * Pure TypeScript contract and helpers for Work Order Governance Decision
- * Records within the Orya HQ Agentic Holding OS.
+ * Records within the Oria HQ Agentic Holding OS.
  *
  * A Governance Decision Record is the durable, auditable trace of a rendered
  * governance decision (the outcome of applying a CEO review to a Governance

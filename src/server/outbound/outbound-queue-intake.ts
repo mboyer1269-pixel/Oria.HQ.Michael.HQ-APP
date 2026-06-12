@@ -78,7 +78,7 @@ export function buildApprovedSendCandidate(
   const now = new Date();
   const nowIso = now.toISOString();
   const jurisdiction = input.jurisdiction ?? "CA";
-  const aiDisclosure = input.aiDisclosure ?? "Préparé avec l'assistance d'agents Orya HQ.";
+  const aiDisclosure = input.aiDisclosure ?? "Préparé avec l'assistance d'agents Oria HQ.";
   const sendWindowHours = input.sendWindowHours ?? 72;
 
   const subject = input.subject.trim();

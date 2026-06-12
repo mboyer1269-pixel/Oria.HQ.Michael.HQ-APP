@@ -89,7 +89,7 @@ export function ControlChain() {
         </div>
         <Tooltip
           title="Pourquoi c'est là"
-          detail="C'est la garantie d'Orya : chaque action conséquente est barrée, tracée et réversible. Une approbation n'est pas une exécution."
+          detail="C'est la garantie d'Oria : chaque action conséquente est barrée, tracée et réversible. Une approbation n'est pas une exécution."
           align="right"
         >
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[#98a1c4]">

@@ -1,7 +1,7 @@
 // src/server/ventures/active-venture-contexts.ts
 //
 // CEO-driven venture sourcing for the cash-action generator. Instead of always
-// reasoning about a hard-coded seed, Hermès reasons about the CEO's REAL active
+// reasoning about a hard-coded seed, Relay reasons about the CEO's REAL active
 // ventures (the durable ventures table). The static ORYA_VENTURES seed becomes a
 // safe fallback, used only when there are no active ventures yet or the
 // repository is unavailable (e.g. migration 0009 not applied in prod) — the page
@@ -68,7 +68,7 @@ function resolveDeps(overrides?: Partial<ActiveVentureContextsDeps>): ActiveVent
   };
 }
 
-// Resolve the venture contexts Hermès should reason about for a workspace.
+// Resolve the venture contexts Relay should reason about for a workspace.
 // Prefers the CEO's real active ventures; falls back to the seed when there are
 // none or the repository is unavailable. Never throws.
 export async function listActiveVentureContextsForWorkspace(

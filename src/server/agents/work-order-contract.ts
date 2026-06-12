@@ -2,7 +2,7 @@
 
 /**
  * Pure TypeScript contracts and validation helpers for Work Orders within the
- * Orya HQ Agentic Holding OS.
+ * Oria HQ Agentic Holding OS.
  *
  * A Work Order is the operational object that converts ideas into scoped,
  * measurable, approval-aware work. Work Orders are planning objects only —

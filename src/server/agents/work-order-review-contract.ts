@@ -2,7 +2,7 @@
 
 /**
  * Pure TypeScript contracts and validation helpers for Work Order human
- * reviews within the Orya HQ Agentic Holding OS.
+ * reviews within the Oria HQ Agentic Holding OS.
  *
  * A Work Order Review is the decision object that captures the Workflow
  * Owner's (CEO / Human-on-the-Loop) response to a proposed Work Order.

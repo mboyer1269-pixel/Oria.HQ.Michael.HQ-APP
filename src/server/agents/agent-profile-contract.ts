@@ -2,7 +2,7 @@
 
 /**
  * Pure TypeScript contracts defining the shape of an Agent Profile within the
- * Orya HQ Agentic Holding OS. These contracts are deliberately minimal and
+ * Oria HQ Agentic Holding OS. These contracts are deliberately minimal and
  * contain no runtime logic, I/O, or side‑effects.
  */
 

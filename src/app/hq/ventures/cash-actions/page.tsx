@@ -76,7 +76,7 @@ export default async function CashActionReviewPage() {
 
   const workspaceId = getDefaultWorkspace({ ownerUserId: access.user.id }).id;
 
-  // PREFERRED SOURCE — the durable prepared-action queue written by the Hermès
+  // PREFERRED SOURCE — the durable prepared-action queue written by the Relay
   // iterative prep agent. When it holds reviewable work, the page is a pure
   // READER: no LLM call on open. If the queue is empty we fall back to live
   // generation; if the repository errors (e.g. migration 0013 not yet applied
@@ -102,7 +102,7 @@ export default async function CashActionReviewPage() {
   if (reviewable.length > 0) {
     // Read the prepared work straight from the queue (repository returns
     // most-recent first). The packet, council summary, and outreach plan were
-    // all prepared earlier by Hermès; we only project them for display.
+    // all prepared earlier by Relay; we only project them for display.
     sourceMode = "prepared_queue";
     generatedAt = reviewable[0].createdAt;
     packets = reviewable.map((action) => action.packet);
@@ -172,7 +172,7 @@ export default async function CashActionReviewPage() {
           <div className="mt-3 flex items-center gap-1.5 text-[10px] text-neutral-600">
             <Cpu className="h-3 w-3 shrink-0" aria-hidden="true" />
             {sourceMode === "prepared_queue"
-              ? "Hermès — file préparée"
+              ? "Relay — file préparée"
               : packetSource === "anthropic"
                 ? "Anthropic — propositions IA"
                 : "Seed — données de référence"}

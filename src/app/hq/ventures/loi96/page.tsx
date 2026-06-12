@@ -9,7 +9,7 @@ import { Loi96PipelineBoard } from "@/features/ventures/components/loi96-pipelin
 export const dynamic = "force-dynamic";
 
 // /hq/ventures/loi96 — pipeline de la venture Conformité Loi 96 (P1, Le Pont).
-// Cible → Préparer (Hermès rédige, file Send Desk) → clic CEO → envoyé →
+// Cible → Préparer (Relay rédige, file Send Desk) → clic CEO → envoyé →
 // réponse → appel → signé. Source de vérité : ventures/loi96/pipeline.json.
 
 export default async function Loi96VenturePage() {

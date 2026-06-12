@@ -1,7 +1,7 @@
 // src/server/agents/booster-contract.ts
 
 /**
- * Pure TypeScript contracts for Booster entities used within the Orya HQ Agentic
+ * Pure TypeScript contracts for Booster entities used within the Oria HQ Agentic
  * Holding OS. A Booster is a capability upgrade that can be attached to an
  * AgentProfile to extend its skill set, increase autonomy, or provide additional
  * resources. These contracts are side‑effect‑free and contain no runtime logic.

@@ -139,7 +139,7 @@ export default async function RuntimePage() {
     flowData = {
       agents: knownAgents.length > 0 ? knownAgents : [
         { id: "joris", label: "Joris", eventCount: 0 },
-        { id: "agent_hermes", label: "Hermès", eventCount: 0 },
+        { id: "agent_hermes", label: "Relay", eventCount: 0 },
       ],
       decisions,
       actions,

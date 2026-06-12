@@ -216,7 +216,7 @@ export const agentLeaderboard: AgentScore[] = [
   },
   {
     agentId: "orion",
-    agentName: "Orion",
+    agentName: "Radar",
     score: 87,
     outputsAccepted: 8,
     revenueInfluencedCents: 120000,
@@ -238,7 +238,7 @@ export const agentLeaderboard: AgentScore[] = [
   },
   {
     agentId: "builder",
-    agentName: "Builder",
+    agentName: "Forge",
     score: 72,
     outputsAccepted: 6,
     revenueInfluencedCents: 0,
@@ -249,7 +249,7 @@ export const agentLeaderboard: AgentScore[] = [
   },
   {
     agentId: "hermes",
-    agentName: "Hermès",
+    agentName: "Relay",
     score: 68,
     outputsAccepted: 3,
     revenueInfluencedCents: 0,

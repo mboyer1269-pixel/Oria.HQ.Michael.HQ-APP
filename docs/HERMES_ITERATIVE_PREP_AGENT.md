@@ -1,4 +1,9 @@
-# Hermès — Iterative Prep Agent (plan stratégique)
+# Relay (ex-Hermès) — Iterative Prep Agent (plan stratégique)
+
+> Naming v1 (2026-06-12) : l'agent `hermes` s'appelle désormais **Relay** dans le
+> produit. L'ID technique, les fichiers `hermes-*` et les types `Hermes*` restent
+> inchangés — voir `docs/AGENT_NAMING.md`. Les mentions « Hermès » ci-dessous se
+> lisent « Relay ».
 
 > Statut : **proposition / direction validée à affiner**. Document d'architecture.
 > Aucun code applicatif n'est modifié par ce fichier. Toute implémentation suit

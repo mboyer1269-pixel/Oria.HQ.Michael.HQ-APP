@@ -1,11 +1,11 @@
 // src/features/ventures/hermes-outreach-plan.ts
 //
-// Pure model for Hermès as an OUTREACH OPERATOR (v0). It turns a
+// Pure model for Relay (agent id `hermes`) as an OUTREACH OPERATOR (v0). It turns a
 // CashActionPacket (the approved cash proposal) into a structured outreach
 // plan a human can review and execute BY HAND: which channel, which sender,
 // who to look for, what to say, what proof to capture.
 //
-// Hard boundary: Hermès PREPARES. Michael APPROVES and SENDS. The plan never
+// Hard boundary: Relay PREPARES. Michael APPROVES and SENDS. The plan never
 // executes, never sends, never contacts a prospect, never scrapes, never
 // spends. requiresCeoApproval, requiresManualSend and noExecutionAuthorized
 // are locked to literal true and there is no send / execute / dispatch path.
@@ -31,7 +31,7 @@ import { EVIDENCE_KINDS } from "./evidence-ref";
 // SECTION A — Channels
 // ---------------------------------------------------------------------------
 
-// The outreach surfaces Hermès can recommend. "manual" is the always-safe
+// The outreach surfaces Relay can recommend. "manual" is the always-safe
 // default: the CEO picks the surface himself.
 export type HermesOutreachChannel =
   | "email"
@@ -245,7 +245,7 @@ export function validateHermesOutreachPlan(
     errors.push("createdAt must be a valid ISO date string");
   }
 
-  // Governance locks — Hermès prepares, the CEO approves, a human sends, and
+  // Governance locks — Relay prepares, the CEO approves, a human sends, and
   // nothing executes automatically. All three are non-negotiable.
   if (plan.requiresCeoApproval !== true) {
     errors.push("requiresCeoApproval must be true");
@@ -264,7 +264,7 @@ export function validateHermesOutreachPlan(
 // SECTION F — Governance predicates
 // ---------------------------------------------------------------------------
 
-// Always true for a well-formed plan — Hermès output is never CEO-optional.
+// Always true for a well-formed plan — Relay output is never CEO-optional.
 export function hermesPlanRequiresCeoApproval(plan: HermesOutreachPlan): boolean {
   return plan.requiresCeoApproval === true;
 }
@@ -415,7 +415,7 @@ export function buildHermesOutreachPlanFromCashActionPacket(
     complianceNotes: options.complianceNotes ?? defaultComplianceNotesForChannel(channel),
     riskNotes:
       options.riskNotes ??
-      "Hermès prepared this plan only. Verify the prospect is real and reachable, " +
+      "Relay prepared this plan only. Verify the prospect is real and reachable, " +
         "keep claims truthful, and never overstate outcomes.",
     manualSendInstructions:
       options.manualSendInstructions ??

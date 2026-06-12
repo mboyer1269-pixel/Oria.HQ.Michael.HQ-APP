@@ -33,7 +33,7 @@ export function createResendEmailAdapterFromEnv(options?: {
   }
   const config = {
     fromEmail,
-    fromName: "Orya HQ",
+    fromName: "Oria HQ",
     ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
   };
   return createResendEmailAdapter(config, async () => {

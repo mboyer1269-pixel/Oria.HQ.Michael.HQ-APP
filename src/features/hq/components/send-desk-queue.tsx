@@ -283,7 +283,7 @@ export function SendDeskQueue({ items }: { items: SendDeskItem[] }) {
         <ShieldCheck className="mx-auto h-8 w-8 text-neutral-700" />
         <p className="mt-3 text-sm font-semibold text-neutral-300">La file est vide.</p>
         <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-neutral-500">
-          Hermès (ou toi, via <code className="text-neutral-400">POST /api/outbound/queue</code>)
+          Relay (ou toi, via <code className="text-neutral-400">POST /api/outbound/queue</code>)
           dépose ici les messages prêts. Rien ne part jamais sans ton clic.
         </p>
       </div>

@@ -47,7 +47,7 @@ export type VentureContext = {
   currentStage: string;
 };
 
-// The Orya ventures that the agent reasons about. MCL Constructions is omitted
+// The Oria ventures that the agent reasons about. MCL Constructions is omitted
 // here — it's historical context only, included on explicit CEO request.
 export const ORYA_VENTURES: readonly VentureContext[] = [
   {
@@ -61,7 +61,7 @@ export const ORYA_VENTURES: readonly VentureContext[] = [
   },
   {
     ventureId: "orya-hq",
-    name: "Orya HQ",
+    name: "Oria HQ",
     description:
       "Agentic holding OS — a fleet of AI agents that operate, automate, and make decisions across ventures. Offers design-partner access to founders running multiple product lines who need agent-assisted management.",
     targetMarket:
@@ -95,7 +95,7 @@ const EVIDENCE_KINDS_STR = EVIDENCE_KINDS.join(" | ");
 const BUYER_TYPES_STR = CASH_ACTION_BUYER_TYPES.join(" | ");
 
 function buildSystemPrompt(): string {
-  return `You are a cash-action agent inside Orya HQ, an agentic holding OS.
+  return `You are a cash-action agent inside Oria HQ, an agentic holding OS.
 
 Your only job is to produce a JSON array of CashActionPackets — concrete, CEO-executable revenue proposals.
 

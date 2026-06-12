@@ -3,14 +3,14 @@
  * Revenue readiness smoke check.
  *
  * Health smokes prove the system RESPONDS. This one proves the system is
- * PRODUCTIVE: that the Hermès prep loop turns venture context into at least one
+ * PRODUCTIVE: that the Relay prep loop turns venture context into at least one
  * CEO-reviewable cash action. A system can pass every health check and still
  * generate $0 — this smoke is the alarm for that "healthy but sterile" state.
  *
  * What it does (LOCAL mode, no API keys, no Supabase write):
  *   1. Generate cash action packets from the venture seed (fallback path — no
  *      ANTHROPIC/OPENAI key required).
- *   2. Run one Hermès prep tick to compose + enqueue prepared actions into the
+ *   2. Run one Relay prep tick to compose + enqueue prepared actions into the
  *      in-memory prepared-action store.
  *   3. Assert at least one PreparedAction with status "ready_for_ceo_review" and
  *      a createdAt within the last 48h exists for the workspace.
@@ -85,7 +85,7 @@ if (genResult.packets.length === 0) {
   fail("no cash action packets generated — venture seed produced nothing.");
 }
 
-// 2. Run one Hermès prep tick (composes council + plan, enqueues to local store).
+// 2. Run one Relay prep tick (composes council + plan, enqueues to local store).
 let tick;
 try {
   tick = await runHermesPrepTick({

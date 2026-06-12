@@ -87,10 +87,10 @@ export const agentLicenseRegistry: AgentExecutionLicense[] = [
     ],
   },
 
-  // ── Hermès -- Operator ──────────────────────────────────────────────────
+  // ── Relay -- Operator ─────────────────────────────────────────────────────
   {
     agentId: "hermes",
-    label: "Hermes -- Operator",
+    label: "Relay -- Operator",
     defaultZone: "yellow",
     allowedTools: ["sop.draft", "workflow.map"],
     greenActions: [
@@ -115,10 +115,10 @@ export const agentLicenseRegistry: AgentExecutionLicense[] = [
     ],
   },
 
-  // ── Agent Marketing -- Content & Campaigns ──────────────────────────────
+  // ── Studio -- Content & Campaigns ─────────────────────────────────────────
   {
     agentId: "marketing",
-    label: "Agent Marketing -- Content & Campaigns",
+    label: "Studio -- Content & Campaigns",
     defaultZone: "yellow",
     allowedTools: [
       "content.generate",
@@ -154,10 +154,10 @@ export const agentLicenseRegistry: AgentExecutionLicense[] = [
     ],
   },
 
-  // ── Agent Inventeur -- Opportunity & MVP Design ─────────────────────────
+  // ── Lab -- Opportunity & MVP Design ───────────────────────────────────────
   {
     agentId: "inventor",
-    label: "Agent Inventeur -- Opportunity & MVP Design",
+    label: "Lab -- Opportunity & MVP Design",
     defaultZone: "green",
     allowedTools: [
       "opportunity.score",

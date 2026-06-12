@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 
 // /hq/outbound — Send Desk (`ceo_single_send`)
 //
-// The first live execution surface of Orya HQ. Hermès prepares; Michael
+// The first live execution surface of Oria HQ. Relay prepares; Michael
 // reviews and clicks; the bridge sends ONE message and writes the proof to
 // the Action Ledger. See docs/REVENUE_EXECUTION_LANE.md §3.1.
 
@@ -81,7 +81,7 @@ export default async function OutboundSendDeskPage() {
         title="Révise. Clique. C'est parti — avec preuve."
         description={
           <>
-            La première voie d&apos;exécution réelle d&apos;Orya HQ. Hermès prépare les messages ; rien ne
+            La première voie d&apos;exécution réelle d&apos;Oria HQ. Relay prépare les messages ; rien ne
             part sans ton clic. Chaque envoi est validé (approbation, consentement, caps,
             suppression list), dédupliqué, et inscrit au ledger avant dispatch.
           </>

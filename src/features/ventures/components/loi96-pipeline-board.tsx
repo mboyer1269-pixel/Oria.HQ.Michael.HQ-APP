@@ -175,7 +175,7 @@ export function Loi96PipelineBoard() {
 
       <p className="border-t border-neutral-900 pt-2 text-[11px] leading-5 text-neutral-600">
         « Préparer » dépose le courriel d&apos;audit dans le Send Desk — rien ne part sans ton
-        clic là-bas. Hermès rédige, Thémis valide, toi tu décides.
+        clic là-bas. Relay rédige, Sentinel valide, toi tu décides.
       </p>
     </div>
   );

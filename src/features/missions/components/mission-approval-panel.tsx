@@ -1,4 +1,5 @@
 import type { Mission } from "@/core/types";
+import { getAgentDisplayName } from "@/features/agents/naming";
 import { evaluateMissionApproval } from "@/server/missions";
 
 const riskColors: Record<Mission["riskLevel"], string> = {
@@ -14,7 +15,7 @@ const riskLabels: Record<Mission["riskLevel"], string> = {
 };
 
 function ApprovalCard({ mission }: { mission: Mission }) {
-  const agentLabel = mission.assignedAgentId === "joris" ? "Joris" : mission.assignedAgentId;
+  const agentLabel = getAgentDisplayName(mission.assignedAgentId);
   const evaluation = evaluateMissionApproval(mission);
   const reasonText =
     evaluation.reasonLabels.length > 0

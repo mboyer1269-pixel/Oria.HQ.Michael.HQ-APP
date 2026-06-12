@@ -35,7 +35,7 @@ test("mandatory guardrails: no-legal-advice disclaimer + opt-out + AI disclosure
   const email = buildLoi96AuditEmail(target);
   assert.ok(email.body.includes("ne constitue\npas un avis juridique") || email.body.includes("ne constitue pas un avis juridique"));
   assert.ok(email.body.toLowerCase().includes("retirer"));
-  assert.ok(email.body.includes("agents Orya HQ"));
+  assert.ok(email.body.includes("agents Oria HQ"));
 });
 
 test("sells risk elimination, not translation", () => {

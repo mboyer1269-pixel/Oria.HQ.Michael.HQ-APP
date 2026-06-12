@@ -2,7 +2,7 @@
 
 /**
  * Pure TypeScript contracts and validation helpers for Work Order Governance
- * Bundles within the Orya HQ Agentic Holding OS.
+ * Bundles within the Oria HQ Agentic Holding OS.
  *
  * A Governance Bundle is an integrity-checked container that assembles and
  * cross-validates a Work Order, its Autonomy Envelope, a Review Session, and

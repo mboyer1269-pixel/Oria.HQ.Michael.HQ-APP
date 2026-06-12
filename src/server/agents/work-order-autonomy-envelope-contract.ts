@@ -2,7 +2,7 @@
 
 /**
  * Pure TypeScript contracts and validation helpers for Work Order Autonomy
- * Envelopes within the Orya HQ Agentic Holding OS.
+ * Envelopes within the Oria HQ Agentic Holding OS.
  *
  * An Autonomy Envelope defines the operating boundaries for an agent
  * assigned to a Work Order. It answers:

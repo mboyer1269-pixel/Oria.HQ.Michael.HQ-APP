@@ -33,7 +33,7 @@ const target = {
 beforeEach(() => resetOutboundSendStoreForTests());
 
 test("PONT COMPLET : cible loi96 → file → clic CEO → preuve", async () => {
-  // 1. Hermès rédige (pur, déterministe)
+  // 1. Relay rédige (pur, déterministe)
   const email = buildLoi96AuditEmail(target);
 
   // 2. Intake : candidat approuvé, token lié au contenu

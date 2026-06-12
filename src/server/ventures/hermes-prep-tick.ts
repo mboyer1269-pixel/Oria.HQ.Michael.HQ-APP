@@ -1,11 +1,11 @@
 // src/server/ventures/hermes-prep-tick.ts
 //
-// Server-side orchestration of one Hermès prep tick. It does NOT own the
+// Server-side orchestration of one Relay (agent id `hermes`) prep tick. It does NOT own the
 // decision logic — that lives in the pure planner (computeHermesPrepPlan). This
 // wrapper only wires the side-effecting pieces around it:
 //   1. read the existing prepared-action queue (for dedup),
 //   2. for each input packet, compose the Council summary (pure TypeScript, no
-//      LLM) and the Hermès outreach plan,
+//      LLM) and the Relay outreach plan,
 //   3. run the pure planner to decide what to enqueue (new / refresh / dedupe),
 //   4. persist the enqueued entries.
 //
@@ -43,7 +43,7 @@ import { snapshotWorkspaceAgentScores } from "./snapshot-workspace-agent-scores"
 export type HermesPrepTickDeps = {
   /** Compose a compact Council summary for a packet. Default: venture council composer. */
   composeCouncil: (packet: CashActionPacket, createdAt: string) => PreparedActionCouncilSummary;
-  /** Compose the Hermès outreach plan for a packet. Default: pure builder. */
+  /** Compose the Relay outreach plan for a packet. Default: pure builder. */
   buildPlan: (packet: CashActionPacket) => HermesOutreachPlan;
   /** Read the existing prepared-action queue for a workspace. Default: repository. */
   listExisting: (workspaceId: string) => Promise<PreparedAction[]>;

@@ -8,7 +8,7 @@
 //
 // Responsibilities:
 //   * hold send candidates (batch + action + recipient) registered by the
-//     prep layer (Hermès) or a dev seed;
+//     prep layer (Relay) or a dev seed;
 //   * record outcomes per idempotencyKey (the idempotency source of truth);
 //   * count daily sends per workspace + channel (hard-cap input);
 //   * hold the cross-channel suppression list.

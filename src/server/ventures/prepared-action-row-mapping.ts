@@ -1,7 +1,7 @@
 // src/server/ventures/prepared-action-row-mapping.ts
 //
 // Pure row <-> PreparedAction mapping for the prepared-actions persistence
-// layer (the Hermès CEO review queue).
+// layer (the Relay CEO review queue).
 //
 // Side-effect free. Owns the light validation between the DB row shape
 // (snake_case, jsonb packet/council/hermes_plan) and the TypeScript

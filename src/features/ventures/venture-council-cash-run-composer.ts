@@ -267,7 +267,7 @@ function buildHermesTurn(
       `Prepare ${channel} outreach for ${packet.targetBuyer}.`,
       `Draft ready for CEO adaptation: "${packet.outreachDraft.slice(0, 120)}${packet.outreachDraft.length > 120 ? "…" : ""}"`,
       `CTA to use manually: ${packet.callToAction}`,
-      "Hermès prepares only — no send and no automated delivery.",
+      "Relay prepares only — no send and no automated delivery.",
     ].join(" "),
     recommendation: analysis.externalExecutionRisk ? "refine" : "support",
     confidenceScore: 70,

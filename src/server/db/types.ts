@@ -247,7 +247,7 @@ export type CashSignalIntakeInsert = Omit<CashSignalIntakeRow, "id" | "created_a
 };
 
 // prepared_actions — durable, append-only CEO review queue produced by the
-// Hermès iterative prep agent (migration 0013). The packet, council, and
+// Relay iterative prep agent (migration 0013). The packet, council, and
 // hermes_plan jsonb columns mirror the PreparedAction contract in
 // src/features/ventures/prepared-action.ts; the repository owns row <->
 // PreparedAction mapping and light validation. priority and status are plain

@@ -2,14 +2,19 @@ import type { AgentProfile } from "./types";
 
 /**
  * Canonical Oria agent registry. Single source of truth.
- * IDs are stable; `name` is the product label. No runtime code matches on the
- * old hermes-* IDs (verified), so the rename to distinct names is safe.
+ *
+ * Naming v1 — "un visage, des modules" : Joris est la seule persona nommée
+ * (seul agent conversationnel) ; tous les autres agents portent un nom de
+ * module fonctionnel, un mot, lisible en français et en anglais. Les IDs
+ * sont stables et ne se renomment jamais (ledger, licenses, webhooks, DB) ;
+ * les noms d'affichage se résolvent via `naming.ts`. Voir
+ * `docs/AGENT_NAMING.md` pour la matrice ancien → nouveau.
  */
 export const agentRegistry: AgentProfile[] = [
   {
     id: "joris",
     lore:
-      "Le majordome du HQ. Pendant que les dieux s'agitent, Joris tient la maison : il comprend, il route, il orchestre — et rien ne part sans le sceau du patron.",
+      "Le majordome du HQ. Il comprend, il route, il orchestre — et rien ne part sans le sceau du patron.",
     name: "Joris",
     role: "orchestrator",
     tagline: "Chef d'orchestre — intention, routage cerveau, missions, approbation",
@@ -29,8 +34,8 @@ export const agentRegistry: AgentProfile[] = [
   {
     id: "hermes",
     lore:
-      "Le messager aux sandales ailées, dieu des voyageurs et du commerce. Il porte les mots du HQ vers le monde — vite, précis, jamais sans mandat.",
-    name: "Hermès",
+      "Le relais d'exécution du HQ : il prépare SOPs, messages et actions — la transmission se fait toujours sous mandat, jamais en solo.",
+    name: "Relay",
     role: "operator",
     tagline: "Opérateur exécutif contrôlé — SOPs, workflows, exécution gouvernée",
     description:
@@ -49,8 +54,8 @@ export const agentRegistry: AgentProfile[] = [
   {
     id: "orion",
     lore:
-      "Le chasseur géant placé parmi les étoiles. Il traque les signaux de marché comme des proies : opportunités, cibles, fenêtres qui s'ouvrent.",
-    name: "Orion",
+      "Le balayage continu du marché : signaux, leads, fenêtres qui s'ouvrent — détection seulement, jamais de contact.",
+    name: "Radar",
     role: "scout",
     tagline: "Recherche marché — opportunités, leads, signaux",
     description:
@@ -68,8 +73,8 @@ export const agentRegistry: AgentProfile[] = [
   {
     id: "sentinel",
     lore:
-      "Titanide de la justice et de l'ordre, celle qui tient la balance. Chaque action passe sous sa pesée : Green, Yellow ou Red — la loi avant le geste.",
-    name: "Thémis",
+      "La sentinelle du HQ : chaque action passe sous sa pesée — Green, Yellow ou Red, la règle avant le geste.",
+    name: "Sentinel",
     role: "auditor",
     tagline: "Red Team — risque, sécurité, conformité, guardrails",
     description:
@@ -87,8 +92,8 @@ export const agentRegistry: AgentProfile[] = [
   {
     id: "scribe",
     lore:
-      "Titanide de la mémoire, mère des neuf Muses. Rien de ce que le HQ apprend ne se perd : décisions, leçons, preuves — elle se souvient pour que les autres créent.",
-    name: "Mnémosyne",
+      "Le greffier du HQ : décisions, leçons, preuves — rien de ce que le HQ apprend ne se perd.",
+    name: "Scribe",
     role: "memory",
     tagline: "Mémoire — décisions, journal quotidien, résumés (n'écrit pas le ledger)",
     description:
@@ -106,8 +111,8 @@ export const agentRegistry: AgentProfile[] = [
   {
     id: "finops",
     lore:
-      "Dieu de la richesse. Il compte chaque cenne qui entre et qui sort, surveille les budgets des agents, et rappelle que le profit est la seule preuve finale.",
-    name: "Ploutos",
+      "La vigie financière : chaque dollar qui entre et sort est compté — le profit est la seule preuve finale.",
+    name: "FinOps",
     role: "money",
     tagline: "ROI & runway — cash, coûts IA, budget",
     description:
@@ -125,8 +130,8 @@ export const agentRegistry: AgentProfile[] = [
   {
     id: "builder",
     lore:
-      "Dieu de la forge, artisan des armes des dieux. Il bâtit les outils, les pages et les systèmes — boiteux peut-être, mais rien ne sort de sa forge sans être solide.",
-    name: "Héphaïstos",
+      "La forge du HQ : specs, plans et prototypes — rien n'en sort sans être solide.",
+    name: "Forge",
     role: "builder",
     tagline: "Construction MVP — specs, plans, prototypes (brouillons internes)",
     description:
@@ -144,8 +149,8 @@ export const agentRegistry: AgentProfile[] = [
   {
     id: "closer",
     lore:
-      "Déesse de la persuasion, compagne d'Aphrodite. Quand un prospect hésite, c'est sa voix qui transforme l'intérêt en signature. Le closing est un art divin.",
-    name: "Peithô",
+      "La voix qui transforme l'intérêt en signature — gelée tant que les garde-fous ne sont pas durcis.",
+    name: "Closer",
     role: "closer",
     tagline: "Vente & conversion — GELÉ (comm. externe = trop tôt)",
     description:
@@ -162,12 +167,12 @@ export const agentRegistry: AgentProfile[] = [
     reviewCadence: "Gelé",
   },
 
-  // ── Agent Marketing -- Content & Campaigns ─────────────────────────────
+  // ── Studio -- Content & Campaigns ────────────────────────────────────────
   {
     id: "marketing",
     lore:
-      "Déesse de la renommée — celle qui répand la nouvelle jusqu'aux confins du monde. Là où Hermès parle à un, Phémé parle à tous : campagnes, contenus, visibilité. La fama se construit, message par message.",
-    name: "Phémé",
+      "Le studio de contenu du HQ : campagnes, posts, messages — là où Relay parle à un, Studio parle à tous. La visibilité se construit, message par message.",
+    name: "Studio",
     role: "operator",
     tagline: "Contenu, campagnes, social — zone verte autonome pour contenu interne",
     description:
@@ -191,12 +196,12 @@ export const agentRegistry: AgentProfile[] = [
     reviewCadence: "Hebdomadaire",
   },
 
-  // ── Agent Inventeur -- Opportunity & MVP Design ─────────────────────────
+  // ── Lab -- Opportunity & MVP Design ──────────────────────────────────────
   {
     id: "inventor",
     lore:
-      "L'inventeur du labyrinthe, le génie que même les rois s'arrachaient. Il imagine les ventures de demain — et sait qu'il ne faut jamais voler trop près du soleil.",
-    name: "Dédale",
+      "Le laboratoire d'idées : concepts, MVP, opportunités de demain — tout reste interne tant que le CEO n'a pas tranché.",
+    name: "Lab",
     role: "scout",
     tagline: "Opportunités, concepts, MVP — zone verte large pour l'idéation",
     description:

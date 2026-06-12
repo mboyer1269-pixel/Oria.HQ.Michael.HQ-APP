@@ -1,6 +1,6 @@
 // src/server/ventures/prepared-action-repository.ts
 //
-// Prepared action repository — durable, auditable backing store for the Hermès
+// Prepared action repository — durable, auditable backing store for the Relay
 // CEO review queue (the prepared-work half of the iterative prep loop).
 //
 // Persistence model: dual-mode, mirroring the cash-signal-intake / venture

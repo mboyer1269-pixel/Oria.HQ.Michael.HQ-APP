@@ -90,7 +90,7 @@ test("Venture Council Cash Run Composer", async (t) => {
     assert.ok(result.moneyStrategyInput);
   });
 
-  await t.test("includes Orient, T-Gravity, Hermès, Auditor, Operator turns", () => {
+  await t.test("includes Orient, T-Gravity, Relay (hermes), Auditor, Operator turns", () => {
     const result = compose();
     const roleIds = result.turns.map((turn) => turn.roleId);
 
@@ -153,7 +153,7 @@ test("Venture Council Cash Run Composer", async (t) => {
     assert.equal(result.verdict.decision, "proceed");
   });
 
-  await t.test("Hermès prepares outreach but never sends", () => {
+  await t.test("Relay prepares outreach but never sends", () => {
     const result = compose();
     const hermes = result.turns.find((turn) => turn.roleId === "hermes");
 

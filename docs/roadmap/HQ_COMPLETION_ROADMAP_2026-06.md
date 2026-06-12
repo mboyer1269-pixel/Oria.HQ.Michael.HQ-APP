@@ -17,7 +17,7 @@ et pont prepared-actions → Send Desk manquant.
 Le flux cible → préparation → envoi devient 100 % in-app.
 - Store de cibles loi96 (import `ventures/loi96/pipeline.json`), workspace-scoped.
 - **Brancher `hermes-prep-tick` → Send Desk** : action « Préparer » sur une cible →
-  Hermès génère le courriel d'audit → file d'envoi, prêt au clic CEO.
+  Relay génère le courriel d'audit → file d'envoi, prêt au clic CEO.
 - Page `/hq/ventures/loi96` refaite en pipeline : cibles, statuts
   (à_vérifier → audit_prêt → envoyé → relancé → répondu → appel → signé → perdu),
   bouton Préparer, bouton « Réponse reçue » (v1 manuel).
@@ -66,7 +66,7 @@ Le visuel du flux existe ; le retrieval derrière n'existe pas. Le Memory Vault 
 un contrat sans moteur. La fiabilité des agents vient du contexte qu'on leur sert :
 - pgvector sur Supabase (déjà dans la stack) : embeddings des résumés ledger,
   golden examples loi96 (`ventures/loi96/golden/`), SOPs, décisions.
-- Retrieval pour Hermès au moment de préparer : les 3 meilleurs audits passés +
+- Retrieval pour Relay au moment de préparer : les 3 meilleurs audits passés +
   le contexte de la cible → qualité d'audit qui monte avec chaque livraison.
 - C'est la pièce qui transforme « 15 audits/semaine » en « 15 audits/semaine
   qui s'améliorent tout seuls ».
@@ -177,7 +177,7 @@ c'est un bug de design.
 Le visuel runtime actuel lit le ledger réel mais reste une *projection*. P11 fait
 du graphe LA structure d'exécution elle-même — LangGraph-adjacent, mais
 gouvernance-native (notre différenciation, personne n'a ça) :
-- **Node = invocation de skill sous policy** (Thémis évalue chaque nœud avant
+- **Node = invocation de skill sous policy** (Sentinel évalue chaque nœud avant
   exécution — Green passe, Yellow attend le clic, Red bloque) ;
 - **Edge = transition journalisée** (le ledger est le checkpointer : reprise
   exacte après crash, replay auditable — ce que LangGraph fait avec ses

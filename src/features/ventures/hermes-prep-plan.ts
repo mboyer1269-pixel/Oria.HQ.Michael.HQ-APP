@@ -1,6 +1,6 @@
 // src/features/ventures/hermes-prep-plan.ts
 //
-// Pure planner for one Hermès prep tick. Given a batch of candidate cash moves
+// Pure planner for one Relay (agent id `hermes`) prep tick. Given a batch of candidate cash moves
 // (each already composed into packet + council summary + outreach plan) and the
 // prepared actions already on the queue, it decides what to enqueue:
 //   - NEW       — no active queue entry targets this move,

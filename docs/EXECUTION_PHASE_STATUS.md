@@ -40,7 +40,7 @@ Action marked ready_to_send (approved_for_manual_send)
 | Decision recorded (audit trail) | ✅ **Implemented** | `src/server/joris/governance-decision-repository.ts`, `db/migrations/0008_governance_decisions.sql` |
 | Mission draft → confirm → calendar booking | ✅ **Implemented** | `src/server/missions/mission-draft-session.ts`, `src/server/joris/brain.ts` |
 | Prepared actions queue (CEO review queue) | ✅ **Implemented** | `src/server/ventures/prepared-action-repository.ts`, `db/migrations/0013_prepared_actions.sql` |
-| Hermès prep tick (enqueue, dedup, prioritize) | ✅ **Implemented** | `src/server/ventures/hermes-prep-tick.ts` |
+| Relay prep tick (enqueue, dedup, prioritize) | ✅ **Implemented** | `src/server/ventures/hermes-prep-tick.ts` |
 | Execution guard (zone-gates live: green allowed, yellow needs approval, red/hard-block blocked) | ✅ **Implemented** | `src/server/runtime/execution-guard.ts` → `evaluateLiveExecution()` |
 | Green-lane ledger pre-dispatch guard (journal-then-act) | ✅ **Implemented** | PR #218; `src/server/runtime/green-lane-execution-service.ts`, `src/server/runtime/green-lane-ledger.ts` |
 | `ready_to_send` / `approved_for_manual_send` status | ✅ **Implemented as status only** — no dispatch |

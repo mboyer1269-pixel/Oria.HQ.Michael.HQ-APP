@@ -2,7 +2,7 @@
 
 /**
  * Pure TypeScript contracts and validation helpers for Work Order Review Sessions
- * within the Orya HQ Agentic Holding OS.
+ * within the Oria HQ Agentic Holding OS.
  *
  * A Work Order Review Session tracks the lifecycle state of a Work Order
  * as it moves through the human review loop. It captures whether the CEO

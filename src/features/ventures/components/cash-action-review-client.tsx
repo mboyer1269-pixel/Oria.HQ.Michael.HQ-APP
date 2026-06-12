@@ -30,6 +30,7 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
+import { getAgentDisplayName } from "@/features/agents/naming";
 import type { CashActionPacket, CashSignalType } from "../cash-action-packet";
 import { CASH_SIGNAL_TYPES } from "../cash-action-packet";
 import type { CashSignalIntake } from "../cash-signal-intake";
@@ -165,7 +166,7 @@ export function CashActionReviewClient({
   }
 
   // Best-effort copy keyed by a caller-chosen id so multiple copy buttons on the
-  // same card (packet draft, Hermès message) can each flash "Copied" on their own.
+  // same card (packet draft, Relay message) can each flash "Copied" on their own.
   async function copyText(key: string, text: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -239,7 +240,7 @@ export function CashActionReviewClient({
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500">
         <span>
           {sourceMode === "prepared_queue"
-            ? `${packets.length} action${packets.length > 1 ? "s" : ""} préparée${packets.length > 1 ? "s" : ""} par Hermès · file de revue · préparé ${generatedAt}`
+            ? `${packets.length} action${packets.length > 1 ? "s" : ""} préparée${packets.length > 1 ? "s" : ""} par Relay · file de revue · préparé ${generatedAt}`
             : `${packets.length} packet${packets.length > 1 ? "s" : ""} généré${packets.length > 1 ? "s" : ""} en direct · ${generatedAt}`}
         </span>
         <span
@@ -557,13 +558,13 @@ const READINESS_LABELS: Record<CouncilAnalysis["readiness"], string> = {
 const ROLE_LABELS: Record<string, string> = {
   orient: "Orient",
   t_gravity: "T-Gravity",
-  hermes: "Hermès",
+  hermes: getAgentDisplayName("hermes"),
   auditor: "Auditor",
   operator: "Operator",
-  joris_orchestrator: "Joris",
-  builder: "Builder",
-  scribe: "Scribe",
-  closer: "Closer",
+  joris_orchestrator: getAgentDisplayName("joris"),
+  builder: getAgentDisplayName("builder"),
+  scribe: getAgentDisplayName("scribe"),
+  closer: getAgentDisplayName("closer"),
 };
 
 const RECOMMENDATION_STYLES: Record<string, string> = {
@@ -647,7 +648,7 @@ function CouncilSection({
 }
 
 // ---------------------------------------------------------------------------
-// Hermès outreach plan section
+// Relay outreach plan section
 // ---------------------------------------------------------------------------
 
 const HERMES_CHANNEL_LABELS: Record<string, string> = {
@@ -702,7 +703,7 @@ function HermesPlanSection({
         <div className="flex items-center gap-2">
           <Send className="h-3.5 w-3.5 text-indigo-400" aria-hidden="true" />
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-300/80">
-            Hermès Outreach Plan
+            Relay Outreach Plan
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -726,7 +727,7 @@ function HermesPlanSection({
       {hermes.requiresCeoApproval && hermes.requiresManualSend && hermes.noExecutionAuthorized && (
         <p className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-neutral-500">
           <ShieldCheck className="h-3 w-3 text-emerald-400" aria-hidden="true" />
-          Hermès prepares · CEO approves · manual send only · no automatic execution
+          Relay prepares · CEO approves · manual send only · no automatic execution
         </p>
       )}
 

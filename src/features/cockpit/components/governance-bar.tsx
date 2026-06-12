@@ -2,7 +2,7 @@ import { ChevronRight, GitBranch, Lock } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // governance-bar.tsx — compact, read-only governance posture bar for
-// CockpitShell. It states the Orya operating DOCTRINE
+// CockpitShell. It states the Oria operating DOCTRINE
 // (Proposer → Approuver → Journaliser → Exécuter[verrouillé]) — not a live
 // pipeline status. No interactivity, no server calls, no mutations, no
 // execution affordance, no fabricated health / approval / revenue.
