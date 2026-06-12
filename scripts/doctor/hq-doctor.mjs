@@ -80,6 +80,8 @@ const BRIDGES = [
   { module: "venture-asset-repository", minConsumers: 2 },
   { module: "note-repository", minConsumers: 1 },
   { module: "model-router", minConsumers: 2 },
+  { module: "memory-graph", minConsumers: 2 },
+  { module: "agent-learning-loop", minConsumers: 1 },
 ];
 
 for (const bridge of BRIDGES) {
@@ -214,6 +216,101 @@ try {
   }
 } catch {
   check("GIT", "suppressions en staging", "warn", "lecture git impossible");
+}
+
+// ---------------------------------------------------------------------------
+// ORGANE 5 — MÉMOIRE : intégrité du Memory Vault fichiers (memory/)
+// Doublons = crit (une leçon par fichier). Liens cassés, chainlines
+// incomplètes et orphelins = warn (dette visible, jamais oubliée).
+// ---------------------------------------------------------------------------
+try {
+  const { createJiti } = await import("jiti");
+  const jiti = createJiti(import.meta.url, {
+    alias: {
+      "@": join(ROOT, "src"),
+      "server-only": join(ROOT, "src/scripts/smoke/server-only-stub.mjs"),
+    },
+  });
+  const memoryGraph = await jiti.import(
+    join(ROOT, "src/server/memory/memory-graph.ts"),
+  );
+
+  const memoryRoot = join(ROOT, "memory");
+  if (!existsSync(memoryRoot)) {
+    check("MÉMOIRE", "memory/", "warn", "vault fichiers absente");
+  } else {
+    const entries = [];
+    const walkVault = (dir) => {
+      for (const dirent of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, dirent.name);
+        if (dirent.isDirectory()) walkVault(full);
+        else if (
+          dirent.name.endsWith(".md") &&
+          !["readme.md", "index.md"].includes(dirent.name.toLowerCase())
+        ) {
+          const entry = memoryGraph.parseMemoryEntryMarkdown(
+            readFileSync(full, "utf-8"),
+            full,
+          );
+          if (entry) entries.push(entry);
+          else check("MÉMOIRE", dirent.name, "warn", "fichier non parsable (titre manquant)");
+        }
+      }
+    };
+    walkVault(memoryRoot);
+    check("MÉMOIRE", "entrées vault", "ok", `${entries.length} entrée(s)`);
+
+    const duplicates = memoryGraph.detectDuplicateMemory(entries);
+    check(
+      "MÉMOIRE",
+      "doublons",
+      duplicates.length === 0 ? "ok" : "crit",
+      duplicates.length === 0
+        ? "aucun"
+        : `${duplicates.length} collision(s): ${duplicates.map((d) => d.key).join(", ")}`,
+    );
+
+    // Liens cassés : cibles d'entrée inexistantes (les refs ledger/pr/next
+    // non résolues sont attendues — travail en cours, pas une erreur).
+    const knownIds = new Set(entries.map((e) => e.id));
+    const broken = [];
+    for (const entry of entries) {
+      for (const link of entry.links) {
+        if (link.refKind) continue;
+        if (!knownIds.has(link.targetId)) broken.push(`${entry.id} → ${link.raw}`);
+      }
+    }
+    check(
+      "MÉMOIRE",
+      "liens internes",
+      broken.length === 0 ? "ok" : "warn",
+      broken.length === 0 ? "tous résolus" : `${broken.length} cassé(s): ${broken.slice(0, 3).join(" · ")}`,
+    );
+
+    const chainlines = memoryGraph.buildChainlineGraph(entries);
+    const incomplete = chainlines.filter((c) => c.missingStages.length > 0);
+    check(
+      "MÉMOIRE",
+      "chainlines",
+      incomplete.length === 0 ? "ok" : "warn",
+      `${chainlines.length} chainline(s)` +
+        (incomplete.length > 0
+          ? `, ${incomplete.length} incomplète(s): ${incomplete.map((c) => c.id).join(", ")}`
+          : ""),
+    );
+
+    const graph = memoryGraph.buildMemoryGraph(entries);
+    check(
+      "MÉMOIRE",
+      "orphelins",
+      graph.orphanIds.length === 0 ? "ok" : "warn",
+      graph.orphanIds.length === 0
+        ? "aucune entrée isolée"
+        : `${graph.orphanIds.length} entrée(s) sans lien: ${graph.orphanIds.slice(0, 3).join(", ")}`,
+    );
+  }
+} catch (error) {
+  check("MÉMOIRE", "analyse vault", "warn", `analyse impossible: ${error.message}`);
 }
 
 // ---------------------------------------------------------------------------

@@ -30,6 +30,8 @@
     "test:ledger-activity-read": "node --test src/server/actions/action-ledger-read.test.mjs src/features/hq/ledger-activity.test.mjs",
     "test:ledger-hash-chain": "node --test src/server/ledger/hash-chain-verifier.test.mjs src/server/ledger/hash-chain-sealer.test.mjs src/server/ledger/hash-chain-canonicalization-regression.test.mjs src/server/ledger/hash-chain-golden-vectors.test.mjs src/server/ledger/hash-chain-bad-input-matrix.test.mjs src/server/ledger/hash-chain-edge-guards.test.mjs src/server/ledger/hash-chain-test-fixtures.test.mjs src/server/ledger/hash-chain-shadow-writer.test.mjs src/server/ledger/hash-chain-audit.test.mjs",
     "test:calendar-ledger-atomicity": "node --test src/server/calendar/calendar-ledger-atomicity.test.mjs",
+    "test:memory-graph": "node --test src/server/memory/memory-graph.test.mjs",
+    "test:learning-loop": "node --test src/server/memory/agent-learning-loop.test.mjs",
     "test:model-router": "node --test src/server/ai/model-router.test.mjs",
     "test:execution-guard": "node --test src/server/runtime/execution-guard.test.mjs",
     "test:staging-runtime-diagnostic": "node --test src/server/runtime/staging-runtime-diagnostic.test.mjs",
