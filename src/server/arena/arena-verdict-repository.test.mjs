@@ -214,6 +214,9 @@ test("arena-verdict-repository exports only expected surface", async () => {
     "getArenaVerdictByCandidateId",
     "listArenaVerdicts",
     "clearLocalArenaVerdictStore",
+    // Pure payload mappers for the candidate-attribution envelope (no DB).
+    "packVerdictPayload",
+    "unpackVerdictPayload",
   ]);
 
   for (const key of exportedKeys) {
