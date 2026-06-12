@@ -24,7 +24,7 @@ export async function getLearningLoopReport(
   let signals: ReturnType<typeof adaptStoredVerdict>[] = [];
   try {
     const stored = await getArenaEvaluationService().listVerdicts(workspaceId);
-    signals = stored.map((entry) => adaptStoredVerdict(entry));
+    signals = stored.map((entry) => adaptStoredVerdict(entry, entry.candidate));
   } catch {
     // No verdicts available — the loop simply has nothing to learn from yet.
   }

@@ -59,8 +59,10 @@ patterns gagnants priorisés.
 
 - Le store Arena est in-memory : les signaux vivent le temps du processus.
   La persistance des verdicts (P2) rendra la boucle durable.
-- L'attribution `agentId` dépend des métadonnées candidat — les verdicts
-  seuls groupent sous « non-attribué ». Joindre candidat + verdict au
-  stockage est la prochaine petite PR.
+- ~~L'attribution `agentId` dépend des métadonnées candidat.~~ **Fait
+  (2026-06-12)** : `snapshotCandidateAttribution` persiste agentId / skillId /
+  missionId / title avec chaque verdict (enveloppe versionnée dans la colonne
+  Json existante, zéro migration, lecture legacy rétro-compatible). Le
+  leaderboard et les leçons sont attribués de bout en bout.
 - L'injection des leçons vérifiées dans le contexte Joris reste à câbler
-  (chemin déjà contractualisé).
+  (chemin déjà contractualisé) — prochaine vague, décision CEO.

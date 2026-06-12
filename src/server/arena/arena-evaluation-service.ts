@@ -9,6 +9,7 @@ import type {
 import {
   createArenaVerdictStore,
   defaultArenaVerdictStore,
+  snapshotCandidateAttribution,
 } from "@/server/arena/arena-verdict-store";
 import type { StoredArenaVerdict } from "@/server/arena/arena-verdict-store";
 import * as defaultRepository from "@/server/arena/arena-verdict-repository";
@@ -59,14 +60,16 @@ export function createArenaEvaluationService(deps: ArenaEvaluationServiceDeps = 
   /**
    * Evaluates a candidate, caches the verdict in memory, and persists to the
    * repository (if one is configured) using candidate.workspaceId.
-   * All verdicts — including not-evaluable — are stored.
+   * All verdicts — including not-evaluable — are stored, each carrying the
+   * candidate attribution snapshot (agentId/skillId/missionId/title) so the
+   * learning loop can attribute ROI per agent.
    */
   async function evaluateAndStore(
     candidate: ArenaCandidate,
     context?: ArenaEvaluationContext,
   ): Promise<StoredArenaVerdict> {
     const verdict = evaluate(candidate, context);
-    const record = store.store(verdict);
+    const record = store.store(verdict, snapshotCandidateAttribution(candidate));
     if (repo) {
       await repo.recordArenaVerdict(candidate.workspaceId, record);
     }

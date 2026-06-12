@@ -1,4 +1,4 @@
-import type { ArenaVerdict } from "@/server/arena/roi-arena";
+import type { ArenaCandidate, ArenaCandidateKind, ArenaVerdict } from "@/server/arena/roi-arena";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -10,12 +10,39 @@ export type ArenaVerdictStoreOptions = {
   maxEntries?: number;
 };
 
+/**
+ * Attribution snapshot of the candidate at evaluation time.
+ * Identity fields only — financial figures already live in the verdict, and
+ * snapshotting them twice would invite divergence.
+ */
+export type ArenaCandidateAttribution = {
+  kind: ArenaCandidateKind;
+  title?: string;
+  agentId?: string;
+  skillId?: string;
+  missionId?: string;
+};
+
 export type StoredArenaVerdict = {
   verdict: ArenaVerdict;
   candidateId: string;
   storedAt: string;
   expiresAt: string | null;
+  /** Absent on records stored before attribution existed. */
+  candidate?: ArenaCandidateAttribution;
 };
+
+/** Extracts the attribution snapshot from a full candidate. */
+export function snapshotCandidateAttribution(
+  candidate: ArenaCandidate,
+): ArenaCandidateAttribution {
+  const snapshot: ArenaCandidateAttribution = { kind: candidate.kind };
+  if (candidate.title) snapshot.title = candidate.title;
+  if (candidate.agentId) snapshot.agentId = candidate.agentId;
+  if (candidate.skillId) snapshot.skillId = candidate.skillId;
+  if (candidate.missionId) snapshot.missionId = candidate.missionId;
+  return snapshot;
+}
 
 // ---------------------------------------------------------------------------
 // Internal record shape (adds a numeric timestamp for eviction ordering)
@@ -75,7 +102,10 @@ export function createArenaVerdictStore(options: ArenaVerdictStoreOptions = {}) 
 
   // ── public API ────────────────────────────────────────────────────────────
 
-  function store(verdict: ArenaVerdict): StoredArenaVerdict {
+  function store(
+    verdict: ArenaVerdict,
+    candidate?: ArenaCandidateAttribution,
+  ): StoredArenaVerdict {
     if (!verdict.candidateId || typeof verdict.candidateId !== "string") {
       throw new Error("store: verdict.candidateId must be a non-empty string.");
     }
@@ -90,6 +120,7 @@ export function createArenaVerdictStore(options: ArenaVerdictStoreOptions = {}) 
       candidateId: verdict.candidateId,
       storedAt,
       expiresAt,
+      ...(candidate ? { candidate: { ...candidate } } : {}),
     };
 
     // Evict oldest before inserting a new candidateId (overwrite is fine).
