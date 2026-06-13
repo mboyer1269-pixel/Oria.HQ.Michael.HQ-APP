@@ -27,7 +27,7 @@
 |---|----------|---------|-------|
 | P1 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — résolveur unique `councilRoleId → agent \| lentille synthétique` dans `naming.ts`, verrouillé par test | (était : « demandes entre agents » référençant des acteurs fantômes) |
 | P2 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — glossaire `docs/HQ_RUN_GLOSSARY.md` + phase canonique unique (`run-lifecycle-phase.ts`), sans renommer d'enum | (était : confusion « prévu vs délibéré vs exécuté » + dérive d'enums) |
-| P3 | 🟠 | Deux « chaînes » distinctes regroupées sous « line chain » sans lien explicite | Intégrité d'audit ≠ lignée de savoir, mais traitées comme une seule |
+| P3 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — `docs/HQ_CHAINS.md` nomme/distingue/relie les deux chaînes (lignée vs intégrité) ; cross-refs ajoutés dans les 2 docs existants | (était : deux chaînes traitées comme une seule, sans lien) |
 | P4 | 🟢 partiel | **P4a RÉSOLU (2026-06-13)** — registre `capability-status.ts` (live/shadow/display_only/contract_only/planned) + garde-fou auto-vérifié ; **P4b** (câblage de la boucle) reste | HQ ne présente plus une capacité dormante comme vivante |
 | P5 | 🟡 | Sprawl des documents « source of truth / contract / plan » sans index | Difficile de savoir quel doc fait foi |
 | P6 | 🟡 | Hygiène : `next-env.d.ts` est suivi par git (non ignoré) | Bruit de diff récurrent dans les commits/stashes |
@@ -151,7 +151,15 @@ des deux autres.
 
 ---
 
-## P3 — 🟠 Deux « chaînes » sous le terme « line chain »
+## P3 — ✅ RÉSOLU (2026-06-13) — Deux « chaînes » sous le terme « line chain »
+
+> **Résolution.** `docs/HQ_CHAINS.md` nomme et distingue **Memory lineage chain**
+> (chainline, `memory-graph.ts`, lignée sémantique) et **Ledger integrity chain**
+> (hash-chain, `hash-chain-*.ts`, tamper-evidence), et explicite **où elles se
+> rejoignent** : l'entrée Action Ledger (la chainline y pointe via `[[ledger:…]]`,
+> le hash-chain la scelle → provenance + intégrité). Un cross-ref a été ajouté en
+> tête de `docs/memory-vault/CHAINLINE.md` et `docs/ledger/hash-chain-track-status.md`
+> pour qu'elles ne soient plus orphelines l'une de l'autre. Constat d'origine ci-dessous.
 
 | Chaîne | Fichiers | Rôle | État |
 |--------|----------|------|------|
