@@ -3,6 +3,8 @@ import { Target, Workflow } from "lucide-react";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import type { ActionLedgerEntry } from "@/server/actions/action-ledger-repository";
+import { listMissionsForWorkspace } from "@/server/missions";
+import { buildMissionLookup, type MissionLookup } from "@/features/hq/ledger-activity";
 import { agentRegistry } from "@/features/agents/seed";
 import { selectWorkflowsModel } from "@/features/workflows/workflows-page-data";
 import { WorkflowBoardLive } from "@/features/workflows/components/workflow-board-live";
@@ -26,21 +28,25 @@ export default async function WorkflowsPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
-  // Read the action ledger (the real run source). Any failure falls back to the
-  // labelled demonstration board — read-only, never throws into the page.
+  // Read the action ledger (the real run source) and the missions (for run
+  // titles + status-based conclusion). Any failure falls back to the labelled
+  // demonstration board — read-only, never throws into the page.
   let entries: ActionLedgerEntry[] = [];
+  let missionLookup: MissionLookup = new Map();
   try {
-    const { activeWorkspace } = getActiveWorkspaceContext();
-    const ledger = await listActionLedgerForWorkspace({
-      workspaceId: activeWorkspace.id,
-      limit: 100,
-    });
+    const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
+    const [ledger, missions] = await Promise.all([
+      listActionLedgerForWorkspace({ workspaceId: activeWorkspace.id, limit: 100 }),
+      listMissionsForWorkspace({ workspaceId: activeWorkspace.id, modeId: activeMode.id }),
+    ]);
     entries = ledger.entries;
+    missionLookup = buildMissionLookup(missions.missions);
   } catch {
     entries = [];
+    missionLookup = new Map();
   }
 
-  const model = selectWorkflowsModel(entries, new Map());
+  const model = selectWorkflowsModel(entries, missionLookup, new Date().getTime());
   const agentNames = Object.fromEntries(agentRegistry.map((agent) => [agent.id, agent.name]));
   const isReal = model.source === "ledger";
 
@@ -68,7 +74,11 @@ export default async function WorkflowsPage() {
           <div className="mt-3 grid gap-2">
             <HqMetric label="Agents engagés" value={model.board.totals.agentsEngaged} tone="violet" />
             <HqMetric label="Runs actifs" value={model.board.totals.active} tone="sky" />
-            <HqMetric label="Terminés" value={model.board.totals.completed} tone="emerald" />
+            <HqMetric
+              label="Coincés"
+              value={model.board.totals.stale}
+              tone={model.board.totals.stale > 0 ? "rose" : "neutral"}
+            />
             <HqMetric label="KPIs atteints" value={model.kpiReport.metCount} tone="emerald" />
           </div>
         </HqSummaryRail>

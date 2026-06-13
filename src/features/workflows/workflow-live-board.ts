@@ -10,9 +10,9 @@ import { currentStepIndex, isRunTerminal, runProgressPct } from "./workflow-run"
 //
 // Folds the flat list of runs into agent swimlanes, each run drawn as a line
 // of step points (the "line graph" of progression). Several agents can run in
-// parallel; each keeps its own lane. Pure and deterministic: ordering is fully
-// specified, no Date.now(), no I/O. The board reflects observed runs — it
-// authorizes nothing.
+// parallel; each keeps its own lane. Pure and deterministic: the only clock is
+// the caller-supplied `nowMs` (never Date.now() inside), so staleness is
+// reproducible. The board reflects observed runs — it authorizes nothing.
 // ---------------------------------------------------------------------------
 
 export type WorkflowStepPoint = {
@@ -39,6 +39,10 @@ export type WorkflowRunLane = {
   startedAtMs: number | null;
   endedAtMs: number | null;
   durationMs: number | null;
+  /** Time since last activity for a non-terminal run (needs nowMs), else null. */
+  idleMs: number | null;
+  /** A non-terminal run idle past the threshold — "stuck". */
+  isStale: boolean;
   observedOutcomeId: string | null;
 };
 
@@ -49,6 +53,7 @@ export type WorkflowAgentSwimlane = {
   activeRunCount: number;
   completedRunCount: number;
   failedRunCount: number;
+  staleRunCount: number;
 };
 
 export type WorkflowBoardTotals = {
@@ -58,6 +63,8 @@ export type WorkflowBoardTotals = {
   completed: number;
   failed: number;
   blocked: number;
+  /** Non-terminal runs idle past the staleness threshold. */
+  stale: number;
   agentsEngaged: number;
   /** Mean progress across non-terminal runs — the board's live momentum. */
   avgProgressPct: number;
@@ -67,6 +74,15 @@ export type WorkflowLiveBoard = {
   swimlanes: WorkflowAgentSwimlane[];
   totals: WorkflowBoardTotals;
 };
+
+export type WorkflowLiveBoardOptions = {
+  /** Reference clock for idle/staleness. Omit to disable staleness entirely. */
+  nowMs?: number;
+  /** A non-terminal run idle longer than this is "stale". Default 15 min. */
+  staleAfterMs?: number;
+};
+
+export const DEFAULT_STALE_AFTER_MS = 15 * 60 * 1000;
 
 export type AgentNameLookup =
   | Readonly<Record<string, string>>
@@ -92,7 +108,57 @@ function spanMs(startMs: number | null, endMs: number | null): number | null {
   return span >= 0 ? span : null;
 }
 
-function toLane(run: WorkflowRun): WorkflowRunLane {
+/** Idle time of a non-terminal run vs nowMs, or null (terminal / no clock). */
+export function runIdleMs(run: WorkflowRun, nowMs: number | undefined): number | null {
+  if (nowMs === undefined || isRunTerminal(run.status)) return null;
+  return Math.max(0, nowMs - run.updatedAtMs);
+}
+
+/** A non-terminal run is stale when it has been idle past the threshold. */
+export function isRunStale(
+  run: WorkflowRun,
+  nowMs: number | undefined,
+  staleAfterMs: number = DEFAULT_STALE_AFTER_MS,
+): boolean {
+  const idle = runIdleMs(run, nowMs);
+  return idle !== null && idle > staleAfterMs;
+}
+
+/**
+ * Proportional segment widths (percent, summing to 100) for a run's step line —
+ * each step's width tracks its real duration so the line reads like a small
+ * Gantt. Steps with no/zero duration get a visible minimum; when nothing has a
+ * duration yet, widths fall back to equal. Pure and deterministic.
+ */
+export function computeStepWidths(durations: ReadonlyArray<number | null>): number[] {
+  const n = durations.length;
+  if (n === 0) return [];
+
+  const equal = (): number[] => {
+    const base = Math.floor((100 / n) * 100) / 100;
+    const widths = Array.from({ length: n }, () => base);
+    widths[n - 1] = Math.round((100 - base * (n - 1)) * 100) / 100;
+    return widths;
+  };
+
+  const weights = durations.map((d) => (d !== null && d > 0 ? d : 0));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  const MIN = 6;
+  const pool = 100 - MIN * n;
+  if (total === 0 || pool <= 0) return equal();
+
+  const raw = weights.map((w) => MIN + (w / total) * pool);
+  const rounded = raw.map((v) => Math.round(v * 100) / 100);
+  const drift = Math.round((100 - rounded.reduce((s, v) => s + v, 0)) * 100) / 100;
+  rounded[n - 1] = Math.round((rounded[n - 1] + drift) * 100) / 100;
+  return rounded;
+}
+
+function toLane(
+  run: WorkflowRun,
+  nowMs: number | undefined,
+  staleAfterMs: number,
+): WorkflowRunLane {
   const steps: WorkflowStepPoint[] = run.steps.map((step) => ({
     index: step.index,
     key: step.key,
@@ -115,6 +181,8 @@ function toLane(run: WorkflowRun): WorkflowRunLane {
     startedAtMs: run.startedAtMs,
     endedAtMs: run.endedAtMs,
     durationMs: spanMs(run.startedAtMs, run.endedAtMs),
+    idleMs: runIdleMs(run, nowMs),
+    isStale: isRunStale(run, nowMs, staleAfterMs),
     observedOutcomeId: run.observedOutcomeId,
   };
 }
@@ -132,12 +200,17 @@ function compareLanes(left: WorkflowRunLane, right: WorkflowRunLane): number {
 /**
  * Builds the live board. Swimlanes appear in the order their agent first shows
  * up in `runs` (stable, log-order). Within a swimlane, live runs sort above
- * concluded ones, newest first. Fully deterministic for a given run list.
+ * concluded ones, newest first. Fully deterministic for a given run list and
+ * `nowMs`.
  */
 export function buildWorkflowLiveBoard(
   runs: readonly WorkflowRun[],
   agentNames: AgentNameLookup,
+  options: WorkflowLiveBoardOptions = {},
 ): WorkflowLiveBoard {
+  const nowMs = options.nowMs;
+  const staleAfterMs = options.staleAfterMs ?? DEFAULT_STALE_AFTER_MS;
+
   const lanesByAgent = new Map<string, WorkflowRunLane[]>();
   const agentOrder: string[] = [];
 
@@ -146,7 +219,7 @@ export function buildWorkflowLiveBoard(
       lanesByAgent.set(run.agentId, []);
       agentOrder.push(run.agentId);
     }
-    lanesByAgent.get(run.agentId)!.push(toLane(run));
+    lanesByAgent.get(run.agentId)!.push(toLane(run, nowMs, staleAfterMs));
   }
 
   const swimlanes: WorkflowAgentSwimlane[] = agentOrder.map((agentId) => {
@@ -158,6 +231,7 @@ export function buildWorkflowLiveBoard(
       activeRunCount: lanes.filter((l) => !isRunTerminal(l.status)).length,
       completedRunCount: lanes.filter((l) => l.status === "completed").length,
       failedRunCount: lanes.filter((l) => l.status === "failed").length,
+      staleRunCount: lanes.filter((l) => l.isStale).length,
     };
   });
 
@@ -175,6 +249,7 @@ export function buildWorkflowLiveBoard(
     completed: runs.filter((r) => r.status === "completed").length,
     failed: runs.filter((r) => r.status === "failed").length,
     blocked: runs.filter((r) => r.status === "blocked").length,
+    stale: nonTerminal.filter((r) => isRunStale(r, nowMs, staleAfterMs)).length,
     agentsEngaged: agentOrder.length,
     avgProgressPct,
   };

@@ -19,11 +19,12 @@ import {
 //
 // Two pure assemblers from the same building blocks:
 //   - assembleRealWorkflowsModel: projects REAL runs from the action ledger,
-//     derives observations from those concluded runs, and lights up the KPIs.
-//   - buildWorkflowsPageModel: the labelled demonstration fallback used when no
-//     live activity exists yet.
+//     derives observations from those concluded runs, lights up the KPIs, and
+//     flags stuck runs against `nowMs`.
+//   - buildWorkflowsPageModel: the labelled demonstration fallback (no clock —
+//     demo timestamps are fixed, staleness is not meaningful there).
 // selectWorkflowsModel prefers the real board and falls back to the demo. The
-// page does the ledger I/O and hands the entries in — assembly stays pure.
+// page does the ledger/mission I/O and hands the data in — assembly stays pure.
 // ---------------------------------------------------------------------------
 
 export const WORKFLOW_BOARD_REAL_NOTE =
@@ -46,9 +47,10 @@ function agentNameLookup(): Record<string, string> {
 export function assembleRealWorkflowsModel(
   entries: readonly ActionLedgerEntry[],
   missionLookup: MissionLookup,
+  nowMs?: number,
 ): WorkflowsPageModel {
   const runs = createWorkflowRunStore(projectRunsFromLedger(entries, missionLookup)).snapshot();
-  const board = buildWorkflowLiveBoard(runs, agentNameLookup());
+  const board = buildWorkflowLiveBoard(runs, agentNameLookup(), { nowMs });
   const kpiReport = buildKpiObservationReport(
     charterRegistry,
     deriveObservationsFromRuns(runs),
@@ -84,7 +86,8 @@ export function buildWorkflowsPageModel(): WorkflowsPageModel {
 export function selectWorkflowsModel(
   entries: readonly ActionLedgerEntry[],
   missionLookup: MissionLookup,
+  nowMs?: number,
 ): WorkflowsPageModel {
-  const real = assembleRealWorkflowsModel(entries, missionLookup);
+  const real = assembleRealWorkflowsModel(entries, missionLookup, nowMs);
   return real.board.totals.runs > 0 ? real : buildWorkflowsPageModel();
 }
