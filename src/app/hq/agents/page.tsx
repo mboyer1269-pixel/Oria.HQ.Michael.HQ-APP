@@ -17,6 +17,12 @@ import { getDefaultAgentAutonomyPolicy } from "@/features/agents/autonomy-policy
 import { agentRegistry } from "@/features/agents/seed";
 import { validateAgentSkillMapping } from "@/features/agents/skill-mapping";
 import { skillsCatalog } from "@/features/skills/seed";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
+import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
+import type { ActionLedgerEntry } from "@/server/actions/action-ledger-repository";
+import { buildAgentObservationsFromRuns } from "@/features/workflows/agent-quality-from-runs";
+import { reduceWorkflowRuns } from "@/features/workflows/workflow-run-events";
+import { projectRunsFromLedger } from "@/features/workflows/workflow-run-projection";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
@@ -52,9 +58,28 @@ export default async function AgentsPage() {
     agents: agentRegistry,
     skills: skillsCatalog,
   });
+  // Real run observations from the action ledger feed the quality scorecard so
+  // HQ health reflects actual runs, not just the blueprint baseline. Read-only;
+  // any failure falls back to an empty observation set (baseline preserved).
+  let ledgerEntries: ActionLedgerEntry[] = [];
+  try {
+    const { activeWorkspace } = getActiveWorkspaceContext();
+    const ledger = await listActionLedgerForWorkspace({
+      workspaceId: activeWorkspace.id,
+      limit: 100,
+    });
+    ledgerEntries = ledger.entries;
+  } catch {
+    ledgerEntries = [];
+  }
+  const runObservations = buildAgentObservationsFromRuns(
+    reduceWorkflowRuns(projectRunsFromLedger(ledgerEntries, new Map())),
+  );
+
   const qualityEvaluation = buildAgentQualityEvaluation({
     knowledgeCatalog: knowledgePackCatalog,
     autonomyCockpit,
+    observations: runObservations,
   });
 
   // Derive the local review queue from the quality scorecards via the shared
