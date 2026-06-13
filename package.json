@@ -33,6 +33,7 @@
     "test:memory-graph": "node --test src/server/memory/memory-graph.test.mjs",
     "test:learning-loop": "node --test src/server/memory/agent-learning-loop.test.mjs",
     "test:verified-lessons": "node --test src/server/agents/context/verified-lessons-context.test.mjs",
+    "test:agent-charter": "node --test src/features/agents/agent-charter.test.mjs",
     "test:model-router": "node --test src/server/ai/model-router.test.mjs",
     "test:execution-guard": "node --test src/server/runtime/execution-guard.test.mjs",
     "test:staging-runtime-diagnostic": "node --test src/server/runtime/staging-runtime-diagnostic.test.mjs",

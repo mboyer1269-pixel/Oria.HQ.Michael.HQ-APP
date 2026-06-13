@@ -1,6 +1,9 @@
 import type { Route } from "next";
-import { BrainCircuit, Network, ShieldCheck, Users } from "lucide-react";
+import { BrainCircuit, Crosshair, Network, ShieldCheck, Users } from "lucide-react";
 import { buildAgentAutonomyCockpit } from "@/features/agents/agent-autonomy-cockpit";
+import { buildCharterHealthReport } from "@/features/agents/agent-charter";
+import { charterRegistry } from "@/features/agents/charter-seed";
+import { AgentCharterPanel } from "@/features/agents/components/agent-charter-panel";
 import { buildAgentKnowledgePackCatalog } from "@/features/agents/agent-knowledge-packs";
 import { buildAgentQualityEvaluation } from "@/features/agents/agent-quality-evaluation";
 import { reviewQueueFromQualityEvaluation } from "@/features/agents/agent-review-cockpit";
@@ -39,6 +42,7 @@ export default async function AgentsPage() {
   const planned = agentRegistry.filter((a) => a.status === "planned");
 
   const mappingReport = validateAgentSkillMapping(agentRegistry, skillsCatalog);
+  const charterHealth = buildCharterHealthReport(agentRegistry, charterRegistry);
   const autonomyCockpit = buildAgentAutonomyCockpit({
     agents: agentRegistry,
     skills: skillsCatalog,
@@ -90,6 +94,10 @@ export default async function AgentsPage() {
           </div>
         </HqSummaryRail>
       </HqPageHeader>
+
+      <HqWidget title="Chartes opérationnelles" eyebrow="ADN & ROI" icon={Crosshair}>
+        <AgentCharterPanel charters={charterRegistry} health={charterHealth} />
+      </HqWidget>
 
       <HqWidget title="Autonomie contrôlée" eyebrow="Policy" icon={ShieldCheck}>
         <AgentAutonomyPolicyPanel model={autonomyCockpit} />
