@@ -43,6 +43,7 @@ import {
   isBundleApprovedToPlan,
 } from "@/server/agents/work-order-governance-plan";
 import { buildGovernanceDecisionContinuityNote } from "@/server/joris/governance-decision-continuity";
+import { composeVerifiedLessonsContext } from "@/server/agents/context/verified-lessons-context";
 import { readVerifiedVaultContext } from "@/server/memory/memory-vault-repository";
 import type { MemoryVaultReadResult } from "@/server/memory/memory-vault-types";
 
@@ -209,6 +210,19 @@ export async function runJorisCommand(
   const vaultContext = readVerifiedVaultContext(ctx.workspace.id);
   const vaultNote = buildVaultContextNote(vaultContext);
 
+  // Verified lessons rail — advisory block composed from the same verified
+  // read, filtered to lessons concerning the active agent, capped and
+  // sanitized. Subordinate to system rules by construction; the trace is
+  // non-sensitive (ids and counts only, never lesson content).
+  const lessonsRail = composeVerifiedLessonsContext({
+    entries: vaultContext.entries,
+    agentId: ctx.activeAgentProfile.id,
+  });
+  if (lessonsRail.block) {
+    logger.info("joris.memory.lessons.rail", { ...lessonsRail.trace });
+  }
+  const memoryContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
+
   const route = chooseModel({
     message,
     highImpact: false,
@@ -329,8 +343,8 @@ export async function runJorisCommand(
 
   if (intent === "brief.generate") {
     const brief = await buildCeoBriefSnapshot();
-    const briefSummary = vaultNote
-      ? `${brief.headline} ${brief.focusLine}\n\n${vaultNote}`
+    const briefSummary = memoryContext
+      ? `${brief.headline} ${brief.focusLine}\n\n${memoryContext}`
       : `${brief.headline} ${brief.focusLine}`;
 
     return {
@@ -475,8 +489,8 @@ export async function runJorisCommand(
 
   const fallbackSummary = buildFallbackSummary(intent, message);
   const finalSummary =
-    intent === "board.consult" && vaultNote
-      ? `${fallbackSummary}\n\n${vaultNote}`
+    intent === "board.consult" && memoryContext
+      ? `${fallbackSummary}\n\n${memoryContext}`
       : fallbackSummary;
 
   return {

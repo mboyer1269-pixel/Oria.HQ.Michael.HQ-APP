@@ -64,5 +64,11 @@ patterns gagnants priorisés.
   missionId / title avec chaque verdict (enveloppe versionnée dans la colonne
   Json existante, zéro migration, lecture legacy rétro-compatible). Le
   leaderboard et les leçons sont attribués de bout en bout.
-- L'injection des leçons vérifiées dans le contexte Joris reste à câbler
-  (chemin déjà contractualisé) — prochaine vague, décision CEO.
+- ~~L'injection des leçons vérifiées dans le contexte Joris reste à câbler.~~
+  **Fait (2026-06-12)** : rail advisory `composeVerifiedLessonsContext`
+  (`src/server/agents/context/verified-lessons-context.ts`) branchée dans
+  `brain.ts` — leçons vérifiées seulement, filtrées par agent, max 5 leçons /
+  2000 caractères, sortie déterministe, texte sanitisé, bloc explicitement
+  subordonné aux règles système, trace non sensible loguée.
+- Prochaine marche : approbation des leçons en un clic sur `/hq/memory`
+  (écriture `memory/notes/` + référence ledger).

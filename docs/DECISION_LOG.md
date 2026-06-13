@@ -1,6 +1,31 @@
-# Decision Log — Orya HQ
+# Decision Log — Oria HQ
 
 Registre des décisions produit et architecturales. Chaque entrée est immuable une fois fusionnée.
+
+---
+
+## 2026-06-12 — Naming canonique : « Oria » (marque) vs « Orya » (namespace technique gelé)
+
+**Décision :** Le nom produit / affichage est **Oria HQ** — c'est le naming dominant du code
+(68 occurrences dans `src/`, toutes les surfaces UI : `/hq`, agents, runtime, outbound, contact) et
+d'`AGENTS.md`. Aucune surface utilisateur n'affiche « Orya ».
+
+La graphie **Orya** est conservée **uniquement** comme namespace technique gelé et ne doit jamais
+être renommée (cf. `docs/AGENT_NAMING.md` règle 1 « les IDs techniques ne se renomment jamais ») :
+
+- En-têtes de dispatch / HMAC : `x-orya-action-ref`, `x-orya-timestamp`, `x-orya-signature`,
+  `X-Orya-Idempotency-Key` (`skill-dispatcher.ts`, `resend-email-adapter.ts`). Les renommer
+  casserait la vérification de signature et l'idempotence côté runtime — zone interdite.
+- Seed de ventures : `ORYA_VENTURES`, `ventureId: "orya-hq"` (`llm-cash-action-packet-generator.ts`,
+  `active-venture-contexts.ts`).
+- Statut/tier : `Original Orya` (`originalOryaEligible`, `originalOryaCandidate`).
+
+**Conséquence :** ne pas faire de rename de masse Oria⇄Orya. Toute nouvelle surface utilisateur
+écrit « Oria ». Les docs dont le titre disait « Orya HQ » comme **nom produit** sont alignées sur
+« Oria HQ » au fil des éditions (ce registre inclus). Cette entrée existe pour stopper la churn de
+renommage qui a coûté des tokens en sessions précédentes.
+
+**Références :** `AGENTS.md`, `docs/AGENT_NAMING.md`, `src/app/hq/page.tsx` (eyebrow « Oria · Michael HQ »)
 
 ---
 
