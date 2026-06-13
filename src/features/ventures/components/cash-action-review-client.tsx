@@ -30,7 +30,7 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import { getAgentDisplayName } from "@/features/agents/naming";
+import { getCouncilRoleDisplayName } from "@/features/agents/naming";
 import type { CashActionPacket, CashSignalType } from "../cash-action-packet";
 import { CASH_SIGNAL_TYPES } from "../cash-action-packet";
 import type { CashSignalIntake } from "../cash-signal-intake";
@@ -555,18 +555,6 @@ const READINESS_LABELS: Record<CouncilAnalysis["readiness"], string> = {
   needs_refinement: "Needs refinement",
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  orient: "Orient",
-  t_gravity: "T-Gravity",
-  hermes: getAgentDisplayName("hermes"),
-  auditor: "Auditor",
-  operator: "Operator",
-  joris_orchestrator: getAgentDisplayName("joris"),
-  builder: getAgentDisplayName("builder"),
-  scribe: getAgentDisplayName("scribe"),
-  closer: getAgentDisplayName("closer"),
-};
-
 const RECOMMENDATION_STYLES: Record<string, string> = {
   proceed: "text-emerald-400",
   support: "text-emerald-400",
@@ -627,7 +615,7 @@ function CouncilSection({
             <li key={turn.roleId} className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
                 <span className="min-w-[64px] text-[10px] font-semibold text-neutral-400">
-                  {ROLE_LABELS[turn.roleId] ?? turn.roleId}
+                  {getCouncilRoleDisplayName(turn.roleId)}
                 </span>
                 <span
                   className={`text-[10px] font-medium ${RECOMMENDATION_STYLES[turn.recommendation] ?? "text-neutral-400"}`}
