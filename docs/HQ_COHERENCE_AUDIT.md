@@ -26,7 +26,7 @@
 | # | Sévérité | Constat | Effet |
 |---|----------|---------|-------|
 | P1 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — résolveur unique `councilRoleId → agent \| lentille synthétique` dans `naming.ts`, verrouillé par test | (était : « demandes entre agents » référençant des acteurs fantômes) |
-| P2 | 🟠 | Le mot « run / workflow » porte 3 sens ; dérive des enums de statut entre eux | Confusion sur « prévu vs délibéré vs exécuté » |
+| P2 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — glossaire `docs/HQ_RUN_GLOSSARY.md` + phase canonique unique (`run-lifecycle-phase.ts`), sans renommer d'enum | (était : confusion « prévu vs délibéré vs exécuté » + dérive d'enums) |
 | P3 | 🟠 | Deux « chaînes » distinctes regroupées sous « line chain » sans lien explicite | Intégrité d'audit ≠ lignée de savoir, mais traitées comme une seule |
 | P4 | 🟡 | Capacités fortes mais **dormantes** présentées comme vivantes (council non câblé, hash-chain en shadow) | HQ peut sembler « plus actif qu'il ne l'est » |
 | P5 | 🟡 | Sprawl des documents « source of truth / contract / plan » sans index | Difficile de savoir quel doc fait foi |
@@ -106,7 +106,15 @@ que sous le token `auditor`.
 
 ---
 
-## P2 — 🟠 « Run / workflow » surchargé sur 3 couches + dérive d'enums
+## P2 — ✅ RÉSOLU (2026-06-13) — « Run / workflow » surchargé sur 3 couches + dérive d'enums
+
+> **Résolution.** Glossaire des couches (`docs/HQ_RUN_GLOSSARY.md`) + une phase
+> canonique unique (`not_started · in_progress · waiting · blocked · done ·
+> failed · cancelled`) sur laquelle TOUS les enums de statut mappent, via
+> `src/features/workflows/run-lifecycle-phase.ts`. Aucun token d'enum renommé
+> (plusieurs sont persistés) : l'alignement vit à la couche affichage. Couverture
+> exhaustive garantie au typecheck (`Record<Union, Phase>`) + verrouillée par
+> `run-lifecycle-phase.test.mjs`. Constat d'origine ci-dessous, conservé.
 
 Trois notions partagent le vocabulaire « workflow / run » :
 
