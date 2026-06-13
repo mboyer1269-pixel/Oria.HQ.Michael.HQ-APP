@@ -25,7 +25,7 @@
 
 | # | Sévérité | Constat | Effet |
 |---|----------|---------|-------|
-| P1 | 🔴 | Vocabulaire d'agents fragmenté en 3 taxonomies ; plusieurs roleIds du council ne résolvent vers aucun agent du registre | Les « demandes entre agents » référencent des acteurs fantômes |
+| P1 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — résolveur unique `councilRoleId → agent \| lentille synthétique` dans `naming.ts`, verrouillé par test | (était : « demandes entre agents » référençant des acteurs fantômes) |
 | P2 | 🟠 | Le mot « run / workflow » porte 3 sens ; dérive des enums de statut entre eux | Confusion sur « prévu vs délibéré vs exécuté » |
 | P3 | 🟠 | Deux « chaînes » distinctes regroupées sous « line chain » sans lien explicite | Intégrité d'audit ≠ lignée de savoir, mais traitées comme une seule |
 | P4 | 🟡 | Capacités fortes mais **dormantes** présentées comme vivantes (council non câblé, hash-chain en shadow) | HQ peut sembler « plus actif qu'il ne l'est » |
@@ -34,7 +34,15 @@
 
 ---
 
-## P1 — 🔴 Vocabulaire d'agents fragmenté
+## P1 — ✅ RÉSOLU (2026-06-13) — Vocabulaire d'agents fragmenté
+
+> **Résolution.** `naming.ts` expose désormais un résolveur unique
+> (`COUNCIL_ROLE_TO_AGENT`, `SYNTHETIC_COUNCIL_ROLES`,
+> `resolveCouncilRoleToAgentId`, `getCouncilRoleDisplayName`). Chaque `roleId` de
+> council est classé **agent-adossé XOR lentille synthétique** ; la couverture
+> exacte contre `AGENT_COUNCIL_ROLE_IDS` est verrouillée par
+> `naming-contract.test.mjs`. Matrice : `docs/AGENT_NAMING.md` § « Rôles de
+> council ». Constat d'origine ci-dessous, conservé pour mémoire.
 
 Trois vocabulaires coexistent pour désigner « qui sont mes agents », sans
 résolveur commun.
