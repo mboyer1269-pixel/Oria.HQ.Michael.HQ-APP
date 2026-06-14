@@ -30,7 +30,7 @@
 | P3 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — `docs/HQ_CHAINS.md` nomme/distingue/relie les deux chaînes (lignée vs intégrité) ; cross-refs ajoutés dans les 2 docs existants | (était : deux chaînes traitées comme une seule, sans lien) |
 | P4 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — P4a registre `capability-status.ts` + garde-fou ; P4b run council durable persisté (jsonb, sans migration) → council `display_only`→`live` | HQ ne présente plus une capacité dormante comme vivante ; le run council est durable |
 | P5 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — `docs/README.md` : index groupé par domaine (chaque doc une fois) + pointeurs vers les sous-index existants | Point d'entrée unique du dossier `docs/` |
-| P6 | 🟡 | Hygiène : `next-env.d.ts` est suivi par git (non ignoré) | Bruit de diff récurrent dans les commits/stashes |
+| P6 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — `next-env.d.ts` gitignoré + détracké, après vérif empirique que `tsc` passe sans lui (CI typecheck-avant-build OK) | Plus de bruit de diff ; régénéré par `next build` |
 
 ---
 
@@ -242,7 +242,14 @@ Un `docs/README.md` index unique listant chaque doc, son domaine et son statut
 
 ---
 
-## P6 — 🟡 Hygiène : `next-env.d.ts` suivi par git
+## P6 — ✅ RÉSOLU (2026-06-13) — Hygiène : `next-env.d.ts` suivi par git
+
+> **Résolution.** `next-env.d.ts` ajouté à `.gitignore` + `git rm --cached`
+> (conservé sur disque, régénéré par `next build`). **Vérification avant
+> application** : la CI lance `typecheck` AVANT `build` (`.github/workflows/ci.yml`),
+> donc le risque était que `tsc` échoue sans le fichier sur clone frais. Test
+> empirique (fichier + `.next` retirés → `tsc --noEmit` exit 0) : aucun code ne
+> dépend de ses refs ambiantes → **sûr**. Constat d'origine ci-dessous.
 
 Fichier auto-généré par Next.js, actuellement **tracké** (il apparaît dans les
 diffs et est revenu dans 2 des 5 stashes archivés). Bruit de diff récurrent.
