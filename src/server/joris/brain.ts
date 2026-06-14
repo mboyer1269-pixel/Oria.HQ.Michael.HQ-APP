@@ -19,6 +19,7 @@ import {
 import { formatMissionDraftProposalSummary } from "@/server/missions/mission-draft-builder";
 import { getPendingMissionDraft, setPendingMissionDraft } from "@/server/missions/mission-draft-session";
 import { detectIntent } from "@/server/joris/detect-intent";
+import { generateJorisReply, type JorisReplyResult } from "@/server/joris/joris-reply-generator";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
 import { buildJorisGovernanceBundlePreview } from "@/server/joris/governance-bundle-preview";
@@ -198,9 +199,19 @@ async function handleGovernanceReviewReply(
   };
 }
 
+/** Injectable dependencies — lets tests supply a mock LLM reply (no network). */
+export type RunJorisCommandDeps = {
+  generateReply: (input: { message: string; memoryContext?: string | null }) => Promise<JorisReplyResult>;
+};
+
+const defaultRunJorisCommandDeps: RunJorisCommandDeps = {
+  generateReply: generateJorisReply,
+};
+
 export async function runJorisCommand(
   message: string,
   workspaceContext: WorkspaceContext = getActiveWorkspaceContext(),
+  deps: RunJorisCommandDeps = defaultRunJorisCommandDeps,
 ): Promise<CommandResult> {
   const ctx = workspaceContext;
 
@@ -487,6 +498,23 @@ export async function runJorisCommand(
     };
   }
 
+  // Conversational catch-all (chat / board.consult / reminders). Attempt a real
+  // LLM reply via the shared provider; when no provider is configured (no API
+  // keys) or the call fails, fall back to a deterministic summary. The result is
+  // labelled (`generation`) so nothing claims "AI mode" when rules produced it.
+  const llmReply = await deps.generateReply({ message, memoryContext });
+  if (llmReply.ok) {
+    return {
+      intent,
+      summary: llmReply.text,
+      modelId: llmReply.modelId,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+      generation: "llm",
+    };
+  }
+
   const fallbackSummary = buildFallbackSummary(intent, message);
   const finalSummary =
     intent === "board.consult" && memoryContext
@@ -500,5 +528,6 @@ export async function runJorisCommand(
     costMode: routedModel.mode,
     ...workspaceMeta,
     requiresConfirmation: false,
+    generation: "fallback",
   };
 }

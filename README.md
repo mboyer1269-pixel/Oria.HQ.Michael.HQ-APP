@@ -57,6 +57,7 @@ Joris is the **operating partner**, not a free agent runner. All sensitive actio
 - **Two-step Mission Draft gate** — `calendar.book` intents produce a structured preview first; confirmed only on explicit reply (`confirme`, `oui`, `go`). Pending drafts have a 10-minute TTL.
 - **Workspace context** — every Joris action injects `workspaceId`, `modeId`, `assistantProfileId` into the ledger.
 - **Joris Brain** (`src/server/joris/brain.ts`) routes intents: `mission.draft`, `mission.plan`, `calendar.book`, governance checks.
+- **Model invocation** — conversational replies (general `chat`, `board.consult`) call a real LLM through the shared provider (`generateStructuredJson`: Anthropic → OpenAI) **when API keys are configured**, and fall back to a deterministic, clearly-labelled response otherwise (`CommandResult.generation` is `"llm"` or `"fallback"`). Structured intents (booking, mission plan, governance, brief) are deterministic and rules-based — the router only *selects* a model for them, it does not invoke one.
 - **Smoke test**: `npm run smoke:joris` — full two-step flow + `missionId` tracing on ledger.
 
 ### Action ledger & governance
