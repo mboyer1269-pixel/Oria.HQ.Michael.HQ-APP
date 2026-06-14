@@ -28,8 +28,12 @@ recompute a metric that another consumer already owns.
   per mission, steps light up only from entries that actually exist.
 - **Mission lookup:** `src/features/hq/ledger-activity.ts`
   (`buildMissionLookup` / `resolveLedgerMissionId`). Real mission title + status
-  when present; a clean fallback (`Mission <id>` / in-flight) when the
-  `missionId` is null, unknown, or orphaned. No UI crash on a missing mission.
+  when present. Two distinct cases otherwise: (1) when an entry's `missionId` is
+  null or absent, the entry is **ignored** — it never becomes a run
+  (`workflow-run-projection.ts`: `if (!missionId) continue`); (2) when an entry
+  *has* a `missionId` but the mission is unknown/orphaned in the lookup, the run
+  is kept with a clean fallback (`Mission <id>` / in-flight). No UI crash on a
+  missing mission.
 
 ## Stuck-run rule — one threshold
 
