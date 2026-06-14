@@ -133,6 +133,8 @@ export type CommandResult = {
   auditExport?: GovernanceAuditExport;
   pendingDraftId?: string;
   missionId?: string;
+  /** How `summary` was produced on the conversational path: a real LLM call ("llm") or the deterministic fallback ("fallback"). Absent on structured/rules-based intents. */
+  generation?: "llm" | "fallback";
 };
 
 export type CeoBriefAgendaItem = {
