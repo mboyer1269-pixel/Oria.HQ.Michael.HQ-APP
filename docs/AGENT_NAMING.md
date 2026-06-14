@@ -55,7 +55,42 @@ pas de personnages décoratifs — un command center.
 
 `src/features/agents/naming-contract.test.mjs` verrouille le contrat : IDs
 gelés, noms uniques, panthéon banni du registre, résolution des alias ledger
-et des anciens noms. Tout rename futur passe par ce test.
+et des anciens noms, **et la résolution des rôles de council** (couverture
+exacte agent XOR lentille contre `AGENT_COUNCIL_ROLE_IDS`). Tout rename futur
+passe par ce test.
+
+## Rôles de council (résolution)
+
+Les `roleId` du contrat Agent Council
+(`src/server/agents/agent-council-run-contract.ts`) se résolvent via `naming.ts`
+(`getCouncilRoleDisplayName`, `resolveCouncilRoleToAgentId`) en **deux familles
+intentionnelles** — un seul mécanisme, plus aucun token fantôme.
+
+**Adossés à un agent** — le rôle EST un agent du registre :
+
+| roleId council | Agent (id) | Affichage |
+|---|---|---|
+| `joris_orchestrator` | `joris` | Joris |
+| `hermes` | `hermes` | Relay |
+| `auditor` | `sentinel` | Sentinel |
+| `builder` | `builder` | Forge |
+| `scribe` | `scribe` | Scribe |
+| `closer` | `closer` | Closer |
+
+**Lentilles synthétiques** — fonctions de délibération council-only, sans agent
+dédié (`resolveCouncilRoleToAgentId` renvoie `null`) :
+
+| roleId council | Affichage | Raison |
+|---|---|---|
+| `orient` | Cadrage | Contexte acheteur / positionnement — distinct du scan marché de Radar. |
+| `t_gravity` | Gravité éco. | Priorisation ROI / speed-to-cash / risque — fonction, pas agent. |
+| `operator` | Opérateur | Préparation du handoff next-work — fonction, pas agent. |
+
+> Décision 2026-06-13 (audit de cohérence P1, `docs/HQ_COHERENCE_AUDIT.md`) :
+> `orient`, `t_gravity`, `operator` sont des **lentilles**, pas des agents.
+> Avant ce passage, 4 des 5 rôles de la séquence cash réelle
+> (`orient, t_gravity, hermes, auditor, operator`) ne résolvaient vers aucun
+> agent — `naming-contract.test.mjs` empêche désormais toute régression.
 
 ## Références techniques volontairement inchangées
 

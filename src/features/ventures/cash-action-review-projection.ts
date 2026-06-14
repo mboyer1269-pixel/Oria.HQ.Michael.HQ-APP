@@ -9,6 +9,7 @@
 // server page (to build props) and the client component (which re-exports the
 // display types). Keeps the projection logic testable on its own.
 
+import type { RunLifecyclePhase } from "@/features/workflows/run-lifecycle-phase";
 import type { HermesOutreachPlan } from "./hermes-outreach-plan";
 import type { PreparedAction } from "./prepared-action";
 
@@ -30,6 +31,10 @@ export type CouncilAnalysis = {
   recommendedManualAction: string;
   turns: CouncilTurnDisplay[];
   runIndex: number;
+  // Durable council run (P4b) — set only when read from a persisted prepared
+  // action. `runPhase` is the P2 lifecycle phase derived from the stored status.
+  runId?: string;
+  runPhase?: RunLifecyclePhase;
 };
 
 export type HermesPlanDisplay = {

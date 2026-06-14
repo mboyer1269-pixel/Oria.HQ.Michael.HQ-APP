@@ -3,6 +3,7 @@
 **As of:** 2026-06-08
 **Repo:** Oria.HQ
 **Track:** `action_ledger` tamper-evident hash-chain integrity
+**See also:** `docs/HQ_CHAINS.md` — ledger hash-chain (integrity) vs memory chainline (lineage), and where they meet.
 
 ---
 

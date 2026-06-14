@@ -198,6 +198,38 @@ test("PreparedAction model", async (t) => {
   });
 
   // -------------------------------------------------------------------------
+  // Group 3b — Durable council run fields (P4b)
+  // -------------------------------------------------------------------------
+  await t.test("durable council run fields (P4b)", async (t) => {
+    await t.test("a council summary WITHOUT durable fields stays valid (backward compat)", () => {
+      const result = validatePreparedAction(makeAction());
+      assert.equal(result.valid, true);
+      assert.equal("runId" in makeAction().council, false);
+    });
+
+    await t.test("accepts well-formed durable run fields", () => {
+      const action = makeAction({
+        council: makeCouncil({ runId: "prep:packet-001", runStatus: "ready_for_ceo", turnCount: 5 }),
+      });
+      const result = validatePreparedAction(action);
+      assert.equal(result.valid, true);
+      assert.deepEqual(result.errors, []);
+    });
+
+    await t.test("rejects an empty runId when present", () => {
+      const result = validatePreparedAction(makeAction({ council: makeCouncil({ runId: "" }) }));
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((e) => e.includes("council.runId")));
+    });
+
+    await t.test("rejects a negative turnCount", () => {
+      const result = validatePreparedAction(makeAction({ council: makeCouncil({ turnCount: -1 }) }));
+      assert.equal(result.valid, false);
+      assert.ok(result.errors.some((e) => e.includes("turnCount")));
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Group 4 — Governance: proposal only
   // -------------------------------------------------------------------------
   await t.test("governance: proposal only", async (t) => {

@@ -12,6 +12,7 @@ import {
   Sparkles,
   SendHorizonal,
   StickyNote,
+  Workflow,
 } from "lucide-react";
 import { Tooltip } from "./ui";
 import { CockpitTopbar } from "./cockpit-topbar";
@@ -43,6 +44,7 @@ const NAV: NavItem[] = [
   { key: "cockpit", label: "Cockpit", href: "/hq/cockpit", icon: LayoutDashboard, group: "Pilotage", tipTitle: "Cockpit", tipDetail: "Tout ce qui requiert ton attention aujourd'hui, en un écran." },
   { key: "missions", label: "Missions", href: "/hq/missions", icon: ListChecks, group: "Pilotage", tipTitle: "Missions", tipDetail: "Drafts, approbations et suivi d'exécution contrôlée." },
   { key: "agents", label: "Agents", href: "/hq/agents", icon: Bot, group: "Pilotage", tipTitle: "Agents · gouvernance", tipDetail: "Autonomie, knowledge packs, scorecards et file de revue." },
+  { key: "workflows", label: "Workflows", href: "/hq/workflows", icon: Workflow, group: "Pilotage", tipTitle: "Workflows live", tipDetail: "Runs multi-agents en direct, lignes d'étapes et KPIs mesurés sur observations réelles." },
   { key: "skills", label: "Skills", href: "/hq/skills", icon: Sparkles, group: "Pilotage", tipTitle: "Skills", tipDetail: "Catalogue des compétences gouvernées." },
   { key: "runtime", label: "Runtime", href: "/hq/runtime", icon: CircleDot, group: "Pilotage", tipTitle: "Runtime", tipDetail: "Exécution verrouillée tant qu'une action n'est pas ledgerée et bornée.", tipMeta: "Verrouillé" },
   { key: "ventures", label: "Ventures", href: "/hq/ventures", icon: Building2, group: "Pilotage", tipTitle: "Ventures", tipDetail: "Portefeuille et file de décisions stratégiques." },

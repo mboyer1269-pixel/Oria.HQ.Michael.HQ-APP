@@ -2,6 +2,7 @@
 
 > **Status:** implemented · 2026-06-12
 > **Code:** `buildChainlineGraph` / `chainlineStageForLink` in `src/server/memory/memory-graph.ts`
+> **Voir aussi:** `docs/HQ_CHAINS.md` — chainline (lignée) vs ledger hash-chain (intégrité), et où elles se rejoignent.
 
 A **chainline** is the audit path from where knowledge came from to what it
 caused. Every significant decision in Oria HQ should be traceable along:
