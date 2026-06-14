@@ -3,6 +3,11 @@ import os from 'os';
 import path from 'path';
 import mammoth from 'mammoth';
 import { execFileSync } from 'child_process';
+import {
+  isFileDocumentStoreAllowed,
+  warnIfUnsafeFileDocumentStore,
+  UNSAFE_FILE_DOCUMENT_STORE_ENV,
+} from '../server/documents/file-document-store-guard';
 
 // Configuration locale
 const DB_PATH = path.join(process.cwd(), 'db', 'documents.json');
@@ -93,7 +98,17 @@ function shouldCreateTask(filename: string, text: string): boolean {
   return ACTION_KEYWORDS.some(keyword => content.includes(keyword));
 }
 
+// Dev/test-only: db/documents.json is a local fixture, never a prod datastore.
 function updateLocalDb(doc: ProcessedDocument) {
+  if (!isFileDocumentStoreAllowed()) {
+    console.warn(
+      `[process-document] Skipping db/documents.json write: the file document store is ` +
+        `dev/test-only and disabled here. Set ${UNSAFE_FILE_DOCUMENT_STORE_ENV}=true to override (unsafe).`,
+    );
+    return;
+  }
+  warnIfUnsafeFileDocumentStore();
+
   const dbDir = path.dirname(DB_PATH);
   if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });

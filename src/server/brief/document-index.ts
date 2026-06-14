@@ -2,6 +2,10 @@ import "server-only";
 
 import fs from "fs/promises";
 import path from "path";
+import {
+  isFileDocumentStoreAllowed,
+  warnIfUnsafeFileDocumentStore,
+} from "@/server/documents/file-document-store-guard";
 
 export type DocumentIndexEntry = {
   id: string;
@@ -20,8 +24,16 @@ export type DocumentBriefSnapshot = {
   }>;
 };
 
-async function readDocumentIndex(): Promise<DocumentIndexEntry[]> {
-  const dbPath = path.join(process.cwd(), "db", "documents.json");
+async function readDocumentIndex(
+  dbPath = path.join(process.cwd(), "db", "documents.json"),
+): Promise<DocumentIndexEntry[]> {
+  // db/documents.json is a dev/test fixture, never a production datastore. In
+  // production this is fail-closed (returns empty without reading the file)
+  // unless the explicit unsafe break-glass flag is set.
+  if (!isFileDocumentStoreAllowed()) {
+    return [];
+  }
+  warnIfUnsafeFileDocumentStore();
 
   try {
     const content = await fs.readFile(dbPath, "utf-8");
@@ -52,8 +64,8 @@ async function readDocumentIndex(): Promise<DocumentIndexEntry[]> {
   }
 }
 
-export async function getDocumentBriefSnapshot(limit = 3): Promise<DocumentBriefSnapshot> {
-  const documents = await readDocumentIndex();
+export async function getDocumentBriefSnapshot(limit = 3, dbPath?: string): Promise<DocumentBriefSnapshot> {
+  const documents = await readDocumentIndex(dbPath);
   const byHat = documents.reduce<Record<string, number>>((acc, doc) => {
     acc[doc.hat] = (acc[doc.hat] || 0) + 1;
     return acc;
