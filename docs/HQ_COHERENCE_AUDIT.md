@@ -29,7 +29,7 @@
 | P2 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — glossaire `docs/HQ_RUN_GLOSSARY.md` + phase canonique unique (`run-lifecycle-phase.ts`), sans renommer d'enum | (était : confusion « prévu vs délibéré vs exécuté » + dérive d'enums) |
 | P3 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — `docs/HQ_CHAINS.md` nomme/distingue/relie les deux chaînes (lignée vs intégrité) ; cross-refs ajoutés dans les 2 docs existants | (était : deux chaînes traitées comme une seule, sans lien) |
 | P4 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — P4a registre `capability-status.ts` + garde-fou ; P4b run council durable persisté (jsonb, sans migration) → council `display_only`→`live` | HQ ne présente plus une capacité dormante comme vivante ; le run council est durable |
-| P5 | 🟡 | Sprawl des documents « source of truth / contract / plan » sans index | Difficile de savoir quel doc fait foi |
+| P5 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — `docs/README.md` : index groupé par domaine (chaque doc une fois) + pointeurs vers les sous-index existants | Point d'entrée unique du dossier `docs/` |
 | P6 | 🟡 | Hygiène : `next-env.d.ts` est suivi par git (non ignoré) | Bruit de diff récurrent dans les commits/stashes |
 
 ---
@@ -221,7 +221,13 @@ Les maillons existent tous ; ils ne sont pas encore chaînés bout-à-bout.
 
 ---
 
-## P5 — 🟡 Sprawl documentaire « source of truth »
+## P5 — ✅ RÉSOLU (2026-06-13) — Sprawl documentaire « source of truth »
+
+> **Résolution.** `docs/README.md` indexe les ~90 docs **groupés par domaine**
+> (chaque doc rangé une fois), met en tête le set cohérence/gouvernance, et
+> pointe vers les sous-index existants (`SOVRA_INDEX.md`, `memory/README.md`) au
+> lieu de les dupliquer. Pas de description inventée : les rôles détaillés restent
+> dans chaque doc. Constat d'origine ci-dessous.
 
 Plusieurs documents font autorité sans index commun :
 `docs/HQ_RUN_HEALTH_SOURCE_OF_TRUTH.md`, `docs/MEMORY_VAULT_CONTRACT.md`,
