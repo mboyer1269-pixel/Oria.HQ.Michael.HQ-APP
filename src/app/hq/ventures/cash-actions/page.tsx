@@ -9,7 +9,8 @@ import { listActiveVentureContextsForWorkspace } from "@/server/ventures/active-
 import { composeVentureCouncilCashRun } from "@/features/ventures/venture-council-cash-run-composer";
 import { buildHermesOutreachPlanFromCashActionPacket } from "@/features/ventures/hermes-outreach-plan";
 import type { CashActionPacket } from "@/features/ventures/cash-action-packet";
-import type { PreparedAction } from "@/features/ventures/prepared-action";
+import type { PreparedAction, PreparedActionCouncilSummary } from "@/features/ventures/prepared-action";
+import { councilRunStatusPhase } from "@/features/workflows/run-lifecycle-phase";
 import type {
   CouncilAnalysis,
   HermesPlanDisplay,
@@ -45,14 +46,17 @@ function toCouncilAnalysis(
   packet: CashActionPacket,
   runIndex: number,
   createdAt: string,
-  override?: Pick<CouncilAnalysis, "readiness" | "verdictDecision" | "recommendedManualAction">,
+  override?: PreparedActionCouncilSummary,
 ): CouncilAnalysis {
   const result = composeVentureCouncilCashRun({
     runId: `council:${packet.packetId}`,
     cashActionPacket: packet,
     createdAt,
   });
-  return {
+  // Durable run badge only when the run came from a persisted prepared action
+  // (the override). The live-generation fallback stays display-only (P4b).
+  const runPhase = override?.runStatus ? councilRunStatusPhase(override.runStatus) : null;
+  const analysis: CouncilAnalysis = {
     packetId: packet.packetId,
     readiness: override?.readiness ?? result.readiness,
     verdictDecision: override?.verdictDecision ?? result.verdict.decision,
@@ -65,6 +69,9 @@ function toCouncilAnalysis(
     })),
     runIndex,
   };
+  if (override?.runId) analysis.runId = override.runId;
+  if (runPhase) analysis.runPhase = runPhase;
+  return analysis;
 }
 
 export default async function CashActionReviewPage() {

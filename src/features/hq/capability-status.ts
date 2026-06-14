@@ -68,11 +68,11 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
   {
     id: "agent_council",
     label: "Agent council (délibération)",
-    status: "display_only",
+    status: "live",
     surface: "/hq/ventures/cash-actions",
     evidence:
-      "src/server/agents/agent-council-run-contract.ts via venture-council-cash-run-composer.ts",
-    note: "Composé à la demande et affiché ; pas de persistance de run ni de loop autonome (= P4b).",
+      "agent-council-run-contract.ts via venture-council-cash-run-composer.ts ; run durable (runId/status/verdict) persisté sur prepared_actions (PreparedActionCouncilSummary, P4b)",
+    note: "Run durable persisté via la file prepared-actions (identité + statut + verdict) ; turns recomposés déterministe ; loop autonome reste futur (P4b+).",
   },
   {
     id: "memory_vault",

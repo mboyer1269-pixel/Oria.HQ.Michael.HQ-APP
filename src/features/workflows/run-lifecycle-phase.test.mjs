@@ -46,6 +46,7 @@ test("Run lifecycle phase contract (P2)", async (t) => {
     WORKFLOW_STEP_STATUS_PHASE,
     COUNCIL_RUN_STATUS_PHASE,
     COUNCIL_TURN_STATUS_PHASE,
+    councilRunStatusPhase,
   } = mod;
 
   const ALL_MAPS = {
@@ -124,5 +125,12 @@ test("Run lifecycle phase contract (P2)", async (t) => {
     assert.equal(COUNCIL_RUN_STATUS_PHASE.ready_for_ceo, "waiting");
     assert.equal(WORKFLOW_STEP_STATUS_PHASE.skipped, "cancelled");
     assert.equal(COUNCIL_TURN_STATUS_PHASE.skipped, "cancelled");
+  });
+
+  await t.test("councilRunStatusPhase maps known statuses, null for unknown (P4b helper)", () => {
+    assert.equal(councilRunStatusPhase("ready_for_ceo"), "waiting");
+    assert.equal(councilRunStatusPhase("completed"), "done");
+    assert.equal(councilRunStatusPhase("running"), "in_progress");
+    assert.equal(councilRunStatusPhase("not-a-status"), null);
   });
 });

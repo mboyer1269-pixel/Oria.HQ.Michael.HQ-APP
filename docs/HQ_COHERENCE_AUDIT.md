@@ -28,7 +28,7 @@
 | P1 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — résolveur unique `councilRoleId → agent \| lentille synthétique` dans `naming.ts`, verrouillé par test | (était : « demandes entre agents » référençant des acteurs fantômes) |
 | P2 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — glossaire `docs/HQ_RUN_GLOSSARY.md` + phase canonique unique (`run-lifecycle-phase.ts`), sans renommer d'enum | (était : confusion « prévu vs délibéré vs exécuté » + dérive d'enums) |
 | P3 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — `docs/HQ_CHAINS.md` nomme/distingue/relie les deux chaînes (lignée vs intégrité) ; cross-refs ajoutés dans les 2 docs existants | (était : deux chaînes traitées comme une seule, sans lien) |
-| P4 | 🟢 partiel | **P4a RÉSOLU (2026-06-13)** — registre `capability-status.ts` (live/shadow/display_only/contract_only/planned) + garde-fou auto-vérifié ; **P4b** (câblage de la boucle) reste | HQ ne présente plus une capacité dormante comme vivante |
+| P4 | ✅ 🟢 | **RÉSOLU (2026-06-13)** — P4a registre `capability-status.ts` + garde-fou ; P4b run council durable persisté (jsonb, sans migration) → council `display_only`→`live` | HQ ne présente plus une capacité dormante comme vivante ; le run council est durable |
 | P5 | 🟡 | Sprawl des documents « source of truth / contract / plan » sans index | Difficile de savoir quel doc fait foi |
 | P6 | 🟡 | Hygiène : `next-env.d.ts` est suivi par git (non ignoré) | Bruit de diff récurrent dans les commits/stashes |
 
@@ -177,7 +177,7 @@ explicite : chaque entrée mémoire `decision`/`action` pointe vers son entrée
 
 ---
 
-## P4 — 🟢 P4a RÉSOLU (2026-06-13) — Capacités fortes mais dormantes
+## P4 — ✅ RÉSOLU (2026-06-13) — Capacités fortes mais dormantes
 
 > **Résolution (P4a).** Registre typé `src/features/hq/capability-status.ts` :
 > chaque capacité majeure porte son statut RÉEL (`live | display_only | shadow |
@@ -186,8 +186,10 @@ explicite : chaque entrée mémoire `decision`/`action` pointe vers son entrée
 > `ledger_hash_chain` au vrai flag d'écriture — le registre ne peut pas mentir en
 > silence. **Correction de précision** : le council est `display_only` (composé +
 > affiché sur `/hq/ventures/cash-actions`), pas « sans UI » comme l'indiquait le
-> constat d'origine. **P4b reste** : câbler la boucle (persistance council + run
-> durable) et activer le hash-chain. Constat d'origine ci-dessous.
+> constat d'origine. **P4b RÉSOLU (2026-06-13)** : run council durable
+> (runId/status/verdict) persisté sur `prepared_actions` (colonne jsonb, sans
+> migration) + badge phase P2 → council `display_only` → `live`. Reste : loop
+> autonome (run dédié + reprise) et activation du hash-chain. Constat ci-dessous.
 
 Plusieurs briques bien construites ne sont **pas encore en service**, ce qui peut
 faire croire le HQ plus actif qu'il ne l'est :

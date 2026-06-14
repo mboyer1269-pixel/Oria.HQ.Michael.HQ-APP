@@ -78,6 +78,11 @@ function defaultComposeCouncil(
     readiness: result.readiness,
     verdictDecision: result.verdict.decision,
     recommendedManualAction: result.recommendedManualAction,
+    // Durable council run record (P4b): identity + status survive in the
+    // persisted prepared action, so the run is no longer recompose-only.
+    runId: result.run.runId,
+    runStatus: result.run.status,
+    turnCount: result.turns.length,
   };
 }
 

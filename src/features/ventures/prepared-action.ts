@@ -80,6 +80,14 @@ export type PreparedActionCouncilSummary = {
   readiness: PreparedActionReadiness;
   verdictDecision: string;
   recommendedManualAction: string;
+  // Durable council run record (P4b). Optional for backward compatibility with
+  // summaries persisted before these fields existed. `runStatus` is the raw
+  // AgentCouncilRunStatus token (kept as a plain string so this pure model never
+  // imports server/agents); the display derives a lifecycle phase from it via
+  // run-lifecycle-phase (P2).
+  runId?: string;
+  runStatus?: string;
+  turnCount?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -213,6 +221,20 @@ export function validatePreparedAction(action: PreparedAction): PreparedActionVa
     }
     requireText(action.council.verdictDecision, "council.verdictDecision", errors);
     requireText(action.council.recommendedManualAction, "council.recommendedManualAction", errors);
+    // Durable run fields (P4b) — optional; validated only when present so rows
+    // persisted before these existed stay valid.
+    if (action.council.runId !== undefined) {
+      requireText(action.council.runId, "council.runId", errors);
+    }
+    if (action.council.runStatus !== undefined) {
+      requireText(action.council.runStatus, "council.runStatus", errors);
+    }
+    if (
+      action.council.turnCount !== undefined &&
+      (!Number.isInteger(action.council.turnCount) || action.council.turnCount < 0)
+    ) {
+      errors.push("council.turnCount must be a non-negative integer");
+    }
   }
 
   // Queue ordering.

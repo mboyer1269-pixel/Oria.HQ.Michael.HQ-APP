@@ -22,7 +22,7 @@
 | Workflow run board | **live** | `/hq/workflows` | `workflow-run-projection.ts` (ledger réel) |
 | Agent charters / DNA | **live** | `/hq/agents` | `agent-charter.ts` (+ charter-seed) |
 | Mission execution boundary | **live** | — | `approval-derivation.ts` + `execution-attempt-store.ts` |
-| Agent council (délibération) | **display_only** | `/hq/ventures/cash-actions` | `agent-council-run-contract.ts` via le composer venture |
+| Agent council (délibération) | **live** | `/hq/ventures/cash-actions` | run durable (runId/status/verdict) persisté sur `prepared_actions` (P4b) |
 | Memory vault (v0.1 fichier) | **live** | `/hq/memory` | `memory/` + `learning-loop-service.ts` |
 | Memory vault — Supabase/pgvector | **planned** | — | `MEMORY_VAULT_CONTRACT.md` (verrouillé) |
 | Ledger integrity hash-chain | **shadow** | — | `hash-chain-write-flag.ts` (flag off) |
@@ -37,8 +37,10 @@
 
 ## Ce que ça débloque (suite)
 
-- **P4b** : brancher le council sur une persistance + une surface vivante (run
-  council durable), pour le faire passer de `display_only` à `live`.
+- **P4b ✅ (2026-06-13)** : run council durable (runId/status/verdict) persisté
+  sur `prepared_actions` (colonne jsonb `council`, **sans migration**) + badge
+  phase (P2) sur `/hq/ventures/cash-actions` → council passé `display_only` →
+  `live`. Reste : loop autonome (run dédié + reprise) = P4b+.
 - **Activation hash-chain** : mandate-gated (migration Phase 1 + `LEDGER_HMAC_KEY`),
   puis passer l'entrée à `live` — le test l'exigera.
 - *(optionnel)* une petite tuile read-only sur une page HQ qui lit ce registre,

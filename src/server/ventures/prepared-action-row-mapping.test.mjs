@@ -97,6 +97,26 @@ test("Prepared action row mapping", async (t) => {
     assert.equal(back.contentHash, action.contentHash);
   });
 
+  await t.test("round-trips durable council run fields through the jsonb council column (P4b)", () => {
+    const action = makeAction({
+      council: {
+        readiness: "ready_for_ceo",
+        verdictDecision: "needs_ceo_decision",
+        recommendedManualAction: "CEO manually adapts and sends the outreach draft.",
+        runId: "prep:packet-001",
+        runStatus: "ready_for_ceo",
+        turnCount: 5,
+      },
+    });
+    const insert = mapPreparedActionToInsert("ws1", USER, action);
+    const row = { ...insert, id: "row-uuid-2", created_at: action.createdAt };
+    const back = mapRowToPreparedAction(row);
+    assert.equal(validatePreparedAction(back).valid, true);
+    assert.equal(back.council.runId, "prep:packet-001");
+    assert.equal(back.council.runStatus, "ready_for_ceo");
+    assert.equal(back.council.turnCount, 5);
+  });
+
   await t.test("rejects a forged insert that authorizes execution", () => {
     const forged = { ...makeAction(), noExecutionAuthorized: false };
     assert.throws(

@@ -122,3 +122,13 @@ export const COUNCIL_TURN_STATUS_PHASE: Record<AgentCouncilTurnStatus, RunLifecy
   failed: "failed",
   skipped: "cancelled",
 };
+
+/**
+ * Safe lookup for a persisted/raw council run status string (e.g. a stored
+ * value whose exact type was erased). Returns the canonical phase, or null when
+ * the token is not a known council run status. Used by surfaces that read a
+ * stored `runStatus` and want a P2 phase without importing the council enum.
+ */
+export function councilRunStatusPhase(status: string): RunLifecyclePhase | null {
+  return (COUNCIL_RUN_STATUS_PHASE as Record<string, RunLifecyclePhase>)[status] ?? null;
+}

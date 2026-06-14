@@ -31,6 +31,7 @@ import {
   Users,
 } from "lucide-react";
 import { getCouncilRoleDisplayName } from "@/features/agents/naming";
+import { phaseLabel } from "@/features/workflows/run-lifecycle-phase";
 import type { CashActionPacket, CashSignalType } from "../cash-action-packet";
 import { CASH_SIGNAL_TYPES } from "../cash-action-packet";
 import type { CashSignalIntake } from "../cash-signal-intake";
@@ -583,6 +584,14 @@ function CouncilSection({
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
             Council Run #{council.runIndex}
           </span>
+          {council.runId && council.runPhase && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[10px] text-neutral-400"
+              title={council.runId}
+            >
+              Durable · {phaseLabel(council.runPhase)}
+            </span>
+          )}
         </div>
         <span
           className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${READINESS_STYLES[council.readiness]}`}
