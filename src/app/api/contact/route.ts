@@ -99,7 +99,6 @@ export async function POST(request: Request) {
         leadId: result.lead.id,
         storageMode: result.lead.storageMode,
         notificationStatus: result.notificationStatus,
-        notificationReason: result.notificationReason,
       },
       { status: 201 },
     );
