@@ -157,6 +157,20 @@ These constraints are enforced by:
 
 ---
 
+## Owner identity & dev fallback
+
+The server resolves the active user via `getServerUserContext()` (`src/server/auth/user-context.ts`):
+
+- **Real owner** — when `MICHAEL_HQ_OWNER_ID` is set, that identity is used with Supabase-backed storage.
+- **Dev fallback** — when it is unset, the app uses a local single-user identity (`local-michael`, in-memory storage) so it can run without Supabase. This is **development / local only**.
+
+The fallback is never silent and never implicit in production:
+
+- Outside production it is allowed automatically (logs a one-time warning).
+- In production the app **fail-closes** (throws) when no real owner is configured — unless `ORIA_ALLOW_DEV_USER_FALLBACK=true` is explicitly set (strongly discouraged). See `.env.example`.
+
+---
+
 ## Venture profitability loop
 
 > **Evidence → Outcome → Score → ROI → Selection → Mandate → Prepared Action → CEO Review**
