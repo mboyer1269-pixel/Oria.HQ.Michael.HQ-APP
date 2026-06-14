@@ -200,7 +200,7 @@ Documents:
 
 1. Verifier d'abord l'auth owner/non-owner sur `/dashboard/documents`.
 2. Verifier ensuite RLS sur la table `documents` via REST comme dans la section RLS.
-3. Note actuelle: le dashboard documents lit encore `db/documents.json`; la table `documents` est prete cote schema/RLS pour la migration data suivante.
+3. Note actuelle: `db/documents.json` est une fixture **dev/test uniquement** (lue par le brief CEO via `document-index.ts`, **fail-closed en prod** — cf. `src/server/documents/file-document-store-guard.ts`). La page `/dashboard/documents` ne lit plus le fichier. La table `documents` est prete cote schema/RLS; plan de migration: `docs/migrations/documents-file-store-to-db.md`.
 
 ## 9. Checklist de passage au reel
 
