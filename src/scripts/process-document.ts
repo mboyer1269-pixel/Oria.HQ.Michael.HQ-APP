@@ -1,10 +1,19 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import mammoth from 'mammoth';
 import { execFileSync } from 'child_process';
 
 // Configuration locale
 const DB_PATH = path.join(process.cwd(), 'db', 'documents.json');
+
+// Dossier d'archivage des documents classés "mcl".
+// Chemin local propre à la machine : à configurer via l'environnement
+// (placé dans un .env non versionné). Fallback neutre dans un répertoire
+// temporaire pour rester portable et ne jamais coder en dur un chemin perso.
+const MCL_ARCHIVE_DIR = process.env.MCL_ARCHIVE_DIR
+  ? path.resolve(process.env.MCL_ARCHIVE_DIR)
+  : path.join(os.tmpdir(), 'oria-documents', 'mcl');
 const VENTURE_HATS = ['suivia', 'hq', 'personal'];
 const INTELLIGENCE_KEYWORDS = ['skill', 'intelligence', 'automation', 'automatisation', 'code', 'script', 'api', 'prompt', 'guide', 'tuto'];
 const ACTION_KEYWORDS = ['plan', 'prd', 'facture', 'action', 'todo', 'à faire', 'urgent'];
@@ -54,7 +63,7 @@ async function extractText(filePath: string): Promise<string> {
 function determineCategory(filename: string, text: string): { type: 'mcl' | 'intelligence' | 'venture', subType?: string } {
   const content = (filename + ' ' + text).toLowerCase();
   
-  // 1. Priorité MCL (OneDrive - Toujours séparé)
+  // 1. Priorité MCL (archivé séparément via MCL_ARCHIVE_DIR)
   if (content.includes('mcl')) {
     return { type: 'mcl' };
   }
@@ -118,7 +127,7 @@ async function processFile(filePath: string) {
     let destDir: string;
 
     if (category.type === 'mcl') {
-      destDir = path.join('C:', 'Users', 'micha', 'OneDrive - LES CONSTRUCTIONS MCL', 'Document Mcl');
+      destDir = MCL_ARCHIVE_DIR;
       if (actionable) destDir = path.join(destDir, 'Factures');
     } else if (category.type === 'intelligence') {
       destDir = path.join(process.cwd(), 'intelligence', category.subType || 'code');
