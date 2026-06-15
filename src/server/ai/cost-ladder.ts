@@ -346,3 +346,85 @@ export function getLadderCostLog(): readonly LadderCostEvent[] {
 export function clearLadderCostLog(): void {
   inMemoryLadderCostLog.length = 0;
 }
+
+// ---------------------------------------------------------------------------
+// Observability (B0) — a pure, read-only aggregate of the in-memory cost log,
+// for inspection (doctor / dev). It reads the same in-memory events the default
+// sink records; it persists nothing, calls no provider, never mutates the log,
+// and adds no runtime surface. Costs are ESTIMATED relative weights
+// (RUNG_COST_WEIGHT), not live billing — `basis` states this verbatim so no
+// consumer can imply real spend. The Cost Ladder stays display_only.
+// ---------------------------------------------------------------------------
+
+/** Verbatim honesty label: estimated weights, in-memory only, no persistence. */
+export const COST_LADDER_SNAPSHOT_BASIS = "estimated/in-memory only";
+
+type CostBucket = { events: number; estimatedCost: number };
+
+export type CostLadderSnapshot = {
+  /** Estimated weights, in-memory only, no persistence — never live billing. */
+  basis: typeof COST_LADDER_SNAPSHOT_BASIS;
+  totalEvents: number;
+  totalEstimatedCost: number;
+  byAgent: Record<string, CostBucket>;
+  byTaskClass: Record<string, CostBucket>;
+  byRung: Record<CostRung, CostBucket>;
+  /** Events the hard floor kept up (e.g. client_audit premium). */
+  floorBoundCount: number;
+  /** Events the daily budget guard pulled down. */
+  budgetBoundCount: number;
+  /** The most recent events (chronological tail), capped at `limit`. */
+  recent: LadderCostEvent[];
+};
+
+function bumpBucket(map: Record<string, CostBucket>, key: string, cost: number): void {
+  const bucket = map[key] ?? { events: 0, estimatedCost: 0 };
+  bucket.events += 1;
+  bucket.estimatedCost += cost;
+  map[key] = bucket;
+}
+
+/**
+ * Builds a read-only aggregate of the in-memory Cost Ladder events. Pure: no
+ * I/O, no provider call, no mutation of the log. `limit` caps the `recent` tail
+ * (default 20; 0 omits it). Costs are estimated weights — see `basis`.
+ */
+export function getCostLadderSnapshot(limit = 20): CostLadderSnapshot {
+  const byAgent: Record<string, CostBucket> = {};
+  const byTaskClass: Record<string, CostBucket> = {};
+  const byRung: Record<CostRung, CostBucket> = {
+    free: { events: 0, estimatedCost: 0 },
+    economy: { events: 0, estimatedCost: 0 },
+    premium: { events: 0, estimatedCost: 0 },
+  };
+
+  let totalEstimatedCost = 0;
+  let floorBoundCount = 0;
+  let budgetBoundCount = 0;
+
+  for (const event of inMemoryLadderCostLog) {
+    totalEstimatedCost += event.estimatedCost;
+    if (event.floorBound) floorBoundCount += 1;
+    if (event.budgetBound) budgetBoundCount += 1;
+    bumpBucket(byAgent, event.agentId, event.estimatedCost);
+    bumpBucket(byTaskClass, event.taskClass, event.estimatedCost);
+    const rungBucket = byRung[event.rung];
+    rungBucket.events += 1;
+    rungBucket.estimatedCost += event.estimatedCost;
+  }
+
+  const safeLimit = Math.max(0, Math.floor(limit));
+  const recent = safeLimit === 0 ? [] : inMemoryLadderCostLog.slice(-safeLimit);
+
+  return {
+    basis: COST_LADDER_SNAPSHOT_BASIS,
+    totalEvents: inMemoryLadderCostLog.length,
+    totalEstimatedCost,
+    byAgent,
+    byTaskClass,
+    byRung,
+    floorBoundCount,
+    budgetBoundCount,
+    recent,
+  };
+}
