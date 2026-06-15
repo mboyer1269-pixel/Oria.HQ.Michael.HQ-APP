@@ -2,6 +2,7 @@ import type { Route } from "next";
 import {
   Activity,
   CheckCircle2,
+  Gauge,
   LockKeyhole,
   Server,
   ShieldCheck,
@@ -21,6 +22,7 @@ import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { AgentFlowMap, type AgentFlowData } from "@/features/runtime/components/agent-flow-map";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
+import { getCostLadderSnapshot } from "@/server/ai/cost-ladder";
 import { Network } from "lucide-react";
 import {
   HqMetric,
@@ -101,6 +103,19 @@ export default async function RuntimePage() {
   }
 
   const canary = runCanaryCheck();
+
+  // Cost Ladder observability — read-only aggregate of the in-memory cost log.
+  // Pure: no provider call, no persistence, no mutation. Often empty until this
+  // process has observed a routed call. Costs are estimated weights, not billing.
+  const costSnapshot = getCostLadderSnapshot();
+  const RUNG_ORDER = ["free", "economy", "premium"] as const;
+  const taskClassRows = Object.entries(costSnapshot.byTaskClass).sort(
+    (a, b) => b[1].events - a[1].events,
+  );
+  const agentRows = Object.entries(costSnapshot.byAgent).sort(
+    (a, b) => b[1].events - a[1].events,
+  );
+  const fmtCost = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 
   // Agent Flow Map — live data from the Action Ledger (read-only).
   const { activeWorkspace } = getActiveWorkspaceContext();
@@ -244,6 +259,96 @@ export default async function RuntimePage() {
         tone="emerald"
       >
         <AgentFlowMap data={flowData} />
+      </HqWidget>
+
+      <HqWidget
+        title="Coût &amp; routing — observé"
+        eyebrow="Cost Ladder · shadow (display_only)"
+        icon={Gauge}
+        tone="violet"
+      >
+        <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4">
+          <p className="font-mono text-xs text-amber-300">basis: {costSnapshot.basis}</p>
+          <p className="mt-1.5 text-xs leading-5 text-neutral-400">
+            Poids estimés, en mémoire de ce process — <span className="text-neutral-300">pas de
+            facturation réelle</span>, pas de persistance. Le snapshot peut être vide tant que ce
+            process n&apos;a pas observé d&apos;appel routé (shadow / <span className="font-mono">display_only</span>).
+          </p>
+        </div>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <HqMetric label="Événements" value={costSnapshot.totalEvents} />
+          <HqMetric label="Coût estimé" value={fmtCost(costSnapshot.totalEstimatedCost)} />
+          <HqMetric label="Floor tenu" value={costSnapshot.floorBoundCount} />
+          <HqMetric label="Budget-bound" value={costSnapshot.budgetBoundCount} />
+        </div>
+
+        <p className="mt-4 text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500">
+          Par rung
+        </p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-3">
+          {RUNG_ORDER.map((rung) => {
+            const bucket = costSnapshot.byRung[rung];
+            return (
+              <div
+                key={rung}
+                className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4"
+              >
+                <p className="text-sm font-medium capitalize text-white">{rung}</p>
+                <p className="mt-2 font-mono text-xs text-neutral-300">
+                  {bucket.events} évt · {fmtCost(bucket.estimatedCost)} coût est.
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        <HqWidgetGrid className="mt-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500">
+              Par task class
+            </p>
+            {taskClassRows.length === 0 ? (
+              <p className="mt-2 text-xs text-neutral-600">Aucun événement observé.</p>
+            ) : (
+              <div className="mt-2 grid gap-1.5">
+                {taskClassRows.map(([taskClass, bucket]) => (
+                  <div
+                    key={taskClass}
+                    className="flex items-center justify-between gap-3 text-xs"
+                  >
+                    <span className="truncate font-mono text-neutral-300">{taskClass}</span>
+                    <span className="shrink-0 font-mono text-neutral-400">
+                      {bucket.events} évt · {fmtCost(bucket.estimatedCost)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500">
+              Par agent
+            </p>
+            {agentRows.length === 0 ? (
+              <p className="mt-2 text-xs text-neutral-600">Aucun événement observé.</p>
+            ) : (
+              <div className="mt-2 grid gap-1.5">
+                {agentRows.map(([agentId, bucket]) => (
+                  <div
+                    key={agentId}
+                    className="flex items-center justify-between gap-3 text-xs"
+                  >
+                    <span className="truncate font-mono text-neutral-300">{agentId}</span>
+                    <span className="shrink-0 font-mono text-neutral-400">
+                      {bucket.events} évt · {fmtCost(bucket.estimatedCost)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </HqWidgetGrid>
       </HqWidget>
 
       <HqWidget title="État du runtime" eyebrow="Guarded systems" icon={Server}>
