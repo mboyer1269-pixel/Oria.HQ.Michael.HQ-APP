@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
 import mammoth from 'mammoth';
 import { execFileSync } from 'child_process';
@@ -8,17 +7,11 @@ import {
   warnIfUnsafeFileDocumentStore,
   UNSAFE_FILE_DOCUMENT_STORE_ENV,
 } from '../server/documents/file-document-store-guard';
+import { resolveMclArchiveDir } from './mcl-archive-dir';
 
 // Configuration locale
 const DB_PATH = path.join(process.cwd(), 'db', 'documents.json');
 
-// Dossier d'archivage des documents classés "mcl".
-// Chemin local propre à la machine : à configurer via l'environnement
-// (placé dans un .env non versionné). Fallback neutre dans un répertoire
-// temporaire pour rester portable et ne jamais coder en dur un chemin perso.
-const MCL_ARCHIVE_DIR = process.env.MCL_ARCHIVE_DIR
-  ? path.resolve(process.env.MCL_ARCHIVE_DIR)
-  : path.join(os.tmpdir(), 'oria-documents', 'mcl');
 const VENTURE_HATS = ['suivia', 'hq', 'personal'];
 const INTELLIGENCE_KEYWORDS = ['skill', 'intelligence', 'automation', 'automatisation', 'code', 'script', 'api', 'prompt', 'guide', 'tuto'];
 const ACTION_KEYWORDS = ['plan', 'prd', 'facture', 'action', 'todo', 'à faire', 'urgent'];
@@ -142,7 +135,9 @@ async function processFile(filePath: string) {
     let destDir: string;
 
     if (category.type === 'mcl') {
-      destDir = MCL_ARCHIVE_DIR;
+      // Fail-closed: requires a durable MCL_ARCHIVE_DIR. No temp-dir fallback —
+      // the file is moved, so refusing beats relocating it to purgeable storage.
+      destDir = resolveMclArchiveDir();
       if (actionable) destDir = path.join(destDir, 'Factures');
     } else if (category.type === 'intelligence') {
       destDir = path.join(process.cwd(), 'intelligence', category.subType || 'code');

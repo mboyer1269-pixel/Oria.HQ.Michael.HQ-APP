@@ -199,13 +199,16 @@ async function handleGovernanceReviewReply(
   };
 }
 
-/** Injectable dependencies — lets tests supply a mock LLM reply (no network). */
+/** Injectable dependencies — lets tests supply a mock LLM reply / vault (no network). */
 export type RunJorisCommandDeps = {
   generateReply: (input: { message: string; memoryContext?: string | null }) => Promise<JorisReplyResult>;
+  /** Verified-vault reader; defaults to the real one. Injectable for tests. */
+  readVerifiedVault?: (workspaceId: string) => MemoryVaultReadResult;
 };
 
 const defaultRunJorisCommandDeps: RunJorisCommandDeps = {
   generateReply: generateJorisReply,
+  readVerifiedVault: readVerifiedVaultContext,
 };
 
 export async function runJorisCommand(
@@ -218,7 +221,7 @@ export async function runJorisCommand(
   // Memory Vault — read verified entries at the start of every brain invocation.
   // Workspace-scoped, verified only, max 20 entries (contract §Joris read rules).
   // This context is available to all downstream handlers in this invocation.
-  const vaultContext = readVerifiedVaultContext(ctx.workspace.id);
+  const vaultContext = (deps.readVerifiedVault ?? readVerifiedVaultContext)(ctx.workspace.id);
   const vaultNote = buildVaultContextNote(vaultContext);
 
   // Verified lessons rail — advisory block composed from the same verified
@@ -504,11 +507,20 @@ export async function runJorisCommand(
   // labelled (`generation`) so nothing claims "AI mode" when rules produced it.
   const llmReply = await deps.generateReply({ message, memoryContext });
   if (llmReply.ok) {
+    // Preserve the deterministic verified-memory/lessons rail verbatim by
+    // appending it OUTSIDE the LLM (board.consult), so the audit block is
+    // guaranteed in the summary rather than left to the model to reproduce.
+    const summary =
+      intent === "board.consult" && memoryContext
+        ? `${llmReply.text}\n\n${memoryContext}`
+        : llmReply.text;
     return {
       intent,
-      summary: llmReply.text,
+      summary,
       modelId: llmReply.modelId,
-      costMode: routedModel.mode,
+      // The shared provider uses a low-cost default model; report an honest
+      // conservative cost mode rather than the routed (possibly premium) one.
+      costMode: "economy",
       ...workspaceMeta,
       requiresConfirmation: false,
       generation: "llm",
