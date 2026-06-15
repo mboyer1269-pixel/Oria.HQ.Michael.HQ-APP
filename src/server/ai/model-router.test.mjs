@@ -24,9 +24,20 @@ const {
   classifyDifficulty,
   clearBrainRouteLog,
   getBrainRouteLog,
+  resetLadderBudget,
 } = await jiti.import(routerPath);
 
 const { PREMIUM_MODEL_ID, ECONOMY_MODEL_ID } = await jiti.import(configPath);
+
+const FREE_MODEL = {
+  id: "qwen/qwen3-coder:free",
+  name: "Qwen3 Coder (free)",
+  provider: "qwen",
+  contextLength: 1048576,
+  enabled: true,
+  recommended: true,
+};
+const FIXED_NOW = Date.parse("2026-06-14T08:00:00.000Z");
 
 test("strategic message routes to premium brain via keyword tier", () => {
   clearBrainRouteLog();
@@ -106,4 +117,73 @@ test("recordBrainRoute writes bounded metadata to in-memory log", () => {
   assert.ok(log[0].routeReason);
   assert.ok(log[0].timestamp);
   assert.equal("messagePreview" in log[0], false);
+});
+
+// --- Cost Ladder (P4) -------------------------------------------------------
+
+test("without a task class, base routing is untouched (no cost-ladder via)", () => {
+  resetLadderBudget();
+  const decision = chooseModel({ message: "On doit revoir notre stratégie de pricing pour le board." });
+  assert.equal(decision.modelId, PREMIUM_MODEL_ID);
+  assert.notEqual(decision.via, "cost-ladder");
+});
+
+test("cost ladder forces premium for client_audit, even in economy mode", () => {
+  resetLadderBudget();
+  const decision = chooseModel({
+    message: "Reformule cette phrase simplement.",
+    requestedMode: "economy",
+    taskClass: "client_audit",
+    agentId: "relay",
+    nowMs: FIXED_NOW,
+  });
+  assert.equal(decision.modelId, PREMIUM_MODEL_ID);
+  assert.equal(decision.via, "cost-ladder");
+  assert.match(decision.reason, /premium/i);
+});
+
+test("cost ladder routes a free-eligible class to the free model, overriding keywords", () => {
+  resetLadderBudget();
+  const decision = chooseModel({
+    message: "On doit revoir notre stratégie de pricing pour le board.", // strategic → base premium
+    taskClass: "classification",
+    agentId: "relay",
+    freeCatalog: [FREE_MODEL],
+    nowMs: FIXED_NOW,
+  });
+  assert.equal(decision.modelId, FREE_MODEL.id);
+  assert.equal(decision.model.provider, "openrouter");
+  assert.equal(decision.via, "cost-ladder");
+});
+
+test("cost ladder budget guard downgrades general to free once the budget is spent", () => {
+  resetLadderBudget();
+  const base = {
+    message: "Prépare le comité pour la négociation.", // strategic → base premium (cost 5)
+    taskClass: "general",
+    agentId: "relay",
+    freeCatalog: [FREE_MODEL],
+    dailyBudget: 5,
+    nowMs: FIXED_NOW,
+  };
+  const first = chooseModel(base);
+  assert.equal(first.modelId, PREMIUM_MODEL_ID); // budget not yet spent
+
+  const second = chooseModel(base); // now over budget
+  assert.equal(second.modelId, FREE_MODEL.id);
+  assert.equal(second.via, "cost-ladder");
+});
+
+test("budget pressure never lowers client_audit below premium", () => {
+  resetLadderBudget();
+  const ctx = {
+    message: "Reformule.",
+    taskClass: "client_audit",
+    agentId: "relay",
+    dailyBudget: 1,
+    nowMs: FIXED_NOW,
+  };
+  chooseModel(ctx); // spends premium weight, exhausts the tiny budget
+  const second = chooseModel(ctx);
+  assert.equal(second.modelId, PREMIUM_MODEL_ID); // floor beats budget
 });

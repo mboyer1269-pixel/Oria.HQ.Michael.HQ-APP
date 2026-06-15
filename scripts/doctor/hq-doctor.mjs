@@ -80,6 +80,7 @@ const BRIDGES = [
   { module: "venture-asset-repository", minConsumers: 2 },
   { module: "note-repository", minConsumers: 1 },
   { module: "model-router", minConsumers: 2 },
+  { module: "cost-ladder", minConsumers: 1 },
   { module: "memory-graph", minConsumers: 2 },
   { module: "agent-learning-loop", minConsumers: 1 },
 ];
@@ -311,6 +312,57 @@ try {
   }
 } catch (error) {
   check("MÉMOIRE", "analyse vault", "warn", `analyse impossible: ${error.message}`);
+}
+
+// ---------------------------------------------------------------------------
+// ORGANE 6 — ROUTAGE : Cost Ladder (P4). Le snapshot free-models doit parser,
+// et l'invariant de plancher (client_audit = premium obligatoire) doit tenir —
+// c'est le levier profit, il ne se rétrograde jamais.
+// ---------------------------------------------------------------------------
+try {
+  const { createJiti } = await import("jiti");
+  const jiti = createJiti(import.meta.url, {
+    alias: {
+      "@": join(ROOT, "src"),
+      "server-only": join(ROOT, "src/scripts/smoke/server-only-stub.mjs"),
+    },
+  });
+  const ladder = await jiti.import(join(ROOT, "src/server/ai/cost-ladder.ts"));
+
+  const snapshotPath = join(ROOT, "config/openrouter.free-models.json");
+  if (!existsSync(snapshotPath)) {
+    check(
+      "ROUTAGE",
+      "free-models snapshot",
+      "warn",
+      "absent — étage gratuit désactivé (repli économie)",
+    );
+  } else {
+    const catalog = ladder.parseFreeModelCatalogText(
+      readFileSync(snapshotPath, "utf-8"),
+    );
+    const eligible = ladder.eligibleFreeModels(catalog);
+    check(
+      "ROUTAGE",
+      "free-models snapshot",
+      "ok",
+      `${catalog.length} modèle(s), ${eligible.length} éligible(s) (enabled+recommended)`,
+    );
+  }
+
+  const floorOk =
+    ladder.TASK_CLASS_HARD_FLOOR.client_audit === "premium" &&
+    ladder.TASK_CLASS_TARGET.client_audit === "premium";
+  check(
+    "ROUTAGE",
+    "plancher client_audit",
+    floorOk ? "ok" : "crit",
+    floorOk
+      ? "premium obligatoire"
+      : "PLANCHER CASSÉ — l'audit client devient rétrogradable",
+  );
+} catch (error) {
+  check("ROUTAGE", "cost ladder", "warn", `analyse impossible: ${error.message}`);
 }
 
 // ---------------------------------------------------------------------------
