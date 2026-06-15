@@ -1,47 +1,19 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { createContactLead } from "@/server/contact/contact-lead-service";
-import { ContactLeadRepositoryError } from "@/server/contact/contact-lead-repository";
 import { isAllowed } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
-
-const optionalTextSchema = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .optional()
-    .transform((value) => value || undefined);
-
-const contactRequestSchema = z.object({
-  name: z.string().trim().min(2, "Le nom est requis.").max(120),
-  email: z.string().trim().email("Courriel invalide.").max(254).transform((value) => value.toLowerCase()),
-  phone: optionalTextSchema(40),
-  company: optionalTextSchema(160),
-  message: z.string().trim().min(10, "Le message doit contenir au moins 10 caracteres.").max(4000),
-  source: z.string().trim().min(1).max(80).default("suivia-contact-form"),
-  website: z.string().trim().max(200).optional().default(""),
-});
+import { contactRequestSchema, mapContactApiError } from "@/server/contact/contact-request";
 
 function toApiError(error: unknown) {
-  if (error instanceof ContactLeadRepositoryError) {
-    return NextResponse.json(
-      {
-        error: "Le formulaire de contact n'est pas disponible pour le moment.",
-        code: error.code,
-      },
-      { status: 503 },
-    );
+  const mapped = mapContactApiError(error);
+
+  if (mapped.shouldLog) {
+    logger.error("contact.api.failed", {
+      reason: error instanceof Error ? error.message : "unknown",
+    });
   }
 
-  logger.error("contact.api.failed", {
-    reason: error instanceof Error ? error.message : "unknown",
-  });
-
-  return NextResponse.json(
-    { error: "Le formulaire de contact a eu un probleme serveur." },
-    { status: 500 },
-  );
+  return NextResponse.json(mapped.body, { status: mapped.status });
 }
 
 /** 5 requests per hour per IP address. */
