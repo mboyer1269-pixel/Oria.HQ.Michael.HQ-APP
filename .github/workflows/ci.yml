@@ -8,6 +8,15 @@ on:
     branches:
       - main
 
+# Least-privilege token: CI only reads the repo (no writes, comments, or deploys).
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same ref so only the latest commit is validated.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
