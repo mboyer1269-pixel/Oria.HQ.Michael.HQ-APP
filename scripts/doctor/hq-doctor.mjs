@@ -361,6 +361,22 @@ try {
       ? "premium obligatoire"
       : "PLANCHER CASSÉ — l'audit client devient rétrogradable",
   );
+
+  // Observability B0: the in-memory cost snapshot must be readable and labelled
+  // as estimated/in-memory (no persistence, no live runtime dependency).
+  const snapshot = ladder.getCostLadderSnapshot();
+  const snapshotOk =
+    !!snapshot &&
+    snapshot.basis === "estimated/in-memory only" &&
+    typeof snapshot.totalEvents === "number";
+  check(
+    "ROUTAGE",
+    "cost ladder snapshot",
+    snapshotOk ? "ok" : "warn",
+    snapshotOk
+      ? `lisible — ${snapshot.totalEvents} event(s) observé(s), coûts estimés/in-memory (aucune persistance)`
+      : "snapshot illisible ou non étiqueté estimé/in-memory",
+  );
 } catch (error) {
   check("ROUTAGE", "cost ladder", "warn", `analyse impossible: ${error.message}`);
 }

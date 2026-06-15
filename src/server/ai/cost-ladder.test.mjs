@@ -28,6 +28,7 @@ const {
   recordLadderCost,
   getLadderCostLog,
   clearLadderCostLog,
+  getCostLadderSnapshot,
   setLadderCostSink,
   resetLadderCostSink,
   RUNG_COST_WEIGHT,
@@ -224,4 +225,99 @@ test("cost sink records bounded events and is swappable", () => {
   assert.equal(captured.length, 1);
   assert.equal(captured[0].rung, "premium");
   resetLadderCostSink();
+});
+
+// --- Observability B0: read-only snapshot -----------------------------------
+
+function recordEvent(overrides) {
+  recordLadderCost({
+    agentId: "joris",
+    taskClass: "general",
+    rung: "economy",
+    modelId: "gpt-4o-mini",
+    estimatedCost: 1,
+    floorBound: false,
+    budgetBound: false,
+    timestamp: "2026-06-15T00:00:00.000Z",
+    ...overrides,
+  });
+}
+
+test("cost ladder snapshot is empty cleanly at the start", () => {
+  clearLadderCostLog();
+  const s = getCostLadderSnapshot();
+  assert.equal(s.totalEvents, 0);
+  assert.equal(s.totalEstimatedCost, 0);
+  assert.deepEqual(s.byAgent, {});
+  assert.deepEqual(s.byTaskClass, {});
+  assert.equal(s.byRung.free.events, 0);
+  assert.equal(s.byRung.economy.events, 0);
+  assert.equal(s.byRung.premium.events, 0);
+  assert.equal(s.floorBoundCount, 0);
+  assert.equal(s.budgetBoundCount, 0);
+  assert.deepEqual(s.recent, []);
+  assert.equal(s.basis, "estimated/in-memory only");
+});
+
+test("cost ladder snapshot aggregates events by agent, task class and rung", () => {
+  clearLadderCostLog();
+  recordEvent({ agentId: "joris", taskClass: "general", rung: "economy", estimatedCost: 1 });
+  recordEvent({
+    agentId: "joris",
+    taskClass: "client_audit",
+    rung: "premium",
+    modelId: "claude-sonnet-4-6",
+    estimatedCost: 5,
+    floorBound: true,
+  });
+  recordEvent({
+    agentId: "mission",
+    taskClass: "general",
+    rung: "free",
+    modelId: "qwen/qwen3-coder:free",
+    estimatedCost: 0,
+    budgetBound: true,
+  });
+
+  const s = getCostLadderSnapshot();
+  assert.equal(s.totalEvents, 3);
+  assert.equal(s.totalEstimatedCost, 6);
+
+  assert.equal(s.byAgent.joris.events, 2);
+  assert.equal(s.byAgent.joris.estimatedCost, 6);
+  assert.equal(s.byAgent.mission.events, 1);
+
+  assert.equal(s.byTaskClass.general.events, 2);
+  assert.equal(s.byTaskClass.client_audit.events, 1);
+
+  assert.equal(s.byRung.economy.events, 1);
+  assert.equal(s.byRung.premium.events, 1);
+  assert.equal(s.byRung.free.events, 1);
+
+  assert.equal(s.floorBoundCount, 1);
+  assert.equal(s.budgetBoundCount, 1);
+
+  assert.equal(s.recent.length, 3);
+  // recent is the chronological tail; the last recorded event is last.
+  assert.equal(s.recent[s.recent.length - 1].taskClass, "general");
+});
+
+test("cost ladder snapshot caps the recent tail and clearLadderCostLog resets it", () => {
+  clearLadderCostLog();
+  for (let i = 0; i < 5; i += 1) {
+    recordEvent({ estimatedCost: 1, timestamp: `2026-06-15T00:0${i}:00.000Z` });
+  }
+  const limited = getCostLadderSnapshot(2);
+  assert.equal(limited.totalEvents, 5); // totals count every event
+  assert.equal(limited.totalEstimatedCost, 5);
+  assert.equal(limited.recent.length, 2); // only the tail is capped
+
+  clearLadderCostLog();
+  const after = getCostLadderSnapshot();
+  assert.equal(after.totalEvents, 0);
+  assert.deepEqual(after.recent, []);
+});
+
+test("cost ladder snapshot labels costs as estimated/in-memory only (never live billing)", () => {
+  assert.equal(getCostLadderSnapshot().basis, "estimated/in-memory only");
 });
