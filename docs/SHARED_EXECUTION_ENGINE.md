@@ -2,7 +2,7 @@
 
 > **Branch:** `claude/agentic-holding-company-operating-model`
 > **Parent:** [`HOLDING_PORTFOLIO_V1.md`](HOLDING_PORTFOLIO_V1.md)
-> **Status:** Specification (docs-only, aucun code introduit ici)
+> **Status:** Specification — **architecture cible, pas l'implémentation actuelle** (docs-only). État réel : [`ORIA_HQ_CURRENT_STATE.md`](ORIA_HQ_CURRENT_STATE.md). Aujourd'hui le chemin conversationnel de Joris utilise le provider JSON partagé (Anthropic → OpenAI, modèle par défaut bas coût) ; les sub-agents (Quinn/Depsy) et le routage par modèle ci-dessous ne sont **pas** implémentés.
 > **Last updated:** 2026-05-22
 
 ---
