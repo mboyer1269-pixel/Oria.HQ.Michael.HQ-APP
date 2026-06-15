@@ -33,7 +33,7 @@ const {
   isMissionDraftActionInFlight,
 } = await jiti.import(formatPath);
 
-const { confirmPendingMissionDraft, cancelPendingMissionDraft, getMissionDraftPendingView } =
+const { confirmPendingMissionDraft, cancelPendingMissionDraft, getMissionDraftPendingView, buildRoute } =
   await jiti.import(controlPath);
 
 const { resetMissionDraftSessionForTests } = await jiti.import(sessionPath);
@@ -209,4 +209,23 @@ test("mapConfirmDraftResponse maps successful calendar.book to confirmed", async
   assert.equal(mapped.outcome, "confirmed");
   assert.ok(mapped.missionId);
   assert.ok(mapped.calendarEvent);
+});
+
+test("shadow tagging: buildRoute tags the mission-draft route via the ladder, output unchanged", () => {
+  resetMissionDraftSessionForTests();
+  const ctx = workspaceContext(`workspace-tag-${Date.now()}`);
+
+  // The router receives a taskClass → the returned decision is governed by the
+  // ladder (via: "cost-ladder"). Reading the return value avoids any reliance on
+  // shared module state. No provider is called; the ladder stays display_only.
+  const decision = buildRoute("annule");
+  assert.equal(decision.via, "cost-ladder");
+
+  // Output behaviour is identical: no pending draft → the existing "nothing to
+  // cancel" response, still carrying route metadata.
+  const result = cancelPendingMissionDraft(ctx);
+  assert.equal(result.intent, "chat");
+  assert.match(result.summary, /aucune mission draft en attente/i);
+  assert.ok(result.modelId, "route metadata is still surfaced (behaviour identical)");
+  assert.ok(result.costMode);
 });
