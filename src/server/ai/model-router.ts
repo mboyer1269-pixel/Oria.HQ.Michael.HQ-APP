@@ -6,6 +6,18 @@ import {
   pickAvailableModelId,
   resolveModelProfileOrFallback,
 } from "@/server/ai/model-config";
+import {
+  createInMemoryBudgetStore,
+  dayKeyOf,
+  decideLadder,
+  freeModelProfile,
+  recordLadderCost,
+  RUNG_COST_WEIGHT,
+  type BudgetStore,
+  type CostRung,
+  type FreeModelEntry,
+  type TaskClass,
+} from "@/server/ai/cost-ladder";
 
 export type ModelRouteInput = {
   message: string;
@@ -13,9 +25,22 @@ export type ModelRouteInput = {
   highImpact?: boolean;
   /** Model IDs marked unavailable — router picks the next candidate in the fallback chain. */
   unavailableModelIds?: readonly string[];
+  // --- Cost Ladder (P4) — all optional; absence leaves base routing untouched. ---
+  /** Task class that engages the Cost Ladder (quality floor + budget guard). */
+  taskClass?: TaskClass;
+  /** Agent the call is billed to, for the per-agent daily budget. */
+  agentId?: string;
+  /** Config-driven free-model catalog (only enabled+recommended are used). */
+  freeCatalog?: readonly FreeModelEntry[];
+  /** Clock for the daily budget bucket; defaults to Date.now(). */
+  nowMs?: number;
+  /** Override the per-agent daily budget (cost units). */
+  dailyBudget?: number;
+  /** Override the budget store (defaults to the module in-memory store). */
+  budgetStore?: BudgetStore;
 };
 
-export type BrainRouteVia = "keyword" | "semantic-fallback" | "default";
+export type BrainRouteVia = "keyword" | "semantic-fallback" | "default" | "cost-ladder";
 
 export type ModelRouteDecision = {
   model: ModelProfile;
@@ -221,6 +246,104 @@ function applyAvailabilityFallback(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Cost Ladder integration (P4). Engaged only when input.taskClass is set, so
+// every existing caller routes exactly as before. The ladder governs the cost
+// rung (free-first under a quality floor + per-agent daily budget); this layer
+// maps the chosen rung back to a concrete model + mode.
+// ---------------------------------------------------------------------------
+
+/** Maps a base-router model id to its cost rung (base router never emits free). */
+function rungOfModelId(modelId: string): CostRung {
+  return modelId === PREMIUM_MODEL_ID ? "premium" : "economy";
+}
+
+let defaultBudgetStore: BudgetStore = createInMemoryBudgetStore();
+
+/** Resets the in-memory daily-budget accumulator (tests / new day boundary). */
+export function resetLadderBudget(): void {
+  defaultBudgetStore = createInMemoryBudgetStore();
+}
+
+type LadderRoute = {
+  candidate: RouteCandidate;
+  /** Set when the ladder picked a concrete free model (skips generic fallback). */
+  profile?: ModelProfile;
+};
+
+function applyCostLadder(
+  input: ModelRouteInput,
+  baseCandidate: RouteCandidate,
+  unavailable: ReadonlySet<string>,
+): LadderRoute {
+  const taskClass = input.taskClass as TaskClass;
+  const agentId = input.agentId ?? "système";
+  const store = input.budgetStore ?? defaultBudgetStore;
+  const nowMs = input.nowMs ?? Date.now();
+  const dayKey = dayKeyOf(nowMs);
+
+  const decision = decideLadder({
+    taskClass,
+    baseRung: rungOfModelId(baseCandidate.modelId),
+    freeCatalog: input.freeCatalog ?? [],
+    currentSpend: store.spendOf(agentId, dayKey),
+    ...(input.dailyBudget !== undefined ? { dailyBudget: input.dailyBudget } : {}),
+  });
+
+  // Respect the router's unavailable set before committing to a free model.
+  let rung = decision.rung;
+  let freeModel = decision.freeModel;
+  if (rung === "free" && freeModel && unavailable.has(freeModel.id)) {
+    rung = "economy";
+    freeModel = undefined;
+  }
+
+  const estimatedCost =
+    rung === decision.rung ? decision.estimatedCost : RUNG_COST_WEIGHT.economy;
+  store.add(agentId, dayKey, estimatedCost);
+
+  const requested = input.requestedMode ?? "auto";
+  let candidate: RouteCandidate;
+  let profile: ModelProfile | undefined;
+
+  if (rung === "free" && freeModel) {
+    candidate = {
+      modelId: freeModel.id,
+      mode: resolveMode(requested, "economy"),
+      reason: decision.reason,
+      via: "cost-ladder",
+    };
+    profile = freeModelProfile(freeModel);
+  } else if (rung === "premium") {
+    candidate = {
+      modelId: PREMIUM_MODEL_ID,
+      mode: resolveMode(requested, "brute"),
+      reason: decision.reason,
+      via: "cost-ladder",
+    };
+  } else {
+    candidate = {
+      modelId: ECONOMY_MODEL_ID,
+      mode: resolveMode(requested, "economy"),
+      reason: decision.reason,
+      via: "cost-ladder",
+    };
+  }
+
+  recordLadderCost({
+    agentId,
+    taskClass,
+    rung,
+    modelId: candidate.modelId,
+    estimatedCost,
+    floorBound: decision.floorBound,
+    budgetBound: decision.budgetBound,
+    timestamp: new Date(nowMs).toISOString(),
+  });
+
+  return profile ? { candidate, profile } : { candidate };
+}
+
 export function setBrainRouteSink(sink: BrainRouteSink): void {
   brainRouteSink = sink;
 }
@@ -267,9 +390,21 @@ export function recordBrainRoute(
 export function chooseModel(input: ModelRouteInput): ModelRouteDecision {
   const unavailable = new Set(input.unavailableModelIds ?? []);
   const keywordRoute = routeByKeywords(input);
-  const candidate = keywordRoute ?? routeBySemanticFallback(input.message);
-  const resolved = applyAvailabilityFallback(candidate, unavailable);
-  const model = resolveModelProfileOrFallback(resolved.modelId);
+  const baseCandidate = keywordRoute ?? routeBySemanticFallback(input.message);
+
+  // Cost Ladder governs only when a task class is supplied (backward-compatible).
+  const ladder = input.taskClass ? applyCostLadder(input, baseCandidate, unavailable) : null;
+
+  let resolved: RouteCandidate;
+  let model: ModelProfile;
+  if (ladder?.profile) {
+    // Concrete free model: availability already handled inside the ladder.
+    resolved = ladder.candidate;
+    model = ladder.profile;
+  } else {
+    resolved = applyAvailabilityFallback(ladder?.candidate ?? baseCandidate, unavailable);
+    model = resolveModelProfileOrFallback(resolved.modelId);
+  }
 
   const decision: ModelRouteDecision = {
     model,

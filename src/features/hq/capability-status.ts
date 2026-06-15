@@ -91,6 +91,15 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     note: "Ingestion automatique + pgvector restent futurs jusqu'à mandat explicite.",
   },
   {
+    id: "cost_ladder",
+    label: "Cost Ladder (routage token-smart)",
+    status: "display_only",
+    surface: null,
+    evidence:
+      "src/server/ai/cost-ladder.ts + intégration model-router.ts (chooseModel taskClass) ; config/openrouter.free-models.json (free-first, enabled+recommended)",
+    note: "Décide l'étage de coût (free-first sous plancher de qualité + garde-budget agent/jour) et le journalise (événement cost). L'économie réelle attend le dispatch provider live (non câblé) ; client_audit reste premium obligatoire.",
+  },
+  {
     id: "ledger_hash_chain",
     label: "Ledger integrity hash-chain",
     status: "shadow",

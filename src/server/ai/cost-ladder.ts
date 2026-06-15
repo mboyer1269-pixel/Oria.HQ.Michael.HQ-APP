@@ -1,0 +1,348 @@
+import type { ModelProfile } from "@/features/hq/types";
+
+// ---------------------------------------------------------------------------
+// Cost Ladder — token-smart routing policy for the model router (roadmap P4).
+//
+// What it is: a PURE policy layer that decides, for a routing decision, which
+// cost rung is permitted — FREE-first when the task allows it, paid when the
+// task demands quality — under a per-agent daily budget guard. It calls no
+// provider; it constrains what `chooseModel` may pick. The real token saving
+// only materializes once live dispatch is wired, so the capability registry
+// lists `cost_ladder` as display_only, not live.
+//
+// Two invariants it enforces:
+//   1. QUALITY FLOOR — each task class carries a minimum rung. A personalized
+//      client audit (`client_audit`) is premium-mandatory and is NEVER
+//      downgraded, whatever the budget says (it is the profit lever). The
+//      budget guard may only lower tasks that sit ABOVE their floor.
+//   2. NO LOCK-IN — the free rung is config-driven: only models flagged
+//      `enabled && recommended` in config/openrouter.free-models.json are
+//      eligible. Promotion into the ladder is a deliberate flag flip (CEO),
+//      never code. Demotion is handled upstream via the router's unavailable
+//      set, so a vanished free model falls back to paid with no edit here.
+//
+// Pure + deterministic: no clock, no I/O, no module state. The caller reads the
+// agent's current spend and commits the new spend; this module only decides.
+// ---------------------------------------------------------------------------
+
+/** Ordered cheapest → dearest. The ladder never picks below a task's floor. */
+export type CostRung = "free" | "economy" | "premium";
+
+/**
+ * Coarse task class the caller tags a routing decision with. Drives the quality
+ * floor. Absence of a task class means the ladder is not consulted at all
+ * (the base router behaves exactly as before).
+ */
+export type TaskClass =
+  | "classification" // tag / score / label — free is fine
+  | "draft" // internal brouillon — free is fine
+  | "relance" // follow-up email draft — free is fine
+  | "client_audit" // personalized client audit — PREMIUM mandatory (profit lever)
+  | "general"; // unclassified — standard floor (economy)
+
+const RUNG_ORDER: Record<CostRung, number> = { free: 0, economy: 1, premium: 2 };
+
+/**
+ * The rung the ladder TARGETS for each task class. `"base"` defers to whatever
+ * the base router chose. Cheap classes target free (a ceiling — we don't spend
+ * premium on a label), while a client audit targets premium.
+ */
+export const TASK_CLASS_TARGET: Record<TaskClass, CostRung | "base"> = {
+  classification: "free",
+  draft: "free",
+  relance: "free",
+  client_audit: "premium",
+  general: "base",
+};
+
+/**
+ * The hard floor — the rung the budget guard may NEVER lower a class below.
+ * Only the client audit has a real floor (premium, the profit lever); every
+ * other class can be pulled all the way to free under budget pressure.
+ */
+export const TASK_CLASS_HARD_FLOOR: Record<TaskClass, CostRung> = {
+  classification: "free",
+  draft: "free",
+  relance: "free",
+  client_audit: "premium",
+  general: "free",
+};
+
+/** Estimated relative cost of one call at each rung (no live billing yet). */
+export const RUNG_COST_WEIGHT: Record<CostRung, number> = {
+  free: 0,
+  economy: 1,
+  premium: 5,
+};
+
+/** Default per-agent daily budget, in estimated cost units. */
+export const DEFAULT_AGENT_DAILY_BUDGET = 100;
+
+/** One entry of the OpenRouter free-model catalog (shape of the config file). */
+export type FreeModelEntry = {
+  id: string;
+  name: string;
+  provider: string;
+  contextLength?: number;
+  enabled: boolean;
+  recommended: boolean;
+};
+
+function higherRung(a: CostRung, b: CostRung): CostRung {
+  return RUNG_ORDER[a] >= RUNG_ORDER[b] ? a : b;
+}
+
+/**
+ * Parses an unknown JSON blob (the config file) into a typed free-model
+ * catalog. Tolerant: unknown/missing fields default to a safe disabled entry,
+ * and non-array input yields []. Pure.
+ */
+export function parseFreeModelCatalog(json: unknown): FreeModelEntry[] {
+  const models = (json as { models?: unknown })?.models;
+  if (!Array.isArray(models)) return [];
+
+  const entries: FreeModelEntry[] = [];
+  for (const raw of models) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Record<string, unknown>;
+    if (typeof r.id !== "string" || r.id.length === 0) continue;
+    entries.push({
+      id: r.id,
+      name: typeof r.name === "string" ? r.name : r.id,
+      provider: typeof r.provider === "string" ? r.provider : "openrouter",
+      contextLength:
+        typeof r.context_length === "number" ? r.context_length : undefined,
+      enabled: r.enabled === true,
+      recommended: r.recommended === true,
+    });
+  }
+  return entries;
+}
+
+/**
+ * Parses the raw config TEXT into a catalog. BOM-tolerant (the snapshot file is
+ * generated by PowerShell, which prefixes a UTF-8 BOM that would otherwise break
+ * JSON.parse) and never throws — malformed text yields []. Pure.
+ */
+export function parseFreeModelCatalogText(text: string): FreeModelEntry[] {
+  try {
+    const withoutBom = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+    return parseFreeModelCatalog(JSON.parse(withoutBom));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Free models eligible for the ladder: enabled AND recommended only. Sorted
+ * deterministically (largest context first, then id) so selection is stable.
+ */
+export function eligibleFreeModels(
+  catalog: readonly FreeModelEntry[],
+): FreeModelEntry[] {
+  return catalog
+    .filter((m) => m.enabled && m.recommended)
+    .sort(
+      (a, b) =>
+        (b.contextLength ?? 0) - (a.contextLength ?? 0) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    );
+}
+
+/** The single free model the ladder would use, or undefined if none qualify. */
+export function selectFreeModel(
+  catalog: readonly FreeModelEntry[],
+): FreeModelEntry | undefined {
+  return eligibleFreeModels(catalog)[0];
+}
+
+/** Builds a ModelProfile for a free OpenRouter model (routed via the gateway). */
+export function freeModelProfile(entry: FreeModelEntry): ModelProfile {
+  return {
+    id: entry.id,
+    label: entry.name,
+    provider: "openrouter",
+    defaultUse: "Cost Ladder — étage gratuit (OpenRouter), plancher de qualité respecté.",
+    costTier: "low",
+    strengths: ["coût zéro", "free-first", "sans lock-in"],
+  };
+}
+
+/** UTC day bucket for the budget guard. `new Date(ms)` is deterministic. */
+export function dayKeyOf(nowMs: number): string {
+  return new Date(nowMs).toISOString().slice(0, 10);
+}
+
+export type LadderInput = {
+  taskClass: TaskClass;
+  /** Rung the base router would otherwise choose. */
+  baseRung: CostRung;
+  /** Free-model catalog (config-driven). Empty disables the free rung. */
+  freeCatalog: readonly FreeModelEntry[];
+  /** Agent's spend so far today, in cost units (caller reads the store). */
+  currentSpend: number;
+  /** Per-agent daily budget; defaults to DEFAULT_AGENT_DAILY_BUDGET. */
+  dailyBudget?: number;
+};
+
+export type LadderDecision = {
+  rung: CostRung;
+  /** The rung the task class targets (base-router rung when class is general). */
+  target: CostRung;
+  /** Hard floor the budget guard could not cross. */
+  hardFloor: CostRung;
+  /** Concrete free model chosen, present only when rung === "free". */
+  freeModel?: FreeModelEntry;
+  /** The budget guard lowered the rung below the task's target. */
+  budgetBound: boolean;
+  /** The hard floor raised the rung above what budget pressure wanted. */
+  floorBound: boolean;
+  /** Estimated cost of this call at the chosen rung. */
+  estimatedCost: number;
+  reason: string;
+};
+
+/**
+ * Decides the final rung for one routing decision. Pure. Order of operations:
+ *   1. start from the task class's target rung (or the base rung for `general`);
+ *   2. budget pressure pulls toward free when the agent is over budget;
+ *   3. the hard floor is applied last as an absolute minimum — so a client
+ *      audit stays premium even with an exhausted budget.
+ */
+export function decideLadder(input: LadderInput): LadderDecision {
+  const target = TASK_CLASS_TARGET[input.taskClass];
+  const hardFloor = TASK_CLASS_HARD_FLOOR[input.taskClass];
+  const budget = input.dailyBudget ?? DEFAULT_AGENT_DAILY_BUDGET;
+  const overBudget = input.currentSpend >= budget;
+
+  const targetRung: CostRung = target === "base" ? input.baseRung : target;
+  // Budget pressure pulls all the way to free; otherwise honor the target.
+  const desiredRung: CostRung = overBudget ? "free" : targetRung;
+  // The hard floor wins last — only the client audit actually has one.
+  let rung = higherRung(desiredRung, hardFloor);
+
+  const budgetBound = overBudget && RUNG_ORDER[rung] < RUNG_ORDER[targetRung];
+  const floorBound = RUNG_ORDER[rung] > RUNG_ORDER[desiredRung];
+
+  let freeModel: FreeModelEntry | undefined;
+  let noFreeAvailable = false;
+  if (rung === "free") {
+    freeModel = selectFreeModel(input.freeCatalog);
+    if (!freeModel) {
+      // Honest fallback: a free rung with no eligible model becomes economy.
+      rung = "economy";
+      noFreeAvailable = true;
+    }
+  }
+
+  const reason = buildReason({
+    rung,
+    hardFloor,
+    budgetBound,
+    noFreeAvailable,
+    freeModel,
+  });
+
+  return {
+    rung,
+    target: targetRung,
+    hardFloor,
+    ...(freeModel ? { freeModel } : {}),
+    budgetBound,
+    floorBound,
+    estimatedCost: RUNG_COST_WEIGHT[rung],
+    reason,
+  };
+}
+
+function buildReason(args: {
+  rung: CostRung;
+  hardFloor: CostRung;
+  budgetBound: boolean;
+  noFreeAvailable: boolean;
+  freeModel?: FreeModelEntry;
+}): string {
+  if (args.hardFloor === "premium" && args.rung === "premium") {
+    return "Audit client personnalisé: étage premium obligatoire — jamais rétrogradé (levier profit).";
+  }
+  if (args.budgetBound) {
+    return "Budget agent du jour atteint: routage rétrogradé vers l'étage gratuit.";
+  }
+  if (args.rung === "free" && args.freeModel) {
+    return `Étage gratuit visé par la tâche: ${args.freeModel.name} (OpenRouter), zéro coût.`;
+  }
+  if (args.noFreeAvailable) {
+    return "Étage gratuit visé mais aucun modèle free éligible (enabled+recommended): repli économie.";
+  }
+  return "Routage de base conservé sous le plafond de budget.";
+}
+
+// ---------------------------------------------------------------------------
+// Budget store — in-memory per (agent, UTC day). Injected so it is testable
+// and so a durable backend (P2) can replace it without touching the policy.
+// ---------------------------------------------------------------------------
+
+export type BudgetStore = {
+  spendOf(agentId: string, dayKey: string): number;
+  add(agentId: string, dayKey: string, cost: number): void;
+};
+
+export function createInMemoryBudgetStore(): BudgetStore {
+  const ledger = new Map<string, number>();
+  const key = (agentId: string, dayKey: string) => `${agentId}::${dayKey}`;
+  return {
+    spendOf: (agentId, dayKey) => ledger.get(key(agentId, dayKey)) ?? 0,
+    add: (agentId, dayKey, cost) => {
+      const k = key(agentId, dayKey);
+      ledger.set(k, (ledger.get(k) ?? 0) + cost);
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cost event sink — mirrors the brain-route sink. Records the ladder's choice
+// as an auditable `cost` signal. The in-memory log is the default; a real
+// ledger writer can be installed later. No PII: ids, rung, and cost only.
+// ---------------------------------------------------------------------------
+
+export type LadderCostEvent = {
+  agentId: string;
+  taskClass: TaskClass;
+  rung: CostRung;
+  modelId: string;
+  estimatedCost: number;
+  floorBound: boolean;
+  budgetBound: boolean;
+  timestamp: string;
+};
+
+export type LadderCostSink = (event: LadderCostEvent) => void;
+
+const inMemoryLadderCostLog: LadderCostEvent[] = [];
+
+let ladderCostSink: LadderCostSink = (event) => {
+  inMemoryLadderCostLog.push(event);
+};
+
+export function setLadderCostSink(sink: LadderCostSink): void {
+  ladderCostSink = sink;
+}
+
+export function resetLadderCostSink(): void {
+  ladderCostSink = (event) => {
+    inMemoryLadderCostLog.push(event);
+  };
+}
+
+export function recordLadderCost(event: LadderCostEvent): LadderCostEvent {
+  ladderCostSink(event);
+  return event;
+}
+
+export function getLadderCostLog(): readonly LadderCostEvent[] {
+  return inMemoryLadderCostLog;
+}
+
+export function clearLadderCostLog(): void {
+  inMemoryLadderCostLog.length = 0;
+}
