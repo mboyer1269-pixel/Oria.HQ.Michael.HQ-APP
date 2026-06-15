@@ -187,3 +187,19 @@ test("budget pressure never lowers client_audit below premium", () => {
   const second = chooseModel(ctx);
   assert.equal(second.modelId, PREMIUM_MODEL_ID); // floor beats budget
 });
+
+test("shadow tagging does not force a free model when the catalog has no eligible entry", () => {
+  resetLadderBudget();
+  // Shadow-tagging default: a free-targeting class is supplied WITHOUT a
+  // freeCatalog (exactly how the brain call sites tag in this phase). The ladder
+  // must honestly degrade free → economy rather than invent a free model.
+  const decision = chooseModel({
+    message: "Reformule cette phrase simplement.",
+    taskClass: "classification",
+    agentId: "joris",
+    nowMs: FIXED_NOW,
+  });
+  assert.equal(decision.modelId, ECONOMY_MODEL_ID);
+  assert.equal(decision.via, "cost-ladder");
+  assert.notEqual(decision.modelId, FREE_MODEL.id);
+});

@@ -2,6 +2,7 @@ import type { CommandResult, JorisIntent, MissionPlanResult } from "@/features/h
 import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import { logger } from "@/lib/logger";
 import { chooseModel } from "@/server/ai/model-router";
+import type { TaskClass } from "@/server/ai/cost-ladder";
 import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
 import { checkPermission } from "@/server/permissions/permissions";
@@ -49,6 +50,40 @@ import { readVerifiedVaultContext } from "@/server/memory/memory-vault-repositor
 import type { MemoryVaultReadResult } from "@/server/memory/memory-vault-types";
 
 const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
+
+/**
+ * Pure intent → Cost Ladder task class map (shadow tagging — Option A).
+ *
+ * This drives the ladder's *observed* decision only; it changes no provider
+ * call and the capability stays `display_only`. The two high-value judgment
+ * intents carry the premium-mandatory `client_audit` floor (never downgraded,
+ * even in economy mode or under budget pressure). Every other intent is
+ * `general`, which defers to the base router — so the displayed model is
+ * unchanged and the ladder simply becomes observable (`via: "cost-ladder"` plus
+ * a recorded cost event). No free model is ever forced here: the free rung
+ * stays config-gated and empty until a later (dispatch) phase.
+ *
+ * `client_audit` is reused as the only existing premium-floor class; the tag is
+ * a routing-tier signal, not a claim that these intents are literal audits.
+ */
+const INTENT_TASK_CLASS: Record<JorisIntent, TaskClass> = {
+  "board.consult": "client_audit",
+  "opportunity.score": "client_audit",
+  chat: "general",
+  "calendar.book": "general",
+  "calendar.remind": "general",
+  "brief.generate": "general",
+  "memory.capture": "general",
+  "task.create": "general",
+  "mission.plan": "general",
+  "mission.draft": "general",
+  "governance.audit": "general",
+};
+
+/** Conservative, pure mapping from a detected intent to its shadow task class. */
+export function taskClassForIntent(intent: JorisIntent): TaskClass {
+  return INTENT_TASK_CLASS[intent] ?? "general";
+}
 
 /**
  * Formats verified Memory Vault entries as a concise context note for Joris.
@@ -240,6 +275,13 @@ export async function runJorisCommand(
   const route = chooseModel({
     message,
     highImpact: false,
+    // Shadow tagging (Cost Ladder, display_only): the pre-intent reply route
+    // (governance / mission-draft confirmations) is always tagged conservatively
+    // `general` — a confirmation reply must never inherit a premium or free tag
+    // from its own keywords. `general` defers to the base router, so the
+    // displayed model is unchanged; only `via` + the cost event become observable.
+    taskClass: "general",
+    agentId: ctx.activeAgentProfile.id,
   });
 
   const workspaceMeta = {
@@ -266,6 +308,13 @@ export async function runJorisCommand(
   const routedModel = chooseModel({
     message,
     highImpact: intent === "board.consult" || intent === "opportunity.score",
+    // Shadow tagging (Cost Ladder, display_only): map the detected intent to a
+    // task class so the ladder produces an *observed* decision. High-value
+    // judgment intents carry the premium-mandatory `client_audit` floor; every
+    // other intent is `general` (defers to the base router). No free model is
+    // forced — the free rung stays config-gated/empty in this phase.
+    taskClass: taskClassForIntent(intent),
+    agentId: ctx.activeAgentProfile.id,
   });
 
   if (intent === "governance.audit") {

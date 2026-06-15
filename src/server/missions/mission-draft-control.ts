@@ -41,10 +41,16 @@ function buildWorkspaceMeta(ctx: WorkspaceContext): Pick<CommandResult, "workspa
   };
 }
 
-function buildRoute(message: string) {
+export function buildRoute(message: string) {
+  // Shadow tagging (Cost Ladder, display_only): mission-draft confirmations
+  // (confirm / cancel) are tagged conservatively `general` — they defer to the
+  // base router, so the displayed model is unchanged; only `via` + the cost
+  // event become observable. No provider call changes; no free model is forced.
   return chooseModel({
     message,
     highImpact: false,
+    taskClass: "general",
+    agentId: "mission",
   });
 }
 
