@@ -1,10 +1,11 @@
 # Memory Vault — Contract
 
-> **Status:** docs-only · 2026-06-03  
+> **Status:** implemented — local in-memory · contract 2026-06-03 · updated 2026-06-15<br>
 > **Sprint:** Memory Vault foundation (P0)  
 > **Canonical types:** `src/server/memory/memory-vault-types.ts`  
+> **Implementation:** `src/server/memory/memory-vault-repository.ts` (local store + propose/approve governance), `src/server/joris/brain.ts` (verified-entry injection)<br>
 > **Depends on:** nothing (pure contract)  
-> **Blocks:** Memory Vault persistence (future), Joris context injection (future)
+> **Still locked:** Supabase persistence — see "What is locked".
 
 ---
 
@@ -135,6 +136,32 @@ Agent-authored entries that are approved receive `approvedBy: <ceoUserId>` and `
 
 ---
 
+## Approval mechanism (implemented — local)
+
+The propose → approve | reject governance path lives in
+`src/server/memory/memory-vault-repository.ts`:
+
+| Function | Transition | Rules |
+|----------|-----------|-------|
+| `proposeMemoryVaultEntry` | new entry | `human` author → `verified`; `joris`/`agent` author → `proposed`. Never writes `verified` for non-human authors. |
+| `approveMemoryVaultEntry` | `proposed` → `verified` | Stamps `approvedBy` + refreshes `updatedAt`. Workspace-scoped. Only a currently-`proposed` entry is eligible. |
+| `rejectMemoryVaultEntry` | `proposed` → `draft` | Demotes out of the injection set but keeps the entry visible for revision. Workspace-scoped, proposed-only. |
+| `listPendingProposals` | read | The CEO approval queue — `proposed` entries for one workspace, `updatedAt` DESC. Never injected into Joris. |
+
+Invariants enforced:
+
+- **Workspace isolation.** An entry can only be approved or rejected from within
+  its own workspace; a cross-workspace id resolves to `not_found`.
+- **Proposed-only.** Approving or rejecting a non-`proposed` entry returns
+  `not_proposed` — there is no silent re-promotion of an already-`verified` entry.
+- **Verified is the only injectable state.** Approval is the single path that
+  makes an entry eligible for Joris context injection.
+
+This path is **local and in-memory** (resets on server restart). A write/approval
+UI and an HTTP API surface are not built yet; Supabase persistence stays locked.
+
+---
+
 ## What is locked (not built yet)
 
 | Capability | Status | Gate |
@@ -155,7 +182,7 @@ Agent-authored entries that are approved receive `approvedBy: <ceoUserId>` and `
 | Action Ledger | Ledger records events (what happened). Vault stores curated knowledge (what to remember). Separate concerns — do not merge. |
 | `src/features/memory/types.ts` | Existing view-model types for the Memory Wiki UI (mock data). Vault types live server-side (`src/server/memory/`). These are complementary, not duplicates. |
 | Mission Draft | A confirmed mission may eventually propose a `note` entry to the vault, pending CEO review. Not wired yet. |
-| Joris brain (`brain.ts`) | Future: reads `MemoryVaultReadResult` at invocation start, injects verified entries as context. Not wired yet. |
+| Joris brain (`brain.ts`) | Implemented: reads verified entries at invocation start (`readVerifiedVaultContext`, workspace-scoped, max 20) and injects them as a context note plus the verified-lessons rail (`composeVerifiedLessonsContext`). |
 
 ---
 
@@ -163,9 +190,9 @@ Agent-authored entries that are approved receive `approvedBy: <ceoUserId>` and `
 
 1. ✅ **This doc** — contract definition (no code).
 2. ✅ **`src/server/memory/memory-vault-types.ts`** — pure TypeScript types (no imports, no DB).
-3. ⬜ **`src/server/memory/memory-vault-repository.ts`** — in-memory implementation (local fallback), mirroring existing ledger pattern.
-4. ⬜ **Joris context injection** — `brain.ts` reads vault at invocation start (workspace-scoped, verified only).
-5. ⬜ **`/hq` panel** — read-only Memory Vault list on HQ (no write UI yet).
-6. ⬜ **Supabase migration** — only after steps 3–5 are validated locally.
+3. ✅ **`src/server/memory/memory-vault-repository.ts`** — in-memory implementation (local fallback), mirroring existing ledger pattern. Includes the propose → approve | reject governance path (`approveMemoryVaultEntry`, `rejectMemoryVaultEntry`, `listPendingProposals`).
+4. ✅ **Joris context injection** — `brain.ts` reads vault at invocation start (workspace-scoped, verified only).
+5. ◻ **`/hq` panel** — read explorer is live (read-only). A write/approval UI and an HTTP API surface are **not built yet**.
+6. ⬜ **Supabase migration** — locked. Only after the write surface is validated locally and an explicit migration mandate is given.
 
-Each step requires an explicit mandate before starting.
+Each remaining step requires an explicit mandate before starting.

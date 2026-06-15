@@ -45,7 +45,7 @@ This README reflects the current codebase state. It separates:
 | `/hq/skills` | Live | Skills catalog (seed) |
 | `/hq/ventures` | Live | Venture Command Center; read-only venture engine view |
 | `/hq/runtime` | Live | Local prototype status (read-only narrative) |
-| `/hq/memory` | Partial | Shell / placeholder |
+| `/hq/memory` | Partial | Read explorer live — verified vault + file-graph, chainlines, duplicate detection, learning-loop report. Write/approval UI still pending. |
 | `/dashboard/documents` | Placeholder | Module retiré temporairement; rebuild prévu |
 | `/contact` | Live | Public contact form |
 | `/login` | Live | Supabase auth (optional in dev) |
@@ -103,7 +103,8 @@ All live execution remains behind:
 
 Honest constraints of the current build:
 
-- **`/dashboard/documents` and `/hq/memory` are placeholders** — not functional modules yet.
+- **`/dashboard/documents` is a placeholder** — not a functional module yet.
+- **`/hq/memory` is read-only.** The vault read explorer is live (verified entries are injected into Joris at every brain invocation, max 20, workspace-scoped) and the propose → approve → verified governance path exists server-side (`memory-vault-repository.ts`). What is **not** built yet: a write/approval UI, an HTTP API surface, and Supabase persistence (the in-memory store resets on restart). See `docs/MEMORY_VAULT_CONTRACT.md`.
 - **Document store is dev/test-only.** `db/documents.json` is a local fixture, **fail-closed in production**; the Supabase `documents` migration is planned (`docs/migrations/documents-file-store-to-db.md`).
 - **Joris conversational LLM needs API keys.** Without a configured provider, the conversational path returns a deterministic, clearly-labelled fallback (`generation: "fallback"`) — no fabricated "AI" output.
 - **Rate limiting** falls back to an in-memory, per-instance limiter unless Upstash is configured.
@@ -248,7 +249,7 @@ tests, and the Joris/runtime smokes — offline, no secrets, with least-privileg
 
 | Priority | Sprint | Objective |
 |----------|--------|-----------|
-| P0 | **Memory Vault** | Workspace-bound typed memory (decision, SOP, note, source). Joris read rules. No vector DB yet. |
+| P0 | **Memory Vault** | Workspace-bound typed memory (decision, SOP, note, source). Joris read rules + propose/approve governance path **done** (server-side, in-memory). Remaining: write/approval UI, HTTP API, Supabase persistence. No vector DB. |
 | P0 | **Money / ROI Cockpit** | Runway, AI spend, ROI by agent/mission. Manual model first — no banking, no billing. |
 | P1 | **Mission Persistence** | Missions, approval records, execution attempts in DB. Docs/migration proposal first; staging gate before prod. |
 | P1 | **n8n Webhook Hardening** | Auth, replay protection, rate limits on inbound webhook bridge. |

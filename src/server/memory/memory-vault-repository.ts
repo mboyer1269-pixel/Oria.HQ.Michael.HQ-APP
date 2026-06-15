@@ -197,6 +197,83 @@ export function proposeMemoryVaultEntry(input: MemoryVaultProposeInput): MemoryV
 }
 
 // ---------------------------------------------------------------------------
+// APPROVE / REJECT (CEO governance — proposed -> verified | draft)
+// ---------------------------------------------------------------------------
+// A proposed entry (author "joris" or "agent") is invisible to Joris context
+// until the CEO acts on it. Approval is the only path that promotes an entry
+// to "verified"; rejection demotes it to "draft" so it leaves the injection
+// set but stays visible for revision. Both transitions are workspace-scoped:
+// an entry can only be acted on from within its own workspace, and only an
+// entry that is currently "proposed" is eligible.
+
+export type MemoryVaultApprovalResult =
+  | { ok: true; entry: MemoryVaultEntry }
+  | { ok: false; reason: "not_found" | "not_proposed" };
+
+/** Finds a stored entry by id within a workspace (never leaks across workspaces). */
+function findWorkspaceEntry(
+  entryId: string,
+  workspaceId: string,
+): MemoryVaultEntry | undefined {
+  return localVaultEntries.find(
+    (entry) => entry.id === entryId && entry.workspaceId === workspaceId,
+  );
+}
+
+/**
+ * Approves a proposed entry: transitions trustLevel "proposed" -> "verified",
+ * stamps approvedBy, and refreshes updatedAt. After approval the entry becomes
+ * eligible for Joris context injection.
+ *
+ * Guards:
+ *   - Unknown id, or an id that belongs to another workspace -> "not_found".
+ *   - An entry that is not currently "proposed" (already verified or draft)
+ *     -> "not_proposed". Approval is never silent and never re-promotes.
+ */
+export function approveMemoryVaultEntry(input: {
+  entryId: string;
+  workspaceId: string;
+  approvedBy: string;
+}): MemoryVaultApprovalResult {
+  const entry = findWorkspaceEntry(input.entryId, input.workspaceId);
+  if (!entry) return { ok: false, reason: "not_found" };
+  if (entry.trustLevel !== "proposed") return { ok: false, reason: "not_proposed" };
+
+  entry.trustLevel = "verified";
+  entry.approvedBy = input.approvedBy;
+  entry.updatedAt = new Date().toISOString();
+  return { ok: true, entry };
+}
+
+/**
+ * Rejects a proposed entry: transitions trustLevel "proposed" -> "draft" so it
+ * is no longer eligible for Joris injection but remains visible for revision.
+ * Same workspace-scoping and "proposed-only" guard as approval.
+ */
+export function rejectMemoryVaultEntry(input: {
+  entryId: string;
+  workspaceId: string;
+}): MemoryVaultApprovalResult {
+  const entry = findWorkspaceEntry(input.entryId, input.workspaceId);
+  if (!entry) return { ok: false, reason: "not_found" };
+  if (entry.trustLevel !== "proposed") return { ok: false, reason: "not_proposed" };
+
+  entry.trustLevel = "draft";
+  entry.updatedAt = new Date().toISOString();
+  return { ok: true, entry };
+}
+
+/**
+ * Lists pending (proposed) entries for a workspace — the CEO approval queue.
+ * Ordered by updatedAt DESC. Workspace-scoped. Never used for Joris injection.
+ */
+export function listPendingProposals(workspaceId: string): MemoryVaultEntry[] {
+  return localVaultEntries
+    .filter((entry) => entry.workspaceId === workspaceId && entry.trustLevel === "proposed")
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+// ---------------------------------------------------------------------------
 // READ ALL (for UI / admin views — not for Joris injection)
 // ---------------------------------------------------------------------------
 
