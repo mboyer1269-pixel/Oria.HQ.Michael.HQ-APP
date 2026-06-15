@@ -59,6 +59,7 @@ Joris is the **operating partner**, not a free agent runner. All sensitive actio
 - **Joris Brain** (`src/server/joris/brain.ts`) routes intents: `mission.draft`, `mission.plan`, `calendar.book`, governance checks.
 - **Model invocation** — conversational replies (general `chat`, `board.consult`) call a real LLM through the shared provider (`generateStructuredJson`: Anthropic → OpenAI) **when API keys are configured**, and fall back to a deterministic, clearly-labelled response otherwise (`CommandResult.generation` is `"llm"` or `"fallback"`). Structured intents (booking, mission plan, governance, brief) are deterministic and rules-based — the router only *selects* a model for them, it does not invoke one.
 - **Smoke test**: `npm run smoke:joris` — full two-step flow + `missionId` tracing on ledger.
+- **Routing doctrine** — provider-neutral routing, Cost Ladder rungs (`free`/`economy`/`premium`), and the panel/fusion-as-exception policy are ratified in [`docs/JORIS_ROUTING_DOCTRINE.md`](docs/JORIS_ROUTING_DOCTRINE.md). Doctrine only — runtime stays `display_only`.
 
 ### Action ledger & governance
 
