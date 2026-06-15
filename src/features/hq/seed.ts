@@ -4,7 +4,7 @@ export const hqModules: HqModule[] = [
   {
     id: "workspace-modes",
     title: "Workspace & Modes",
-    subtitle: "Sépare Michael HQ, les clients et les modes personnel, pro, finance et immobilier.",
+    subtitle: "Sépare les contextes par mode configuré du workspace actif.",
     status: "planned",
     autonomyLevel: 2,
   },
