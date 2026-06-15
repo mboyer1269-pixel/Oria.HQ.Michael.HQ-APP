@@ -1,7 +1,7 @@
 # Oria HQ — Current State Sync
 
-Last updated: 2026-06-08  
-Branch at time of writing: `main` at `f4d2b4f`  
+Last updated: 2026-06-15  
+Branch at time of writing: `main` + local repository-cleanup stack (CLEAN-001…010), pending PR  
 Sprint board: GitHub issue [#91](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/issues/91) (Task Manager)
 
 This document is the **canonical source of truth** for what is live, partial, or locked in Oria HQ after the observability sprint (PRs #88–#92), the mission-draft gate (PRs #94–#96), the green-lane ledger pre-dispatch hardening (PR #218), and the Action Ledger hash-chain immutability sprint (PRs #234–#246). Historical snapshots (`ORIA_HQ_PHASE2_SNAPSHOT.md`, `MISSION_CONTROL_COMPLETION_SNAPSHOT.md`) remain for archaeology; prefer this file for current operations.
@@ -64,14 +64,14 @@ The hash-chain remains **shadow-only**: this layer is read-only audit tooling ov
 | --- | --- | --- |
 | `/hq` | Live | Overview + **Operator Snapshot** (`#operator-snapshot`) + **Ledger Activity** (`#ledger-activity`) |
 | `/hq/missions` | Live | Pipeline UI; dry-run planning only |
-| `/hq/agents` | Live | Registry (7 agents, seed) |
-| `/hq/skills` | Live | Catalog (15 skills, seed) |
+| `/hq/agents` | Live | Registry (seed) |
+| `/hq/skills` | Live | Catalog (seed) |
 | `/hq/runtime` | Live | Local prototype status (read-only narrative) |
 | `/hq/memory` | Partial | Shell / placeholder |
-| `/dashboard/documents` | Live | Owner documents |
+| `/dashboard/documents` | Placeholder | Module retiré temporairement; rebuild prévu. Le store `db/documents.json` est une fixture dev/test-only (fail-closed en prod) |
 | `/contact` | Live | Public contact form |
 | `/login` | Live | Supabase auth (optional in dev) |
-| Joris chat (`/api/joris/chat`) | Live | Mission draft proposal + confirm gate for `calendar.book`; `mission.plan` dry-run; workspace context injected |
+| Joris chat (`/api/joris/chat`) | Live | Mission draft proposal + confirm gate for `calendar.book`; `mission.plan` dry-run; workspace context injected. Conversational replies (`chat`/`board.consult`) invoke a real LLM when keys are configured, else a deterministic fallback (`CommandResult.generation`) |
 | POST `/api/missions/plan` | Live | Dry-run only; `approvalConfirmed` always false |
 | POST `/api/missions/execute` | **Does not exist** | By design |
 | Calendar API (`/api/calendar/events`) | Live | Workspace-scoped reads/writes via service |
@@ -79,7 +79,7 @@ The hash-chain remains **shadow-only**: this layer is read-only audit tooling ov
 | CEO brief (`/api/brief/ceo`) | Live | Brief generation |
 | Health (`/api/health`) | Live | Liveness |
 | Local runtime (`local-runtime.ts`) | Prototype | `runtime.health.echo` smoke only; **no** runtime API route |
-| CI (`.github/workflows/ci.yml`) | Live | `verify` on PRs (incl. `npm run ledger:audit`); nightly hash-chain audit via `ledger-audit-nightly.yml` |
+| CI (`.github/workflows/ci.yml`) | Live | `verify` on PRs + push to `main`: typecheck, lint, build, tests, smokes, `npm run ledger:audit`; least-privilege `contents: read` + concurrency cancel. Nightly hash-chain audit via `ledger-audit-nightly.yml` |
 
 ---
 

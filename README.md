@@ -3,7 +3,7 @@
 > **Owner:** Michael Boyer (President / Capital Allocator)  
 > **Operating Partner:** Joris (L2 assistant)  
 > **Workspace:** Michael HQ  
-> **Last synced:** 2026-06-03 · main · PR #221
+> **Last synced:** 2026-06-15 · main + local repository-cleanup stack
 
 Oria HQ is a **private operating platform** for running, validating, and governing ventures with AI agents.  
 It is **not** a generic chatbot or a GPT wrapper.  
@@ -29,7 +29,7 @@ If not — it waits.
 
 ## Current state — what actually exists on `main`
 
-This README reflects the codebase as of **PR #221**. It separates:
+This README reflects the current codebase state. It separates:
 
 - **Live** — exists, wired, validated.
 - **Partial / prototype** — exists, not production-ready.
@@ -41,12 +41,12 @@ This README reflects the codebase as of **PR #221**. It separates:
 |---------|--------|-------|
 | `/hq` | Live | Cockpit overview — Operator Snapshot + Ledger Activity panels |
 | `/hq/missions` | Live | Mission pipeline UI; dry-run planning + draft gate |
-| `/hq/agents` | Live | Agent registry (7 agents, seed) |
-| `/hq/skills` | Live | Skills catalog (15 skills, seed) |
+| `/hq/agents` | Live | Agent registry (seed) |
+| `/hq/skills` | Live | Skills catalog (seed) |
 | `/hq/ventures` | Live | Venture Command Center; read-only venture engine view |
 | `/hq/runtime` | Live | Local prototype status (read-only narrative) |
 | `/hq/memory` | Partial | Shell / placeholder |
-| `/dashboard/documents` | Live | Owner documents |
+| `/dashboard/documents` | Placeholder | Module retiré temporairement; rebuild prévu |
 | `/contact` | Live | Public contact form |
 | `/login` | Live | Supabase auth (optional in dev) |
 
@@ -96,6 +96,19 @@ All live execution remains behind:
 - Sentinelle policy zone check.
 - Ledger entry before and after any execution attempt.
 - `POST /api/missions/execute` **does not exist** by design.
+
+---
+
+## Known current limitations
+
+Honest constraints of the current build:
+
+- **`/dashboard/documents` and `/hq/memory` are placeholders** — not functional modules yet.
+- **Document store is dev/test-only.** `db/documents.json` is a local fixture, **fail-closed in production**; the Supabase `documents` migration is planned (`docs/migrations/documents-file-store-to-db.md`).
+- **Joris conversational LLM needs API keys.** Without a configured provider, the conversational path returns a deterministic, clearly-labelled fallback (`generation: "fallback"`) — no fabricated "AI" output.
+- **Rate limiting** falls back to an in-memory, per-instance limiter unless Upstash is configured.
+- **Single workspace** (`michael-hq`); multi-workspace configuration is future work.
+- **Live mission execution is locked** — no unguarded dispatch; `POST /api/missions/execute` does not exist.
 
 ---
 
@@ -210,6 +223,11 @@ npm run smoke:revenue               # Venture operational-value check
 ```
 
 All checks must pass before merge.
+
+CI runs the same gate on every pull request and push to `main`
+(`.github/workflows/ci.yml`): `npm ci` on Node 22, then typecheck, lint, build,
+tests, and the Joris/runtime smokes — offline, no secrets, with least-privilege
+`contents: read` permissions and stale-run cancellation.
 
 ---
 
