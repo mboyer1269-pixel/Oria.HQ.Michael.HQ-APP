@@ -41,6 +41,20 @@ export type ResolvedWebhook = {
 };
 
 /**
+ * Returns the approved binding for an agent+skill pair, or null. Used as the
+ * authorization allowlist by the n8n_webhook_trigger MCP tool, which resolves
+ * the destination from N8N_WEBHOOK_URL rather than a per-agent env key.
+ */
+export function findApprovedWebhookBinding(
+  agentId: string,
+  skillId: string,
+): ApprovedWebhookBinding | null {
+  return (
+    APPROVED_WEBHOOK_BINDINGS.find((b) => b.agentId === agentId && b.skillId === skillId) ?? null
+  );
+}
+
+/**
  * Resolves an approved webhook destination for a given agent and skill.
  * Ensures the URL is present in the environment and its hostname is allowed.
  */

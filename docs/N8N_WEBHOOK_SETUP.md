@@ -5,18 +5,51 @@
 Oria HQ = brain (governance, Sentinelle gate, ledger, measurement)
 n8n = hands (real tool execution: publish post, send email, create Notion doc)
 
-The bridge is a single HTTP call:
+**Governance rule (absolute): the n8n webhook fires ONLY on an explicit CEO
+approval.** A Sentinelle `ALLOW` verdict means an action is *eligible* for CEO
+approval — never "fire it". The automatic green-lane path (`/execute`) no longer
+makes any external call.
+
+The bridge is a two-step, human-in-the-loop flow:
 
 ```
-POST /api/agents/marketing/execute
-  { skillId: "content.generate", webhookUrl: "https://your-n8n.../webhook/abc" }
+1. PREPARE (agent, no network call)
+   POST /api/agents/:agentId/execution-intents
+     { skillId, client, email, actionType, missionId, ventureId?, data }
+   -> Sentinelle eligibility (BLOCK => 403; otherwise eligible)
+   -> intent stored as status="pending"
+   -> Ledger "decision" (eligible_for_approval)
 
--> Sentinelle checks zone (green/yellow/red)
--> ALLOW: Oria forwards to n8n webhook with full context
--> n8n executes the real tool action
--> AgentOutcome recorded as "pending"
--> CEO evaluates outcome later
+2. APPROVE (CEO, the ONLY trigger that calls n8n)
+   POST /api/agents/execution-intents/:intentId/approve
+   -> Sentinelle re-check (BLOCK => 403)
+   -> status pending -> executing
+   -> Ledger "action" (attempt, BEFORE the call)
+   -> n8n_webhook_trigger MCP tool -> POST N8N_WEBHOOK_URL
+   -> Ledger "result" (success | failed)
+   -> status -> executed | failed   (rate-limited => back to pending, retryable)
 ```
+
+The dispatch payload is HMAC-signed (`x-orya-signature` / `x-orya-timestamp` via
+`AGENT_WEBHOOK_SIGNING_SECRET`) **and** carries a static `x-webhook-secret`
+(= `N8N_SECRET`). Configure the single destination and secret:
+
+```bash
+N8N_WEBHOOK_URL=https://your-n8n.app.n8n.cloud/webhook/oria-execute
+N8N_SECRET=your-shared-secret   # verified by n8n as the x-webhook-secret header
+```
+
+The tool refuses to dispatch unless BOTH are set and the URL hostname is in the
+approved binding allowlist (`src/server/runtime/webhook-registry.ts`). It is also
+internally rate-limited so a bug cannot bomb n8n.
+
+> ⚠️ **Legacy section (superseded).** The step-by-step below documents the
+> original auto-dispatch flow where `/execute` forwarded to a per-agent
+> `AGENT_*_WEBHOOK_URL` on a green `ALLOW`. That path no longer makes any
+> external call (it would violate humanOnTheLoop). Use the two-step
+> prepare → CEO-approve flow described under **Concept** above. The n8n
+> workflow-building notes (trigger node, response node, ROI queries) remain
+> useful; only the Oria-side trigger has moved to the approval route.
 
 ## Step-by-step: Wire Agent Marketing to n8n
 

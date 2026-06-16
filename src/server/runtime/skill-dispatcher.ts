@@ -1,35 +1,28 @@
 /**
- * Skill Dispatcher -- PR5 Green Lane Executor
+ * Skill Dispatcher -- in-process Green Lane Executor
  *
- * Dispatches approved green-zone skill executions. Two strategies:
+ * Dispatches approved green-zone skill executions that run IN-PROCESS only:
  *
- *   1. WEBHOOK BRIDGE (primary for external tools)
- *      Forwards the skill request to a webhook URL (n8n, Make, Zapier, etc.).
- *      The external workflow handles the actual tool execution.
- *      Oria stays the governance + measurement layer -- n8n stays the hands.
- *      This is the recommended production pattern: zero custom executor code,
- *      connect to any tool via the webhook bridge.
- *
- *   2. BUILT-IN HANDLERS (for skills that run in-process)
+ *   - BUILT-IN HANDLERS (skills that run in-process)
  *      content.generate -> LLM call (Anthropic/OpenAI via model-router)
  *      More handlers added here as skills mature.
+ *   - DRY-RUN (no handler configured yet) -> logs, returns a preview.
  *
- * Architecture principle:
- *   Oria = brain (governance, approval, measurement)
- *   n8n/Make = hands (actual tool execution)
- *   The dispatcher is the bridge between the two.
+ * EXTERNAL EXECUTION HAS MOVED. The outbound webhook bridge toward n8n is no
+ * longer reachable from this automatic path. A Sentinelle ALLOW means an action
+ * is ELIGIBLE for CEO approval, not that it should fire. The n8n call now lives
+ * behind the n8n_webhook_trigger MCP tool (src/server/agents/tools), invoked
+ * only by the CEO manual-approval route. This keeps humanOnTheLoop absolute: no
+ * external network call happens from green-lane evaluation.
  *
  * Safety:
  *   - Only called after evaluateLiveExecution() returns ALLOW.
- *   - Never calls external tools without a prior Sentinelle gate.
- *   - Timeout enforced on all HTTP dispatches (10s default).
+ *   - This dispatcher performs NO external network call.
  *   - Errors surface as thrown exceptions -- caller records "failed" outcome.
  */
 
 import { serverEnv } from "@/lib/server-env";
 import { logger } from "@/lib/logger";
-import crypto from "node:crypto";
-import { resolveApprovedWebhook, type ResolvedWebhook } from "./webhook-registry";
 
 export type SkillDispatchInput = {
   agentId: string;
@@ -44,7 +37,7 @@ export type SkillDispatchResult = {
   /** The skill output payload. */
   result: Record<string, unknown>;
   /** Which strategy was used. */
-  strategy: "webhook" | "builtin" | "dry-run";
+  strategy: "builtin" | "dry-run";
 };
 
 // ---------------------------------------------------------------------------
@@ -54,32 +47,28 @@ export type SkillDispatchResult = {
 /**
  * Dispatch a skill execution after Sentinelle has returned ALLOW.
  * Selects strategy automatically:
- *   1. webhookUrl provided -> webhook bridge
- *   2. Built-in handler exists for skillId -> run in-process
- *   3. No handler -> dry-run (logs, records, returns preview)
+ *   1. Built-in handler exists for skillId -> run in-process
+ *   2. No handler -> dry-run (logs, returns preview)
+ *
+ * There is no external (n8n) path here by design: external execution is
+ * gated behind CEO approval via the n8n_webhook_trigger MCP tool.
  */
 export async function dispatchSkillExecution(
   input: SkillDispatchInput,
 ): Promise<SkillDispatchResult> {
   const actionRef = `action_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-  // Strategy 1: Built-in handler
+  // Strategy 1: Built-in handler (in-process).
   const builtin = BUILTIN_HANDLERS[input.skillId];
   if (builtin) {
     return builtin(input, actionRef);
   }
 
-  // Strategy 2: Webhook bridge via Registry
-  const webhook = resolveApprovedWebhook(input.agentId, input.skillId);
-  if (webhook) {
-    return dispatchViaWebhook(input, actionRef, webhook);
-  }
-
-  // Strategy 3: Dry-run (no handler configured yet)
+  // Strategy 2: Dry-run (no in-process handler configured).
   logger.warn("skill.dispatcher.no-handler", {
     agentId: input.agentId,
     skillId: input.skillId,
-    note: "No webhook URL and no built-in handler. Returning dry-run preview.",
+    note: "No in-process handler. External execution is CEO-approval-gated via n8n_webhook_trigger.",
   });
 
   return {
@@ -87,7 +76,7 @@ export async function dispatchSkillExecution(
     strategy: "dry-run",
     result: {
       preview: true,
-      message: `Skill ${input.skillId} executed in dry-run mode. Wire a webhook or add a built-in handler to execute live.`,
+      message: `Skill ${input.skillId} executed in dry-run mode. Add a built-in handler, or queue an execution intent for CEO-approved n8n dispatch.`,
       agentId: input.agentId,
       skillId: input.skillId,
       input: input.input,
@@ -96,88 +85,7 @@ export async function dispatchSkillExecution(
 }
 
 // ---------------------------------------------------------------------------
-// Strategy 1: Webhook bridge
-// ---------------------------------------------------------------------------
-
-async function dispatchViaWebhook(
-  input: SkillDispatchInput,
-  actionRef: string,
-  webhook: ResolvedWebhook,
-): Promise<SkillDispatchResult> {
-  const payload = {
-    actionRef,
-    agentId: input.agentId,
-    skillId: input.skillId,
-    workspaceId: input.workspaceId,
-    input: input.input,
-    dispatchedAt: new Date().toISOString(),
-  };
-
-  const bodyString = JSON.stringify(payload);
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
-  if (webhook.binding.requiresSignature) {
-    const secret = process.env.AGENT_WEBHOOK_SIGNING_SECRET;
-    if (!secret) {
-      throw new Error("Missing AGENT_WEBHOOK_SIGNING_SECRET in environment for signed webhook.");
-    }
-    const timestamp = Date.now().toString();
-    const signature = crypto
-      .createHmac("sha256", secret)
-      .update(`${timestamp}.${bodyString}`)
-      .digest("hex");
-
-    headers["x-orya-action-ref"] = actionRef;
-    headers["x-orya-timestamp"] = timestamp;
-    headers["x-orya-signature"] = signature;
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), webhook.binding.timeoutMs);
-
-  try {
-    const response = await fetch(webhook.url, {
-      method: "POST",
-      headers,
-      body: bodyString,
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Webhook returned ${response.status}: ${response.statusText}`);
-    }
-
-    const result = await response.json().catch(() => ({}));
-
-    logger.info("skill.dispatcher.webhook.success", {
-      agentId: input.agentId,
-      skillId: input.skillId,
-      actionRef,
-      webhookStatus: response.status,
-    });
-
-    return {
-      actionRef: (result as Record<string, unknown>)["actionRef"] as string ?? actionRef,
-      strategy: "webhook",
-      result: result as Record<string, unknown>,
-    };
-  } catch (err) {
-    logger.error("skill.dispatcher.webhook.failed", {
-      agentId: input.agentId,
-      skillId: input.skillId,
-      actionRef,
-      reason: err instanceof Error ? err.message : "unknown",
-    });
-    throw err;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Strategy 2: Built-in handlers
+// Built-in handlers (in-process; no external network)
 // ---------------------------------------------------------------------------
 
 type BuiltinHandler = (

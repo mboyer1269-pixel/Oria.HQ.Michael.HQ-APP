@@ -122,6 +122,11 @@ export async function POST(
   }
 
   // ── ALLOW: execute green lane action ──────────────────────────────────────
+  // NOTE: this path runs IN-PROCESS handlers only. The skill dispatcher no
+  // longer reaches any external (n8n) webhook; a webhook-bound skill falls back
+  // to a dry-run preview here. Live external execution is CEO-approval-gated via
+  // the execution-intents queue (POST /api/agents/:id/execution-intents) and the
+  // n8n_webhook_trigger MCP tool fired from the approve route.
   const executedAt = new Date().toISOString();
 
   const execResult = await executeGreenLaneAction(

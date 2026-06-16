@@ -307,6 +307,37 @@ export type AgentScoreSnapshotInsert = Omit<AgentScoreSnapshotRow, "id" | "creat
   created_at?: string;
 };
 
+// agent_execution_intents -- executable agent actions queued for CEO approval
+// (migration 0024). Unlike prepared_actions (locked, manual-send only), an
+// execution intent IS dispatchable, but ONLY after a manual CEO approval that
+// fires the n8n webhook. status is plain text here (DB CHECK enforces the
+// pending/executing/executed/failed whitelist); the payload jsonb mirrors the
+// AgentExecutionIntentPayload contract. requires_ceo_approval is forced true by
+// DB CHECK -- an intent can never be persisted pre-approved.
+export type AgentExecutionIntentRow = {
+  id: string;
+  workspace_id: string;
+  created_by_user_id: string;
+  intent_id: string;
+  agent_id: string;
+  skill_id: string;
+  tool_name: string;
+  autonomy_level: number;
+  status: string;
+  payload: Json;
+  action_ref: string | null;
+  failure_code: string | null;
+  requires_ceo_approval: true;
+  created_at: string;
+  updated_at: string;
+};
+
+// The DB assigns id and created_at (defaults), so an insert omits them.
+export type AgentExecutionIntentInsert = Omit<AgentExecutionIntentRow, "id" | "created_at"> & {
+  id?: string;
+  created_at?: string;
+};
+
 export type MichaelHqDatabase = {
   public: {
     Tables: {
@@ -386,6 +417,12 @@ export type MichaelHqDatabase = {
         Row: AgentScoreSnapshotRow;
         Insert: AgentScoreSnapshotInsert;
         Update: Partial<AgentScoreSnapshotInsert>;
+        Relationships: [];
+      };
+      agent_execution_intents: {
+        Row: AgentExecutionIntentRow;
+        Insert: AgentExecutionIntentInsert;
+        Update: Partial<AgentExecutionIntentInsert>;
         Relationships: [];
       };
     };
