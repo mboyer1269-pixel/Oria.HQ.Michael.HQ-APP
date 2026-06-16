@@ -1,5 +1,5 @@
 import type { Route } from "next";
-import { ShieldCheck, Clock, FileText, BookOpen, StickyNote, Link2, Network, Repeat } from "lucide-react";
+import { ShieldCheck, Clock, FileText, BookOpen, StickyNote, Link2, Network, Repeat, PenSquare } from "lucide-react";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import {
   HqMetric,
@@ -9,6 +9,8 @@ import {
   HqWidget,
 } from "@/features/hq/components/hq-widget-system";
 import { MemoryVaultExplorer } from "@/features/memory/components/memory-vault-explorer";
+import { MemoryWritePanel } from "@/features/memory/components/memory-write-panel";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import {
   buildChainlineGraph,
@@ -21,7 +23,10 @@ import {
   mergeMemoryEntries,
 } from "@/server/memory/memory-file-vault";
 import { getLearningLoopReport } from "@/server/memory/learning-loop-service";
-import { listAllVaultEntriesForWorkspace } from "@/server/memory/memory-vault-repository";
+import {
+  listAllVaultEntriesForWorkspace,
+  listPendingProposals,
+} from "@/server/memory/memory-vault-repository";
 import type { MemoryVaultEntry, MemoryVaultEntryType, MemoryVaultTrustLevel } from "@/server/memory/memory-vault-types";
 
 export const dynamic = "force-dynamic";
@@ -98,7 +103,14 @@ export default async function MemoryPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
-  const vaultEntries = listAllVaultEntriesForWorkspace("michael-hq");
+  // Workspace is derived server-side from the active context — never trusted
+  // from the client. The write API (POST /api/memory) derives the same id, so
+  // the approval queue below reflects exactly what that route reads/writes.
+  const ctx = getActiveWorkspaceContext();
+  const workspaceId = ctx.workspace.id;
+  const pendingProposals = listPendingProposals(workspaceId);
+
+  const vaultEntries = listAllVaultEntriesForWorkspace(workspaceId);
   const verifiedCount = vaultEntries.filter((e) => e.trustLevel === "verified").length;
   const proposedCount = vaultEntries.filter((e) => e.trustLevel === "proposed").length;
 
@@ -141,6 +153,15 @@ export default async function MemoryPage() {
           </div>
         </HqSummaryRail>
       </HqPageHeader>
+
+      <HqWidget
+        title="Écriture & approbation"
+        eyebrow="CEO — local in-memory"
+        icon={PenSquare}
+        tone="emerald"
+      >
+        <MemoryWritePanel pending={pendingProposals} />
+      </HqWidget>
 
       <HqWidget
         title="Graphe mémoire"
@@ -263,7 +284,7 @@ export default async function MemoryPage() {
       </HqWidget>
 
       <p className="mt-8 text-center text-xs text-neutral-700">
-        Vue lecture seule · Vault fichiers : <code>memory/</code> · Persistance Supabase verrouillée jusqu&apos;au prochain mandat
+        Écriture &amp; approbation CEO locales (in-memory) · Vault fichiers : <code>memory/</code> · Persistance Supabase verrouillée jusqu&apos;au prochain mandat
       </p>
     </HqPageShell>
   );
