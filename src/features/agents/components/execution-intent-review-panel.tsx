@@ -91,11 +91,15 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
         throw new Error(data.error ?? `API ${response.status}`);
       }
       setSuccessId(intentId);
-      await loadIntents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Approbation impossible.");
     } finally {
       setBusyId(null);
+      // Reconcile with server truth after EVERY attempt (success or failure):
+      // a terminal failure (Sentinelle BLOCK / dispatch error) has already
+      // moved the intent out of `pending` server-side, so refetching removes
+      // the stale, still-actionable row. The error banner persists.
+      await loadIntents();
     }
   }
 
