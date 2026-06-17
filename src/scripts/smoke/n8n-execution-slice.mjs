@@ -43,7 +43,7 @@ if (!N8N_WEBHOOK_URL || !N8N_SECRET || !SIGNING_SECRET) {
   console.log("  To run the slice against your n8n instance:");
   console.log("    1. Import docs/n8n/oria-execution-rail.workflow.json into n8n and activate it.");
   console.log("    2. In n8n set env: ORIA_N8N_WEBHOOK_SECRET, ORIA_WEBHOOK_SIGNING_SECRET,");
-  console.log("       and NODE_FUNCTION_ALLOW_BUILTIN=crypto. Restart n8n.");
+  console.log("       and N8N_BLOCK_ENV_ACCESS_IN_NODE=false. Restart n8n.");
   console.log("    3. Then run, e.g.:");
   console.log("       N8N_WEBHOOK_URL=http://localhost:5678/webhook/oria-execute \\");
   console.log("       N8N_SECRET=<same as ORIA_N8N_WEBHOOK_SECRET> \\");

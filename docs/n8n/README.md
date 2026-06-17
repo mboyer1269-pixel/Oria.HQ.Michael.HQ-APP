@@ -4,9 +4,10 @@ This is the first **real, end-to-end** slice of the governed execution rail:
 Oria prepares an intent, the CEO approves it, Oria fires a **single** signed call
 to n8n, n8n confirms (dry-run) and dedups, and Oria records a traceable result.
 
-> Not production-ready until the live test below has actually run against your
-> n8n. The Oria side is unit-tested; the n8n side ships as an importable workflow
-> + a reproducible proof script.
+> Verified locally against a real n8n **2.26.6** container — full matrix below
+> (happy / dedup / secret / route / transient) plus the Oria end-to-end proof.
+> Re-run the proof against your own n8n before relying on it. The Oria side is
+> unit-tested; the n8n side ships as an importable workflow + a proof script.
 
 ## Files
 
@@ -16,14 +17,15 @@ to n8n, n8n confirms (dry-run) and dedups, and Oria records a traceable result.
 
 ## What the workflow does
 
-`Webhook → Verify, Route & Dedup (Code) → Respond`
+`Webhook → Crypto (HMAC) → IF (secret + HMAC) → Code (validate/route, pure) → IF (pass) → Remove Duplicates (Kept/Discarded) → Respond`
 
-1. **Verify** `x-webhook-secret == ORIA_N8N_WEBHOOK_SECRET`.
-2. **Verify HMAC** — recompute `HMAC_SHA256(ORIA_WEBHOOK_SIGNING_SECRET, "<x-orya-timestamp>.<canonical body>")` and timing-safe compare to `x-orya-signature`. (Canonical body = `JSON.stringify(parsedBody)`; Oria's tool emits canonical JSON — no whitespace, stable key order — so this matches byte-for-byte.)
-3. **Validate** required fields: `actionRef, agentId, skillId, client, email, actionType, missionId`.
-4. **Route** — only `hermes` + `task.create` is enabled (matches the Oria binding allowlist).
-5. **Dedup** by `actionRef` via workflow static data → a repeat returns `deduped: true` and does **not** re-execute.
-6. **Dry-run** — confirms the action *would* have executed. No email, no external mutation.
+**Task-runner safe** (n8n 2.26+ runs Code nodes in the external JS Task Runner sandbox): the Code node is **pure** — no `require()`, no `$env`, no `$getWorkflowStaticData`.
+
+1. **Crypto (HMAC)** node recomputes `HMAC_SHA256(ORIA_WEBHOOK_SIGNING_SECRET, "<x-orya-timestamp>.<JSON.stringify(body)>")` (hex). Oria emits canonical JSON (no whitespace, stable key order) so it matches byte-for-byte. Secret read via `{{ $env… }}` (Crypto v1 `secret` param — no credential needed).
+2. **IF** node verifies `x-webhook-secret == ORIA_N8N_WEBHOOK_SECRET` **and** recomputed HMAC == `x-orya-signature`. Mismatch → `401 secret_error`.
+3. **Code** (pure) validates required fields (`actionRef, agentId, skillId, client, email, actionType, missionId`), enforces the route (`hermes` + `task.create` only), and a `data.simulate="transient"` test hook → builds the standardized response + httpCode. Failures → `400 validation_error` / `503 transient_error`.
+4. **Remove Duplicates** ("Items Seen in Previous Executions", key = `actionRef`) routes **Kept** (new) → `200 ok` and **Discarded** (already seen) → `200 deduped:true`. Persistence is native to n8n — no Data Table provisioning, no static data.
+5. **Dry-run** — confirms the action *would* have executed. No email, no external mutation.
 
 ### Standardized JSON response
 
@@ -37,8 +39,11 @@ to n8n, n8n confirms (dry-run) and dedups, and Oria records a traceable result.
 | `deduped` | 200 | actionRef already processed | intent → `executed` | n/a (idempotent) |
 | `validation_error` | 400 | missing field / unsupported route | intent → `failed` | **terminal** — fix the payload, recreate the intent |
 | `secret_error` | 401 | bad/missing `x-webhook-secret` or HMAC | intent → `failed` | **terminal** — fix secrets, recreate the intent |
-| `config_error` | 500 | n8n env not set | intent → `failed` | terminal until n8n is configured |
 | `transient_error` | 503 | downstream hiccup (test hook: `data.simulate="transient"`) | intent → `failed` | **retryable in principle**, but Oria currently marks `failed` as terminal → recreate the intent. (Only an Oria-side rate-limit reverts to `pending` automatically.) |
+
+> If the n8n env is misconfigured (missing `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` or
+> the secrets), the Crypto/IF nodes raise an `ExpressionError` and n8n returns an
+> empty `200` — set the env vars in the next section to avoid this.
 
 > Known limitation (documented, not yet fixed): Oria's intent state machine has no
 > `failed → pending` retry. A transient n8n error therefore lands as terminal
@@ -50,7 +55,8 @@ to n8n, n8n confirms (dry-run) and dedups, and Oria records a traceable result.
 2. Set n8n **environment variables** (self-hosted):
    - `ORIA_N8N_WEBHOOK_SECRET` = the same value as Oria's `N8N_SECRET`.
    - `ORIA_WEBHOOK_SIGNING_SECRET` = the same value as Oria's `AGENT_WEBHOOK_SIGNING_SECRET`.
-   - `NODE_FUNCTION_ALLOW_BUILTIN=crypto` (the Code node needs `require('crypto')` for HMAC).
+   - `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` — the Crypto/IF nodes read the two secrets
+     via `{{ $env… }}` expressions; n8n blocks env access in nodes by default.
    Restart n8n so the env takes effect.
 3. Copy the production webhook URL (e.g. `https://n8n.michaelhq.com/webhook/oria-execute`).
    The host **must** be in the Oria binding allowlist (`src/server/runtime/webhook-registry.ts`):
