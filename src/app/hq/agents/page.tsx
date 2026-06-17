@@ -1,5 +1,5 @@
 import type { Route } from "next";
-import { Activity, BrainCircuit, Crosshair, Network, ShieldCheck, Users } from "lucide-react";
+import { Activity, BrainCircuit, Crosshair, Network, Send, ShieldCheck, Users } from "lucide-react";
 import { buildAgentAutonomyCockpit } from "@/features/agents/agent-autonomy-cockpit";
 import { buildCharterHealthReport } from "@/features/agents/agent-charter";
 import { charterRegistry } from "@/features/agents/charter-seed";
@@ -13,6 +13,7 @@ import { AgentKnowledgePackPanel } from "@/features/agents/components/agent-know
 import { AgentQualityEvaluationPanel } from "@/features/agents/components/agent-quality-evaluation-panel";
 import { AgentReviewQueuePanel } from "@/features/agents/components/agent-review-queue-panel";
 import { AgentSkillPanel } from "@/features/agents/components/agent-skill-panel";
+import { ExecutionIntentReviewPanel } from "@/features/agents/components/execution-intent-review-panel";
 import { getDefaultAgentAutonomyPolicy } from "@/features/agents/autonomy-policy";
 import { agentRegistry } from "@/features/agents/seed";
 import { validateAgentSkillMapping } from "@/features/agents/skill-mapping";
@@ -156,6 +157,10 @@ export default async function AgentsPage() {
 
       <HqWidget title="Review queue" eyebrow="Operator loop" icon={Users}>
         <AgentReviewQueuePanel queue={reviewQueue} />
+      </HqWidget>
+
+      <HqWidget title="Intentions d'exécution" eyebrow="Rail gouverné — approbation CEO" icon={Send} tone="amber">
+        <ExecutionIntentReviewPanel agentId="hermes" />
       </HqWidget>
 
       {[
