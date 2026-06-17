@@ -1,0 +1,187 @@
+{
+  "id": "oria-exec-rail-01",
+  "versionId": "00000000-0000-4000-8000-000000000002",
+  "name": "Oria Execution Rail (dry-run)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "oria-execute",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "Webhook (Oria)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-100, 300],
+      "webhookId": "oria-execute"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.headers['x-orya-timestamp'] + '.' + JSON.stringify($json.body) }}",
+        "dataPropertyName": "computedSig",
+        "secret": "={{ $env.ORIA_WEBHOOK_SIGNING_SECRET }}",
+        "encoding": "hex"
+      },
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "HMAC (Crypto)",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "cond-secret",
+              "leftValue": "={{ $json.headers['x-webhook-secret'] }}",
+              "rightValue": "={{ $env.ORIA_N8N_WEBHOOK_SECRET }}",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "id": "cond-hmac",
+              "leftValue": "={{ $json.headers['x-orya-signature'] }}",
+              "rightValue": "={{ $json.computedSig }}",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "Verify secret + HMAC",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [340, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const item = $input.first().json;\nconst body = item.body || {};\nconst ref = (typeof body.actionRef === 'string') ? body.actionRef : '';\nfunction out(o){ return [{ json: o }]; }\n\nconst required = ['actionRef','agentId','skillId','client','email','actionType','missionId'];\nfor (const k of required) {\n  if (typeof body[k] !== 'string' || body[k].length === 0) {\n    return out({ decision:'error', httpCode:400, response:{ ok:false, actionRef: ref || null, status:'validation_error', message:'Missing or invalid field: ' + k, result:null, deduped:false } });\n  }\n}\nif (body.agentId !== 'hermes' || body.skillId !== 'task.create') {\n  return out({ decision:'error', httpCode:400, response:{ ok:false, actionRef: ref, status:'validation_error', message:'Unsupported route ' + body.agentId + '/' + body.skillId + '. Only hermes/task.create is enabled.', result:null, deduped:false } });\n}\nif (body.data && body.data.simulate === 'transient') {\n  return out({ decision:'error', httpCode:503, response:{ ok:false, actionRef: ref, status:'transient_error', message:'Simulated transient downstream error (retryable).', result:null, deduped:false } });\n}\nconst result = { wouldExecute:true, agentId:body.agentId, skillId:body.skillId, actionType:body.actionType, client:body.client, dryRun:true, note:'DRY-RUN: action WOULD have executed. No email, no external mutation.' };\nreturn out({\n  decision:'pass',\n  actionRef: ref,\n  httpCode:200,\n  response_ok:{ ok:true, actionRef:ref, status:'ok', message:'DRY-RUN success: action accepted and recorded (not executed).', result, deduped:false },\n  response_deduped:{ ok:true, actionRef:ref, status:'deduped', message:'actionRef already processed; not executed again.', result, deduped:true }\n});\n"
+      },
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "Validate, route, build",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 220]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "cond-pass",
+              "leftValue": "={{ $json.decision }}",
+              "rightValue": "pass",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "55555555-5555-4555-8555-555555555555",
+      "name": "Pass?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [780, 220]
+    },
+    {
+      "parameters": {
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "logic": "removeItemsWithAlreadySeenKeyValues",
+        "dedupeValue": "={{ $json.actionRef }}",
+        "options": {}
+      },
+      "id": "66666666-6666-4666-8666-666666666666",
+      "name": "Dedup by actionRef",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [1000, 160]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: false, actionRef: $json.body.actionRef, status: 'secret_error', message: 'Invalid or missing x-webhook-secret or HMAC.', result: null, deduped: false }) }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "77777777-7777-4777-8777-777777777777",
+      "name": "Respond: secret_error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [560, 460]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}",
+        "options": { "responseCode": "={{ $json.httpCode }}" }
+      },
+      "id": "88888888-8888-4888-8888-888888888888",
+      "name": "Respond: error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response_ok }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "99999999-9999-4999-8999-999999999999",
+      "name": "Respond: ok",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1220, 80]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response_deduped }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "name": "Respond: deduped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1220, 240]
+    }
+  ],
+  "connections": {
+    "Webhook (Oria)": { "main": [[{ "node": "HMAC (Crypto)", "type": "main", "index": 0 }]] },
+    "HMAC (Crypto)": { "main": [[{ "node": "Verify secret + HMAC", "type": "main", "index": 0 }]] },
+    "Verify secret + HMAC": {
+      "main": [
+        [{ "node": "Validate, route, build", "type": "main", "index": 0 }],
+        [{ "node": "Respond: secret_error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate, route, build": { "main": [[{ "node": "Pass?", "type": "main", "index": 0 }]] },
+    "Pass?": {
+      "main": [
+        [{ "node": "Dedup by actionRef", "type": "main", "index": 0 }],
+        [{ "node": "Respond: error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Dedup by actionRef": {
+      "main": [
+        [{ "node": "Respond: ok", "type": "main", "index": 0 }],
+        [{ "node": "Respond: deduped", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": {
+    "description": "Oria governed execution rail (dry-run), task-runner safe. Webhook -> Crypto HMAC -> IF(secret+HMAC) -> minimal pure Code (validate/route/transient) -> IF(pass) -> RemoveDuplicates(Kept/Discarded for actionRef dedup) -> Respond. No require()/$env/$getWorkflowStaticData in the Code node. Requires n8n env: ORIA_N8N_WEBHOOK_SECRET, ORIA_WEBHOOK_SIGNING_SECRET, and N8N_BLOCK_ENV_ACCESS_IN_NODE=false (Crypto/IF read secrets via $env expressions). No Crypto credential needed (Crypto v1 secret param via $env). Verified on n8n 2.26.6."
+  }
+}

@@ -36,6 +36,10 @@ const serverEnvSchema = z.object({
   AGENT_MARKETING_WEBHOOK_URL: z.string().url().optional(),
   AGENT_INVENTOR_WEBHOOK_URL: z.string().url().optional(),
   AGENT_HERMES_WEBHOOK_URL: z.string().url().optional(),
+  // n8n execution bridge (optional — CEO-approval-gated dispatch via the
+  // n8n_webhook_trigger MCP tool). N8N_SECRET secures the transfer (x-webhook-secret).
+  N8N_WEBHOOK_URL: z.string().url().optional(),
+  N8N_SECRET: z.string().min(1).optional(),
 });
 
 type ParsedEnv = z.infer<typeof serverEnvSchema>;
@@ -108,6 +112,8 @@ export const serverEnv = {
   agentMarketingWebhookUrl: _parsed.AGENT_MARKETING_WEBHOOK_URL,
   agentInventorWebhookUrl: _parsed.AGENT_INVENTOR_WEBHOOK_URL,
   agentHermesWebhookUrl: _parsed.AGENT_HERMES_WEBHOOK_URL,
+  n8nWebhookUrl: _parsed.N8N_WEBHOOK_URL,
+  n8nSecret: _parsed.N8N_SECRET,
 };
 
 export function isLocalPersistenceFallbackAllowed() {
