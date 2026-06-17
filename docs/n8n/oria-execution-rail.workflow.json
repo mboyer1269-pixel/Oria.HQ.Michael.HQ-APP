@@ -1,0 +1,59 @@
+{
+  "name": "Oria Execution Rail (dry-run)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "oria-execute",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "Webhook (Oria)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "webhookId": "oria-execute"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const crypto = require('crypto');\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst body = item.body || {};\nconst ref = (body && body.actionRef) || null;\nfunction respond(httpCode, response) { return [{ json: { httpCode, response } }]; }\nfunction fail(httpCode, status, message) { return respond(httpCode, { ok: false, actionRef: ref, status, message, result: null, deduped: false }); }\n\n// 1) Static secret: x-webhook-secret must equal ORIA_N8N_WEBHOOK_SECRET\nconst expectedSecret = $env.ORIA_N8N_WEBHOOK_SECRET;\nif (!expectedSecret) return fail(500, 'config_error', 'ORIA_N8N_WEBHOOK_SECRET is not set in n8n.');\nif (headers['x-webhook-secret'] !== expectedSecret) return fail(401, 'secret_error', 'Invalid or missing x-webhook-secret.');\n\n// 2) HMAC: Oria signs `${timestamp}.${canonicalBody}` with ORIA_WEBHOOK_SIGNING_SECRET\nconst signingSecret = $env.ORIA_WEBHOOK_SIGNING_SECRET;\nif (!signingSecret) return fail(500, 'config_error', 'ORIA_WEBHOOK_SIGNING_SECRET is not set in n8n.');\nconst ts = headers['x-orya-timestamp'];\nconst sig = headers['x-orya-signature'];\nif (!ts || !sig) return fail(401, 'secret_error', 'Missing HMAC headers (x-orya-timestamp / x-orya-signature).');\nconst canonical = JSON.stringify(body);\nconst expected = crypto.createHmac('sha256', signingSecret).update(ts + '.' + canonical).digest('hex');\nlet sigOk = false;\ntry { const a = Buffer.from(sig, 'hex'); const b = Buffer.from(expected, 'hex'); sigOk = a.length === b.length && crypto.timingSafeEqual(a, b); } catch (e) { sigOk = false; }\nif (!sigOk) return fail(401, 'secret_error', 'HMAC signature mismatch.');\n\n// 3) Required-field validation\nconst required = ['actionRef', 'agentId', 'skillId', 'client', 'email', 'actionType', 'missionId'];\nfor (const k of required) { if (typeof body[k] !== 'string' || body[k].length === 0) return fail(400, 'validation_error', 'Missing or invalid field: ' + k); }\n\n// 4) Routing: only the authorized pair (hermes + task.create)\nif (body.agentId !== 'hermes' || body.skillId !== 'task.create') return fail(400, 'validation_error', 'Unsupported route ' + body.agentId + '/' + body.skillId + '. Only hermes/task.create is enabled.');\n\n// (test hook) simulate a transient downstream error -> retryable, NOT recorded\nif (body.data && body.data.simulate === 'transient') return fail(503, 'transient_error', 'Simulated transient downstream error (retryable).');\n\n// 5) Dedup by actionRef (workflow static data, persisted across executions)\nconst sd = $getWorkflowStaticData('global');\nif (!sd.seenActionRefs) sd.seenActionRefs = {};\nconst seen = sd.seenActionRefs;\nif (seen[body.actionRef]) return respond(200, { ok: true, actionRef: body.actionRef, status: 'deduped', message: 'actionRef already processed; not executed again.', result: seen[body.actionRef].result, deduped: true });\n\n// 6) SAFE / DRY-RUN execution -- no real side effect\nconst result = { wouldExecute: true, agentId: body.agentId, skillId: body.skillId, actionType: body.actionType, client: body.client, dryRun: true, note: 'DRY-RUN: action WOULD have executed. No email, no external mutation.' };\nseen[body.actionRef] = { at: new Date().toISOString(), result };\nconst keys = Object.keys(seen);\nif (keys.length > 1000) { for (const k of keys.slice(0, 100)) delete seen[k]; }\n\nreturn respond(200, { ok: true, actionRef: body.actionRef, status: 'ok', message: 'DRY-RUN success: action accepted and recorded (not executed).', result, deduped: false });\n"
+      },
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "Verify, Route & Dedup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}",
+        "options": {
+          "responseCode": "={{ $json.httpCode }}"
+        }
+      },
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "Respond (standardized JSON)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [780, 300]
+    }
+  ],
+  "connections": {
+    "Webhook (Oria)": {
+      "main": [[{ "node": "Verify, Route & Dedup", "type": "main", "index": 0 }]]
+    },
+    "Verify, Route & Dedup": {
+      "main": [[{ "node": "Respond (standardized JSON)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "description": "Oria governed execution rail (dry-run). Verifies x-webhook-secret + HMAC, routes only hermes/task.create, dedups by actionRef, returns standardized JSON. No real side effects. Requires n8n env: ORIA_N8N_WEBHOOK_SECRET, ORIA_WEBHOOK_SIGNING_SECRET, and NODE_FUNCTION_ALLOW_BUILTIN=crypto."
+  }
+}

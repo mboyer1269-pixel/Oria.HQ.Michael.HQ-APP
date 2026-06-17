@@ -43,6 +43,10 @@ The tool refuses to dispatch unless BOTH are set and the URL hostname is in the
 approved binding allowlist (`src/server/runtime/webhook-registry.ts`). It is also
 internally rate-limited so a bug cannot bomb n8n.
 
+> **Runnable slice.** A real, importable n8n workflow + a reproducible end-to-end
+> proof (`npm run smoke:n8n-slice`) live in [`docs/n8n/`](n8n/README.md). Start
+> there to wire and verify the rail in dry-run before anything else below.
+
 > ⚠️ **Legacy section (superseded).** The step-by-step below documents the
 > original auto-dispatch flow where `/execute` forwarded to a per-agent
 > `AGENT_*_WEBHOOK_URL` on a green `ALLOW`. That path no longer makes any
