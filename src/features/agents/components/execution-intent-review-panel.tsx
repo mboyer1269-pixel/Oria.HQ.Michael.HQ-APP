@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, Check, Clock, Info, Loader2, PlugZap, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertCircle, Ban, Check, Clock, Info, Loader2, PlugZap, RefreshCw, ShieldCheck, X } from "lucide-react";
 import type { AgentExecutionIntent } from "@/features/agents/execution-intent";
 import {
   projectExecutionIntentsForReview,
@@ -16,6 +16,18 @@ type ExecutionIntentReviewPanelProps = {
 };
 
 type ListStatus = "loading" | "ready" | "not_configured";
+
+type ActionKind = "approve" | "reject";
+type IntentAction = { id: string; kind: ActionKind };
+
+const ACTION_ROUTE: Record<ActionKind, (id: string) => string> = {
+  approve: (id) => `/api/agents/execution-intents/${encodeURIComponent(id)}/approve`,
+  reject: (id) => `/api/agents/execution-intents/${encodeURIComponent(id)}/reject`,
+};
+const ACTION_ERROR: Record<ActionKind, string> = {
+  approve: "Approbation impossible.",
+  reject: "Rejet impossible.",
+};
 
 const labelClass = "text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500";
 
@@ -33,9 +45,9 @@ const labelClass = "text-[10px] font-semibold uppercase tracking-[0.18em] text-n
 export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPanelProps) {
   const [listStatus, setListStatus] = useState<ListStatus>("loading");
   const [rows, setRows] = useState<ExecutionIntentReviewRow[]>([]);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<IntentAction | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [successId, setSuccessId] = useState<string | null>(null);
+  const [success, setSuccess] = useState<IntentAction | null>(null);
 
   // No synchronous setState here: state mutations happen only after the await,
   // so the mount effect never triggers a cascading render (react-hooks rule).
@@ -76,29 +88,32 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
     void loadIntents();
   }
 
-  async function handleApprove(intentId: string) {
-    if (busyId) return;
-    setBusyId(intentId);
+  // Single handler for both CEO actions. Approve fires the n8n dispatch route;
+  // reject is the pure terminal-status route. Both share the exact same
+  // loading/error/refetch contract.
+  async function runAction(intentId: string, kind: ActionKind) {
+    if (busyAction) return;
+    setBusyAction({ id: intentId, kind });
     setError(null);
-    setSuccessId(null);
+    setSuccess(null);
     try {
-      const response = await fetch(
-        `/api/agents/execution-intents/${encodeURIComponent(intentId)}/approve`,
-        { method: "POST", headers: { "Content-Type": "application/json" } },
-      );
+      const response = await fetch(ACTION_ROUTE[kind](intentId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
         throw new Error(data.error ?? `API ${response.status}`);
       }
-      setSuccessId(intentId);
+      setSuccess({ id: intentId, kind });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Approbation impossible.");
+      setError(err instanceof Error ? err.message : ACTION_ERROR[kind]);
     } finally {
-      setBusyId(null);
+      setBusyAction(null);
       // Reconcile with server truth after EVERY attempt (success or failure):
-      // a terminal failure (Sentinelle BLOCK / dispatch error) has already
-      // moved the intent out of `pending` server-side, so refetching removes
-      // the stale, still-actionable row. The error banner persists.
+      // a terminal failure (Sentinelle BLOCK / dispatch error) or a reject has
+      // already moved the intent out of `pending` server-side, so refetching
+      // removes the stale, still-actionable row. The error banner persists.
       await loadIntents();
     }
   }
@@ -163,8 +178,12 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
       ) : (
         <div className="grid gap-2">
           {rows.map((row) => {
-            const busy = busyId === row.intentId;
-            const approved = successId === row.intentId;
+            const rowBusy = busyAction?.id === row.intentId;
+            const approving = rowBusy && busyAction?.kind === "approve";
+            const rejecting = rowBusy && busyAction?.kind === "reject";
+            const done = success?.id === row.intentId ? success.kind : null;
+            // Any in-flight action anywhere locks both buttons on this row.
+            const locked = busyAction !== null || done !== null;
             return (
               <div
                 key={row.intentId}
@@ -222,25 +241,45 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
 
                 <p className="mt-2 truncate font-mono text-[11px] text-neutral-700">{row.intentId}</p>
 
-                <div className="mt-3 flex items-center gap-3">
+                <div className="mt-3 flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    disabled={busy || approved}
-                    onClick={() => void handleApprove(row.intentId)}
-                    aria-busy={busy}
+                    disabled={locked}
+                    onClick={() => void runAction(row.intentId, "approve")}
+                    aria-busy={approving}
                     className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {busy ? (
+                    {approving ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <Check className="h-3.5 w-3.5" />
                     )}
-                    {approved ? "Approuvé" : "Approuver"}
+                    {done === "approve" ? "Approuvé" : "Approuver"}
                   </button>
-                  {approved ? (
+                  <button
+                    type="button"
+                    disabled={locked}
+                    onClick={() => void runAction(row.intentId, "reject")}
+                    aria-busy={rejecting}
+                    className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-200 transition hover:border-red-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {rejecting ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <X className="h-3.5 w-3.5" />
+                    )}
+                    {done === "reject" ? "Rejeté" : "Rejeter"}
+                  </button>
+                  {done === "approve" ? (
                     <span className="inline-flex items-center gap-1 text-xs text-emerald-400/80">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       Dispatch déclenché
+                    </span>
+                  ) : null}
+                  {done === "reject" ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-red-300/80">
+                      <Ban className="h-3.5 w-3.5" />
+                      Intention rejetée
                     </span>
                   ) : null}
                 </div>
