@@ -10,8 +10,8 @@
 // This is the CI half of the 0024 preflight: it proves the migration declares
 // exactly what the repository reads/writes and the keys/indexes/RLS the atomic
 // transition + approve/reject flows depend on. The functional half (real
-// Postgres) is db/migrations/0024_agent_execution_intents_smoke.sql, run
-// manually on a disposable database.
+// Postgres) is db/smoke/0024_agent_execution_intents_smoke.sql, run manually on
+// a disposable database.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

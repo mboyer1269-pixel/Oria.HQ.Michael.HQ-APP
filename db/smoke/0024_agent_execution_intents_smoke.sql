@@ -14,7 +14,7 @@
 --
 -- HOW TO RUN (disposable DB only)
 -- -------------------------------
---   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0024_agent_execution_intents_smoke.sql
+--   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/smoke/0024_agent_execution_intents_smoke.sql
 --
 -- A clean run prints the final NOTICE and "smoke complete". Any mismatch RAISEs
 -- and aborts (ON_ERROR_STOP=1), so a non-zero exit means the rail is NOT ready.
@@ -24,8 +24,9 @@
 
 begin;
 
--- Apply the migration under test (relative include from this file's directory).
-\ir 0024_agent_execution_intents.sql
+-- Apply the migration under test (relative include from this file's directory,
+-- db/smoke/ -> db/migrations/).
+\ir ../migrations/0024_agent_execution_intents.sql
 
 do $$
 declare

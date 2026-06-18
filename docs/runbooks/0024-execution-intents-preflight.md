@@ -58,11 +58,11 @@ matching the repository's admin-client design.
 |---|---|---|
 | `src/server/db/agent-execution-intents-migration.test.mjs` | Schema↔repo parity, column types, status/governance CHECKs, unique key, indexes, RLS block-all | **CI** (`npm test`) — static SQL analysis, no DB |
 | `src/server/agents/execution-intent-atomic-transition.test.mjs` (#314) | JS transition guard keys on caller `expectedFromStatus`; stale reject → concurrency error | **CI** (`npm test`) — fake client + in-memory |
-| `db/migrations/0024_agent_execution_intents_smoke.sql` | Real-Postgres: apply 0024 → approve-claim (1 row) → stale reject (0 rows, blocked) → reject pending→failed/CEO_REJECTED → pending list excludes non-pending → governance CHECK | **Manual**, disposable Postgres |
+| `db/smoke/0024_agent_execution_intents_smoke.sql` | Real-Postgres: apply 0024 → approve-claim (1 row) → stale reject (0 rows, blocked) → reject pending→failed/CEO_REJECTED → pending list excludes non-pending → governance CHECK | **Manual**, disposable Postgres |
 
 Disposable smoke command (throwaway DB only — never live):
 ```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0024_agent_execution_intents_smoke.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/smoke/0024_agent_execution_intents_smoke.sql
 ```
 The smoke runs inside one transaction and `ROLLBACK`s — it persists nothing and
 is repeatable. A non-zero exit means the rail is **not** ready.
