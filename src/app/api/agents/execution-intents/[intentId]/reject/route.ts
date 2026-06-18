@@ -56,12 +56,13 @@ export async function POST(
     }
     const intent = decision.intent;
 
-    // The transition is atomically conditional on the row still being `pending`
-    // (repository-level). A concurrent approve that already moved it raises a
-    // concurrency error, surfaced below as 409 -- the reject never overwrites a
-    // non-pending row.
+    // Atomically conditional on the row STILL being `pending` (the status this
+    // route validated). A concurrent approve that already advanced it to
+    // executing raises a concurrency error, surfaced below as 409 -- the reject
+    // never overwrites an in-flight approval.
     await transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
       toStatus: "failed",
+      expectedFromStatus: "pending",
       updatedAt: new Date().toISOString(),
       failureCode: EXECUTION_INTENT_REJECT_FAILURE_CODE,
     });

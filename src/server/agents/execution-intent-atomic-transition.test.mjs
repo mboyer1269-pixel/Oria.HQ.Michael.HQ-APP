@@ -2,13 +2,12 @@
 
 // src/server/agents/execution-intent-atomic-transition.test.mjs
 //
-// Proves the Supabase-path transition is atomically conditional on the observed
-// `from` status: the UPDATE carries `.eq("status", current.status)` and a
-// zero-row result raises AgentExecutionIntentConcurrencyError (lost race),
-// instead of silently "succeeding" and overwriting a row another request moved.
-//
-// Uses an injected fake Supabase client via the repository's global factory.
-// No real Supabase, no network.
+// Proves the transition guard is atomic AND keyed on the CALLER's expected
+// `from` status (not a fresh re-read). The dangerous race: a reject validated
+// on `pending` must NOT apply once a concurrent approve advanced the row to
+// `executing` (executing -> failed is otherwise legal). Covers both the
+// Supabase path (injected fake client) and the in-memory path. No real
+// Supabase, no network.
 
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -47,8 +46,8 @@ function makeRow(status = "pending") {
 }
 
 // Fake Supabase client. The read chain (select-only) returns `readRow`; the
-// update chain (update + .eq.status + .select) returns `updateData` and records
-// the eq filters so the test can assert the atomic status guard was applied.
+// update chain (update + .eq + .select) returns `updateData` and records the eq
+// filters so the test can assert which status the guard actually used.
 function makeFakeClient({ readRow, updateData, captureUpdateEqs }) {
   function builder() {
     const state = { isUpdate: false, eqs: {} };
@@ -83,8 +82,10 @@ function makeFakeClient({ readRow, updateData, captureUpdateEqs }) {
   return { from: () => builder() };
 }
 
-test("Atomic execution-intent transition (Supabase path)", async (t) => {
+test("Atomic, caller-keyed execution-intent transition", async (t) => {
   process.env.NODE_ENV = "test";
+  delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   const { createJiti } = await import("jiti");
   const jiti = createJiti(import.meta.url, {
@@ -99,23 +100,28 @@ test("Atomic execution-intent transition (Supabase path)", async (t) => {
   );
   const {
     transitionAgentExecutionIntent,
+    createAgentExecutionIntent,
     AgentExecutionIntentConcurrencyError,
+    __clearAgentExecutionIntentsForTests,
   } = repo;
+  const { buildAgentExecutionIntent } = await jiti.import(
+    path.join(projectRoot, "src/features/agents/execution-intent.ts"),
+  );
 
   t.afterEach(() => {
     delete globalThis.__agentExecutionIntentRepositoryClientFactory;
+    __clearAgentExecutionIntentsForTests();
   });
 
-  await t.test("update is conditional on the observed status (atomic guard)", async () => {
+  // ── Supabase path ────────────────────────────────────────────────────────────
+  await t.test("Supabase: UPDATE is guarded by the observed status (default)", async () => {
     let updateEqs = null;
-    const client = makeFakeClient({
-      readRow: makeRow("pending"),
-      updateData: [makeRow("failed")], // 1 row affected -> success
-      captureUpdateEqs: (eqs) => {
-        updateEqs = eqs;
-      },
-    });
-    globalThis.__agentExecutionIntentRepositoryClientFactory = () => client;
+    globalThis.__agentExecutionIntentRepositoryClientFactory = () =>
+      makeFakeClient({
+        readRow: makeRow("pending"),
+        updateData: [makeRow("failed")],
+        captureUpdateEqs: (eqs) => (updateEqs = eqs),
+      });
 
     const result = await transitionAgentExecutionIntent("ws1", "intent-1", {
       toStatus: "failed",
@@ -124,18 +130,14 @@ test("Atomic execution-intent transition (Supabase path)", async (t) => {
     });
 
     assert.equal(result.status, "failed");
-    // The UPDATE was scoped by workspace, intent AND the observed status.
     assert.equal(updateEqs.workspace_id, "ws1");
     assert.equal(updateEqs.intent_id, "intent-1");
-    assert.equal(updateEqs.status, "pending", "atomic guard: UPDATE ... WHERE status = observed");
+    assert.equal(updateEqs.status, "pending");
   });
 
-  await t.test("zero affected rows -> AgentExecutionIntentConcurrencyError (lost race)", async () => {
-    const client = makeFakeClient({
-      readRow: makeRow("pending"),
-      updateData: [], // the row moved out of `pending` concurrently
-    });
-    globalThis.__agentExecutionIntentRepositoryClientFactory = () => client;
+  await t.test("Supabase: zero affected rows -> concurrency error", async () => {
+    globalThis.__agentExecutionIntentRepositoryClientFactory = () =>
+      makeFakeClient({ readRow: makeRow("pending"), updateData: [] });
 
     await assert.rejects(
       () =>
@@ -147,4 +149,80 @@ test("Atomic execution-intent transition (Supabase path)", async (t) => {
       (err) => err instanceof AgentExecutionIntentConcurrencyError,
     );
   });
+
+  await t.test(
+    "Supabase: stale reject guards on expectedFromStatus, NOT the fresh read",
+    async () => {
+      // A concurrent approve already advanced the row to `executing`; the reject
+      // still validated on `pending`. The UPDATE must be keyed on `pending` (so
+      // it matches zero rows) -- never on the newer `executing`.
+      let updateEqs = null;
+      globalThis.__agentExecutionIntentRepositoryClientFactory = () =>
+        makeFakeClient({
+          readRow: makeRow("executing"),
+          updateData: [], // guarded on `pending` -> nothing to update
+          captureUpdateEqs: (eqs) => (updateEqs = eqs),
+        });
+
+      await assert.rejects(
+        () =>
+          transitionAgentExecutionIntent("ws1", "intent-1", {
+            toStatus: "failed",
+            expectedFromStatus: "pending",
+            updatedAt: "t1",
+            failureCode: "CEO_REJECTED",
+          }),
+        (err) => err instanceof AgentExecutionIntentConcurrencyError,
+      );
+      assert.equal(
+        updateEqs.status,
+        "pending",
+        "guard uses caller's expected status, not the fresh read",
+      );
+    },
+  );
+
+  // ── In-memory path ───────────────────────────────────────────────────────────
+  await t.test(
+    "in-memory: stale reject (expect pending) cannot overwrite an executing intent",
+    async () => {
+      const intent = buildAgentExecutionIntent({
+        intentId: "intent-1",
+        workspaceId: "ws1",
+        agentId: "hermes",
+        skillId: "task.create",
+        toolName: "n8n_webhook_trigger",
+        autonomyLevel: 2,
+        payload: {
+          agentId: "hermes",
+          skillId: "task.create",
+          client: "Acme",
+          email: "a@b.com",
+          actionType: "send_email",
+          missionId: "m1",
+          data: {},
+        },
+        createdAt: "2026-06-10T00:00:00.000Z",
+      });
+      await createAgentExecutionIntent("ws1", "u1", intent);
+      // A concurrent approve advances it to executing.
+      await transitionAgentExecutionIntent("ws1", "intent-1", {
+        toStatus: "executing",
+        expectedFromStatus: "pending",
+        updatedAt: "t1",
+      });
+
+      // The stale reject (validated on pending) must NOT overwrite it.
+      await assert.rejects(
+        () =>
+          transitionAgentExecutionIntent("ws1", "intent-1", {
+            toStatus: "failed",
+            expectedFromStatus: "pending",
+            updatedAt: "t2",
+            failureCode: "CEO_REJECTED",
+          }),
+        (err) => err instanceof AgentExecutionIntentConcurrencyError,
+      );
+    },
+  );
 });

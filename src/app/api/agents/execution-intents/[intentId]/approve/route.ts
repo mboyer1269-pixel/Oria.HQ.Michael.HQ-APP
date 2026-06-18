@@ -71,6 +71,9 @@ export async function POST(
       markExecuting: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "executing",
+          // Claim from `pending`: if a concurrent reject already moved it, this
+          // raises a concurrency error (-> 409) and no dispatch happens.
+          expectedFromStatus: "pending",
           updatedAt: new Date().toISOString(),
         }),
       recordAttempt: () =>
