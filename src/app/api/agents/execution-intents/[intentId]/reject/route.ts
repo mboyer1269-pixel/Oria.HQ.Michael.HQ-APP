@@ -3,6 +3,7 @@ import { requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { recordLedgerEvent } from "@/server/actions/ledger-events";
 import {
+  AgentExecutionIntentConcurrencyError,
   getAgentExecutionIntent,
   transitionAgentExecutionIntent,
 } from "@/server/agents/execution-intent-repository";
@@ -55,17 +56,13 @@ export async function POST(
     }
     const intent = decision.intent;
 
-    // KNOWN LIMITATION (P1, dormant on the in-memory path): this transition is
-    // read-then-update and NOT atomically conditional on status === "pending".
-    // On the in-memory store it is race-free (synchronous read+mutate, single
-    // process). On the Supabase persistence path it is a TOCTOU: a concurrent
-    // approve+reject could both observe `pending`. This is a MANDATORY BLOCKER
-    // to resolve at the repository layer (conditional `UPDATE ... WHERE status
-    // = 'pending'`, benefiting approve too) BEFORE migration 0024 / any live
-    // Supabase activation. Tracked: "fix(agents): make execution intent
-    // transitions atomic". Out of scope for this PR (no repository changes).
+    // Atomically conditional on the row STILL being `pending` (the status this
+    // route validated). A concurrent approve that already advanced it to
+    // executing raises a concurrency error, surfaced below as 409 -- the reject
+    // never overwrites an in-flight approval.
     await transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
       toStatus: "failed",
+      expectedFromStatus: "pending",
       updatedAt: new Date().toISOString(),
       failureCode: EXECUTION_INTENT_REJECT_FAILURE_CODE,
     });
@@ -107,6 +104,13 @@ export async function POST(
 
     return NextResponse.json({ intentId, status: "failed", outcome: "rejected" });
   } catch (err) {
+    if (err instanceof AgentExecutionIntentConcurrencyError) {
+      // A concurrent action moved the intent out of `pending` first.
+      return NextResponse.json(
+        { error: "Execution intent is not pending.", intentId },
+        { status: 409 },
+      );
+    }
     logger.error("agent.execution-intent.reject.failed", {
       intentId,
       reason: err instanceof Error ? err.message : "unknown",

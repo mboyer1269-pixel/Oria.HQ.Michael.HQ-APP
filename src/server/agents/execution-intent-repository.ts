@@ -65,6 +65,20 @@ export class AgentExecutionIntentNotFoundError extends Error {
   }
 }
 
+/**
+ * Thrown when an atomic status transition affects zero rows: the intent was no
+ * longer in the expected `from` status when the conditional UPDATE ran (a
+ * concurrent approve/reject won the race). Distinct from a programming-time
+ * illegal transition (AgentExecutionIntentTransitionError); callers map this to
+ * a 409 because the action target moved underneath the request.
+ */
+export class AgentExecutionIntentConcurrencyError extends Error {
+  constructor(from: AgentExecutionIntentStatus, to: AgentExecutionIntentStatus) {
+    super(`Execution-intent transition from "${from}" to "${to}" lost a concurrent race.`);
+    this.name = "AgentExecutionIntentConcurrencyError";
+  }
+}
+
 function getSupabaseClient(): SupabaseAdminClient | null {
   const globals = globalThis as ExecutionIntentRepositoryGlobals;
   if (globals.__agentExecutionIntentRepositoryClientFactory) {
@@ -236,6 +250,14 @@ export type ExecutionIntentTransitionPatch = {
   updatedAt: string;
   actionRef?: string;
   failureCode?: string;
+  // The status the CALLER validated its decision against. When set, the
+  // transition only applies while the row is STILL in that exact status; a
+  // mismatch (a concurrent writer advanced it) raises a concurrency error
+  // instead of advancing from the newer state. Callers that claim from a
+  // specific state (e.g. reject from `pending`) MUST set this so a stale
+  // decision cannot overwrite an in-flight one. When omitted, the freshly read
+  // status is used (back-compatible for callers without a cross-request race).
+  expectedFromStatus?: AgentExecutionIntentStatus;
 };
 
 /**
@@ -258,6 +280,11 @@ export async function transitionAgentExecutionIntent(
     if (!row) throw new AgentExecutionIntentNotFoundError(intentId);
 
     const from = requireStatus(row.status);
+    // Caller's expected `from` takes precedence: a mismatch means a concurrent
+    // writer advanced the row, so a stale decision must not proceed.
+    if (patch.expectedFromStatus !== undefined && from !== patch.expectedFromStatus) {
+      throw new AgentExecutionIntentConcurrencyError(patch.expectedFromStatus, patch.toStatus);
+    }
     if (!canTransitionExecutionIntent(from, patch.toStatus)) {
       throw new AgentExecutionIntentTransitionError(from, patch.toStatus);
     }
@@ -271,8 +298,14 @@ export async function transitionAgentExecutionIntent(
 
   const current = await getAgentExecutionIntent(workspaceId, intentId);
   if (!current) throw new AgentExecutionIntentNotFoundError(intentId);
-  if (!canTransitionExecutionIntent(current.status, patch.toStatus)) {
-    throw new AgentExecutionIntentTransitionError(current.status, patch.toStatus);
+  // Guard on the status the CALLER validated against when provided, NOT the
+  // fresh read: otherwise a concurrent writer could advance the row to another
+  // legal predecessor of `toStatus` (e.g. pending -> executing) and a stale
+  // decision (reject, validated on pending) would still apply from the newer
+  // state. Falls back to the fresh read for callers without a cross-request race.
+  const guardFrom = patch.expectedFromStatus ?? current.status;
+  if (!canTransitionExecutionIntent(guardFrom, patch.toStatus)) {
+    throw new AgentExecutionIntentTransitionError(guardFrom, patch.toStatus);
   }
 
   const update: Partial<AgentExecutionIntentInsert> = {
@@ -281,13 +314,22 @@ export async function transitionAgentExecutionIntent(
     ...(patch.actionRef !== undefined ? { action_ref: patch.actionRef } : {}),
     ...(patch.failureCode !== undefined ? { failure_code: patch.failureCode } : {}),
   };
-  const { error } = await db
+  // Atomic guard: the UPDATE only applies while the row is STILL in the expected
+  // `from` status. This closes the read-then-update TOCTOU where a concurrent
+  // approve+reject both observe `pending`. `select()` returns the affected rows
+  // so a zero-row result means we lost the race.
+  const { data, error } = await db
     .from("agent_execution_intents")
     .update(update)
     .eq("workspace_id", workspaceId)
-    .eq("intent_id", intentId);
+    .eq("intent_id", intentId)
+    .eq("status", guardFrom)
+    .select();
   if (error) {
     throw new AgentExecutionIntentRepositoryError("transition");
+  }
+  if (!data || data.length === 0) {
+    throw new AgentExecutionIntentConcurrencyError(guardFrom, patch.toStatus);
   }
 
   return {
