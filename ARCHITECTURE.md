@@ -44,6 +44,30 @@ view-models, `BoardFigure`, `HqModule`) stayed in the feature layer. Verified
 green: typecheck 0, lint 0, 3091 tests pass. A `npm run map` confirms no
 reachability change (pure relocation).
 
+### Structural debt #2 — tracked, not yet paid
+
+The server layer still imports **non-type** things from features: seed data
+(`@/features/hq/seed`, `@/features/skills/seed`, `@/features/agents/seed`,
+`@/features/missions/seed`) and the **venture domain logic**
+(`@/features/ventures/*`) — ~49 imports. Plus one `core → server` inversion
+(`core/workspace-context.ts` → `@/server/auth/user-context`). These are real
+but larger refactors (relocate seed + venture domain to a neutral layer), to be
+done deliberately, not opportunistically.
+
+`npm run check:layering` reports these counts every run. Drive a count to zero,
+then promote its rule from TRACKED to ENFORCED in
+`scripts/architecture/check-layering.mjs`.
+
+### Guards that keep this honest (run in CI)
+
+- `npm run check:layering` — fails CI if a *fixed* rule regresses (e.g. a new
+  `server → @/features/*/types` import). Enforces only currently-clean rules.
+- `npm run map:check` — fails CI if `docs/system-map.json` is stale (someone
+  added/wired a module without refreshing the map).
+
+Both run on every PR via `.github/workflows/ci.yml`, alongside typecheck, lint,
+build, tests, smoke, and the ledger/mission guards.
+
 ## The live surface
 
 Run `npm run map` to regenerate the truth. As of the last run:
