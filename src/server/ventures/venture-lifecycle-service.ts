@@ -17,7 +17,7 @@
 //   - Edit changes only a safe allow-list of fields; id/source/createdAt/status/
 //     decisions/assignedAgents/autonomyProfile are never edited here.
 
-import type { VentureCard, VentureDecision } from "@/features/ventures/types";
+import type { VentureCard, VentureDecision } from "@/core/types";
 import type {
   VentureEditableFields,
   VentureLifecycleActionInput,

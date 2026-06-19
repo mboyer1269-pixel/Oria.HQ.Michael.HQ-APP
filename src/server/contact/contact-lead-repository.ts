@@ -1,4 +1,4 @@
-import type { ContactLead, ContactLeadStatus, ContactLeadStorageMode } from "@/features/contact/types";
+import type { ContactLead, ContactLeadStatus, ContactLeadStorageMode } from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { ContactLeadRow } from "@/server/db/types";
 import { createOptionalSupabaseAdminClient, hasSupabaseAdminConfig } from "@/server/supabase/admin";

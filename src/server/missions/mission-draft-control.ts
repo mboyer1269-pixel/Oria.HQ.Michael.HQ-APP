@@ -1,4 +1,4 @@
-import type { CommandResult } from "@/features/hq/types";
+import type { CommandResult } from "@/core/types";
 import type { WorkspaceContext } from "@/core/workspace-context";
 import { chooseModel } from "@/server/ai/model-router";
 import { CalendarServiceError, createCalendarEvent } from "@/server/calendar/calendar-service";
@@ -15,7 +15,7 @@ import {
   getPendingMissionDraft,
   isPendingMissionDraftExpired,
 } from "@/server/missions/mission-draft-session";
-import type { MissionDraftPreview } from "@/features/hq/types";
+import type { MissionDraftPreview } from "@/core/types";
 
 export type MissionDraftPendingStatus = "none" | "active" | "expired";
 

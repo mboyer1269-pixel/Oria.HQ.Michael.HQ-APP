@@ -28,7 +28,7 @@
  * these functions yet.
  */
 
-import type { VentureCard } from "@/features/ventures/types";
+import type { VentureCard } from "@/core/types";
 import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { VentureRow } from "@/server/db/types";

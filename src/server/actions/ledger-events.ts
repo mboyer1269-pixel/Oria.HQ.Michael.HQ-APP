@@ -1,6 +1,6 @@
 import type { WorkspaceContext } from "@/core/workspace-context";
-import type { ModelMode } from "@/features/hq/types";
-import type { LedgerEventType, SkillProfile } from "@/features/skills/types";
+import type { ModelMode } from "@/core/types";
+import type { LedgerEventType, SkillProfile } from "@/core/types";
 import type { Json } from "@/server/db/types";
 import { createActionLedgerRepository, type ActionLedgerEntry } from "./action-ledger-repository";
 

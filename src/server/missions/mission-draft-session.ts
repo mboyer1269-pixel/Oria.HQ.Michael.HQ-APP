@@ -25,7 +25,7 @@
 //   Do NOT begin this migration without an explicit mandate.
 // ---------------------------------------------------------------------------
 
-import type { CalendarIntent, MissionDraftPreview } from "@/features/hq/types";
+import type { CalendarIntent, MissionDraftPreview } from "@/core/types";
 import type { CreateCalendarEventCommand } from "@/server/calendar/calendar-service";
 import {
   buildCalendarCommandFromIntent,

@@ -1,4 +1,4 @@
-import type { JorisIntent } from "@/features/hq/types";
+import type { JorisIntent } from "@/core/types";
 
 const CALENDAR_BOOK_NEGATIVE_PATTERNS = [
   /\bpas de rendez[- ]?vous\b/,

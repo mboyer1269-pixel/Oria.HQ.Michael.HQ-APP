@@ -29,18 +29,20 @@ in-memory fallback.
 **The rule:** dependencies point **downward only**. `app → features → server →
 core/lib`. A lower layer must never import an upper layer.
 
-### Known deviation (structural debt #1)
+### Structural debt #1 — RESOLVED (2026-06-18)
 
-`server/` currently imports **type-only** definitions from
-`features/hq/types` and `features/skills/types` (~78 type imports). These are
-shared *domain* types that happen to live in the UI layer. There is **no
-runtime coupling** (types erase at compile time), so it is safe today, but the
-dependency arrow is inverted.
+`server/` used to import type-only definitions from the UI layer
+(`features/hq/types`, `features/skills/types`, `features/contact/types`,
+`features/ventures/types`, `features/agents/types`). The shared **domain**
+types were relocated to the neutral home `src/core/types.ts`; each feature
+`types.ts` now re-exports from core for back-compat, and the server layer
+imports domain types directly from `@/core/types`.
 
-**Remediation (deferred — needs its own mandate):** relocate the shared domain
-types to a neutral home (`src/server/contracts/` or `src/core/types/`) and have
-`features/*` re-export them. Mechanical, type-only, high file count — do it as a
-dedicated, separately-validated change, not opportunistically.
+Result: **0** server-source imports from any `@/features/*/types`. The
+dependency arrow now points downward only. UI-only shapes (charters, fleet
+view-models, `BoardFigure`, `HqModule`) stayed in the feature layer. Verified
+green: typecheck 0, lint 0, 3091 tests pass. A `npm run map` confirms no
+reachability change (pure relocation).
 
 ## The live surface
 
