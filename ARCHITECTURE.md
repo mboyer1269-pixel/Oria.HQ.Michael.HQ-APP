@@ -191,6 +191,23 @@ npm run map:check   # system map is current
 npm run smoke:joris # end-to-end booking slice
 ```
 
+## Venture model — generic, market-driven (no hard-coded ventures)
+
+A venture is **data, not code**. `src/core/ventures/venture-market-profile.ts`
+defines a generic `VentureMarketProfile`: market (country/region/language),
+compliance drivers (e.g. Loi 25/CAI, Loi 96/OQLF, RGPD/CNIL — named only in
+config), offer, ICP, and outreach strategy. The generic
+`buildOutreachEmail(profile, target)` turns a profile + a prospect into the
+outreach email — one path for every venture.
+
+The Loi 96 venture lives as a config entry (`src/config/ventures/loi96-profile.ts`),
+not as bespoke logic; `src/server/ventures/loi96-audit-email.ts` is now a thin
+adapter over the generic builder (its byte-for-byte output is locked by the
+existing loi96 tests). Launching another venture = writing another profile; a
+Quebec venture lists Loi 25/96, a French one would list the RGPD — **no code
+change**. Core stays free of proper nouns (enforced trajectory; see debt #2 for
+the remaining `suivia`/`mcl` leaks in `server/contact`).
+
 ## Where to extend
 
 - **New venture capability** → add a `feature` module + the `server` domain

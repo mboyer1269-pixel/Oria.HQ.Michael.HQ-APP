@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 406,
-    "live": 354,
+    "sourceFiles": 409,
+    "live": 357,
     "testOnly": 9,
     "incubation": 43
   },
@@ -72,8 +72,11 @@
     "src/app/login/login-form.tsx",
     "src/app/login/page.tsx",
     "src/app/page.tsx",
+    "src/config/ventures/loi96-profile.ts",
     "src/config/workspaces/michael-hq.config.ts",
     "src/core/types.ts",
+    "src/core/ventures/build-outreach-email.ts",
+    "src/core/ventures/venture-market-profile.ts",
     "src/core/workspace-context.ts",
     "src/core/workspaces/registry.ts",
     "src/core/workspaces/types.ts",
