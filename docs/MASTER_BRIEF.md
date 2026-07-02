@@ -87,6 +87,42 @@ tool descriptions, privilege escalation, and supply-chain attacks.
 - **Hermes/Joris = ACT**: propose and execute under governance.
 - Oria never becomes long-term memory truth; Memex never clicks for the CEO; Oria requests context packs read-only and never writes into Memex directly.
 
+## 5b. The brain, stated simply
+
+One system, three organs — no organ does another's job:
+
+- **Memex = the memory brain** (hippocampus). It remembers everything worth
+  remembering, decides what is trustworthy enough to recall (Memory Fabric
+  admission policy), and hands any agent a **context pack** — "here is what
+  you need to know" — on request. It never decides and never acts.
+- **Oria = the executive brain** (prefrontal cortex). It reads signals,
+  decides what's next, holds the lines of authority, approves, audits.
+- **Agents (Hermes/Joris/…) = the hands.** They propose and execute, under
+  governance, with the memory the brain hands them.
+
+Intelligence lives in the *system*, not in any single part. When an agent
+seems "smart", it is because Memex remembered, Oria governed, and the hand
+executed — in that order.
+
+## 5c. Venture Studio — ventures are data, created in the cockpit
+
+**Rule (CEO, 2026-07-02): nothing venture- or client-specific is ever
+hardcoded in engine code.** `VentureMarketProfile` already encodes this; the
+endgame goes further:
+
+1. **Now:** a venture is a config entry (`src/config/ventures/*`), never
+   bespoke modules. The remaining `loi96-*` modules (pipeline board, audit
+   email, target store, spine signal names) are **transitional debt** — each
+   gets absorbed into the generic engine + config, then deleted.
+2. **Next:** ventures are **created online, in the Oria cockpit** — a form,
+   not a commit. The profile is stored as data (DB row under RLS, changes
+   ledgered), the generic engine picks it up, zero deploy per venture.
+3. **Always:** a new venture starts under **zero-trust lines**. Autonomy is
+   then *earned*, not granted: the agent's settled-wager track record (win
+   rate, calibration of `confidence` vs outcomes, evidence discipline) is the
+   input the CEO uses to widen that venture's lines. Better agent → wider
+   lines → fewer clicks. The dial moves on evidence, never on vibes.
+
 ## 6. Identity isolation
 
 Each agent gets its own identity surface: its own inbox (AgentMail-class,
