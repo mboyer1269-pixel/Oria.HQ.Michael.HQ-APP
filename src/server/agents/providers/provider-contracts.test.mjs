@@ -200,6 +200,17 @@ test("Tool Universe Corridor — per-kind provider contracts (pure)", async (t) 
     assert.deepEqual(missing.missing, ["log"]);
   });
 
+  await t.test("web: an EMPTY evidence policy fails closed instead of disabling the proof gate", () => {
+    const contract = {
+      descriptor: baseDescriptor("web_automation"),
+      proofPolicy: { requiredEvidence: [] },
+      destructivePolicy: "ceo_click_only",
+    };
+    const check = web.requireEvidence(contract, ["screenshot", "log", "result_payload"]);
+    assert.equal(check.ok, false);
+    assert.deepEqual(check.missing, ["screenshot", "log", "result_payload"]);
+  });
+
   await t.test("cli: secret-shaped arguments are rejected fail-closed", () => {
     const bad = cli.checkCliArguments(["--prompt", "hello", "--token", "sk-abc12345678901234"]);
     assert.equal(bad.ok, false);
@@ -240,5 +251,28 @@ test("Tool Universe Corridor — per-kind provider contracts (pure)", async (t) 
       idempotency: { keyField: "" },
     });
     assert.equal(noKey.ok, false);
+  });
+
+  await t.test("workflow: value-shaped signing refs invalidate — refs never carry values", () => {
+    const contract = {
+      descriptor: baseDescriptor("workflow_runtime"),
+      endpoint: { allowlistedHostsRef: "src/server/runtime/webhook-registry.ts" },
+      signing: {
+        hmac: true,
+        signingSecretRef: { envName: "token=sk-abc12345678901234", purpose: "hmac" },
+        staticSecretRef: { envName: "N8N_SECRET", purpose: "static header" },
+      },
+      idempotency: { keyField: "actionRef" },
+      resilience: {
+        retriesWithBackoff: "future_pr",
+        deadLetterQueue: "future_pr",
+        circuitBreaker: "future_pr",
+        observability: "future_pr",
+        boundedFailedToPendingRetry: "future_pr",
+      },
+    };
+    const check = workflow.validateWorkflowRuntimeContract(contract);
+    assert.equal(check.ok, false);
+    assert.match(check.violations.join(" "), /signingSecretRef/);
   });
 });

@@ -20,6 +20,7 @@
 // FAIL-SAFE DOCTRINE (same as autonomy-tier.ts):
 //   Unknown skillId        → not eligible
 //   Wildcard anything      → invalid descriptor
+//   Duplicate skillId      → invalid descriptor (resolution must be unambiguous)
 //   Forbidden ∩ allowed    → invalid descriptor (forbidden wins)
 //   Untrusted manifest     → no green-zone bindings (nothing auto-runs on
 //                            unverified tool metadata)
@@ -125,6 +126,15 @@ const PROVIDER_ID_PATTERN = /^adapter:[a-z0-9][a-z0-9-]*$/;
 const SKILL_ID_PATTERN = /^[a-z][a-z0-9_.-]*$/;
 const ENV_NAME_PATTERN = /^[A-Z][A-Z0-9_]{2,63}$/;
 
+/**
+ * True when `envName` is a plausible env var NAME (uppercase, no '=', no
+ * whitespace, bounded length). Shared by every contract that carries an
+ * AdapterSecretRef outside the base descriptor's secretRefs list.
+ */
+export function isValidSecretRefEnvName(envName: string): boolean {
+  return ENV_NAME_PATTERN.test(envName) && !envName.includes("=");
+}
+
 export type AdapterValidationResult =
   | { ok: true }
   | { ok: false; violations: readonly string[] };
@@ -147,10 +157,15 @@ export function validateAdapterDescriptor(
       violations.push(`Operation "${op}" is both allowed and forbidden — forbidden wins; fix the descriptor.`);
     }
   }
+  const seenSkillIds = new Set<string>();
   for (const b of d.skillBindings) {
     if (!SKILL_ID_PATTERN.test(b.skillId) || b.skillId.includes("*")) {
       violations.push(`skillId "${b.skillId}" must be explicit lowercase dotted, no wildcard.`);
     }
+    if (seenSkillIds.has(b.skillId)) {
+      violations.push(`Duplicate binding for skillId "${b.skillId}" — resolution must be unambiguous; ambiguous descriptors are invalid.`);
+    }
+    seenSkillIds.add(b.skillId);
     if (!d.allowedOperations.includes(b.operation)) {
       violations.push(`Binding "${b.skillId}" maps to operation "${b.operation}" which is not in allowedOperations.`);
     }
@@ -162,7 +177,7 @@ export function validateAdapterDescriptor(
     }
   }
   for (const s of d.secretRefs) {
-    if (!ENV_NAME_PATTERN.test(s.envName) || s.envName.includes("=")) {
+    if (!isValidSecretRefEnvName(s.envName)) {
       violations.push(`secretRef "${s.envName}" is not a valid env var NAME — refs never carry values.`);
     }
   }

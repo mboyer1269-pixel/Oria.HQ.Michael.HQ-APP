@@ -5,6 +5,7 @@
 // Base corridor contract invariants (pure module, literal fixtures):
 //   INV-C1: valid descriptor validates
 //   INV-C2: wildcards (operations or skillIds) invalidate
+//   INV-C2b: duplicate skillIds invalidate (resolution must be unambiguous)
 //   INV-C3: allowed ∩ forbidden invalidates (forbidden wins)
 //   INV-C4: value-shaped secretRef invalidates (refs are names, not values)
 //   INV-C5: untrusted manifest + green-zone binding invalidates
@@ -76,6 +77,19 @@ test("Tool Universe Corridor — base adapter contract (pure)", async (t) => {
       descriptor({ skillBindings: [binding({ skillId: "task.*" })] }),
     );
     assert.equal(wildSkill.ok, false);
+  });
+
+  await t.test("INV-C2b: duplicate skillIds invalidate — a weaker duplicate cannot shadow a stricter binding", () => {
+    const dup = validateAdapterDescriptor(
+      descriptor({
+        skillBindings: [
+          binding({ requiredExecutionZone: "yellow" }),
+          binding({ requiredExecutionZone: "red" }),
+        ],
+      }),
+    );
+    assert.equal(dup.ok, false);
+    assert.match(dup.violations.join(" "), /Duplicate binding/);
   });
 
   await t.test("INV-C3: allowed ∩ forbidden invalidates", () => {

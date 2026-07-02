@@ -15,6 +15,7 @@ import type {
   AdapterProviderDescriptor,
   AdapterSecretRef,
 } from "./adapter-provider-contract.ts";
+import { isValidSecretRefEnvName } from "./adapter-provider-contract.ts";
 
 export type WorkflowRuntimeProviderContract = {
   descriptor: AdapterProviderDescriptor & { adapterKind: "workflow_runtime" };
@@ -59,6 +60,15 @@ export function validateWorkflowRuntimeContract(
   }
   if (contract.idempotency.keyField.trim().length === 0) {
     violations.push("idempotency.keyField is required — replays must be detectable.");
+  }
+  const signingRefs = [
+    ["signingSecretRef", contract.signing.signingSecretRef],
+    ["staticSecretRef", contract.signing.staticSecretRef],
+  ] as const;
+  for (const [label, ref] of signingRefs) {
+    if (!isValidSecretRefEnvName(ref.envName)) {
+      violations.push(`signing.${label} "${ref.envName}" is not a valid env var NAME — refs never carry values.`);
+    }
   }
   return violations.length === 0 ? { ok: true } : { ok: false, violations };
 }
