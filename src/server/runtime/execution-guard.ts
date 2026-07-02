@@ -26,8 +26,8 @@
 import type { AutonomyLevel, ExecutionZone, Mission } from "@/core/types";
 import { getExecutionZonePolicy, resolveExecutionZone } from "@/core/types";
 import { agentRegistry } from "@/features/agents/seed";
-import type { AgentProfile } from "@/features/agents/types";
-import type { LedgerEventType, SkillProfile, SkillSideEffect } from "@/features/skills/types";
+import type { AgentProfile } from "@/core/types";
+import type { LedgerEventType, SkillProfile, SkillSideEffect } from "@/core/types";
 import { skillsCatalog } from "@/features/skills/seed";
 import { canExecuteAutonomously, type AutonomyDecisionReason } from "@/server/agents/autonomy-tier";
 import { getAgentLicense } from "@/server/agents/agent-execution-license";

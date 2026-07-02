@@ -1,4 +1,4 @@
-import type { ModelProfile } from "@/features/hq/types";
+import type { ModelProfile } from "@/core/types";
 import { modelProfiles } from "@/features/hq/seed";
 
 /**

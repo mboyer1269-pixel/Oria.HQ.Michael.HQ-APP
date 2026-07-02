@@ -41,6 +41,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Architecture layering guard
+        run: npm run check:layering
+
+      - name: System map is current
+        run: npm run map:check
+
       - name: Build
         run: npm run build
 

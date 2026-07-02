@@ -1,4 +1,4 @@
-import type { ContactLead, ContactNotificationStatus } from "@/features/contact/types";
+import type { ContactLead, ContactNotificationStatus } from "@/core/types";
 import {
   createContactLeadRepository,
   type CreateContactLeadInput,

@@ -1,6 +1,6 @@
 import type { Mission } from "@/core/types";
 import type { WorkspaceContext } from "@/core/workspace-context";
-import type { CalendarIntent, MissionDraftPreview } from "@/features/hq/types";
+import type { CalendarIntent, MissionDraftPreview } from "@/core/types";
 import type { CreateCalendarEventCommand } from "@/server/calendar/calendar-service";
 
 export const MISSION_DRAFT_TTL_MS = 10 * 60 * 1000;

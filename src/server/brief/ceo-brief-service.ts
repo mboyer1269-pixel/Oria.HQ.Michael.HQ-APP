@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { CeoBriefSnapshot } from "@/features/hq/types";
+import type { CeoBriefSnapshot } from "@/core/types";
 import { listCalendarEvents } from "@/server/calendar/calendar-service";
 import { createContactLeadRepository } from "@/server/contact/contact-lead-repository";
 import { getDocumentBriefSnapshot } from "@/server/brief/document-index";

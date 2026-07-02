@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 // Pure unit tests for the Loi 96 audit email builder.
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const { buildLoi96AuditEmail } = await import("./loi96-audit-email.ts");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, "..", "..", "..");
+const { createJiti } = await import("jiti");
+const jiti = createJiti(import.meta.url, {
+  alias: { "@": path.join(projectRoot, "src") },
+});
+const { buildLoi96AuditEmail } = await jiti.import("@/server/ventures/loi96-audit-email");
 
 const target = {
   name: "Métal Leetwo inc.",
