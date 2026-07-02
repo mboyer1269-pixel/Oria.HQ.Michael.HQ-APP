@@ -134,9 +134,12 @@ This is the spine that lets HQ actually *operate* ventures. The design keeps
 
 The intent → approve → reject loop and the n8n tool are **implemented and
 verified against real n8n 2.26.6 in dry-run**. Migration `0024`
-(`agent_execution_intents`) is **drafted and preflighted but NOT applied to the
-live database** — that step is gated behind an explicit CEO mandate
-(`docs/live-apply-runbook-0024.md`). Until then, intents persist via the
+(`agent_execution_intents`) is **drafted and preflighted**; its live-apply
+state is **not inferable from this repo — CEO confirmation required** (no
+in-repo apply note or post-apply verification artifact exists for 0024).
+Treat it as not applied until confirmed. The apply step is gated behind an
+explicit CEO GO — runbook `docs/runbooks/0024-execution-intents-live-apply.md`
+(lands via PR #316, not yet merged). Until confirmed, intents persist via the
 local/in-memory fallback in development.
 
 **This is the #1 lever for "launch ventures that become profitable fast":**
