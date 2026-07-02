@@ -14,10 +14,10 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 361 |
+| LIVE | 363 |
 | TEST_ONLY | 9 |
 | INCUBATION | 43 |
-| **Total source** | **413** |
+| **Total source** | **415** |
 
 ## Incubation by area (built, not wired)
 
@@ -76,7 +76,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/mcl-archive-dir.ts`
 - `src/scripts/process-document.ts`
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
-- `src/server/ai/free-model-catalog.ts`
+- `src/server/ai/openrouter-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
 - `src/server/decision-spine/collect-decision-signals.ts`
