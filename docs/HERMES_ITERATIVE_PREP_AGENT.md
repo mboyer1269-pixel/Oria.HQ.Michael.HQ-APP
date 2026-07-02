@@ -40,7 +40,7 @@ Hermès devient un **opérateur de préparation proactif**, pas un émetteur.
 | Migrations versionnées | `db/migrations/0001 → 0012` | Continue avec `0013` |
 | **Passerelle OpenRouter** (200+ modèles, 1 clé, compat OpenAI SDK) | `src/server/ai/model-config.ts` (`OPENROUTER_PREFIX`) | **Qwen / Kimi / DeepSeek / Gemma via 1 clé** |
 | Routeur de modèles tiers + classif difficulté + fallback dispo + log routing | `src/server/ai/model-router.ts` | Étendre avec cascade coût + budget |
-| Abstraction provider JSON + fallback chain | `src/server/ai/llm-json-provider.ts` | Ajouter le provider OpenRouter + Ollama |
+| Abstraction provider JSON + fallback chain | `src/server/ai/llm-json-provider.ts`, `src/server/ai/openrouter-json-client.ts` | OpenRouter ajouté en route `free-first`; Ollama reste un spike T0 hors produit sans GO |
 | Registre de profils de modèles | `src/features/hq/seed.ts` (`ModelProfile`) | Ajouter profils + métadonnées de coût |
 | Générateurs / composers purs | `llm-cash-action-packet-generator.ts`, `venture-council-cash-run-composer.ts`, `hermes-outreach-plan.ts` | Réutilisés tels quels par le tick |
 
@@ -152,8 +152,9 @@ in-memory dev + garde prod stricte + seam `__clientFactory` pour tests).
 ### 5.1 Comment ils se branchent (sans réécrire de clients)
 
 - **OpenRouter (1 clé)** → Qwen, Kimi K2, DeepSeek, Gemma, Llama, + Claude/GPT/Gemini en
-  secours. Compatible SDK OpenAI : il suffit d'un client OpenRouter (swap `baseURL`)
-  ajouté à `llm-json-provider.ts`, et de profils dans `seed.ts`.
+  secours. Le client JSON serveur existe (`openrouter-json-client.ts`) et le provider
+  partagé expose une préférence `free-first` (OpenRouter → Anthropic → OpenAI). Le
+  catalogue des modèles free se rafraîchit via `npm run ai:refresh-openrouter-free-models`.
 - **Ollama (local VPS)** → modèles ouverts en coût marginal nul. ⚠️ **Réalité VPS
   Hostinger = CPU, pas de GPU** : viable seulement pour **petits** modèles (Gemma 2 2B,
   Qwen2.5 3B, Phi-3). **Décision produit (verrouillée)** : Ollama **ne remplace jamais**
@@ -294,7 +295,7 @@ Interprétation produit :
 |----|---------|--------|-----------|--------|
 | **A** | `prepared_actions` : model + migration `0013` + repository dual-mode + tests (clone 0011/0012) | DB + server | — | ✅ mergé (#211) |
 | **B** | `hermesPrepTick()` pur + dédup + priorisation + tests (sans LLM réel : injecté) | server | A | en cours |
-| **C** | Stratégie modèles : client OpenRouter + profils T0/T1 + cascade coût + garde budget + ledger + tests | server/ai | B | à venir |
+| **C** | Stratégie modèles : client OpenRouter + profils T0/T1 + cascade coût + garde budget + ledger + tests | server/ai | B | partiel : client OpenRouter + route `free-first` Joris en PR #323; profils/cascade Hermès/ledger à venir |
 | **D** | Page cash-actions → **lit la file** au lieu de générer au load | UI | A | à venir |
 | **E** | Worker entrypoint + `ecosystem.config.js` pm2 + runbook VPS + Ollama setup | scripts + docs | B,C | à venir |
 | **Ops DB** (séparé) | Appliquer **uniquement** `0013_prepared_actions.sql` sur Supabase prod, **après GO explicite CEO**. Forward-only. **Ne pas** rejouer `0001→0012` en bloc. | infra | A mergé | bloqué sur GO |
@@ -324,7 +325,7 @@ sur le fallback in-memory. L'ops DB est un acte distinct, déclenché seulement 
 3. ✅ **Ollama** : strictement T0, hors produit sans GO ; soumis au **viability spike** (Annexe A).
 4. ⏳ **Specs du VPS « Mature »** (vCPU / RAM / swap / disque / GPU) → à fournir pour le spike.
 5. ⏳ **Cadence du tick** (15 / 30 / 60 min) et **top-N** premium → à trancher en PR B/C.
-6. ⏳ **Compte OpenRouter** : 1 clé à provisionner (couvre Qwen/Kimi/DeepSeek/Gemma) → PR C.
+6. ⏳ **Compte OpenRouter** : 1 clé à provisionner (couvre Qwen/Kimi/DeepSeek/Gemma). Le code sait déjà lire `OPENROUTER_API_KEY`; aucune clé n'est commise.
 7. ⏳ **Domaine** `oria-hq.cloud` : DNS déjà pointé sur le VPS ? → PR E.
 
 ---
@@ -402,9 +403,9 @@ proactif, durable et économe** :
 - flux inversé (worker prépare → file durable → page lit) ;
 - tick idempotent (lock + budget + dédup + priorisation) ;
 - store append-only avec invariants de sécurité forcés ;
-- stratégie multi-modèles en **cascade coût-conscient** (Ollama local → OpenRouter
-  cheap → premium), Michael toujours servi par la meilleure attention sur les meilleurs
-  moves ;
+- stratégie multi-modèles en **cascade coût-conscient** (OpenRouter free/cheap → premium,
+  puis Ollama local seulement si le spike T0 reçoit un GO), Michael toujours servi par la
+  meilleure attention sur les meilleurs moves ;
 - gouvernance de budget tokens avec garde dur ;
 - déploiement VPS découplé (app + worker) sous pm2/Nginx/TLS ;
 - **zéro envoi automatique**, garanti par construction.

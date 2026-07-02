@@ -29,6 +29,7 @@ const { generateStructuredJson } = await jiti.import(providerPath);
 
 const ANTHROPIC_KEY = "anthropic-test-key";
 const OPENAI_KEY = "openai-test-key";
+const OPENROUTER_KEY = "openrouter-test-key";
 
 function makeAnthropicOkFetch(json) {
   return async () => ({
@@ -39,6 +40,14 @@ function makeAnthropicOkFetch(json) {
 }
 
 function makeOpenAiOkFetch(json) {
+  return async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ choices: [{ message: { content: JSON.stringify(json) } }] }),
+  });
+}
+
+function makeOpenRouterOkFetch(json) {
   return async () => ({
     ok: true,
     status: 200,
@@ -63,11 +72,27 @@ function makeAbortFetch() {
 // ---------------------------------------------------------------------------
 
 await test("generateStructuredJson", async (t) => {
+  const savedAnthropic = process.env.ANTHROPIC_API_KEY;
+  const savedOpenAI = process.env.OPENAI_API_KEY;
+  const savedOpenRouter = process.env.OPENROUTER_API_KEY;
+  const savedOpenRouterModel = process.env.OPENROUTER_JSON_MODEL_ID;
   const payload = [{ ventureId: "suivia" }];
+
+  t.after(() => {
+    if (savedAnthropic !== undefined) process.env.ANTHROPIC_API_KEY = savedAnthropic;
+    else delete process.env.ANTHROPIC_API_KEY;
+    if (savedOpenAI !== undefined) process.env.OPENAI_API_KEY = savedOpenAI;
+    else delete process.env.OPENAI_API_KEY;
+    if (savedOpenRouter !== undefined) process.env.OPENROUTER_API_KEY = savedOpenRouter;
+    else delete process.env.OPENROUTER_API_KEY;
+    if (savedOpenRouterModel !== undefined) process.env.OPENROUTER_JSON_MODEL_ID = savedOpenRouterModel;
+    else delete process.env.OPENROUTER_JSON_MODEL_ID;
+  });
 
   await t.test("auto: uses Anthropic when ANTHROPIC_API_KEY is set", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
@@ -83,6 +108,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("auto: falls back to OpenAI when Anthropic has no key", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
@@ -98,6 +124,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("auto: falls back to OpenAI when Anthropic returns provider error", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
@@ -116,6 +143,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("auto: both providers fail → ok:false with populated failureChain", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
@@ -135,6 +163,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("explicit anthropic: only tries Anthropic even with OpenAI available", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    process.env.OPENROUTER_API_KEY = OPENROUTER_KEY;
     const result = await generateStructuredJson({
       providerPreference: "anthropic",
       systemPrompt: "sys",
@@ -152,6 +181,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("explicit openai: only tries OpenAI", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    process.env.OPENROUTER_API_KEY = OPENROUTER_KEY;
     const result = await generateStructuredJson({
       providerPreference: "openai",
       systemPrompt: "sys",
@@ -169,6 +199,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("explicit anthropic fails → ok:false (no OpenAI fallback)", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    process.env.OPENROUTER_API_KEY = OPENROUTER_KEY;
     const result = await generateStructuredJson({
       providerPreference: "anthropic",
       systemPrompt: "sys",
@@ -186,6 +217,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("no keys at all → ok:false with failureChain", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
@@ -198,6 +230,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("Anthropic timeout triggers OpenAI fallback", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
@@ -215,6 +248,7 @@ await test("generateStructuredJson", async (t) => {
   await t.test("fallbackUsed is false when first provider succeeds", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
@@ -224,5 +258,68 @@ await test("generateStructuredJson", async (t) => {
     assert.equal(result.ok, true);
     assert.equal(result.fallbackUsed, false);
     assert.equal(result.failureChain.length, 0);
+  });
+
+  await t.test("free-first: uses OpenRouter before paid providers when configured", async () => {
+    process.env.OPENROUTER_API_KEY = OPENROUTER_KEY;
+    process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
+    process.env.OPENAI_API_KEY = OPENAI_KEY;
+    process.env.OPENROUTER_JSON_MODEL_ID = "openrouter/free";
+
+    const result = await generateStructuredJson({
+      providerPreference: "free-first",
+      systemPrompt: "sys",
+      userPrompt: "user",
+      fetchFns: {
+        openrouter: makeOpenRouterOkFetch(payload),
+        anthropic: makeAnthropicOkFetch([{ wrong: "provider" }]),
+        openai: makeOpenAiOkFetch([{ wrong: "provider" }]),
+      },
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.providerUsed, "openrouter");
+    assert.equal(result.fallbackUsed, false);
+    assert.deepEqual(result.json, payload);
+  });
+
+  await t.test("free-first: falls back to Anthropic when OpenRouter has no key", async () => {
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
+    delete process.env.OPENAI_API_KEY;
+
+    const result = await generateStructuredJson({
+      providerPreference: "free-first",
+      systemPrompt: "sys",
+      userPrompt: "user",
+      fetchFns: { anthropic: makeAnthropicOkFetch(payload) },
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.providerUsed, "anthropic");
+    assert.equal(result.fallbackUsed, true);
+    assert.ok(result.failureChain.some((r) => r.startsWith("openrouter:")));
+  });
+
+  await t.test("explicit openrouter: only tries OpenRouter", async () => {
+    process.env.OPENROUTER_API_KEY = OPENROUTER_KEY;
+    process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
+    process.env.OPENAI_API_KEY = OPENAI_KEY;
+    process.env.OPENROUTER_JSON_MODEL_ID = "openrouter/free";
+
+    const result = await generateStructuredJson({
+      providerPreference: "openrouter",
+      systemPrompt: "sys",
+      userPrompt: "user",
+      fetchFns: {
+        openrouter: makeOpenRouterOkFetch(payload),
+        anthropic: makeAnthropicOkFetch([{ wrong: "provider" }]),
+        openai: makeOpenAiOkFetch([{ wrong: "provider" }]),
+      },
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.providerUsed, "openrouter");
+    assert.deepEqual(result.json, payload);
   });
 });

@@ -5,7 +5,7 @@
 // prompt so the conversational path is genuinely model-backed when configured.
 //
 // Design:
-//   - Uses generateStructuredJson (Anthropic -> OpenAI, key-gated, never throws).
+//   - Uses generateStructuredJson (OpenRouter/free-first -> paid fallback, key-gated, never throws).
 //   - Returns ok:false when no provider is configured or the reply is malformed,
 //     so the caller falls back to a deterministic, non-deceptive summary.
 //   - fetchFn is injectable so tests run without network access or real API keys.
@@ -47,13 +47,15 @@ Réponds en tant que Joris. Retourne UNIQUEMENT du JSON valide, sans markdown, a
  */
 export async function generateJorisReply(input: JorisReplyInput): Promise<JorisReplyResult> {
   const result = await generateStructuredJson({
-    providerPreference: "auto",
+    providerPreference: "free-first",
     systemPrompt: buildJorisSystemPrompt(),
     userPrompt: buildUserPrompt(input),
     maxTokens: 1024,
     temperature: 0.4,
     timeoutMs: 20_000,
-    fetchFns: input.fetchFn ? { anthropic: input.fetchFn, openai: input.fetchFn } : undefined,
+    fetchFns: input.fetchFn
+      ? { openrouter: input.fetchFn, anthropic: input.fetchFn, openai: input.fetchFn }
+      : undefined,
   });
 
   if (!result.ok) {

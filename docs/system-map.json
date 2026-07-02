@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 413,
-    "live": 361,
+    "sourceFiles": 415,
+    "live": 363,
     "testOnly": 9,
     "incubation": 43
   },
@@ -285,10 +285,12 @@
     "src/server/agents/work-order-review-session-contract.ts",
     "src/server/ai/anthropic-json-client.ts",
     "src/server/ai/cost-ladder.ts",
+    "src/server/ai/free-model-catalog.ts",
     "src/server/ai/llm-json-provider.ts",
     "src/server/ai/model-config.ts",
     "src/server/ai/model-router.ts",
     "src/server/ai/openai-json-client.ts",
+    "src/server/ai/openrouter-json-client.ts",
     "src/server/arena/arena-api-schema.ts",
     "src/server/arena/arena-batch-service.ts",
     "src/server/arena/arena-candidate-generator.ts",
@@ -431,7 +433,7 @@
     "src/scripts/mcl-archive-dir.ts",
     "src/scripts/process-document.ts",
     "src/server/agents/work-order-autonomy-envelope-response.ts",
-    "src/server/ai/free-model-catalog.ts",
+    "src/server/ai/openrouter-model-catalog.ts",
     "src/server/arena/arena-wra-buckets.ts",
     "src/server/arena/arena-wra-evidence.ts",
     "src/server/decision-spine/collect-decision-signals.ts",
