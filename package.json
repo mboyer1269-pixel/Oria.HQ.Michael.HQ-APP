@@ -20,6 +20,7 @@
     "mission:check-migration-draft": "node scripts/audit/check-mission-persistence-migration-draft.mjs",
     "mission:guard-not-live": "node scripts/audit/guard-mission-persistence-not-live.mjs",
     "doctor": "node scripts/doctor/hq-doctor.mjs",
+    "ai:refresh-openrouter-free-models": "node src/scripts/ai/refresh-openrouter-free-models.mjs",
     "map": "node scripts/architecture/system-map.mjs",
     "map:check": "node scripts/architecture/system-map.mjs --check",
     "check:layering": "node scripts/architecture/check-layering.mjs",

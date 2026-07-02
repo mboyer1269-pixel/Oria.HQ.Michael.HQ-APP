@@ -146,14 +146,18 @@ test("daily-direction-generator", async (t) => {
   // Set fake keys so the key-guard passes; the mock fetch handles the response.
   const savedAnthropic = process.env.ANTHROPIC_API_KEY;
   const savedOpenAI = process.env.OPENAI_API_KEY;
+  const savedOpenRouter = process.env.OPENROUTER_API_KEY;
   process.env.ANTHROPIC_API_KEY = "test-fake-key-unit-tests";
   process.env.OPENAI_API_KEY = "test-fake-key-unit-tests";
+  delete process.env.OPENROUTER_API_KEY;
 
   t.after(() => {
     if (savedAnthropic !== undefined) process.env.ANTHROPIC_API_KEY = savedAnthropic;
     else delete process.env.ANTHROPIC_API_KEY;
     if (savedOpenAI !== undefined) process.env.OPENAI_API_KEY = savedOpenAI;
     else delete process.env.OPENAI_API_KEY;
+    if (savedOpenRouter !== undefined) process.env.OPENROUTER_API_KEY = savedOpenRouter;
+    else delete process.env.OPENROUTER_API_KEY;
   });
 
   // -------------------------------------------------------------------------

@@ -143,11 +143,13 @@ export async function generateDailyDirection(
 ): Promise<DailyDirectionGeneratorResult> {
   const systemPrompt = JORIS_DAILY_DIRECTION_SYSTEM;
   const userPrompt = buildUserPrompt(input);
-  const fetchFns = input.fetchFn ? { anthropic: input.fetchFn, openai: input.fetchFn } : undefined;
+  const fetchFns = input.fetchFn
+    ? { openrouter: input.fetchFn, anthropic: input.fetchFn, openai: input.fetchFn }
+    : undefined;
 
   // Attempt 1
   const attempt1 = await generateStructuredJson({
-    providerPreference: "auto",
+    providerPreference: "free-first",
     systemPrompt,
     userPrompt,
     maxTokens: 1800,
@@ -176,7 +178,7 @@ Note: Tentative précédente invalide. Erreurs : ${validation1.reason}
 Assure-toi que outcomes contient EXACTEMENT 3 éléments et que tous les champs requis sont présents.`;
 
   const attempt2 = await generateStructuredJson({
-    providerPreference: "auto",
+    providerPreference: "free-first",
     systemPrompt,
     userPrompt: retryUserPrompt,
     maxTokens: 1800,

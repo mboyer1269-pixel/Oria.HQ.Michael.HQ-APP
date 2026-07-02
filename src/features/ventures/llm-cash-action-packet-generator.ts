@@ -22,6 +22,7 @@ import "server-only";
 import {
   generateStructuredJson,
   type LlmProvider,
+  type LlmProviderPreference,
 } from "@/server/ai/llm-json-provider";
 import {
   CASH_ACTION_BUYER_TYPES,
@@ -260,11 +261,12 @@ export async function generateLlmCashActionPacketsFromVentures(input: {
   createdAt: string;
   // Per-provider fetch overrides — used in tests to inject mocks.
   fetchFns?: {
+    openrouter?: typeof fetch;
     anthropic?: typeof fetch;
     openai?: typeof fetch;
   };
   // Override the provider preference (default: "auto" = Anthropic → OpenAI).
-  providerPreference?: LlmProvider | "auto";
+  providerPreference?: LlmProviderPreference;
 }): Promise<LlmCashActionPacketGeneratorResult> {
   const { ventures, fallbackItems, createdAt } = input;
 
