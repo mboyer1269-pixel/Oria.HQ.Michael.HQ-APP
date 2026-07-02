@@ -12,7 +12,7 @@ import type {
   VentureCard,
   VentureLifecycleStatus,
   VentureSource,
-} from "@/features/ventures/types";
+} from "@/core/types";
 import type { Json, VentureRow } from "@/server/db/types";
 
 export const VENTURE_STATUSES: readonly VentureLifecycleStatus[] = [

@@ -2,7 +2,7 @@ import type {
   CalendarEvent,
   CalendarEventSource,
   CalendarStorageMode,
-} from "@/features/hq/types";
+} from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { WorkspaceContext } from "@/core/workspace-context";
 import { createOptionalSupabaseAdminClient, hasSupabaseAdminConfig } from "@/server/supabase/admin";

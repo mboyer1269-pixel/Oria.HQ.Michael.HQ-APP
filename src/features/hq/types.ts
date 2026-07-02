@@ -1,26 +1,34 @@
-// AutonomyLevel and PermissionRule are canonical in src/core/types.ts.
-// Imported for local use and re-exported so existing feature imports continue to resolve.
-import type { AutonomyLevel, PermissionRule } from "@/core/types";
-export type { AutonomyLevel, PermissionRule };
+// Canonical domain types live in `src/core/types.ts`. Imported for local use
+// and re-exported so existing feature/app imports continue to resolve. The
+// server layer imports these directly from `@/core/types` (see ARCHITECTURE.md).
+import type { AutonomyLevel } from "@/core/types";
+export type { AutonomyLevel, PermissionRule } from "@/core/types";
+
+// Shared domain types relocated to core — re-exported here for back-compat.
+export type {
+  ModelProvider,
+  ModelMode,
+  ModelProfile,
+  JorisIntent,
+  CalendarIntent,
+  CalendarEventSource,
+  CalendarStorageMode,
+  CalendarEvent,
+  ActionLedgerStatus,
+  MissionPlanResult,
+  MissionDraftPreview,
+  GovernanceAuditExport,
+  CommandResult,
+  CeoBriefAgendaItem,
+  CeoBriefLeadItem,
+  CeoBriefSnapshot,
+} from "@/core/types";
+
+// ---------------------------------------------------------------------------
+// HQ presentation types — UI-layer shapes that stay local to the feature.
+// ---------------------------------------------------------------------------
 
 export type VentureHat = "suivia" | "mcl" | "personal" | "hq";
-
-export type ModelProvider = "anthropic" | "openai" | "google" | "openrouter";
-
-export type ModelMode = "auto" | "economy" | "brute" | "manual";
-
-export type JorisIntent =
-  | "chat"
-  | "calendar.book"
-  | "calendar.remind"
-  | "brief.generate"
-  | "board.consult"
-  | "memory.capture"
-  | "opportunity.score"
-  | "task.create"
-  | "mission.plan" // dry-run plan surface only — never executes
-  | "mission.draft" // calendar.book proposal — pending user confirmation
-  | "governance.audit";
 
 export type BoardFigure = {
   id: string;
@@ -39,139 +47,6 @@ export type HqModule = {
   subtitle: string;
   status: "ready" | "foundation" | "planned";
   autonomyLevel: AutonomyLevel;
-};
-
-export type ModelProfile = {
-  id: string;
-  label: string;
-  provider: ModelProvider;
-  defaultUse: string;
-  costTier: "low" | "medium" | "high";
-  strengths: string[];
-};
-
-
-export type CalendarIntent = {
-  title: string;
-  dateISO: string;
-  startTime: string;
-  endTime: string;
-  remindersMinutes: number[];
-  needsConfirmation: boolean;
-  confidence: number;
-  notes?: string;
-};
-
-export type CalendarEventSource = "api" | "internal" | "joris";
-
-export type CalendarStorageMode = "local" | "supabase";
-
-export type CalendarEvent = {
-  id: string;
-  userId: string;
-  workspaceId: string;
-  title: string;
-  dateISO: string;
-  startTime: string;
-  endTime: string;
-  source: CalendarEventSource;
-  remindersMinutes: number[];
-  createdAt: string;
-  updatedAt: string;
-  storageMode: CalendarStorageMode;
-};
-
-export type ActionLedgerStatus = "recorded" | "skipped" | "failed";
-
-/** View-model flattening of MissionExecutorResult — no server imports needed here. */
-export type MissionPlanResult = {
-  allowed: boolean;
-  missionId: string;
-  blockReasons?: string[];
-  stepCount?: number;
-  estimatedAutonomyCost?: number;
-};
-
-export type MissionDraftPreview = {
-  pendingDraftId: string;
-  title: string;
-  objective: string;
-  skillId: "calendar.book";
-  actionType: "calendar.book";
-  scheduledAt?: {
-    dateISO: string;
-    startTime: string;
-    endTime: string;
-  };
-  expiresAt: string;
-};
-
-export type GovernanceAuditExport = {
-  filename: string;
-  mimeType: "text/csv";
-  content: string;
-  totalDecisions: number;
-  humanOnTheLoop: true;
-  noExecutionAuthorized: true;
-};
-
-export type CommandResult = {
-  intent: JorisIntent;
-  summary: string;
-  modelId?: string;
-  costMode?: ModelMode;
-  workspaceId?: string;
-  modeId?: string;
-  assistantId?: string;
-  calendarIntent?: CalendarIntent;
-  calendarEvent?: CalendarEvent;
-  ledgerStatus?: ActionLedgerStatus;
-  storageMode?: CalendarStorageMode;
-  requiresConfirmation?: boolean;
-  missionPlanResult?: MissionPlanResult;
-  missionDraftPreview?: MissionDraftPreview;
-  auditExport?: GovernanceAuditExport;
-  pendingDraftId?: string;
-  missionId?: string;
-  /** How `summary` was produced on the conversational path: a real LLM call ("llm") or the deterministic fallback ("fallback"). Absent on structured/rules-based intents. */
-  generation?: "llm" | "fallback";
-};
-
-export type CeoBriefAgendaItem = {
-  id: string;
-  title: string;
-  dateISO: string;
-  startTime: string;
-  endTime: string;
-  source: CalendarEventSource;
-};
-
-export type CeoBriefLeadItem = {
-  id: string;
-  name: string;
-  email: string;
-  company: string | null;
-  status: string;
-  createdAt: string;
-};
-
-export type CeoBriefSnapshot = {
-  generatedAt: string;
-  headline: string;
-  focusLine: string;
-  agenda: {
-    upcomingCount: number;
-    items: CeoBriefAgendaItem[];
-  };
-  leads: {
-    newCount: number;
-    items: CeoBriefLeadItem[];
-  };
-  documents: {
-    totalCount: number;
-    byHat: Record<string, number>;
-    recentFilenames: string[];
-  };
 };
 
 // ---------------------------------------------------------------------------

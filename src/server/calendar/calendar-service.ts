@@ -3,10 +3,10 @@ import type {
   CalendarEvent,
   CalendarEventSource,
   ModelMode,
-} from "@/features/hq/types";
+} from "@/core/types";
 import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import { skillsCatalog } from "@/features/skills/seed";
-import type { SkillProfile } from "@/features/skills/types";
+import type { SkillProfile } from "@/core/types";
 import { LedgerEventValidationError, recordLedgerEvent } from "@/server/actions/ledger-events";
 import {
   createCalendarRepository,

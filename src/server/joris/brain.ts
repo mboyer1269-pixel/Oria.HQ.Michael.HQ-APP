@@ -1,4 +1,4 @@
-import type { CommandResult, JorisIntent, MissionPlanResult } from "@/features/hq/types";
+import type { CommandResult, JorisIntent, MissionPlanResult } from "@/core/types";
 import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import { logger } from "@/lib/logger";
 import { chooseModel } from "@/server/ai/model-router";

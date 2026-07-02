@@ -1,4 +1,4 @@
-import type { CalendarStorageMode } from "@/features/hq/types";
+import type { CalendarStorageMode } from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { ActionLedgerRow } from "@/server/db/types";
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
