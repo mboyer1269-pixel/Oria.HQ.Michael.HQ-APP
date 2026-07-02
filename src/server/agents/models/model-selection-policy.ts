@@ -108,7 +108,11 @@ export function selectModel(
     };
   }
 
-  const binding = request.profile.routes[request.route];
+  // Own-property lookup only: a route name like "toString" must miss, never
+  // resolve through the prototype chain of the routes record.
+  const binding = Object.hasOwn(request.profile.routes, request.route)
+    ? request.profile.routes[request.route]
+    : undefined;
   if (!binding) {
     return {
       eligible: false,

@@ -139,6 +139,14 @@ test("Model Selection Policy tests", async (t) => {
         ledgerRequired: true,
       },
       {
+        id: "ollama-http",
+        label: "Ollama HTTP",
+        kind: "http-api",
+        providerId: "ollama-local",
+        sentinelle: { defaultZone: "yellow", requiresApprovalForToolUse: false },
+        ledgerRequired: true,
+      },
+      {
         id: "ollama-local-process",
         label: "Ollama local process",
         kind: "local-process",
@@ -299,6 +307,8 @@ test("Model Selection Policy tests", async (t) => {
         runtimeAdapterId: "ollama-local-process",
       },
     };
+    // "ollama-http" is registered first, so the fallback and the preference
+    // resolve to DIFFERENT adapters — the assertions cannot pass by accident.
     const preferred = selectModel(registry, { profile, route: "conversation" });
     assert.equal(preferred.eligible, true);
     assert.equal(preferred.runtimeAdapterId, "ollama-local-process");
@@ -315,7 +325,15 @@ test("Model Selection Policy tests", async (t) => {
       route: "conversation",
     });
     assert.equal(withGhostAdapter.eligible, true);
-    assert.equal(withGhostAdapter.runtimeAdapterId, "ollama-local-process");
+    assert.equal(withGhostAdapter.runtimeAdapterId, "ollama-http");
+  });
+
+  await t.test("invariant: a prototype-chain route name never resolves to a binding", () => {
+    for (const route of ["toString", "constructor", "hasOwnProperty"]) {
+      const decision = selectModel(registry, { profile: baseProfile, route });
+      assert.equal(decision.eligible, false);
+      assert.equal(decision.reasonCode, "unknown_route");
+    }
   });
 
   await t.test("unavailable models are skipped in order", () => {

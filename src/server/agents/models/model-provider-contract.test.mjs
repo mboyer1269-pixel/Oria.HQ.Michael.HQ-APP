@@ -127,6 +127,29 @@ test("Model Provider Contract tests", async (t) => {
     assert.equal(missing.ok, false);
   });
 
+  await t.test("invariant: unknown catalog source kinds are rejected", () => {
+    const badSource = validateModelProviderDescriptor({
+      ...validProvider,
+      catalogSource: { kind: "html-scrape", refreshPolicy: "cached-only" },
+    });
+    assert.equal(badSource.ok, false);
+    assert.match(badSource.errors.join(" "), /unknown catalog source kind/);
+
+    const badProvenance = validateModelCapabilityDescriptor({
+      id: "vendor/scraped-model",
+      providerId: "openrouter",
+      label: "Scraped Model",
+      pricing: zeroPricing,
+      costTier: "economy",
+      supportsToolUse: false,
+      supportsStructuredJson: false,
+      supportsMcp: false,
+      provenance: { source: "scraped-html" },
+    });
+    assert.equal(badProvenance.ok, false);
+    assert.match(badProvenance.errors.join(" "), /provenance\.source/);
+  });
+
   await t.test("invariant: unknown pricing is never free", () => {
     assert.equal(isProvenZeroPricing(zeroPricing), true);
     assert.equal(isProvenZeroPricing(unknownPricing), false);

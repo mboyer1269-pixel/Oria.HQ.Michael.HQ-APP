@@ -215,6 +215,11 @@ const ADAPTER_KINDS = Object.keys({
   "cli-subscription": true,
   "local-process": true,
 } satisfies Record<RuntimeAdapterKind, true>) as readonly RuntimeAdapterKind[];
+const CATALOG_SOURCE_KINDS = Object.keys({
+  "static-file": true,
+  "openrouter-models-api": true,
+  manual: true,
+} satisfies Record<CatalogSourceKind, true>) as readonly CatalogSourceKind[];
 
 function isStableId(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && !/\s/.test(value);
@@ -282,6 +287,9 @@ export function validateModelProviderDescriptor(
   }
   if (descriptor.catalogSource) {
     const source = descriptor.catalogSource;
+    if (!CATALOG_SOURCE_KINDS.includes(source.kind)) {
+      errors.push(`provider "${descriptor.id}": unknown catalog source kind "${source.kind}"`);
+    }
     if (source.kind === "openrouter-models-api") {
       // Exactly the models endpoint (a query string is allowed) — any other
       // OpenRouter API path is the wrong response shape for a model catalog.
@@ -322,6 +330,11 @@ export function validateModelCapabilityDescriptor(
   if (!COST_TIERS.includes(descriptor.costTier)) {
     errors.push(`model "${descriptor.id}": unknown cost tier "${descriptor.costTier}"`);
   }
+  if (!descriptor.provenance || !CATALOG_SOURCE_KINDS.includes(descriptor.provenance.source)) {
+    errors.push(
+      `model "${descriptor.id}": provenance.source must be a known catalog source kind`,
+    );
+  }
   // Guard untyped catalog data: a missing pricing object must surface as a
   // validation error, never as a throw inside registry construction.
   const pricing: ModelPricingDescriptor | undefined =
@@ -354,13 +367,13 @@ export function validateRuntimeAdapterDescriptor(
   if (!ADAPTER_KINDS.includes(descriptor.kind)) {
     errors.push(`adapter "${descriptor.id}": unknown adapter kind "${descriptor.kind}"`);
   }
-  if (!descriptor.sentinelle || !EXECUTION_ZONES.includes(descriptor.sentinelle.defaultZone)) {
+  // A missing gate object trips both sentinelle rules; each reports on its own
+  // so callers see every field they need to supply.
+  const gate = descriptor.sentinelle;
+  if (!gate || !EXECUTION_ZONES.includes(gate.defaultZone)) {
     errors.push(`adapter "${descriptor.id}": sentinelle.defaultZone must be green, yellow, or red`);
   }
-  if (
-    !descriptor.sentinelle ||
-    typeof descriptor.sentinelle.requiresApprovalForToolUse !== "boolean"
-  ) {
+  if (!gate || typeof gate.requiresApprovalForToolUse !== "boolean") {
     errors.push(
       `adapter "${descriptor.id}": sentinelle.requiresApprovalForToolUse must be an explicit boolean`,
     );
