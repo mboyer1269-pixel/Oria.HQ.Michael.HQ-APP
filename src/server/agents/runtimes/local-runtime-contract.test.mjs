@@ -117,6 +117,52 @@ test("Local Subscription Runtime Contract tests", async (t) => {
     assert.deepEqual(honestMiss, { ok: true });
   });
 
+  await t.test("invariant 1: unknown auth is a probe finding — a descriptor cannot carry it into invocation", () => {
+    const unknownDescriptor = validateLocalRuntimeAuth("claude_code_cli", { mode: "unknown" });
+    assert.equal(unknownDescriptor.ok, false);
+    assert.match(unknownDescriptor.errors.join(" "), /probe finding/);
+
+    const unknownPolicy = validateLocalRuntimeInvocationPolicy({
+      ...validPolicy,
+      auth: { mode: "unknown" },
+    });
+    assert.equal(unknownPolicy.ok, false);
+    assert.match(unknownPolicy.errors.join(" "), /never a basis for invocation/);
+  });
+
+  await t.test("a malformed auth snapshot returns errors instead of throwing", () => {
+    for (const malformed of [null, undefined, "account_login", 42]) {
+      const result = validateLocalRuntimeAuth("claude_code_cli", malformed);
+      assert.equal(result.ok, false);
+      assert.match(result.errors.join(" "), /must be an object/);
+    }
+
+    const noAuthPolicy = validateLocalRuntimeInvocationPolicy({
+      ...validPolicy,
+      auth: undefined,
+    });
+    assert.equal(noAuthPolicy.ok, false);
+    assert.match(noAuthPolicy.errors.join(" "), /must be an object/);
+  });
+
+  await t.test("credential material cannot ride along inside a descriptor", () => {
+    const smuggledSession = validateLocalRuntimeAuth("claude_code_cli", {
+      mode: "account_login",
+      exposure: "personal_local",
+      sessionToken: "sess-abc123",
+    });
+    assert.equal(smuggledSession.ok, false);
+    assert.match(smuggledSession.errors.join(" "), /cannot ride along/);
+
+    const smuggledCookie = validateLocalRuntimeAuth("codex_cli", {
+      mode: "api_key",
+      apiKeyEnvVar: "OPENAI_API_KEY",
+      cookie: "session=abc",
+    });
+    assert.equal(smuggledCookie.ok, false);
+    assert.match(smuggledCookie.errors.join(" "), /cannot ride along/);
+  });
+
   await t.test("invariant 2: account_login is permitted only for personal_local exposure", () => {
     assert.deepEqual(
       validateLocalRuntimeAuth("claude_code_cli", {

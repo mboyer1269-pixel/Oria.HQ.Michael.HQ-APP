@@ -84,14 +84,18 @@ export type LocalRuntimeCapability = {
   subscriptionPlans: readonly string[];
 };
 
+/**
+ * The auth an INVOCATION carries. "unknown" is deliberately absent: it is a
+ * probe finding (see LocalRuntimeAuthMode), never a basis for invocation, so
+ * a descriptor cannot express it and the validator rejects it in untyped data.
+ */
 export type LocalRuntimeAuthDescriptor =
   | { mode: "account_login"; exposure: LocalRuntimeExposure }
   | {
       /** Metered fallback. The env var NAME (e.g. "OPENAI_API_KEY") — never a value. */
       mode: "api_key";
       apiKeyEnvVar: string;
-    }
-  | { mode: "unknown" };
+    };
 
 /**
  * The evidence a (future) detection probe produces. This contract defines the
@@ -196,6 +200,16 @@ const AUTH_MODES = Object.keys({
   api_key: true,
   unknown: true,
 } satisfies Record<LocalRuntimeAuthMode, true>) as readonly LocalRuntimeAuthMode[];
+const INVOCABLE_AUTH_MODES = Object.keys({
+  account_login: true,
+  api_key: true,
+} satisfies Record<LocalRuntimeAuthDescriptor["mode"], true>) as readonly string[];
+// The complete field set per descriptor mode. Anything beyond this list is
+// rejected so credential material can never ride along inside a descriptor.
+const DESCRIPTOR_FIELDS: Record<string, readonly string[]> = {
+  account_login: ["mode", "exposure"],
+  api_key: ["mode", "apiKeyEnvVar"],
+};
 const PERMISSION_MODES = Object.keys({
   default: true,
   plan: true,
@@ -267,6 +281,16 @@ export function validateLocalRuntimeAuth(
   kind: LocalRuntimeKind,
   auth: LocalRuntimeAuthDescriptor,
 ): ContractValidation {
+  // Untyped snapshots may omit auth entirely; that is a finding, not a crash.
+  if (auth === null || typeof auth !== "object") {
+    return {
+      ok: false,
+      errors: [
+        `runtime "${kind}": auth descriptor must be an object — a missing descriptor is not an auth mode`,
+      ],
+    };
+  }
+
   const errors: string[] = [];
   const mode = auth.mode as string;
 
@@ -276,8 +300,25 @@ export function validateLocalRuntimeAuth(
       `runtime "${kind}": auth channel "${mode}" is permanently forbidden — ` +
         `only official CLI login or an API key env var NAME are sanctioned`,
     );
-  } else if (!AUTH_MODES.includes(auth.mode)) {
+  } else if (mode === "unknown") {
+    errors.push(
+      `runtime "${kind}": auth mode "unknown" is a probe finding, ` +
+        `never a basis for invocation`,
+    );
+  } else if (!INVOCABLE_AUTH_MODES.includes(mode)) {
     errors.push(`runtime "${kind}": unknown auth mode "${mode}"`);
+  }
+
+  const allowedFields = DESCRIPTOR_FIELDS[mode];
+  if (allowedFields) {
+    for (const field of Object.keys(auth)) {
+      if (!allowedFields.includes(field)) {
+        errors.push(
+          `runtime "${kind}": auth descriptor field "${field}" is not part of the ` +
+            `"${mode}" contract — credential material cannot ride along inside a descriptor`,
+        );
+      }
+    }
   }
 
   if (auth.mode === "account_login" && auth.exposure !== "personal_local") {
