@@ -91,10 +91,40 @@ test("Model Provider Contract tests", async (t) => {
       },
     });
     assert.equal(scraping.ok, false);
-    assert.match(scraping.errors.join(" "), /HTML scraping is forbidden/);
+    assert.match(scraping.errors.join(" "), /HTML scraping are forbidden/);
 
     const official = validateModelProviderDescriptor(validProvider);
     assert.equal(official.ok, true);
+  });
+
+  await t.test("invariant: OpenRouter catalog endpoint is exactly the models API", () => {
+    const withCatalogEndpoint = (endpoint) =>
+      validateModelProviderDescriptor({
+        ...validProvider,
+        catalogSource: {
+          kind: "openrouter-models-api",
+          ...(endpoint === undefined ? {} : { endpoint }),
+          refreshPolicy: "cached-only",
+        },
+      });
+
+    // A query string on the official endpoint stays valid.
+    assert.deepEqual(withCatalogEndpoint(`${OPENROUTER_MODELS_API_ENDPOINT}?category=free`), {
+      ok: true,
+    });
+
+    // Any other API path has the wrong response shape for a model catalog.
+    const wrongPath = withCatalogEndpoint("https://openrouter.ai/api/v1/chat/completions");
+    assert.equal(wrongPath.ok, false);
+    assert.match(wrongPath.errors.join(" "), /official\s+models JSON API/);
+
+    // A prefix look-alike is not the models endpoint.
+    const lookAlike = withCatalogEndpoint(`${OPENROUTER_MODELS_API_ENDPOINT}-mirror`);
+    assert.equal(lookAlike.ok, false);
+
+    // The endpoint is required for this source kind.
+    const missing = withCatalogEndpoint(undefined);
+    assert.equal(missing.ok, false);
   });
 
   await t.test("invariant: unknown pricing is never free", () => {
@@ -108,6 +138,21 @@ test("Model Provider Contract tests", async (t) => {
     assert.equal(isEligibleAsFree(zeroPricing), true);
     assert.equal(isEligibleAsFree(unknownPricing), false);
     assert.equal(isEligibleAsFree(unknownPricing, { allowTrialOrUnknown: true }), true);
+  });
+
+  await t.test("invariant: the trial/unknown opt-in never whitewashes a known positive cost", () => {
+    const paidPricing = { promptUsdPerMTok: 3, completionUsdPerMTok: 15, perRequestUsd: 0 };
+    assert.equal(isEligibleAsFree(paidPricing), false);
+    assert.equal(isEligibleAsFree(paidPricing, { allowTrialOrUnknown: true }), false);
+
+    // One positive dimension is enough to disqualify, even among unknowns.
+    const partiallyPaid = { promptUsdPerMTok: null, completionUsdPerMTok: 0.1, perRequestUsd: null };
+    assert.equal(isEligibleAsFree(partiallyPaid, { allowTrialOrUnknown: true }), false);
+
+    // Zero-or-unknown pricing is what the opt-in actually covers.
+    const trialPricing = { promptUsdPerMTok: 0, completionUsdPerMTok: 0, perRequestUsd: null };
+    assert.equal(isEligibleAsFree(trialPricing), false);
+    assert.equal(isEligibleAsFree(trialPricing, { allowTrialOrUnknown: true }), true);
   });
 
   await t.test("invariant: costTier free requires catalog-proven zero pricing", () => {
@@ -129,6 +174,25 @@ test("Model Provider Contract tests", async (t) => {
     assert.match(assumedFree.errors.join(" "), /catalog-proven zero pricing/);
   });
 
+  await t.test("invariant: a missing pricing descriptor is a validation error, not a throw", () => {
+    const base = {
+      id: "vendor/no-pricing-model",
+      providerId: "openrouter",
+      label: "No Pricing Model",
+      costTier: "economy",
+      supportsToolUse: false,
+      supportsStructuredJson: false,
+      supportsMcp: false,
+      provenance: { source: "manual" },
+    };
+
+    for (const pricing of [undefined, null, "0"]) {
+      const result = validateModelCapabilityDescriptor({ ...base, pricing });
+      assert.equal(result.ok, false);
+      assert.match(result.errors.join(" "), /pricing descriptor is required/);
+    }
+  });
+
   await t.test("invariant: runtime adapters cannot opt out of the Ledger", () => {
     const adapter = {
       id: "openrouter-http",
@@ -143,6 +207,32 @@ test("Model Provider Contract tests", async (t) => {
     const noLedger = validateRuntimeAdapterDescriptor({ ...adapter, ledgerRequired: false });
     assert.equal(noLedger.ok, false);
     assert.match(noLedger.errors.join(" "), /Ledger has no opt-out/);
+  });
+
+  await t.test("invariant: sentinelle tool-use approval must be an explicit boolean", () => {
+    const adapter = {
+      id: "openrouter-http",
+      label: "OpenRouter HTTP",
+      kind: "http-api",
+      providerId: "openrouter",
+      sentinelle: { defaultZone: "green", requiresApprovalForToolUse: false },
+      ledgerRequired: true,
+    };
+
+    // Untyped snapshots must not smuggle in truthy strings or omissions.
+    for (const requiresApprovalForToolUse of [undefined, null, "true", 1]) {
+      const result = validateRuntimeAdapterDescriptor({
+        ...adapter,
+        sentinelle: { defaultZone: "green", requiresApprovalForToolUse },
+      });
+      assert.equal(result.ok, false);
+      assert.match(result.errors.join(" "), /explicit boolean/);
+    }
+
+    const missingGate = validateRuntimeAdapterDescriptor({ ...adapter, sentinelle: undefined });
+    assert.equal(missingGate.ok, false);
+    assert.match(missingGate.errors.join(" "), /defaultZone must be/);
+    assert.match(missingGate.errors.join(" "), /explicit boolean/);
   });
 
   await t.test("invariant: a local runtime is preferred, never assumed available", () => {

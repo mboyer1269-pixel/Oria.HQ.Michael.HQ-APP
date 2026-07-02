@@ -186,16 +186,35 @@ export function isValidEnvVarName(value: string): boolean {
   );
 }
 
-const EXECUTION_ZONES: readonly ExecutionZone[] = ["green", "yellow", "red"];
-const PROVIDER_KINDS: readonly ProviderKind[] = ["api", "router", "local-runtime"];
-const TRUST_LEVELS: readonly ProviderTrustLevel[] = ["untrusted", "reviewed", "allowlisted"];
-const COST_TIERS: readonly ProviderCostTier[] = ["free", "economy", "premium"];
-const ADAPTER_KINDS: readonly RuntimeAdapterKind[] = [
-  "http-api",
-  "mcp-client",
-  "cli-subscription",
-  "local-process",
-];
+// Exhaustiveness-checked vocabularies: `satisfies Record<Union, true>` makes
+// the compiler fail when a union member is added or removed without updating
+// the runtime list — the arrays cannot silently drift from the types.
+const EXECUTION_ZONES = Object.keys({
+  green: true,
+  yellow: true,
+  red: true,
+} satisfies Record<ExecutionZone, true>) as readonly ExecutionZone[];
+const PROVIDER_KINDS = Object.keys({
+  api: true,
+  router: true,
+  "local-runtime": true,
+} satisfies Record<ProviderKind, true>) as readonly ProviderKind[];
+const TRUST_LEVELS = Object.keys({
+  untrusted: true,
+  reviewed: true,
+  allowlisted: true,
+} satisfies Record<ProviderTrustLevel, true>) as readonly ProviderTrustLevel[];
+const COST_TIERS = Object.keys({
+  free: true,
+  economy: true,
+  premium: true,
+} satisfies Record<ProviderCostTier, true>) as readonly ProviderCostTier[];
+const ADAPTER_KINDS = Object.keys({
+  "http-api": true,
+  "mcp-client": true,
+  "cli-subscription": true,
+  "local-process": true,
+} satisfies Record<RuntimeAdapterKind, true>) as readonly RuntimeAdapterKind[];
 
 function isStableId(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && !/\s/.test(value);
@@ -213,14 +232,21 @@ export function isProvenZeroPricing(pricing: ModelPricingDescriptor): boolean {
 /**
  * A model is eligible as free only when the catalog PROVES zero pricing, or
  * the caller's policy explicitly opts into treating trial/unknown pricing as
- * free. Unknown pricing (null) is never free by default.
+ * free. Unknown pricing (null) is never free by default, and a known positive
+ * cost on any dimension is never free — the opt-in covers trial/unknown only.
  */
 export function isEligibleAsFree(
   pricing: ModelPricingDescriptor,
   policy?: { allowTrialOrUnknown?: boolean },
 ): boolean {
   if (isProvenZeroPricing(pricing)) return true;
-  return policy?.allowTrialOrUnknown === true;
+  const dimensions = [
+    pricing.promptUsdPerMTok,
+    pricing.completionUsdPerMTok,
+    pricing.perRequestUsd,
+  ];
+  if (dimensions.some((value) => typeof value === "number" && value > 0)) return false;
+  return dimensions.some((value) => value === null) && policy?.allowTrialOrUnknown === true;
 }
 
 export function validateModelProviderDescriptor(
@@ -257,13 +283,17 @@ export function validateModelProviderDescriptor(
   if (descriptor.catalogSource) {
     const source = descriptor.catalogSource;
     if (source.kind === "openrouter-models-api") {
-      if (
-        typeof source.endpoint !== "string" ||
-        !source.endpoint.startsWith("https://openrouter.ai/api/")
-      ) {
+      // Exactly the models endpoint (a query string is allowed) — any other
+      // OpenRouter API path is the wrong response shape for a model catalog.
+      const isModelsEndpoint =
+        typeof source.endpoint === "string" &&
+        (source.endpoint === OPENROUTER_MODELS_API_ENDPOINT ||
+          source.endpoint.startsWith(`${OPENROUTER_MODELS_API_ENDPOINT}?`));
+      if (!isModelsEndpoint) {
         errors.push(
           `provider "${descriptor.id}": OpenRouter catalog source must target the official ` +
-            `JSON API (${OPENROUTER_MODELS_API_ENDPOINT}); HTML scraping is forbidden`,
+            `models JSON API (${OPENROUTER_MODELS_API_ENDPOINT}); other endpoints and ` +
+            `HTML scraping are forbidden`,
         );
       }
     }
@@ -292,7 +322,15 @@ export function validateModelCapabilityDescriptor(
   if (!COST_TIERS.includes(descriptor.costTier)) {
     errors.push(`model "${descriptor.id}": unknown cost tier "${descriptor.costTier}"`);
   }
-  if (descriptor.costTier === "free" && !isProvenZeroPricing(descriptor.pricing)) {
+  // Guard untyped catalog data: a missing pricing object must surface as a
+  // validation error, never as a throw inside registry construction.
+  const pricing: ModelPricingDescriptor | undefined =
+    descriptor.pricing && typeof descriptor.pricing === "object" ? descriptor.pricing : undefined;
+  if (!pricing) {
+    errors.push(
+      `model "${descriptor.id}": pricing descriptor is required (use null for unknown dimensions)`,
+    );
+  } else if (descriptor.costTier === "free" && !isProvenZeroPricing(pricing)) {
     errors.push(
       `model "${descriptor.id}": costTier "free" requires catalog-proven zero pricing ` +
         `(prompt, completion, and per-request all exactly 0); unknown pricing is not free`,
@@ -318,6 +356,14 @@ export function validateRuntimeAdapterDescriptor(
   }
   if (!descriptor.sentinelle || !EXECUTION_ZONES.includes(descriptor.sentinelle.defaultZone)) {
     errors.push(`adapter "${descriptor.id}": sentinelle.defaultZone must be green, yellow, or red`);
+  }
+  if (
+    !descriptor.sentinelle ||
+    typeof descriptor.sentinelle.requiresApprovalForToolUse !== "boolean"
+  ) {
+    errors.push(
+      `adapter "${descriptor.id}": sentinelle.requiresApprovalForToolUse must be an explicit boolean`,
+    );
   }
   // The type already forbids false; this guards untyped data (JSON snapshots).
   if ((descriptor.ledgerRequired as boolean) !== true) {
