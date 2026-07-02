@@ -65,8 +65,16 @@ becomes authority.
 ### 4. OodaWager requirement
 
 Every `NextBestAction` with `safety === "requires_ceo_click"` MUST carry a
-**Wager** before it can be approved. No wager, no click surface. Minimal
-fields:
+**Wager** before it can be approved. No wager, no click surface.
+
+This applies to **every CEO approval surface, not only spine-rendered
+actions**: execution-intent approvals (the `ExecutionIntentReviewPanel` /
+`/api/agents/:agentId/execution-intents` path) trigger real dispatch and MUST
+carry the same wager payload before approval, once the Sentinelle wager
+packet lands. No click surface may exist outside the wager contract; adding
+one is an amendment to this ADR.
+
+Minimal fields:
 
 | Field | Meaning |
 |---|---|
@@ -78,12 +86,12 @@ fields:
 | `deadline` | ISO date the wager MUST be evaluated |
 | `confidence` | Estimated probability of winning, in [0, 1] |
 | `evidenceNeeded` | What proof settles it — no evidence, no settlement |
-| `proposedBy` | Agent id that proposed it |
+| `proposedBy` | Proposer id — an agent (`agent:hermes`) **or a deterministic spine rule** (`rule:relance_due`); rule-generated actions never fake an agent identity |
 | `proposedAt` | Injected ISO timestamp |
 | `vaultSnapshotRef` | Ref to the memory-vault state it was decided against |
 | `contextPackRef` | Ref to the Memex context pack used (if any) |
-| `modelUsed` | Model that produced the proposal |
-| `outcome` | Settlement: won / lost / void — with evidence |
+| `modelUsed` | Model that produced the proposal — **`none` when the proposal is deterministic** (the pure spine uses no LLM); provenance is never invented |
+| `outcome` | Settlement: won / lost / void — with evidence. **Post-settlement only: `pending` at approval time**; approval never requires (or accepts) a pre-filled outcome |
 
 Alignment note: PR #319's draft types (`hypothesis`, `stake`, `confidence`,
 `killCriteria`, `settlement`…) are the substrate; on unhold, #319 aligns its
