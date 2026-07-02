@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 409,
-    "live": 357,
+    "sourceFiles": 413,
+    "live": 361,
     "testOnly": 9,
     "incubation": 43
   },
@@ -29,6 +29,7 @@
     "src/app/api/agents/[agentId]/execute/route.ts",
     "src/app/api/agents/[agentId]/execution-intents/route.ts",
     "src/app/api/agents/execution-intents/[intentId]/approve/route.ts",
+    "src/app/api/agents/execution-intents/[intentId]/reject/route.ts",
     "src/app/api/arena/batch/route.ts",
     "src/app/api/arena/candidates/route.ts",
     "src/app/api/arena/evaluate/route.ts",
@@ -97,6 +98,9 @@
     "src/features/agents/components/agent-quality-evaluation-panel.tsx",
     "src/features/agents/components/agent-review-queue-panel.tsx",
     "src/features/agents/components/agent-skill-panel.tsx",
+    "src/features/agents/components/execution-intent-review-panel.tsx",
+    "src/features/agents/execution-intent-reject.ts",
+    "src/features/agents/execution-intent-review-projection.ts",
     "src/features/agents/execution-intent.ts",
     "src/features/agents/naming.ts",
     "src/features/agents/observed-agent-outcome-review.ts",
