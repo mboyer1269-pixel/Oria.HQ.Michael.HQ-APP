@@ -5,6 +5,7 @@ import { evaluateLiveExecution } from "@/server/runtime/execution-guard";
 import { recordLedgerEvent } from "@/server/actions/ledger-events";
 import { mcpToolRegistry } from "@/server/agents/tools";
 import {
+  AgentExecutionIntentConcurrencyError,
   getAgentExecutionIntent,
   transitionAgentExecutionIntent,
 } from "@/server/agents/execution-intent-repository";
@@ -70,6 +71,9 @@ export async function POST(
       markExecuting: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "executing",
+          // Claim from `pending`: if a concurrent reject already moved it, this
+          // raises a concurrency error (-> 409) and no dispatch happens.
+          expectedFromStatus: "pending",
           updatedAt: new Date().toISOString(),
         }),
       recordAttempt: () =>
@@ -146,6 +150,14 @@ export async function POST(
       { status: result.httpStatus },
     );
   } catch (err) {
+    if (err instanceof AgentExecutionIntentConcurrencyError) {
+      // A concurrent action (e.g. a reject) moved the intent out of `pending`
+      // before this approval could claim it. No dispatch happened.
+      return NextResponse.json(
+        { error: "Execution intent is not pending.", intentId },
+        { status: 409 },
+      );
+    }
     logger.error("agent.execution-intent.approve.failed", {
       intentId,
       reason: err instanceof Error ? err.message : "unknown",
