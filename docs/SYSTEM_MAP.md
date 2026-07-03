@@ -16,14 +16,15 @@
 |---|---|
 | LIVE | 365 |
 | TEST_ONLY | 9 |
-| INCUBATION | 41 |
-| **Total source** | **415** |
+| INCUBATION | 48 |
+| **Total source** | **422** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
 | features/cockpit | 9 |
+| server/agents | 8 |
 | features/memory | 7 |
 | features/ventures | 6 |
 | server/ventures | 4 |
@@ -37,7 +38,6 @@
 | scripts/check-supabase-config.ts | 1 |
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
-| server/agents | 1 |
 | server/ai | 1 |
 
 ## Incubation files (full list)
@@ -74,6 +74,13 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/check-supabase-config.ts`
 - `src/scripts/mcl-archive-dir.ts`
 - `src/scripts/process-document.ts`
+- `src/server/agents/providers/adapter-provider-contract.ts`
+- `src/server/agents/providers/cli-runtime-provider-contract.ts`
+- `src/server/agents/providers/mailbox-provider-contract.ts`
+- `src/server/agents/providers/tool-provider-contract.ts`
+- `src/server/agents/providers/web-automation-provider-contract.ts`
+- `src/server/agents/providers/workflow-runtime-provider-contract.ts`
+- `src/server/agents/runtimes/local-runtime-contract.ts`
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
 - `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
