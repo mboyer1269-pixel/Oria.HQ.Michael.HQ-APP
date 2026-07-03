@@ -14,23 +14,22 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 361 |
+| LIVE | 368 |
 | TEST_ONLY | 9 |
-| INCUBATION | 47 |
-| **Total source** | **417** |
+| INCUBATION | 52 |
+| **Total source** | **429** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
+| server/agents | 11 |
 | features/cockpit | 9 |
 | features/memory | 7 |
 | features/ventures | 6 |
-| server/agents | 5 |
 | server/ventures | 4 |
 | server/missions | 3 |
 | server/arena | 2 |
-| server/decision-spine | 2 |
 | features/agents | 1 |
 | features/hq | 1 |
 | features/outbound | 1 |
@@ -40,6 +39,7 @@
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
 | server/ai | 1 |
+| server/mcp | 1 |
 
 ## Incubation files (full list)
 
@@ -79,12 +79,17 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/agents/models/model-provider-contract.ts`
 - `src/server/agents/models/model-selection-policy.ts`
 - `src/server/agents/models/provider-registry-contract.ts`
+- `src/server/agents/providers/adapter-provider-contract.ts`
+- `src/server/agents/providers/cli-runtime-provider-contract.ts`
+- `src/server/agents/providers/mailbox-provider-contract.ts`
+- `src/server/agents/providers/tool-provider-contract.ts`
+- `src/server/agents/providers/web-automation-provider-contract.ts`
+- `src/server/agents/providers/workflow-runtime-provider-contract.ts`
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
 - `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
-- `src/server/decision-spine/collect-decision-signals.ts`
-- `src/server/decision-spine/next-best-action.ts`
+- `src/server/mcp/memex-bridge-contract.ts`
 - `src/server/missions/approval-record-repository.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
