@@ -1,13 +1,13 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 429,
+    "sourceFiles": 431,
     "live": 368,
     "testOnly": 9,
-    "incubation": 52
+    "incubation": 54
   },
   "incubationByArea": {
-    "server/agents": 11,
+    "server/agents": 13,
     "features/cockpit": 9,
     "features/memory": 7,
     "features/ventures": 6,
@@ -437,6 +437,8 @@
     "src/scripts/check-supabase-config.ts",
     "src/scripts/mcl-archive-dir.ts",
     "src/scripts/process-document.ts",
+    "src/server/agents/evidence/memory-evidence-pack.ts",
+    "src/server/agents/evidence/runtime-evidence-pack.ts",
     "src/server/agents/models/agent-model-profile-contract.ts",
     "src/server/agents/models/model-provider-contract.ts",
     "src/server/agents/models/model-selection-policy.ts",
