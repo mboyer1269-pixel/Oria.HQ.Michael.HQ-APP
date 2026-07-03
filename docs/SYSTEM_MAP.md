@@ -16,14 +16,14 @@
 |---|---|
 | LIVE | 368 |
 | TEST_ONLY | 9 |
-| INCUBATION | 52 |
-| **Total source** | **429** |
+| INCUBATION | 53 |
+| **Total source** | **430** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
-| server/agents | 11 |
+| server/agents | 12 |
 | features/cockpit | 9 |
 | features/memory | 7 |
 | features/ventures | 6 |
@@ -85,6 +85,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/agents/providers/tool-provider-contract.ts`
 - `src/server/agents/providers/web-automation-provider-contract.ts`
 - `src/server/agents/providers/workflow-runtime-provider-contract.ts`
+- `src/server/agents/runtimes/runtime-evidence-pack.ts`
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
 - `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`

@@ -1,13 +1,13 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 429,
+    "sourceFiles": 430,
     "live": 368,
     "testOnly": 9,
-    "incubation": 52
+    "incubation": 53
   },
   "incubationByArea": {
-    "server/agents": 11,
+    "server/agents": 12,
     "features/cockpit": 9,
     "features/memory": 7,
     "features/ventures": 6,
@@ -447,6 +447,7 @@
     "src/server/agents/providers/tool-provider-contract.ts",
     "src/server/agents/providers/web-automation-provider-contract.ts",
     "src/server/agents/providers/workflow-runtime-provider-contract.ts",
+    "src/server/agents/runtimes/runtime-evidence-pack.ts",
     "src/server/agents/work-order-autonomy-envelope-response.ts",
     "src/server/ai/free-model-catalog.ts",
     "src/server/arena/arena-wra-buckets.ts",
