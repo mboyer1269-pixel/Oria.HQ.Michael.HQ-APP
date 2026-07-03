@@ -154,4 +154,104 @@ test("Command Tower v1 model contract", async (t) => {
       assert.match(item.evidence, /PR #\d+/);
     }
   });
+
+  // --- Local Runtime Probe v1 mapping (docs/LOCAL_RUNTIME_PROBE_V1.md) ---
+
+  const probedBoard = {
+    probedAtIso: "2026-07-02T21:00:00.000Z",
+    entries: [
+      {
+        id: "claude_code_cli",
+        label: "Claude Code CLI",
+        status: "ready",
+        evidence: "claude auth status --json → loggedIn: true · subscriptionType: pro",
+        note: "Connecté via le login CLI officiel.",
+        probe: { probedAtIso: "2026-07-02T21:00:00.000Z", version: "2.1.199 (Claude Code)" },
+      },
+      {
+        id: "codex_cli",
+        label: "Codex CLI",
+        status: "ready",
+        evidence: "codex login status → Logged in using ChatGPT",
+        note: "Connecté via le compte ChatGPT officiel.",
+        probe: { probedAtIso: "2026-07-02T21:00:00.000Z", version: "codex-cli 0.137.0" },
+      },
+      {
+        id: "gemini_cli",
+        label: "Gemini CLI",
+        status: "installed_unverified",
+        evidence: "gemini --version → 0.45.2",
+        note: "Aucune preuve d'auth non interactive.",
+        probe: { probedAtIso: "2026-07-02T21:00:00.000Z", version: "0.45.2" },
+      },
+      {
+        id: "zapier_mcp",
+        label: "Zapier MCP",
+        status: "future_tool_corridor",
+        evidence: "Not probed — tool corridor",
+        note: "Corridor d'outils futur.",
+      },
+    ],
+  };
+
+  await t.test("probe-backed board maps honestly: evidence-backed ready survives", () => {
+    const model = buildCommandTowerModel({ ...readyInputs, runtimeBoard: probedBoard });
+    assert.equal(model.runtimeStatus.gate, "probe_v1");
+    assert.equal(model.runtimeStatus.probedAtIso, probedBoard.probedAtIso);
+    const byId = Object.fromEntries(model.runtimeStatus.entries.map((e) => [e.id, e]));
+    assert.equal(byId.claude_code_cli.status, "ready");
+    assert.equal(byId.codex_cli.status, "ready");
+    assert.equal(byId.gemini_cli.status, "installed_unverified");
+    assert.equal(byId.zapier_mcp.status, "future_tool_corridor");
+  });
+
+  await t.test("ready without probe proof is downgraded, never trusted", () => {
+    const dishonest = {
+      probedAtIso: "2026-07-02T21:00:00.000Z",
+      entries: [
+        {
+          id: "claude_code_cli",
+          label: "Claude Code CLI",
+          status: "ready",
+          evidence: "",
+          note: "prétendu ready sans preuve",
+          probe: null,
+        },
+        {
+          id: "gemini_cli",
+          label: "Gemini CLI",
+          status: "installed_unverified",
+          evidence: "gemini --version → 0.45.2",
+          note: "sans champ probe",
+        },
+      ],
+    };
+    const model = buildCommandTowerModel({ ...readyInputs, runtimeBoard: dishonest });
+    const byId = Object.fromEntries(model.runtimeStatus.entries.map((e) => [e.id, e]));
+    assert.equal(byId.claude_code_cli.status, "unavailable");
+    assert.match(byId.claude_code_cli.note, /déclassé/);
+    assert.equal(byId.gemini_cli.status, "unavailable");
+  });
+
+  await t.test("absent probe board = honest fallback, no ready anywhere", () => {
+    const model = buildCommandTowerModel(readyInputs);
+    assert.equal(model.runtimeStatus.gate, "probe_unavailable");
+    assert.equal(model.runtimeStatus.probedAtIso, null);
+    for (const entry of model.runtimeStatus.entries) {
+      assert.notEqual(entry.status, "ready");
+      assert.notEqual(entry.status, "installed_unverified");
+    }
+  });
+
+  await t.test("probe alone never enables dispatch: corridors unchanged by a ready board", () => {
+    const withProbe = buildCommandTowerModel({ ...readyInputs, runtimeBoard: probedBoard });
+    const withoutProbe = buildCommandTowerModel(readyInputs);
+    assert.deepEqual(withProbe.dispatchBoard, withoutProbe.dispatchBoard);
+    const actionable = withProbe.dispatchBoard.corridors.filter((c) => c.action !== null);
+    assert.equal(actionable.length, 1);
+    assert.equal(actionable[0].id, "n8n_execution_rail");
+    for (const corridor of withProbe.dispatchBoard.corridors) {
+      assert.equal(corridor.requiresApproval, true, `${corridor.id} keeps requiresApproval`);
+    }
+  });
 });
