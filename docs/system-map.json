@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 424,
+    "sourceFiles": 425,
     "live": 368,
     "testOnly": 9,
-    "incubation": 47
+    "incubation": 48
   },
   "incubationByArea": {
     "features/cockpit": 9,
@@ -22,7 +22,8 @@
     "scripts/check-supabase-config.ts": 1,
     "scripts/mcl-archive-dir.ts": 1,
     "scripts/process-document.ts": 1,
-    "server/ai": 1
+    "server/ai": 1,
+    "server/mcp": 1
   },
   "live": [
     "src/app/api/agents/[agentId]/execute/route.ts",
@@ -446,6 +447,7 @@
     "src/server/ai/free-model-catalog.ts",
     "src/server/arena/arena-wra-buckets.ts",
     "src/server/arena/arena-wra-evidence.ts",
+    "src/server/mcp/memex-bridge-contract.ts",
     "src/server/missions/approval-record-repository.ts",
     "src/server/missions/draft-to-queued-contract.ts",
     "src/server/missions/mission-persistence-mode.ts",
