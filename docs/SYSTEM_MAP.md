@@ -16,8 +16,8 @@
 |---|---|
 | LIVE | 365 |
 | TEST_ONLY | 9 |
-| INCUBATION | 48 |
-| **Total source** | **422** |
+| INCUBATION | 49 |
+| **Total source** | **423** |
 
 ## Incubation by area (built, not wired)
 
@@ -39,6 +39,7 @@
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
 | server/ai | 1 |
+| server/mcp | 1 |
 
 ## Incubation files (full list)
 
@@ -85,6 +86,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
+- `src/server/mcp/memex-bridge-contract.ts`
 - `src/server/missions/approval-record-repository.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
