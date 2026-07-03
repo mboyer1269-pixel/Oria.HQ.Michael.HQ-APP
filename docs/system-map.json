@@ -1,15 +1,15 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 423,
-    "live": 365,
+    "sourceFiles": 425,
+    "live": 368,
     "testOnly": 9,
-    "incubation": 49
+    "incubation": 48
   },
   "incubationByArea": {
     "features/cockpit": 9,
-    "server/agents": 8,
     "features/memory": 7,
+    "server/agents": 7,
     "features/ventures": 6,
     "server/ventures": 4,
     "server/missions": 3,
@@ -129,6 +129,7 @@
     "src/features/contact/components/contact-lead-form.tsx",
     "src/features/contact/types.ts",
     "src/features/hq/command-tower/command-tower-model.ts",
+    "src/features/hq/command-tower/runtime-status-source.ts",
     "src/features/hq/components/agenda-panel.tsx",
     "src/features/hq/components/agentic-factory-status.tsx",
     "src/features/hq/components/ceo-brief-panel.tsx",
@@ -273,6 +274,8 @@
     "src/server/agents/money-strategy-routing-graph-contract.ts",
     "src/server/agents/next-action-mandate-contract.ts",
     "src/server/agents/next-action-mandate-work-order-adapter.ts",
+    "src/server/agents/runtimes/local-runtime-contract.ts",
+    "src/server/agents/runtimes/local-runtime-probe.ts",
     "src/server/agents/tools/index.ts",
     "src/server/agents/tools/n8n-webhook-trigger.ts",
     "src/server/agents/tools/registry.ts",
@@ -440,7 +443,6 @@
     "src/server/agents/providers/tool-provider-contract.ts",
     "src/server/agents/providers/web-automation-provider-contract.ts",
     "src/server/agents/providers/workflow-runtime-provider-contract.ts",
-    "src/server/agents/runtimes/local-runtime-contract.ts",
     "src/server/agents/work-order-autonomy-envelope-response.ts",
     "src/server/ai/free-model-catalog.ts",
     "src/server/arena/arena-wra-buckets.ts",

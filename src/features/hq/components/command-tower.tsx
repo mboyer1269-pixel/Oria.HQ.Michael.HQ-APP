@@ -24,6 +24,7 @@ import {
   type CommandTowerInputs,
   type CommandTowerModel,
 } from "@/features/hq/command-tower/command-tower-model";
+import { loadRuntimeStatusBoard } from "@/features/hq/command-tower/runtime-status-source";
 import { formatLedgerActivityTimestamp } from "@/features/hq/ledger-activity";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
@@ -32,7 +33,7 @@ import { collectDecisionSignalSnapshot } from "@/server/decision-spine/collect-d
 import { computeNextBestActions } from "@/server/decision-spine/next-best-action";
 
 async function loadCommandTowerInputs(workspaceId: string): Promise<CommandTowerInputs> {
-  const [pendingIntents, nextAction, evidence] = await Promise.all([
+  const [pendingIntents, nextAction, evidence, runtimeBoard] = await Promise.all([
     listPendingAgentExecutionIntents(workspaceId)
       .then((intents) =>
         intents.map((intent) => ({
@@ -77,9 +78,10 @@ async function loadCommandTowerInputs(workspaceId: string): Promise<CommandTower
         source: result.source,
       }))
       .catch(() => null),
+    loadRuntimeStatusBoard().catch(() => null),
   ]);
 
-  return { pendingIntents, nextAction, evidence };
+  return { pendingIntents, nextAction, evidence, runtimeBoard };
 }
 
 const STATE_BADGE_STYLES: Record<string, string> = {
@@ -89,11 +91,14 @@ const STATE_BADGE_STYLES: Record<string, string> = {
   not_configured: "border-neutral-700 bg-neutral-900 text-neutral-400",
   pending: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   blocked: "border-red-500/20 bg-red-500/10 text-red-300",
+  installed_unverified: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   future_candidate: "border-neutral-700 bg-neutral-900 text-neutral-500",
   future_tool_corridor: "border-neutral-700 bg-neutral-900 text-neutral-500",
   governed_live: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
-  blocked_until_probe: "border-red-500/20 bg-red-500/10 text-red-300",
+  blocked_until_dispatch_mandate: "border-red-500/20 bg-red-500/10 text-red-300",
   future_corridor: "border-neutral-700 bg-neutral-900 text-neutral-500",
+  probe_v1: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+  probe_unavailable: "border-amber-500/20 bg-amber-500/10 text-amber-300",
 };
 
 function StateBadge({ value }: { value: string }) {
@@ -216,23 +221,48 @@ function DecisionQueueCard({ model }: { model: CommandTowerModel }) {
 }
 
 function RuntimeStatusCard({ model }: { model: CommandTowerModel }) {
+  const runtime = model.runtimeStatus;
   return (
-    <TowerCard title="Runtime Status" eyebrow="3 · Runtimes" badge="pending">
+    <TowerCard title="Runtime Status" eyebrow="3 · Runtimes" badge={runtime.gate}>
       <p className="mb-3 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-3 text-xs text-neutral-400">
-        Runtime Gate pending — les contrats (PR #325) ne sont pas encore sur main et aucun probe
-        n&apos;existe. Aucun runtime ne peut honnêtement afficher « ready ».
+        {runtime.gate === "probe_v1" ? (
+          <>
+            Probe v1 actif — statuts dérivés de commandes locales sûres (allowlist stricte, aucun
+            prompt envoyé, aucun token lu). Détection ≠ permission : aucun dispatch sans
+            approbation.
+            {runtime.probedAtIso ? (
+              <span className="text-neutral-600">
+                {" "}
+                Preuves relevées {formatLedgerActivityTimestamp(runtime.probedAtIso)}.
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <>
+            Probe v1 indisponible dans ce rendu — statuts par défaut sans preuve. Aucun runtime ne
+            peut honnêtement afficher « ready ».
+          </>
+        )}
       </p>
       <ul className="space-y-2">
-        {model.runtimeStatus.entries.map((entry) => (
+        {runtime.entries.map((entry) => (
           <li
             key={entry.id}
             className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-3"
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-white">{entry.label}</p>
+              <p className="text-sm font-medium text-white">
+                {entry.label}
+                {entry.probe?.version ? (
+                  <span className="ml-2 text-[11px] font-normal text-neutral-500">
+                    {entry.probe.version}
+                  </span>
+                ) : null}
+              </p>
               <StateBadge value={entry.status} />
             </div>
             <p className="mt-1 text-xs leading-5 text-neutral-500">{entry.note}</p>
+            <p className="mt-1 text-[11px] leading-4 text-neutral-600">preuve : {entry.evidence}</p>
           </li>
         ))}
       </ul>

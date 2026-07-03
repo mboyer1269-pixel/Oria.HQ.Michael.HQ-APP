@@ -7,8 +7,11 @@
 // honestly displayable.
 //
 // Honest-state rules encoded here:
-//   - A runtime is never "ready" without probe evidence. No probe exists on
-//     main, so the static board cannot express readiness at all today.
+//   - A runtime is never "ready" without probe evidence. Probe-backed entries
+//     (Local Runtime Probe v1) may claim it only with citeable evidence; the
+//     static fallback board still cannot express readiness at all.
+//   - Detection is not permission: a probe-backed "ready" changes NOTHING on
+//     the dispatch board — corridors stay approval-gated futures.
 //   - Every dispatch corridor requires CEO approval — the type forbids less.
 //   - A failed data source renders "unavailable", never a fake zero.
 //   - Cards cap at MAX_QUEUE_ITEMS intents; the rest becomes an overflow count.
@@ -23,6 +26,7 @@ export type RuntimeDispatchStatus =
   | "unavailable"
   | "blocked"
   | "ready"
+  | "installed_unverified"
   | "future_candidate"
   | "future_tool_corridor";
 
@@ -36,6 +40,12 @@ const STATIC_BOARD_LEGAL_STATUSES: readonly RuntimeDispatchStatus[] = [
   "future_tool_corridor",
 ];
 
+/** Statuses only a probe may claim — and only with citeable evidence. */
+const PROBE_EVIDENCE_REQUIRED_STATUSES: readonly RuntimeDispatchStatus[] = [
+  "ready",
+  "installed_unverified",
+];
+
 export type RuntimeBoardEntry = {
   id: "claude_code_cli" | "codex_cli" | "gemini_cli" | "zapier_mcp";
   label: string;
@@ -43,47 +53,49 @@ export type RuntimeBoardEntry = {
   /** Grounding for the status claim (capability-status idiom). */
   evidence: string;
   note: string;
+  /** Present only on probe-backed entries — the proof behind the status. */
+  probe?: { probedAtIso: string; version: string | null } | null;
 };
 
 /**
- * Static, honest runtime board. The Runtime Gate contracts (PR #325) are not
- * on main and no detection probe exists, so nothing here may claim "ready" —
- * the model validator enforces it and the test pins it.
+ * Static FALLBACK runtime board, shown only when the Local Runtime Probe v1
+ * did not return a result for this render. Without probe evidence nothing
+ * here may claim "ready" — the model validator enforces it, the test pins it.
  */
 export const RUNTIME_STATUS_BOARD: readonly RuntimeBoardEntry[] = [
   {
     id: "claude_code_cli",
     label: "Claude Code CLI",
-    status: "not_configured",
-    evidence: "Runtime Gate PR #325 pending merge; no detection probe exists",
-    note: "Abonnement personnel, login CLI officiel. Probe de détection = prochain mandat.",
+    status: "unavailable",
+    evidence: "Local Runtime Probe v1 did not return a result for this render",
+    note: "Probe indisponible — statut par défaut sans preuve, jamais un faux ready.",
   },
   {
     id: "codex_cli",
     label: "Codex CLI",
-    status: "not_configured",
-    evidence: "Runtime Gate PR #325 pending merge; no detection probe exists",
-    note: "Abonnement personnel, login CLI officiel. Probe de détection = prochain mandat.",
+    status: "unavailable",
+    evidence: "Local Runtime Probe v1 did not return a result for this render",
+    note: "Probe indisponible — statut par défaut sans preuve, jamais un faux ready.",
   },
   {
     id: "gemini_cli",
     label: "Gemini CLI",
-    status: "future_candidate",
-    evidence: "No contract on main; not covered by the Runtime Gate",
-    note: "Candidat futur — aucun contrat, aucun mandat.",
+    status: "unavailable",
+    evidence: "Local Runtime Probe v1 did not return a result for this render",
+    note: "Probe indisponible — statut par défaut sans preuve.",
   },
   {
     id: "zapier_mcp",
     label: "Zapier MCP",
     status: "future_tool_corridor",
-    evidence: "GO-LATER corridor in the Runtime Gate analysis (PR #325)",
+    evidence: "Not probed — tool corridor, no live call in v1 (Runtime Gate analysis)",
     note: "Corridor d'outils futur — dry-run d'abord, jamais le cerveau.",
   },
 ];
 
 export type DispatchCorridorMode =
   | "governed_live"
-  | "blocked_until_probe"
+  | "blocked_until_dispatch_mandate"
   | "future_corridor";
 
 export type DispatchCorridor = {
@@ -114,18 +126,18 @@ export const DISPATCH_CORRIDORS: readonly DispatchCorridor[] = [
   {
     id: "claude_code_cli",
     label: "Claude Code CLI",
-    mode: "blocked_until_probe",
+    mode: "blocked_until_dispatch_mandate",
     requiresApproval: true,
     action: null,
-    note: "Bloqué tant que le Runtime Gate (#325) n'est pas mergé et qu'aucun probe n'existe.",
+    note: "Détectable via le probe v1, mais le corridor de dispatch reste un futur PR — détection ≠ permission.",
   },
   {
     id: "codex_cli",
     label: "Codex CLI",
-    mode: "blocked_until_probe",
+    mode: "blocked_until_dispatch_mandate",
     requiresApproval: true,
     action: null,
-    note: "Bloqué tant que le Runtime Gate (#325) n'est pas mergé et qu'aucun probe n'existe.",
+    note: "Détectable via le probe v1, mais le corridor de dispatch reste un futur PR — détection ≠ permission.",
   },
   {
     id: "zapier_mcp",
@@ -203,6 +215,12 @@ export type TowerNextAction = {
   ctaHref: string;
 };
 
+/** Probe-backed runtime board input, produced by the runtime status source. */
+export type RuntimeBoardInput = {
+  entries: readonly RuntimeBoardEntry[];
+  probedAtIso: string;
+};
+
 /** `null` for a source means the read FAILED — distinct from an empty list. */
 export type CommandTowerInputs = {
   pendingIntents: readonly DecisionQueueItem[] | null;
@@ -215,6 +233,8 @@ export type CommandTowerInputs = {
     items: readonly EvidenceItem[];
     source: "supabase" | "local";
   } | null;
+  /** Optional so older callers/tests keep working; absent = probe unavailable. */
+  runtimeBoard?: RuntimeBoardInput | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -247,8 +267,9 @@ export type CommandTowerModel = {
     source: "supabase" | "local" | null;
   };
   runtimeStatus: {
-    /** The gate contracts are not on main yet — surfaced, not hidden. */
-    gate: "pending_merge";
+    /** "probe_v1" = statuses derived from real local evidence this render. */
+    gate: "probe_v1" | "probe_unavailable";
+    probedAtIso: string | null;
     entries: readonly RuntimeBoardEntry[];
   };
   approvalRail: {
@@ -278,6 +299,34 @@ function buildHeadline(
 }
 
 /**
+ * Honest-mapping pass over probe-backed entries: a status that requires probe
+ * evidence ("ready", "installed_unverified") is downgraded to "unavailable"
+ * when the entry carries no probe proof. Dynamic input degrades, never throws.
+ */
+function sanitizeProbedBoardEntries(
+  entries: readonly RuntimeBoardEntry[],
+): readonly RuntimeBoardEntry[] {
+  return entries.map((entry) => {
+    if (!PROBE_EVIDENCE_REQUIRED_STATUSES.includes(entry.status)) {
+      return entry;
+    }
+    const hasProof =
+      entry.probe != null &&
+      typeof entry.probe.probedAtIso === "string" &&
+      entry.probe.probedAtIso.length > 0 &&
+      entry.evidence.trim().length > 0;
+    if (hasProof) {
+      return entry;
+    }
+    return {
+      ...entry,
+      status: "unavailable",
+      note: `${entry.note} — déclassé : statut « ${entry.status} » réclamé sans preuve de probe.`,
+    };
+  });
+}
+
+/**
  * Assembles the tower view-model. Deterministic: same inputs, same output.
  * Never throws on malformed availability — a missing source is a state.
  */
@@ -290,6 +339,8 @@ export function buildCommandTowerModel(inputs: CommandTowerInputs): CommandTower
       );
     }
   }
+
+  const runtimeBoard = inputs.runtimeBoard ?? null;
 
   const intents = inputs.pendingIntents;
   const pendingCount = intents === null ? null : intents.length;
@@ -321,10 +372,14 @@ export function buildCommandTowerModel(inputs: CommandTowerInputs): CommandTower
       items: evidenceItems,
       source: evidence === null ? null : evidence.source,
     },
-    runtimeStatus: {
-      gate: "pending_merge",
-      entries: RUNTIME_STATUS_BOARD,
-    },
+    runtimeStatus:
+      runtimeBoard === null
+        ? { gate: "probe_unavailable", probedAtIso: null, entries: RUNTIME_STATUS_BOARD }
+        : {
+            gate: "probe_v1",
+            probedAtIso: runtimeBoard.probedAtIso,
+            entries: sanitizeProbedBoardEntries(runtimeBoard.entries),
+          },
     approvalRail: {
       state: intents === null ? "unavailable" : intents.length === 0 ? "empty" : "ready",
       pendingCount,
