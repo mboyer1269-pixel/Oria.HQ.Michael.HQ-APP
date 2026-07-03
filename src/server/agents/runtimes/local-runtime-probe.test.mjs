@@ -354,4 +354,58 @@ test("Local Runtime Probe v1 contract", async (t) => {
       assert.ok(!entry.evidence.join(" ").includes("micha@example.com"));
     }
   });
+
+  await t.test("14. cloud environment disables the probe — zero spawn, honest fallback", async () => {
+    const { resolveProbeExecutionEnvironment } = mod;
+    for (const marker of ["VERCEL", "VERCEL_ENV", "AWS_LAMBDA_FUNCTION_NAME", "K_SERVICE"]) {
+      const decision = resolveProbeExecutionEnvironment({ [marker]: "1" });
+      assert.equal(decision.allowed, false, `${marker} must forbid the probe`);
+      assert.equal(decision.environment, "cloud");
+    }
+    // The opt-in flag can NOT override a cloud marker.
+    const flagged = resolveProbeExecutionEnvironment({
+      VERCEL: "1",
+      ORIA_ENABLE_LOCAL_RUNTIME_PROBE: "1",
+    });
+    assert.equal(flagged.allowed, false);
+    // Defense in depth: a runner created in a cloud env refuses to spawn.
+    const cloudRunner = createExecFileProbeRunner(LOCAL_RUNTIME_PROBE_APPROVAL, {
+      env: { VERCEL: "1" },
+    });
+    const outcome = await cloudRunner(PROBE_COMMAND_ALLOWLIST[0]);
+    assert.equal(outcome.kind, "rejected");
+    assert.match(outcome.reason, /cloud/);
+  });
+
+  await t.test("15. production without explicit local flag never spawns", async () => {
+    const { resolveProbeExecutionEnvironment } = mod;
+    const unflagged = resolveProbeExecutionEnvironment({ NODE_ENV: "production" });
+    assert.equal(unflagged.allowed, false);
+    assert.equal(unflagged.environment, "production_unflagged");
+    const prodRunner = createExecFileProbeRunner(LOCAL_RUNTIME_PROBE_APPROVAL, {
+      env: { NODE_ENV: "production" },
+    });
+    const outcome = await prodRunner(PROBE_COMMAND_ALLOWLIST[0]);
+    assert.equal(outcome.kind, "rejected");
+    // Explicit local opt-in on a NON-cloud machine is the only production path.
+    const optedIn = resolveProbeExecutionEnvironment({
+      NODE_ENV: "production",
+      ORIA_ENABLE_LOCAL_RUNTIME_PROBE: "1",
+    });
+    assert.equal(optedIn.allowed, true);
+    assert.equal(optedIn.environment, "local_explicit");
+  });
+
+  await t.test("16. local/personal mode may run the allowlisted probe — allowlist still gates", async () => {
+    const { resolveProbeExecutionEnvironment } = mod;
+    const dev = resolveProbeExecutionEnvironment({ NODE_ENV: "development" });
+    assert.equal(dev.allowed, true);
+    assert.equal(dev.environment, "local_dev");
+    // Even in a sanctioned environment, the allowlist still gates every call.
+    const localRunner = createExecFileProbeRunner(LOCAL_RUNTIME_PROBE_APPROVAL, {
+      env: { NODE_ENV: "development" },
+    });
+    const foreign = await localRunner({ id: "rm_all", binary: "rm", args: ["-rf", "/"] });
+    assert.equal(foreign.kind, "rejected");
+  });
 });

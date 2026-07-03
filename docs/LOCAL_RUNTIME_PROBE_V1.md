@@ -90,6 +90,14 @@ jamais probé, aucun live call en v1. Entrée statique sur le board.
 4. **Approbation écrite obligatoire** (invariant 11 du contrat #325) : le
    runner par défaut refuse de spawner si `LOCAL_RUNTIME_PROBE_APPROVAL` n'est
    pas `approved` avec une référence valide.
+4b. **Gate d'environnement local/cloud** (`resolveProbeExecutionEnvironment`) :
+   le probe est local/personnel uniquement. Tout marqueur cloud (`VERCEL`,
+   `VERCEL_ENV`, `AWS_LAMBDA_FUNCTION_NAME`, `K_SERVICE`, `FLY_APP_NAME`,
+   `RENDER`) interdit le spawn — même flaggé. Un build production ne spawne
+   qu'avec `ORIA_ENABLE_LOCAL_RUNTIME_PROBE=1` explicite. Double couche : la
+   source Command Tower bail out AVANT tout spawn (fallback honnête
+   `probe_unavailable`) et le runner refuse en défense en profondeur. En
+   cloud, zéro subprocess sur requête serveur, jamais.
 5. **Timeout court** (10 s) + `maxBuffer` 1 Mo + `windowsHide`.
 6. **Rédaction systématique** : emails, UUIDs, clés `sk-…`, Bearer, JWT,
    chemins home, tokens ≥ 32 chars → caviardés avant tout stockage/affichage.

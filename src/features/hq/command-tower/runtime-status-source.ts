@@ -12,6 +12,7 @@
 
 import {
   probeLocalRuntimes,
+  resolveProbeExecutionEnvironment,
   type LocalRuntimeProbeSnapshot,
   type ProbedRuntimeEntry,
 } from "@/server/agents/runtimes/local-runtime-probe";
@@ -61,6 +62,11 @@ let cachedBoard: { at: number; value: RuntimeBoardInput } | null = null;
  * probe module failure) yields null so the tower renders its honest fallback.
  */
 export async function loadRuntimeStatusBoard(): Promise<RuntimeBoardInput | null> {
+  // Cloud hosts and unflagged production builds bail out BEFORE any spawn —
+  // a personal probe belongs on Michael's machine and nowhere else.
+  if (!resolveProbeExecutionEnvironment(process.env).allowed) {
+    return null;
+  }
   const now = Date.now();
   if (cachedBoard && now - cachedBoard.at < PROBE_CACHE_TTL_MS) {
     return cachedBoard.value;

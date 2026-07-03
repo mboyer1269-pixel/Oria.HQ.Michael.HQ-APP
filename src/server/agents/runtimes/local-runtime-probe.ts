@@ -41,6 +41,72 @@ export const LOCAL_RUNTIME_PROBE_APPROVAL: LocalRuntimeSubprocessPolicy = {
 };
 
 // ---------------------------------------------------------------------------
+// Execution environment gate — local/personal ONLY, never the cloud
+// ---------------------------------------------------------------------------
+
+/**
+ * Explicit opt-in required to spawn in a local production build. Reading the
+ * flag is the only env access this module makes; nothing is ever written.
+ */
+export const LOCAL_PROBE_OPT_IN_ENV_VAR = "ORIA_ENABLE_LOCAL_RUNTIME_PROBE";
+
+/** Presence of any of these means a cloud/serverless host — never spawn. */
+const CLOUD_ENV_MARKERS: readonly string[] = [
+  "VERCEL",
+  "VERCEL_ENV",
+  "AWS_LAMBDA_FUNCTION_NAME",
+  "K_SERVICE",
+  "FLY_APP_NAME",
+  "RENDER",
+];
+
+export type ProbeEnvironmentDecision = {
+  allowed: boolean;
+  environment: "local_dev" | "local_explicit" | "cloud" | "production_unflagged";
+  reason: string;
+};
+
+/**
+ * Decides whether this process is a sanctioned place to spawn the probe.
+ * A personal subscription probe belongs on Michael's machine and nowhere
+ * else: any cloud marker wins over every flag, and a production build only
+ * qualifies with the explicit local opt-in. Pure — env is a parameter.
+ */
+export function resolveProbeExecutionEnvironment(
+  env: Readonly<Record<string, string | undefined>>,
+): ProbeEnvironmentDecision {
+  const marker = CLOUD_ENV_MARKERS.find(
+    (key) => typeof env[key] === "string" && env[key] !== "",
+  );
+  if (marker) {
+    return {
+      allowed: false,
+      environment: "cloud",
+      reason: `cloud marker "${marker}" present — a personal local probe never runs in the cloud, even when flagged`,
+    };
+  }
+  if (env.NODE_ENV === "production") {
+    if (env[LOCAL_PROBE_OPT_IN_ENV_VAR] !== "1") {
+      return {
+        allowed: false,
+        environment: "production_unflagged",
+        reason: `production build without ${LOCAL_PROBE_OPT_IN_ENV_VAR}=1 — no explicit local opt-in, no spawn`,
+      };
+    }
+    return {
+      allowed: true,
+      environment: "local_explicit",
+      reason: `production build explicitly flagged local via ${LOCAL_PROBE_OPT_IN_ENV_VAR}=1`,
+    };
+  }
+  return {
+    allowed: true,
+    environment: "local_dev",
+    reason: "non-production local environment — personal probe sanctioned",
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Allowlist — the ONLY commands this module may ever run
 // ---------------------------------------------------------------------------
 
@@ -307,13 +373,21 @@ function normalizeWindowsShellOutcome(outcome: ProbeCommandOutcome): ProbeComman
  * exists anywhere in this code path. POSIX never uses a shell.
  *
  * An invalid approval turns the runner into a refusal machine: every command
- * is rejected, nothing spawns (contract invariant 11).
+ * is rejected, nothing spawns (contract invariant 11). Same for a forbidden
+ * execution environment: cloud hosts and unflagged production builds get a
+ * runner that refuses everything — defense in depth behind the source's own
+ * early bail.
  */
 export function createExecFileProbeRunner(
   approval: LocalRuntimeSubprocessPolicy,
-  options?: { timeoutMs?: number },
+  options?: {
+    timeoutMs?: number;
+    /** Injectable for tests; defaults to the real process environment. */
+    env?: Readonly<Record<string, string | undefined>>;
+  },
 ): ProbeCommandRunner {
   const timeoutMs = options?.timeoutMs ?? PROBE_COMMAND_TIMEOUT_MS;
+  const environment = resolveProbeExecutionEnvironment(options?.env ?? process.env);
   const approvalValid =
     approval !== null &&
     typeof approval === "object" &&
@@ -322,6 +396,12 @@ export function createExecFileProbeRunner(
     approval.approvalReference.trim().length >= 8;
 
   return async (command) => {
+    if (!environment.allowed) {
+      return {
+        kind: "rejected",
+        reason: `execution environment forbidden: ${environment.reason}`,
+      };
+    }
     if (!approvalValid) {
       return {
         kind: "rejected",
