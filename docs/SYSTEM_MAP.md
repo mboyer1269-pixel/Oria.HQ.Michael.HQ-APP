@@ -16,16 +16,16 @@
 |---|---|
 | LIVE | 368 |
 | TEST_ONLY | 9 |
-| INCUBATION | 48 |
-| **Total source** | **425** |
+| INCUBATION | 52 |
+| **Total source** | **429** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
+| server/agents | 11 |
 | features/cockpit | 9 |
 | features/memory | 7 |
-| server/agents | 7 |
 | features/ventures | 6 |
 | server/ventures | 4 |
 | server/missions | 3 |
@@ -75,6 +75,10 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/check-supabase-config.ts`
 - `src/scripts/mcl-archive-dir.ts`
 - `src/scripts/process-document.ts`
+- `src/server/agents/models/agent-model-profile-contract.ts`
+- `src/server/agents/models/model-provider-contract.ts`
+- `src/server/agents/models/model-selection-policy.ts`
+- `src/server/agents/models/provider-registry-contract.ts`
 - `src/server/agents/providers/adapter-provider-contract.ts`
 - `src/server/agents/providers/cli-runtime-provider-contract.ts`
 - `src/server/agents/providers/mailbox-provider-contract.ts`
