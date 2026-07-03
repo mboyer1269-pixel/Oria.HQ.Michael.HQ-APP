@@ -14,10 +14,10 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 361 |
+| LIVE | 365 |
 | TEST_ONLY | 9 |
-| INCUBATION | 43 |
-| **Total source** | **413** |
+| INCUBATION | 41 |
+| **Total source** | **415** |
 
 ## Incubation by area (built, not wired)
 
@@ -29,7 +29,6 @@
 | server/ventures | 4 |
 | server/missions | 3 |
 | server/arena | 2 |
-| server/decision-spine | 2 |
 | features/agents | 1 |
 | features/hq | 1 |
 | features/outbound | 1 |
@@ -79,8 +78,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
-- `src/server/decision-spine/collect-decision-signals.ts`
-- `src/server/decision-spine/next-best-action.ts`
 - `src/server/missions/approval-record-repository.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
