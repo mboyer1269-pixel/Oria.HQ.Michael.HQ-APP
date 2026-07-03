@@ -16,19 +16,19 @@
 |---|---|
 | LIVE | 361 |
 | TEST_ONLY | 9 |
-| INCUBATION | 44 |
-| **Total source** | **414** |
+| INCUBATION | 50 |
+| **Total source** | **420** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
 | features/cockpit | 9 |
+| server/agents | 8 |
 | features/memory | 7 |
 | features/ventures | 6 |
 | server/ventures | 4 |
 | server/missions | 3 |
-| server/agents | 2 |
 | server/arena | 2 |
 | server/decision-spine | 2 |
 | features/agents | 1 |
@@ -75,6 +75,12 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/check-supabase-config.ts`
 - `src/scripts/mcl-archive-dir.ts`
 - `src/scripts/process-document.ts`
+- `src/server/agents/providers/adapter-provider-contract.ts`
+- `src/server/agents/providers/cli-runtime-provider-contract.ts`
+- `src/server/agents/providers/mailbox-provider-contract.ts`
+- `src/server/agents/providers/tool-provider-contract.ts`
+- `src/server/agents/providers/web-automation-provider-contract.ts`
+- `src/server/agents/providers/workflow-runtime-provider-contract.ts`
 - `src/server/agents/runtimes/local-runtime-contract.ts`
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
 - `src/server/ai/free-model-catalog.ts`
