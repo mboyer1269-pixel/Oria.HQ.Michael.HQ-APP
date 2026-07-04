@@ -102,6 +102,24 @@ Header always includes: `read-only · advisory · no execution authorized`.
 
 Other intents (calendar, mission, governance, etc.) are unchanged. Memex enrichment and fallback behavior in `memex-context-source.ts` is unchanged.
 
+## Golden smoke coverage
+
+Deterministic local smoke: `npm run smoke:joris:memex-evidence`
+
+| Scenario | Guarantee |
+|----------|-----------|
+| `board.consult` + enriched `memoryContext` | Preview appended with metadata (sourceCount, confidence, freshness) |
+| `brief.generate` + enriched `memoryContext` | Preview appended |
+| Memex fallback | Preview shows `fallbackReason` and `sourceCount: 0`; fallback `memoryContext` unchanged |
+| Unauthorized intent (e.g. `calendar.book`) | Summary unchanged — no preview |
+| `memoryContext` absent | No preview |
+| Sensitive-data scan | Preview excludes raw memory text, memoryIds, provenance paths, namespaces, secrets |
+| `joris.memex.summary` payload | Log-safe counts/labels only |
+
+**How to run:** from repo root, `npm run smoke:joris:memex-evidence`. Uses fixtures and mock Memex transport only — no real Memex, MCP, network, or secrets.
+
+**What it does NOT guarantee:** end-to-end Joris LLM replies, real Memex MCP handshake against memex-core, Supabase/vault persistence, UI rendering, Sentinelle/Ledger behavior, or production env configuration. Unit tests in `memex-memory-evidence-summary.test.mjs` and `memex-context-source.test.mjs` cover additional edge cases.
+
 ## Corridor preservation (#332)
 
 This document and observability helpers add **no** new MCP tools, transport paths, allowlist entries, write operations, or DB persistence. Handshake gate and fail-closed fallback behavior are unchanged.
