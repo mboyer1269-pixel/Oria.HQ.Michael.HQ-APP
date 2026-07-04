@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "check:supabase": "node --experimental-strip-types src/scripts/check-supabase-config.ts",
     "smoke:joris": "node src/scripts/smoke/joris-booking.mjs",
+    "smoke:joris:memex-evidence": "node src/scripts/smoke/joris-memex-evidence.mjs",
     "smoke:revenue": "node src/scripts/smoke/revenue-readiness.mjs",
     "smoke:runtime": "node src/scripts/smoke/runtime-health-echo.mjs",
     "smoke:agent-execute": "node src/scripts/smoke/agent-execute.mjs",
