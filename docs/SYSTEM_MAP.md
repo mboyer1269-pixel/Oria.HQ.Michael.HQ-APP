@@ -14,16 +14,16 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 368 |
+| LIVE | 373 |
 | TEST_ONLY | 9 |
-| INCUBATION | 54 |
-| **Total source** | **431** |
+| INCUBATION | 52 |
+| **Total source** | **434** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
-| server/agents | 13 |
+| server/agents | 12 |
 | features/cockpit | 9 |
 | features/memory | 7 |
 | features/ventures | 6 |
@@ -39,7 +39,6 @@
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
 | server/ai | 1 |
-| server/mcp | 1 |
 
 ## Incubation files (full list)
 
@@ -75,7 +74,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/check-supabase-config.ts`
 - `src/scripts/mcl-archive-dir.ts`
 - `src/scripts/process-document.ts`
-- `src/server/agents/evidence/memory-evidence-pack.ts`
 - `src/server/agents/evidence/runtime-evidence-pack.ts`
 - `src/server/agents/models/agent-model-profile-contract.ts`
 - `src/server/agents/models/model-provider-contract.ts`
@@ -91,7 +89,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
-- `src/server/mcp/memex-bridge-contract.ts`
 - `src/server/missions/approval-record-repository.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
