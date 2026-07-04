@@ -65,6 +65,8 @@ When Memex enrichment succeeds, a compact **Memex Memory Evidence Summary** bloc
 
 On unavailable / fallback paths, `memoryContext` stays unchanged; `evidenceSummary` still carries explicit fallback reasons without fabricating memory sources.
 
+See also: `docs/MEMEX_MEMORY_EVIDENCE_OBSERVABILITY_V1.md` for structured log fields and intentional non-exposure rules.
+
 ## Fallback behavior
 
 Fail closed at every layer:

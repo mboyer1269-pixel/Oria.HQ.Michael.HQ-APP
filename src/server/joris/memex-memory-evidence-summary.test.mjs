@@ -20,7 +20,13 @@ test("Memex Memory Evidence summary", async (t) => {
   });
 
   const mod = await jiti.import(path.join(__dirname, "memex-memory-evidence-summary.ts"));
-  const { summarizeMemexMemoryEvidence, formatMemexMemoryEvidenceSummaryForContext } = mod;
+  const {
+    summarizeMemexMemoryEvidence,
+    formatMemexMemoryEvidenceSummaryForContext,
+    buildMemexMemoryEvidenceObservabilityPayload,
+    isMemexEvidenceSummaryBlockCompact,
+    MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
+  } = mod;
 
   const pack = {
     packVersion: 1,
@@ -109,5 +115,56 @@ test("Memex Memory Evidence summary", async (t) => {
     assert.ok(block.includes("sourceCount: 1"));
     assert.ok(block.includes("confidence: medium"));
     assert.ok(block.includes("fallbackReasons: none"));
+  });
+
+  await t.test("observability payload stays compact and log-safe", () => {
+    const sensitiveBrief = "sk-live-SECRET-token-never-log-this";
+    const summary = summarizeMemexMemoryEvidence({
+      evidencePack: {
+        ...pack,
+        memoryIds: [sensitiveBrief],
+      },
+      trace: {
+        status: "enriched",
+        reason: `injected with ${sensitiveBrief}`,
+      },
+      nowIso: "2026-07-04T20:00:00.000Z",
+    });
+    const block = formatMemexMemoryEvidenceSummaryForContext(summary);
+    const payload = buildMemexMemoryEvidenceObservabilityPayload({
+      summary,
+      evidencePackValid: true,
+    });
+
+    assert.ok(isMemexEvidenceSummaryBlockCompact(block));
+    assert.ok(!block.includes(sensitiveBrief));
+    assert.ok(!block.includes("sk-live-SECRET"));
+    assert.deepEqual(Object.keys(payload).sort(), [
+      "ageDays",
+      "confidence",
+      "evidencePackValid",
+      "fallbackReasonCount",
+      "sourceCount",
+      "status",
+    ]);
+    assert.equal(payload.fallbackReasonCount, 0);
+    assert.equal(MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT, "joris.memex.summary");
+    assert.equal(JSON.stringify(payload).includes("limitations"), false);
+    assert.equal(JSON.stringify(payload).includes(sensitiveBrief), false);
+  });
+
+  await t.test("fallback summary exposes fallbackReasons without fabricating sources", () => {
+    const summary = summarizeMemexMemoryEvidence({
+      evidencePack: null,
+      trace: { status: "unavailable", reason: "MEMEX_CORE_ROOT unset" },
+      nowIso: "2026-07-04T20:00:00.000Z",
+    });
+    const payload = buildMemexMemoryEvidenceObservabilityPayload({ summary });
+
+    assert.equal(summary.sourceCount, 0);
+    assert.equal(summary.confidence, "none");
+    assert.ok(summary.fallbackReasons.length > 0);
+    assert.equal(payload.fallbackReasonCount, 1);
+    assert.equal(payload.sourceCount, 0);
   });
 });

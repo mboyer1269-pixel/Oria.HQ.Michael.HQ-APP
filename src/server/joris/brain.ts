@@ -51,6 +51,10 @@ import {
   enrichJorisMemoryContextWithMemex,
   type MemexContextEnrichmentResult,
 } from "@/server/joris/memex-context-source";
+import {
+  buildMemexMemoryEvidenceObservabilityPayload,
+  MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
+} from "@/server/joris/memex-memory-evidence-summary";
 import type { MemoryVaultReadResult } from "@/server/memory/memory-vault-types";
 
 const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
@@ -291,14 +295,13 @@ export async function runJorisCommand(
   if (memexEnrichment.trace.status === "enriched" && memexEnrichment.memoryContext !== null) {
     memoryContext = memexEnrichment.memoryContext;
   }
-  logger.info("joris.memex.summary", {
-    status: memexEnrichment.evidenceSummary.status,
-    sourceCount: memexEnrichment.evidenceSummary.sourceCount,
-    confidence: memexEnrichment.evidenceSummary.confidence,
-    ageDays: memexEnrichment.evidenceSummary.freshness.ageDays,
-    fallbackReasonCount: memexEnrichment.evidenceSummary.fallbackReasons.length,
-    evidencePackValid: memexEnrichment.trace.evidencePackValid ?? false,
-  });
+  logger.info(
+    MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
+    buildMemexMemoryEvidenceObservabilityPayload({
+      summary: memexEnrichment.evidenceSummary,
+      evidencePackValid: memexEnrichment.trace.evidencePackValid ?? false,
+    }),
+  );
 
   const route = chooseModel({
     message,

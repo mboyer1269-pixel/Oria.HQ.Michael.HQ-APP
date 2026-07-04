@@ -91,3 +91,40 @@ export function formatMemexMemoryEvidenceSummaryForContext(
     "---",
   ].join("\n");
 }
+
+/** Structured log event name for Memex evidence observability (read-only metadata). */
+export const MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT = "joris.memex.summary" as const;
+
+/** Upper bound for the formatted summary block — keeps agent context compact. */
+export const MEMEX_EVIDENCE_SUMMARY_BLOCK_MAX_CHARS = 1200;
+
+export type MemexMemoryEvidenceObservabilityPayload = {
+  status: MemexMemoryEvidenceSummary["status"];
+  sourceCount: number;
+  confidence: MemexMemoryEvidenceConfidence;
+  ageDays: number | null;
+  fallbackReasonCount: number;
+  evidencePackValid: boolean;
+};
+
+/**
+ * Log-safe observability payload — counts and labels only.
+ * Never includes raw memory content, secrets, tool names from packs, or fallback reason text.
+ */
+export function buildMemexMemoryEvidenceObservabilityPayload(input: {
+  summary: MemexMemoryEvidenceSummary;
+  evidencePackValid?: boolean;
+}): MemexMemoryEvidenceObservabilityPayload {
+  return {
+    status: input.summary.status,
+    sourceCount: input.summary.sourceCount,
+    confidence: input.summary.confidence,
+    ageDays: input.summary.freshness.ageDays,
+    fallbackReasonCount: input.summary.fallbackReasons.length,
+    evidencePackValid: input.evidencePackValid ?? false,
+  };
+}
+
+export function isMemexEvidenceSummaryBlockCompact(block: string): boolean {
+  return block.length <= MEMEX_EVIDENCE_SUMMARY_BLOCK_MAX_CHARS;
+}
