@@ -56,6 +56,9 @@ jobs:
       - name: Joris smoke test
         run: npm run smoke:joris
 
+      - name: Joris Memex evidence smoke test
+        run: npm run smoke:joris:memex-evidence
+
       - name: Unit tests
         run: npm test
 
