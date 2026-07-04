@@ -128,3 +128,73 @@ export function buildMemexMemoryEvidenceObservabilityPayload(input: {
 export function isMemexEvidenceSummaryBlockCompact(block: string): boolean {
   return block.length <= MEMEX_EVIDENCE_SUMMARY_BLOCK_MAX_CHARS;
 }
+
+const PREVIEW_LIMITATION_LABELS = ["advisory-only", "read-only-v1", "oria-authority"] as const;
+
+const PREVIEW_MAX_FALLBACK_REASON_CHARS = 120;
+
+function truncatePreviewReason(reason: string): string {
+  return reason.length <= PREVIEW_MAX_FALLBACK_REASON_CHARS
+    ? reason
+    : `${reason.slice(0, PREVIEW_MAX_FALLBACK_REASON_CHARS - 1)}…`;
+}
+
+/**
+ * Short, human-readable preview for selected Joris intents.
+ * Metadata only — never includes raw memory text, provenance paths, or secrets.
+ */
+export function buildMemexMemoryEvidencePreview(summary: MemexMemoryEvidenceSummary): string {
+  const freshnessLabel =
+    summary.freshness.ageDays === null ? "unavailable" : `${summary.freshness.ageDays} day(s) old`;
+  const limitationLabels = PREVIEW_LIMITATION_LABELS.slice(
+    0,
+    Math.min(PREVIEW_LIMITATION_LABELS.length, summary.limitations.length),
+  );
+  const fallbackShort =
+    summary.fallbackReasons.length === 0
+      ? null
+      : truncatePreviewReason(summary.fallbackReasons[0]!);
+
+  const lines = [
+    "--- Memex Evidence Preview (read-only · advisory · no execution authorized) ---",
+    `status: ${summary.status}`,
+    `sourceCount: ${summary.sourceCount}`,
+    `confidence: ${summary.confidence}`,
+    `freshnessAgeDays: ${freshnessLabel}`,
+    `limitationsCount: ${summary.limitations.length}`,
+  ];
+
+  if (limitationLabels.length > 0) {
+    lines.push(`limitationLabels: ${limitationLabels.join(", ")}`);
+  }
+
+  lines.push(
+    fallbackShort
+      ? `fallbackReasons: ${summary.fallbackReasons.length} (${fallbackShort})`
+      : "fallbackReasons: none",
+  );
+  lines.push("---");
+
+  return lines.join("\n");
+}
+
+export function shouldAttachMemexEvidencePreview(
+  intent: string,
+  memoryContext: string | null,
+): boolean {
+  return memoryContext !== null && (intent === "board.consult" || intent === "brief.generate");
+}
+
+export function withMemexEvidencePreview(
+  summaryText: string,
+  input: {
+    intent: string;
+    memoryContext: string | null;
+    evidenceSummary: MemexMemoryEvidenceSummary;
+  },
+): string {
+  if (!shouldAttachMemexEvidencePreview(input.intent, input.memoryContext)) {
+    return summaryText;
+  }
+  return `${summaryText}\n\n${buildMemexMemoryEvidencePreview(input.evidenceSummary)}`;
+}

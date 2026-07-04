@@ -54,6 +54,7 @@ import {
 import {
   buildMemexMemoryEvidenceObservabilityPayload,
   MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
+  withMemexEvidencePreview,
 } from "@/server/joris/memex-memory-evidence-summary";
 import type { MemoryVaultReadResult } from "@/server/memory/memory-vault-types";
 
@@ -303,6 +304,13 @@ export async function runJorisCommand(
     }),
   );
 
+  const attachMemexPreview = (summaryText: string, intent: JorisIntent) =>
+    withMemexEvidencePreview(summaryText, {
+      intent,
+      memoryContext,
+      evidenceSummary: memexEnrichment.evidenceSummary,
+    });
+
   const route = chooseModel({
     message,
     highImpact: false,
@@ -443,7 +451,7 @@ export async function runJorisCommand(
 
     return {
       intent,
-      summary: briefSummary,
+      summary: attachMemexPreview(briefSummary, "brief.generate"),
       modelId: routedModel.model.id,
       costMode: routedModel.mode,
       ...workspaceMeta,
@@ -596,7 +604,7 @@ export async function runJorisCommand(
         : llmReply.text;
     return {
       intent,
-      summary,
+      summary: attachMemexPreview(summary, intent),
       modelId: llmReply.modelId,
       // The shared provider uses a low-cost default model; report an honest
       // conservative cost mode rather than the routed (possibly premium) one.
@@ -615,7 +623,7 @@ export async function runJorisCommand(
 
   return {
     intent,
-    summary: finalSummary,
+    summary: attachMemexPreview(finalSummary, intent),
     modelId: routedModel.model.id,
     costMode: routedModel.mode,
     ...workspaceMeta,
