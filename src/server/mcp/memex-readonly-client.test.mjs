@@ -160,6 +160,44 @@ test("Memex Read-Only Client v1", async (t) => {
     });
     assert.equal(cloud.spawnAllowed, false);
     assert.equal(cloud.kind, "cloud");
+
+    const ci = resolveMemexExecutionEnvironment({
+      CI: "true",
+      [MEMEX_CORE_ROOT_ENV_VAR]: "/tmp/memex-core",
+    });
+    assert.equal(ci.spawnAllowed, false);
+    assert.equal(ci.kind, "cloud");
+
+    const lambda = resolveMemexExecutionEnvironment({
+      LAMBDA_TASK_ROOT: "/var/task",
+      [MEMEX_CORE_ROOT_ENV_VAR]: "/tmp/memex-core",
+    });
+    assert.equal(lambda.spawnAllowed, false);
+  });
+
+  await t.test("production without opt-in blocks spawn", () => {
+    const env = resolveMemexExecutionEnvironment({
+      NODE_ENV: "production",
+      [MEMEX_CORE_ROOT_ENV_VAR]: "/tmp/memex-core",
+    });
+    assert.equal(env.spawnAllowed, false);
+    assert.equal(env.kind, "production_unflagged");
+  });
+
+  await t.test("local explicit production opt-in allows spawn", () => {
+    const env = resolveMemexExecutionEnvironment({
+      NODE_ENV: "production",
+      [MEMEX_CORE_ROOT_ENV_VAR]: "/tmp/memex-core",
+      [MEMEX_READONLY_OPT_IN_ENV_VAR]: "1",
+    });
+    assert.equal(env.spawnAllowed, true);
+    assert.equal(env.kind, "local_explicit");
+  });
+
+  await t.test("unknown tool rejected", () => {
+    assert.equal(isMemexReadToolPermitted("agentmemory_unknown_tool"), false);
+    const discovery = validateMemexToolDiscovery(["agentmemory_unknown_tool"]);
+    assert.equal(discovery.ok, false);
   });
 
   await t.test("13. no secrets required — unconfigured env is unavailable not error", () => {

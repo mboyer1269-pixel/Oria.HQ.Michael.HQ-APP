@@ -72,7 +72,7 @@ No throws toward Joris; transport cleanup errors are swallowed.
 
 ## Cloud behavior
 
-Cloud env markers (`VERCEL`, `AWS_LAMBDA_FUNCTION_NAME`, …) set `spawnAllowed: false`. Joris continues with vault-only context. Cloud does **not** spawn a local Memex process.
+Cloud env markers (`VERCEL`, `AWS_LAMBDA_FUNCTION_NAME`, `LAMBDA_TASK_ROOT`, `CI`, `GITHUB_ACTIONS`, …) set `spawnAllowed: false`. Joris continues with vault-only context. Cloud does **not** spawn a local Memex process.
 
 ## Security boundaries
 
