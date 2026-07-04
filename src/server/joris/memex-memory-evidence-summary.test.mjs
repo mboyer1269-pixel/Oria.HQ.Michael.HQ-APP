@@ -24,6 +24,9 @@ test("Memex Memory Evidence summary", async (t) => {
     summarizeMemexMemoryEvidence,
     formatMemexMemoryEvidenceSummaryForContext,
     buildMemexMemoryEvidenceObservabilityPayload,
+    buildMemexMemoryEvidencePreview,
+    shouldAttachMemexEvidencePreview,
+    withMemexEvidencePreview,
     isMemexEvidenceSummaryBlockCompact,
     MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
   } = mod;
@@ -166,5 +169,90 @@ test("Memex Memory Evidence summary", async (t) => {
     assert.ok(summary.fallbackReasons.length > 0);
     assert.equal(payload.fallbackReasonCount, 1);
     assert.equal(payload.sourceCount, 0);
+  });
+
+  await t.test("enriched preview includes sourceCount confidence freshness", () => {
+    const summary = summarizeMemexMemoryEvidence({
+      evidencePack: pack,
+      trace: { status: "enriched", reason: "ok" },
+      nowIso: "2026-07-04T20:00:00.000Z",
+    });
+    const preview = buildMemexMemoryEvidencePreview(summary);
+
+    assert.ok(preview.includes("Memex Evidence Preview"));
+    assert.ok(preview.includes("read-only"));
+    assert.ok(preview.includes("no execution authorized"));
+    assert.ok(preview.includes("sourceCount: 1"));
+    assert.ok(preview.includes("confidence: medium"));
+    assert.ok(preview.includes("freshnessAgeDays: 1 day(s) old"));
+    assert.ok(preview.includes("fallbackReasons: none"));
+  });
+
+  await t.test("fallback preview explains reason without inventing sources", () => {
+    const summary = summarizeMemexMemoryEvidence({
+      evidencePack: null,
+      trace: { status: "fallback", reason: "empty or invalid Memex selection" },
+      nowIso: "2026-07-04T20:00:00.000Z",
+    });
+    const preview = buildMemexMemoryEvidencePreview(summary);
+
+    assert.ok(preview.includes("sourceCount: 0"));
+    assert.ok(preview.includes("confidence: none"));
+    assert.ok(preview.includes("fallbackReasons: 1"));
+    assert.ok(preview.includes("empty or invalid Memex selection"));
+  });
+
+  await t.test("preview never includes raw memory content or secrets", () => {
+    const secret = "sk-live-RAW-MEMORY-CONTENT-NEVER-PREVIEW";
+    const summary = summarizeMemexMemoryEvidence({
+      evidencePack: {
+        ...pack,
+        memoryIds: [secret],
+        provenance: [
+          {
+            memoryId: secret,
+            sourceTool: "agentmemory_librarian_brief",
+            namespace: "michael.hq",
+            retrievedAtIso: "2026-07-03T20:00:00.000Z",
+          },
+        ],
+      },
+      trace: { status: "enriched", reason: secret },
+      nowIso: "2026-07-04T20:00:00.000Z",
+    });
+    const preview = buildMemexMemoryEvidencePreview(summary);
+
+    assert.ok(!preview.includes(secret));
+    assert.ok(!preview.includes("sk-live-RAW-MEMORY"));
+    assert.ok(!preview.includes("agentmemory_librarian_brief"));
+  });
+
+  await t.test("withMemexEvidencePreview attaches only for board.consult and brief.generate", () => {
+    const summary = summarizeMemexMemoryEvidence({
+      evidencePack: pack,
+      trace: { status: "enriched", reason: "ok" },
+      nowIso: "2026-07-04T20:00:00.000Z",
+    });
+    const base = "Base response text";
+
+    assert.equal(shouldAttachMemexEvidencePreview("board.consult", "vault context"), true);
+    assert.equal(shouldAttachMemexEvidencePreview("brief.generate", "vault context"), true);
+    assert.equal(shouldAttachMemexEvidencePreview("calendar.book", "vault context"), false);
+    assert.equal(shouldAttachMemexEvidencePreview("board.consult", null), false);
+
+    const withPreview = withMemexEvidencePreview(base, {
+      intent: "board.consult",
+      memoryContext: "vault context",
+      evidenceSummary: summary,
+    });
+    assert.notEqual(withPreview, base);
+    assert.ok(withPreview.includes("Memex Evidence Preview"));
+
+    const unchanged = withMemexEvidencePreview(base, {
+      intent: "mission.plan",
+      memoryContext: "vault context",
+      evidenceSummary: summary,
+    });
+    assert.equal(unchanged, base);
   });
 });

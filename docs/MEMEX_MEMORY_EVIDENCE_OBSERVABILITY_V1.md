@@ -88,6 +88,20 @@ Log-safe fields only (via `buildMemexMemoryEvidenceObservabilityPayload`):
 
 Formatted summary blocks must stay ≤ `MEMEX_EVIDENCE_SUMMARY_BLOCK_MAX_CHARS` (1200). Tests enforce compactness and absence of raw memory content in the formatted block.
 
+## Preview surface (PR #335)
+
+For selected Joris intents only (`board.consult`, `brief.generate`), when `memoryContext` exists, a short **Memex Evidence Preview** block is appended to the summary via `buildMemexMemoryEvidencePreview` / `withMemexEvidencePreview`.
+
+| Allowed in preview | Excluded |
+|--------------------|----------|
+| status, sourceCount, confidence, freshnessAgeDays | Raw memory / librarian brief text |
+| limitationsCount + short labels (`advisory-only`, …) | Provenance paths, memoryIds, namespaces |
+| fallbackReason count + truncated reason | Secrets, tool authority signals |
+
+Header always includes: `read-only · advisory · no execution authorized`.
+
+Other intents (calendar, mission, governance, etc.) are unchanged. Memex enrichment and fallback behavior in `memex-context-source.ts` is unchanged.
+
 ## Corridor preservation (#332)
 
 This document and observability helpers add **no** new MCP tools, transport paths, allowlist entries, write operations, or DB persistence. Handshake gate and fail-closed fallback behavior are unchanged.
