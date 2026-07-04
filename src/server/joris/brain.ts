@@ -47,6 +47,10 @@ import {
 import { buildGovernanceDecisionContinuityNote } from "@/server/joris/governance-decision-continuity";
 import { composeVerifiedLessonsContext } from "@/server/agents/context/verified-lessons-context";
 import { readVerifiedVaultContext } from "@/server/memory/memory-vault-repository";
+import {
+  enrichJorisMemoryContextWithMemex,
+  type MemexContextEnrichmentResult,
+} from "@/server/joris/memex-context-source";
 import type { MemoryVaultReadResult } from "@/server/memory/memory-vault-types";
 
 const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
@@ -239,11 +243,18 @@ export type RunJorisCommandDeps = {
   generateReply: (input: { message: string; memoryContext?: string | null }) => Promise<JorisReplyResult>;
   /** Verified-vault reader; defaults to the real one. Injectable for tests. */
   readVerifiedVault?: (workspaceId: string) => MemoryVaultReadResult;
+  /** Optional Memex read-only enrichment — defaults to env-gated stdio client. */
+  enrichMemexContext?: (input: {
+    existingContext: string | null;
+    taskIntent: string;
+    workspaceId: string;
+  }) => Promise<MemexContextEnrichmentResult>;
 };
 
 const defaultRunJorisCommandDeps: RunJorisCommandDeps = {
   generateReply: generateJorisReply,
   readVerifiedVault: readVerifiedVaultContext,
+  enrichMemexContext: enrichJorisMemoryContextWithMemex,
 };
 
 export async function runJorisCommand(
@@ -270,7 +281,20 @@ export async function runJorisCommand(
   if (lessonsRail.block) {
     logger.info("joris.memory.lessons.rail", { ...lessonsRail.trace });
   }
-  const memoryContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
+  let memoryContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
+
+  const memexEnrichment = await (deps.enrichMemexContext ?? enrichJorisMemoryContextWithMemex)({
+    existingContext: memoryContext,
+    taskIntent: message,
+    workspaceId: ctx.workspace.id,
+  });
+  if (memexEnrichment.trace.status === "enriched" && memexEnrichment.memoryContext !== null) {
+    memoryContext = memexEnrichment.memoryContext;
+    logger.info("joris.memex.evidence", {
+      status: memexEnrichment.trace.status,
+      evidencePackValid: memexEnrichment.trace.evidencePackValid ?? false,
+    });
+  }
 
   const route = chooseModel({
     message,
