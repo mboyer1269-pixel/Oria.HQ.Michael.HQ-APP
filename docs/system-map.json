@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 434,
-    "live": 373,
+    "sourceFiles": 435,
+    "live": 374,
     "testOnly": 9,
     "incubation": 52
   },
@@ -333,6 +333,7 @@
     "src/server/joris/joris-prompt.ts",
     "src/server/joris/joris-reply-generator.ts",
     "src/server/joris/memex-context-source.ts",
+    "src/server/joris/memex-memory-evidence-summary.ts",
     "src/server/joris/mission-router-response.ts",
     "src/server/joris/mission-router.ts",
     "src/server/joris/work-order-review-interpreter.ts",
