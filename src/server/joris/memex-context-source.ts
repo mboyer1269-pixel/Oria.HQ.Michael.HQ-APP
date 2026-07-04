@@ -19,6 +19,11 @@ import {
   type MemexMcpTransport,
 } from "@/server/mcp/memex-readonly-client";
 import type { MemoryEvidencePack } from "@/server/agents/evidence/memory-evidence-pack";
+import {
+  formatMemexMemoryEvidenceSummaryForContext,
+  summarizeMemexMemoryEvidence,
+  type MemexMemoryEvidenceSummary,
+} from "@/server/joris/memex-memory-evidence-summary";
 
 export type MemexContextEnrichmentTrace = {
   status: "skipped" | "unavailable" | "handshake_failed" | "fallback" | "enriched";
@@ -31,6 +36,7 @@ export type MemexContextEnrichmentResult = {
   /** Final context for Joris — unchanged on any failure path. */
   memoryContext: string | null;
   evidencePack: MemoryEvidencePack | null;
+  evidenceSummary: MemexMemoryEvidenceSummary;
   trace: MemexContextEnrichmentTrace;
 };
 
@@ -59,9 +65,15 @@ export async function enrichJorisMemoryContextWithMemex(
 ): Promise<MemexContextEnrichmentResult> {
   const env = input.env ?? process.env;
   const existing = input.existingContext ?? "";
+  const nowIso = input.nowIso ?? new Date().toISOString();
   const baseResult = (trace: MemexContextEnrichmentTrace): MemexContextEnrichmentResult => ({
     memoryContext: input.existingContext,
     evidencePack: null,
+    evidenceSummary: summarizeMemexMemoryEvidence({
+      evidencePack: null,
+      trace,
+      nowIso,
+    }),
     trace,
   });
 
@@ -91,7 +103,6 @@ export async function enrichJorisMemoryContextWithMemex(
 
   const namespace = workspaceIdToMemexNamespace(input.workspaceId);
   const policy = defaultMemexBridgePolicy(namespace);
-  const nowIso = input.nowIso ?? new Date().toISOString();
 
   try {
     const handshake = await runMemexHandshake(transport, policy);
@@ -135,21 +146,33 @@ export async function enrichJorisMemoryContextWithMemex(
       });
     }
 
+    const enrichedTrace: MemexContextEnrichmentTrace = {
+      status: "enriched",
+      reason: "Memex librarian brief injected with Memory Evidence Pack",
+      handshakeOk: true,
+      evidencePackValid: true,
+    };
+    const evidenceSummary = summarizeMemexMemoryEvidence({
+      evidencePack: injection.evidencePack,
+      trace: enrichedTrace,
+      nowIso,
+    });
+    const summaryBlock = formatMemexMemoryEvidenceSummaryForContext(evidenceSummary);
+    const enrichedContext = `${injection.context || input.existingContext || ""}\n\n${summaryBlock}`;
+
     logger.info("joris.memex.enriched", {
       namespace,
       injectedItems: injection.selection.injectable.length,
       charCount: injection.selection.charCount,
+      sourceCount: evidenceSummary.sourceCount,
+      confidence: evidenceSummary.confidence,
     });
 
     return {
-      memoryContext: injection.context || input.existingContext,
+      memoryContext: enrichedContext,
       evidencePack: injection.evidencePack,
-      trace: {
-        status: "enriched",
-        reason: "Memex librarian brief injected with Memory Evidence Pack",
-        handshakeOk: true,
-        evidencePackValid: true,
-      },
+      evidenceSummary,
+      trace: enrichedTrace,
     };
   } catch (error) {
     return baseResult({

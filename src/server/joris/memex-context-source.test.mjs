@@ -97,9 +97,36 @@ test("Joris Memex context source v1", async (t) => {
     assert.equal(result.trace.status, "enriched");
     assert.ok(result.evidencePack);
     assert.ok(result.evidencePack.provenance.length > 0);
+    assert.ok(result.evidenceSummary);
+    assert.ok(result.evidenceSummary.sourceCount > 0);
+    assert.equal(result.evidenceSummary.confidence, "medium");
     assert.notEqual(result.memoryContext, existingContext);
     assert.ok(result.memoryContext.includes("Contexte Memex"));
     assert.ok(result.memoryContext.includes(existingContext));
+    assert.ok(result.memoryContext.includes("Memex Memory Evidence Summary"));
+    assert.ok(result.memoryContext.includes("sourceCount:"));
+    assert.ok(result.memoryContext.includes("fallbackReasons: none"));
+  });
+
+  await t.test("fallback keeps context unchanged and exposes explicit fallback summary", async () => {
+    const result = await enrichJorisMemoryContextWithMemex({
+      existingContext,
+      taskIntent: "planifier",
+      workspaceId: "michael-hq",
+      transport: {
+        listTools: async () => [...MEMEX_V1_READ_ALLOWLIST],
+        callTool: async () => "",
+        close: async () => {},
+      },
+      env: { MEMEX_CORE_ROOT: "/fake" },
+      nowIso: NOW,
+    });
+    assert.equal(result.trace.status, "fallback");
+    assert.equal(result.evidencePack, null);
+    assert.equal(result.memoryContext, existingContext);
+    assert.equal(result.evidenceSummary.sourceCount, 0);
+    assert.equal(result.evidenceSummary.confidence, "none");
+    assert.ok(result.evidenceSummary.fallbackReasons.length > 0);
   });
 
   await t.test("9. deprecated memories excluded via handshake-only injectable path", async () => {

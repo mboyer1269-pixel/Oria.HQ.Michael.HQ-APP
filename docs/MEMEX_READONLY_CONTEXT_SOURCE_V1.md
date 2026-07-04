@@ -59,6 +59,12 @@ Every successful Memex injection builds a **Memory Evidence Pack** (`src/server/
 
 Integration: `src/server/joris/brain.ts` calls `enrichJorisMemoryContextWithMemex` after vault/lessons assembly; injectable via `RunJorisCommandDeps.enrichMemexContext`.
 
+## Agent evidence summary (PR #333)
+
+When Memex enrichment succeeds, a compact **Memex Memory Evidence Summary** block is appended to `memoryContext` for agent reasoning visibility. The summary includes source count, confidence, freshness, limitations, and fallback reasons (when applicable). Pure helpers live in `src/server/joris/memex-memory-evidence-summary.ts` — no new I/O, no corridor changes.
+
+On unavailable / fallback paths, `memoryContext` stays unchanged; `evidenceSummary` still carries explicit fallback reasons without fabricating memory sources.
+
 ## Fallback behavior
 
 Fail closed at every layer:
@@ -90,6 +96,7 @@ Cloud env markers (`VERCEL`, `AWS_LAMBDA_FUNCTION_NAME`, `LAMBDA_TASK_ROOT`, `CI
 | `src/server/mcp/memex-readonly-client.ts` | Handshake, allowlist, calls, evidence assembly |
 | `src/server/mcp/memex-stdio-transport.ts` | Controlled stdio spawn |
 | `src/server/joris/memex-context-source.ts` | Joris optional enrichment |
+| `src/server/joris/memex-memory-evidence-summary.ts` | Compact evidence summary for agent reasoning |
 | `src/server/mcp/memex-bridge-contract.ts` | Pure merge/selection policy (existing) |
 
 ## Validation

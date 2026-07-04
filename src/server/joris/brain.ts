@@ -290,11 +290,15 @@ export async function runJorisCommand(
   });
   if (memexEnrichment.trace.status === "enriched" && memexEnrichment.memoryContext !== null) {
     memoryContext = memexEnrichment.memoryContext;
-    logger.info("joris.memex.evidence", {
-      status: memexEnrichment.trace.status,
-      evidencePackValid: memexEnrichment.trace.evidencePackValid ?? false,
-    });
   }
+  logger.info("joris.memex.summary", {
+    status: memexEnrichment.evidenceSummary.status,
+    sourceCount: memexEnrichment.evidenceSummary.sourceCount,
+    confidence: memexEnrichment.evidenceSummary.confidence,
+    ageDays: memexEnrichment.evidenceSummary.freshness.ageDays,
+    fallbackReasonCount: memexEnrichment.evidenceSummary.fallbackReasons.length,
+    evidencePackValid: memexEnrichment.trace.evidencePackValid ?? false,
+  });
 
   const route = chooseModel({
     message,
