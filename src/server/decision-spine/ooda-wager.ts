@@ -32,7 +32,8 @@
 //   No kill criteria           → blocked (a bet you cannot lose is not a wager)
 //   Blank/malformed criteria   → blocked (an unmeasurable bet never advances)
 //   Malformed confidence/stake → blocked (garbage never advances)
-//   Unknown reversibility      → blocked (unclassified risk never advances)
+//   Unknown reversibility/kind → blocked (unclassified risk never advances)
+//   Malformed createdAt        → blocked (a wager without provenance never advances)
 //   Malformed line or context  → requires_ceo_click (garbage never opens the gate)
 //   Unknown status transition  → refused
 //   Settlement with an unknown outcome or invalid settledAt → refused
@@ -192,6 +193,13 @@ const WAGER_REVERSIBILITIES: readonly WagerReversibility[] = [
   "irreversible",
 ];
 
+const WAGER_STAKE_KINDS: readonly WagerStakeKind[] = [
+  "money",
+  "time",
+  "reputation",
+  "opportunity",
+];
+
 /**
  * Pure settlement: returns a NEW wager, never mutates. Only an `active` wager
  * settles, and only with non-empty evidence and a valid injected settledAt.
@@ -203,7 +211,7 @@ export function settleWager(
   if (!canTransitionWager(wager.status, "settled")) {
     return { ok: false, reason: "illegal_transition" };
   }
-  if (settlement.evidence.trim().length === 0) {
+  if (typeof settlement.evidence !== "string" || settlement.evidence.trim().length === 0) {
     return { ok: false, reason: "missing_evidence" };
   }
   if (!isValidIsoTimestamp(settlement.settledAt)) {
@@ -272,6 +280,7 @@ export type WagerGateReason =
   | "invalid_stake"
   | "no_kill_criteria"
   | "malformed_kill_criteria"
+  | "invalid_created_at"
   | "invalid_reversibility"
   | "irreversible_blocked_by_line"
   | "irreversible_requires_ceo"
@@ -325,6 +334,20 @@ export function evaluateWagerAgainstLine(
       outcome: "blocked",
       reason: "invalid_stake",
       detail: "Stake unit is blank; a bounded max loss needs a concrete unit.",
+    };
+  }
+  if (!WAGER_STAKE_KINDS.includes(wager.stake.kind)) {
+    return {
+      outcome: "blocked",
+      reason: "invalid_stake",
+      detail: `Stake kind "${String(wager.stake.kind)}" is unknown; an unclassified stake never advances.`,
+    };
+  }
+  if (!isValidIsoTimestamp(wager.createdAt)) {
+    return {
+      outcome: "blocked",
+      reason: "invalid_created_at",
+      detail: `createdAt "${String(wager.createdAt)}" is not a strict ISO-8601 UTC timestamp; a wager without provenance never advances.`,
     };
   }
   if (wager.killCriteria.length === 0) {
@@ -381,12 +404,13 @@ export function evaluateWagerAgainstLine(
     line.maxStakePerWager < 0 ||
     !Number.isInteger(line.maxConcurrentActive) ||
     line.maxConcurrentActive < 0 ||
-    line.unit.trim().length === 0
+    line.unit.trim().length === 0 ||
+    !WAGER_STAKE_KINDS.includes(line.stakeKind)
   ) {
     return {
       outcome: "requires_ceo_click",
       reason: "malformed_line",
-      detail: "Operating line is malformed (non-finite/negative limits, fractional concurrency cap, or blank unit); a garbage line never opens the gate.",
+      detail: "Operating line is malformed (non-finite/negative limits, fractional concurrency cap, blank unit, or unknown stake kind); a garbage line never opens the gate.",
     };
   }
   if (line.stakeKind !== wager.stake.kind) {
@@ -410,11 +434,11 @@ export function evaluateWagerAgainstLine(
       detail: `Stake ${wager.stake.amount} ${wager.stake.unit} exceeds the line's ${line.maxStakePerWager} ${line.unit} per wager.`,
     };
   }
-  if (!Number.isFinite(ctx.activeWagerCount) || ctx.activeWagerCount < 0) {
+  if (!Number.isInteger(ctx.activeWagerCount) || ctx.activeWagerCount < 0) {
     return {
       outcome: "requires_ceo_click",
       reason: "invalid_active_count",
-      detail: `Active wager count ${String(ctx.activeWagerCount)} is not a finite non-negative number; bad context closes the gate.`,
+      detail: `Active wager count ${String(ctx.activeWagerCount)} is not a non-negative integer; bad context closes the gate.`,
     };
   }
   if (ctx.activeWagerCount >= line.maxConcurrentActive) {

@@ -160,6 +160,17 @@ test("Decision Spine — OodaWager type foundation (pure)", async (t) => {
         `outcome ${JSON.stringify(outcome)}`,
       );
     }
+
+    for (const evidence of [undefined, null, 42, ""]) {
+      const badEvidence = settleWager(active, { ...settlement, evidence });
+      assert.deepEqual(
+        badEvidence,
+        { ok: false, reason: "missing_evidence" },
+        `evidence ${String(evidence)} must refuse, never throw`,
+      );
+    }
+    const absentEvidence = settleWager(active, { outcome: "won", settledAt: NOW });
+    assert.deepEqual(absentEvidence, { ok: false, reason: "missing_evidence" });
   });
 
   await t.test("INV-W1: no operating line → requires_ceo_click", () => {
@@ -269,8 +280,39 @@ test("Decision Spine — OodaWager type foundation (pure)", async (t) => {
     }
   });
 
+  await t.test("INV-W9: unknown stake kind → blocked; unknown line kind → CEO", () => {
+    for (const kind of ["crypto", "MONEY", "", "goodwill"]) {
+      const d = evaluateWagerAgainstLine(wager({ stake: stake({ kind }) }), line(), {
+        activeWagerCount: 0,
+      });
+      assert.equal(d.outcome, "blocked", `stake kind ${JSON.stringify(kind)}`);
+      assert.equal(d.reason, "invalid_stake");
+    }
+
+    const badLineKind = evaluateWagerAgainstLine(wager(), line({ stakeKind: "crypto" }), {
+      activeWagerCount: 0,
+    });
+    assert.equal(badLineKind.outcome, "requires_ceo_click");
+    assert.equal(badLineKind.reason, "malformed_line");
+  });
+
+  await t.test("INV-W9: malformed createdAt → blocked", () => {
+    for (const createdAt of [
+      "",
+      "   ",
+      "not-a-date",
+      "July 5, 2026",
+      "2026-02-31T00:00:00.000Z",
+      "2026-07-02T12:00:00Z",
+    ]) {
+      const d = evaluateWagerAgainstLine(wager({ createdAt }), line(), { activeWagerCount: 0 });
+      assert.equal(d.outcome, "blocked", `createdAt ${JSON.stringify(createdAt)}`);
+      assert.equal(d.reason, "invalid_created_at");
+    }
+  });
+
   await t.test("INV-W9: malformed active-count context escalates to CEO", () => {
-    for (const activeWagerCount of [Number.NaN, -1, Number.POSITIVE_INFINITY, -0.0001]) {
+    for (const activeWagerCount of [Number.NaN, -1, Number.POSITIVE_INFINITY, -0.0001, 0.5, 1.5]) {
       const d = evaluateWagerAgainstLine(wager(), line(), { activeWagerCount });
       assert.equal(d.outcome, "requires_ceo_click", `activeWagerCount ${activeWagerCount}`);
       assert.equal(d.reason, "invalid_active_count");
