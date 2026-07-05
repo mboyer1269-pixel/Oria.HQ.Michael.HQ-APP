@@ -16,8 +16,8 @@
 |---|---|
 | LIVE | 374 |
 | TEST_ONLY | 9 |
-| INCUBATION | 52 |
-| **Total source** | **435** |
+| INCUBATION | 53 |
+| **Total source** | **436** |
 
 ## Incubation by area (built, not wired)
 
@@ -39,6 +39,7 @@
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
 | server/ai | 1 |
+| server/decision-spine | 1 |
 
 ## Incubation files (full list)
 
@@ -89,6 +90,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
+- `src/server/decision-spine/ooda-wager.ts`
 - `src/server/missions/approval-record-repository.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
