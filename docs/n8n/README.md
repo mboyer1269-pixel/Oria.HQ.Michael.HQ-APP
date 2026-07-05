@@ -133,5 +133,6 @@ curl -X POST http://localhost:3000/api/agents/execution-intents/<intentId>/appro
 - Dry-run only: no email, no external mutation; n8n confirms the action *would* run.
 - Single authorized route: `hermes` + `task.create` (registry not expanded).
 - No secrets in code or in this repo — secrets live in Oria env and n8n env.
-- Migration `db/migrations/0024_agent_execution_intents.sql` stays **unapplied**
-  until an explicit CEO GO (the proof above runs entirely on the in-memory store).
+- Migration `db/migrations/0024_agent_execution_intents.sql` is gated behind an
+  explicit CEO GO; its live-apply state is not inferable from this repo (see
+  `ARCHITECTURE.md`). The proof above runs entirely on the in-memory store.

@@ -1,5 +1,5 @@
 import { inngest } from "./inngest-client";
-import type { CommandResult } from "@/features/hq/types";
+import type { CommandResult } from "@/core/types";
 
 // ---------------------------------------------------------------------------
 // Joris Execute Job — background job for long-running Joris brain invocations.

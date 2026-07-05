@@ -1,4 +1,4 @@
-import type { CommandResult, JorisIntent, MissionPlanResult } from "@/features/hq/types";
+import type { CommandResult, JorisIntent, MissionPlanResult } from "@/core/types";
 import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import { logger } from "@/lib/logger";
 import { chooseModel } from "@/server/ai/model-router";
@@ -47,6 +47,15 @@ import {
 import { buildGovernanceDecisionContinuityNote } from "@/server/joris/governance-decision-continuity";
 import { composeVerifiedLessonsContext } from "@/server/agents/context/verified-lessons-context";
 import { readVerifiedVaultContext } from "@/server/memory/memory-vault-repository";
+import {
+  enrichJorisMemoryContextWithMemex,
+  type MemexContextEnrichmentResult,
+} from "@/server/joris/memex-context-source";
+import {
+  buildMemexMemoryEvidenceObservabilityPayload,
+  MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
+  withMemexEvidencePreview,
+} from "@/server/joris/memex-memory-evidence-summary";
 import type { MemoryVaultReadResult } from "@/server/memory/memory-vault-types";
 
 const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
@@ -239,11 +248,18 @@ export type RunJorisCommandDeps = {
   generateReply: (input: { message: string; memoryContext?: string | null }) => Promise<JorisReplyResult>;
   /** Verified-vault reader; defaults to the real one. Injectable for tests. */
   readVerifiedVault?: (workspaceId: string) => MemoryVaultReadResult;
+  /** Optional Memex read-only enrichment — defaults to env-gated stdio client. */
+  enrichMemexContext?: (input: {
+    existingContext: string | null;
+    taskIntent: string;
+    workspaceId: string;
+  }) => Promise<MemexContextEnrichmentResult>;
 };
 
 const defaultRunJorisCommandDeps: RunJorisCommandDeps = {
   generateReply: generateJorisReply,
   readVerifiedVault: readVerifiedVaultContext,
+  enrichMemexContext: enrichJorisMemoryContextWithMemex,
 };
 
 export async function runJorisCommand(
@@ -270,7 +286,30 @@ export async function runJorisCommand(
   if (lessonsRail.block) {
     logger.info("joris.memory.lessons.rail", { ...lessonsRail.trace });
   }
-  const memoryContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
+  let memoryContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
+
+  const memexEnrichment = await (deps.enrichMemexContext ?? enrichJorisMemoryContextWithMemex)({
+    existingContext: memoryContext,
+    taskIntent: message,
+    workspaceId: ctx.workspace.id,
+  });
+  if (memexEnrichment.trace.status === "enriched" && memexEnrichment.memoryContext !== null) {
+    memoryContext = memexEnrichment.memoryContext;
+  }
+  logger.info(
+    MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
+    buildMemexMemoryEvidenceObservabilityPayload({
+      summary: memexEnrichment.evidenceSummary,
+      evidencePackValid: memexEnrichment.trace.evidencePackValid ?? false,
+    }),
+  );
+
+  const attachMemexPreview = (summaryText: string, intent: JorisIntent) =>
+    withMemexEvidencePreview(summaryText, {
+      intent,
+      memoryContext,
+      evidenceSummary: memexEnrichment.evidenceSummary,
+    });
 
   const route = chooseModel({
     message,
@@ -412,7 +451,7 @@ export async function runJorisCommand(
 
     return {
       intent,
-      summary: briefSummary,
+      summary: attachMemexPreview(briefSummary, "brief.generate"),
       modelId: routedModel.model.id,
       costMode: routedModel.mode,
       ...workspaceMeta,
@@ -565,7 +604,7 @@ export async function runJorisCommand(
         : llmReply.text;
     return {
       intent,
-      summary,
+      summary: attachMemexPreview(summary, intent),
       modelId: llmReply.modelId,
       // The shared provider uses a low-cost default model; report an honest
       // conservative cost mode rather than the routed (possibly premium) one.
@@ -584,7 +623,7 @@ export async function runJorisCommand(
 
   return {
     intent,
-    summary: finalSummary,
+    summary: attachMemexPreview(finalSummary, intent),
     modelId: routedModel.model.id,
     costMode: routedModel.mode,
     ...workspaceMeta,

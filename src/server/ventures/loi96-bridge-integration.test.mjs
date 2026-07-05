@@ -4,18 +4,26 @@
 // adapter + fake ledger) → outcome recorded → daily counter incremented.
 // This is the proof that every bridge is connected with no break.
 import assert from "node:assert/strict";
+import path from "node:path";
 import test, { beforeEach } from "node:test";
+import { fileURLToPath } from "node:url";
 
-const { buildLoi96AuditEmail } = await import("./loi96-audit-email.ts");
-const { buildApprovedSendCandidate } = await import("../outbound/outbound-queue-intake.ts");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, "..", "..", "..");
+const { createJiti } = await import("jiti");
+const jiti = createJiti(import.meta.url, {
+  alias: { "@": path.join(projectRoot, "src") },
+});
+const { buildLoi96AuditEmail } = await jiti.import("@/server/ventures/loi96-audit-email");
+const { buildApprovedSendCandidate } = await jiti.import("@/server/outbound/outbound-queue-intake");
 const {
   registerOutboundSendCandidate,
   getOutboundSendCandidate,
   getOutboundOutcome,
   sentTodayOnChannel,
   resetOutboundSendStoreForTests,
-} = await import("../outbound/outbound-send-store.ts");
-const { sendOutboundActionAsCeo } = await import("../outbound/outbound-send-service.ts");
+} = await jiti.import("@/server/outbound/outbound-send-store");
+const { sendOutboundActionAsCeo } = await jiti.import("@/server/outbound/outbound-send-service");
 
 const target = {
   name: "Métal Leetwo inc.",

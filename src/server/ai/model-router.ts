@@ -1,4 +1,4 @@
-import type { ModelMode, ModelProfile } from "@/features/hq/types";
+import type { ModelMode, ModelProfile } from "@/core/types";
 import {
   ECONOMY_MODEL_ID,
   LONG_CONTEXT_MODEL_ID,

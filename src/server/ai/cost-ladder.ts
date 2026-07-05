@@ -1,4 +1,4 @@
-import type { ModelProfile } from "@/features/hq/types";
+import type { ModelProfile } from "@/core/types";
 
 // ---------------------------------------------------------------------------
 // Cost Ladder — token-smart routing policy for the model router (roadmap P4).

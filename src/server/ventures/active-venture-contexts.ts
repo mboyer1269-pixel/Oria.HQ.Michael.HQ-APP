@@ -10,7 +10,7 @@
 // Pure mappers (card → context, active filter) are exported for testing; the
 // async resolver wires the ventures repository and is dependency-injectable.
 
-import type { VentureCard, VentureLifecycleStatus } from "@/features/ventures/types";
+import type { VentureCard, VentureLifecycleStatus } from "@/core/types";
 import {
   ORYA_VENTURES,
   type VentureContext,

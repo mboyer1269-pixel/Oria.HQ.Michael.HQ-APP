@@ -1,4 +1,4 @@
-import type { CalendarIntent } from "@/features/hq/types";
+import type { CalendarIntent } from "@/core/types";
 
 const datePattern = /\b(\d{4})-(\d{2})-(\d{2})\b/;
 const timePattern = /(?:^|\s)(?:(à|a|@|pour|vers)\s*)?(\d{1,2})(?:\s*(:|h)\s*(\d{2})?)?\s*(am|pm)?(?=\s|$|[.,;!?])/i;

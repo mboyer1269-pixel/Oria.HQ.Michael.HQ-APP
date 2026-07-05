@@ -1,18 +1,9 @@
-export type ContactLeadStatus = "new" | "contacted" | "qualified" | "closed" | "spam";
-
-export type ContactLeadStorageMode = "local" | "supabase";
-
-export type ContactNotificationStatus = "skipped" | "queued" | "failed";
-
-export type ContactLead = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  company: string | null;
-  message: string;
-  source: string;
-  status: ContactLeadStatus;
-  createdAt: string;
-  storageMode: ContactLeadStorageMode;
-};
+// Contact domain types are canonical in `src/core/types.ts`.
+// Re-exported here so existing feature/app imports continue to resolve, while
+// the server layer imports them directly from `@/core/types`.
+export type {
+  ContactLeadStatus,
+  ContactLeadStorageMode,
+  ContactNotificationStatus,
+  ContactLead,
+} from "@/core/types";

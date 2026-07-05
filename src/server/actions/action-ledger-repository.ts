@@ -1,5 +1,5 @@
-import type { ActionLedgerStatus, CalendarStorageMode, ModelMode } from "@/features/hq/types";
-import type { LedgerEventType } from "@/features/skills/types";
+import type { ActionLedgerStatus, CalendarStorageMode, ModelMode } from "@/core/types";
+import type { LedgerEventType } from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { ServerUserContext } from "@/server/auth/user-context";
 import type { ActionLedgerRow, Json } from "@/server/db/types";

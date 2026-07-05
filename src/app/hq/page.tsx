@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AgendaPanel } from "@/features/hq/components/agenda-panel";
 import { CommandCenter } from "@/features/hq/components/command-center";
+import { CommandTower } from "@/features/hq/components/command-tower";
 import { MissionDraftPendingPanel } from "@/features/hq/components/mission-draft-pending-panel";
 import { ModuleCard } from "@/features/hq/components/module-card";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
@@ -37,6 +38,10 @@ import { requireOwnerAccess } from "@/server/auth/owner";
 export const dynamic = "force-dynamic";
 
 const privateLinks = [
+  {
+    label: "Command Tower",
+    href: "#command-tower",
+  },
   {
     label: "Command Center",
     href: "#command-center",
@@ -178,6 +183,8 @@ export default async function HqPage() {
           </form>
         </HqSummaryRail>
       </HqPageHeader>
+
+      <CommandTower />
 
       <HqOverviewWidgets />
 
