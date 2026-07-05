@@ -135,12 +135,29 @@ test("Decision Spine — OodaWager type foundation (pure)", async (t) => {
     const noEvidence = settleWager(active, { ...settlement, evidence: "   " });
     assert.deepEqual(noEvidence, { ok: false, reason: "missing_evidence" });
 
-    for (const settledAt of ["", "   ", "not-a-date"]) {
+    for (const settledAt of [
+      "",
+      "   ",
+      "not-a-date",
+      "July 5, 2026",
+      "2026-02-31T00:00:00.000Z",
+      "2026-07-16T12:00:00Z",
+      "2026-07-16",
+    ]) {
       const badTimestamp = settleWager(active, { ...settlement, settledAt });
       assert.deepEqual(
         badTimestamp,
         { ok: false, reason: "invalid_settled_at" },
         `settledAt ${JSON.stringify(settledAt)}`,
+      );
+    }
+
+    for (const outcome of ["draw", "WON", "", "cancelled"]) {
+      const badOutcome = settleWager(active, { ...settlement, outcome });
+      assert.deepEqual(
+        badOutcome,
+        { ok: false, reason: "invalid_outcome" },
+        `outcome ${JSON.stringify(outcome)}`,
       );
     }
   });
@@ -186,6 +203,9 @@ test("Decision Spine — OodaWager type foundation (pure)", async (t) => {
       killCriterion({ reviewBy: "" }),
       killCriterion({ reviewBy: "   " }),
       killCriterion({ reviewBy: "not-a-date" }),
+      killCriterion({ reviewBy: "July 5, 2026" }),
+      killCriterion({ reviewBy: "2026-02-31T00:00:00.000Z" }),
+      killCriterion({ reviewBy: "2026-07-16T12:00:00Z" }),
     ]) {
       const d = evaluateWagerAgainstLine(wager({ killCriteria: [bad] }), line(), {
         activeWagerCount: 0,
@@ -211,10 +231,41 @@ test("Decision Spine — OodaWager type foundation (pure)", async (t) => {
       line({ maxConcurrentActive: Number.NaN }),
       line({ maxConcurrentActive: Number.POSITIVE_INFINITY }),
       line({ maxConcurrentActive: -2 }),
+      line({ maxConcurrentActive: 0.5 }),
+      line({ unit: "" }),
+      line({ unit: "   " }),
     ]) {
       const d = evaluateWagerAgainstLine(wager(), bad, { activeWagerCount: 0 });
       assert.equal(d.outcome, "requires_ceo_click", JSON.stringify(bad));
       assert.equal(d.reason, "malformed_line");
+    }
+  });
+
+  await t.test("INV-W9: blank stake unit → blocked, even when the line unit is also blank", () => {
+    const blankUnit = evaluateWagerAgainstLine(
+      wager({ stake: stake({ unit: "   " }) }),
+      line(),
+      { activeWagerCount: 0 },
+    );
+    assert.equal(blankUnit.outcome, "blocked");
+    assert.equal(blankUnit.reason, "invalid_stake");
+
+    const bothBlank = evaluateWagerAgainstLine(
+      wager({ stake: stake({ unit: "" }) }),
+      line({ unit: "" }),
+      { activeWagerCount: 0 },
+    );
+    assert.equal(bothBlank.outcome, "blocked", "blank-on-blank must never reach within_line");
+    assert.equal(bothBlank.reason, "invalid_stake");
+  });
+
+  await t.test("INV-W9: unknown reversibility → blocked", () => {
+    for (const reversibility of ["permanent", "irreversible ", "REVERSIBLE", "", "unknown"]) {
+      const d = evaluateWagerAgainstLine(wager({ reversibility }), line(), {
+        activeWagerCount: 0,
+      });
+      assert.equal(d.outcome, "blocked", `reversibility ${JSON.stringify(reversibility)}`);
+      assert.equal(d.reason, "invalid_reversibility");
     }
   });
 

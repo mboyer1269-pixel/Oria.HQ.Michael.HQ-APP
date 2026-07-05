@@ -32,9 +32,12 @@
 //   No kill criteria           → blocked (a bet you cannot lose is not a wager)
 //   Blank/malformed criteria   → blocked (an unmeasurable bet never advances)
 //   Malformed confidence/stake → blocked (garbage never advances)
+//   Unknown reversibility      → blocked (unclassified risk never advances)
 //   Malformed line or context  → requires_ceo_click (garbage never opens the gate)
 //   Unknown status transition  → refused
-//   Settlement without a valid settledAt timestamp → refused
+//   Settlement with an unknown outcome or invalid settledAt → refused
+//   Timestamps are strict ISO-8601 UTC (toISOString shape + round-trip);
+//   parser-coerced strings never count as dates
 
 // ---------------------------------------------------------------------------
 // OODA loop
@@ -163,12 +166,31 @@ export function canTransitionWager(from: WagerStatus, to: WagerStatus): boolean 
 
 export type WagerSettleResult =
   | { ok: true; wager: OodaWager }
-  | { ok: false; reason: "illegal_transition" | "missing_evidence" | "invalid_settled_at" };
+  | {
+      ok: false;
+      reason: "illegal_transition" | "missing_evidence" | "invalid_settled_at" | "invalid_outcome";
+    };
 
-/** True for a non-blank string that parses to a valid date. Pure: no clock read. */
+const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+/**
+ * Strict ISO-8601 UTC check: exact `Date.prototype.toISOString()` shape plus a
+ * round-trip, so parser-coerced values ("July 5, 2026", "2026-02-31T00:00:00.000Z")
+ * are refused. Pure: `new Date(value)` only parses the argument, no clock read.
+ */
 function isValidIsoTimestamp(value: string): boolean {
-  return value.trim().length > 0 && !Number.isNaN(new Date(value).getTime());
+  if (!ISO_TIMESTAMP_PATTERN.test(value)) return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
 }
+
+const WAGER_OUTCOMES: readonly WagerOutcome[] = ["won", "lost", "void"];
+
+const WAGER_REVERSIBILITIES: readonly WagerReversibility[] = [
+  "reversible",
+  "recoverable",
+  "irreversible",
+];
 
 /**
  * Pure settlement: returns a NEW wager, never mutates. Only an `active` wager
@@ -186,6 +208,9 @@ export function settleWager(
   }
   if (!isValidIsoTimestamp(settlement.settledAt)) {
     return { ok: false, reason: "invalid_settled_at" };
+  }
+  if (!WAGER_OUTCOMES.includes(settlement.outcome)) {
+    return { ok: false, reason: "invalid_outcome" };
   }
   return {
     ok: true,
@@ -247,6 +272,7 @@ export type WagerGateReason =
   | "invalid_stake"
   | "no_kill_criteria"
   | "malformed_kill_criteria"
+  | "invalid_reversibility"
   | "irreversible_blocked_by_line"
   | "irreversible_requires_ceo"
   | "no_operating_line"
@@ -294,6 +320,13 @@ export function evaluateWagerAgainstLine(
       detail: `Stake amount ${String(wager.stake.amount)} is not a finite max loss.`,
     };
   }
+  if (wager.stake.unit.trim().length === 0) {
+    return {
+      outcome: "blocked",
+      reason: "invalid_stake",
+      detail: "Stake unit is blank; a bounded max loss needs a concrete unit.",
+    };
+  }
   if (wager.killCriteria.length === 0) {
     return {
       outcome: "blocked",
@@ -313,6 +346,13 @@ export function evaluateWagerAgainstLine(
       outcome: "blocked",
       reason: "malformed_kill_criteria",
       detail: "A kill criterion is blank or lacks a usable reviewBy date; an unmeasurable bet never advances.",
+    };
+  }
+  if (!WAGER_REVERSIBILITIES.includes(wager.reversibility)) {
+    return {
+      outcome: "blocked",
+      reason: "invalid_reversibility",
+      detail: `Reversibility "${String(wager.reversibility)}" is unknown; unclassified risk never advances.`,
     };
   }
   if (wager.reversibility === "irreversible") {
@@ -339,13 +379,14 @@ export function evaluateWagerAgainstLine(
   if (
     !Number.isFinite(line.maxStakePerWager) ||
     line.maxStakePerWager < 0 ||
-    !Number.isFinite(line.maxConcurrentActive) ||
-    line.maxConcurrentActive < 0
+    !Number.isInteger(line.maxConcurrentActive) ||
+    line.maxConcurrentActive < 0 ||
+    line.unit.trim().length === 0
   ) {
     return {
       outcome: "requires_ceo_click",
       reason: "malformed_line",
-      detail: "Operating line limits are not finite non-negative numbers; a garbage line never opens the gate.",
+      detail: "Operating line is malformed (non-finite/negative limits, fractional concurrency cap, or blank unit); a garbage line never opens the gate.",
     };
   }
   if (line.stakeKind !== wager.stake.kind) {
