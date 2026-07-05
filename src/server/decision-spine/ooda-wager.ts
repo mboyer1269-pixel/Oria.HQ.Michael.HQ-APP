@@ -30,8 +30,11 @@
 //   Irreversible wager         → requires_ceo_click at best; blocked when the
 //                                line does not even allow proposing it
 //   No kill criteria           → blocked (a bet you cannot lose is not a wager)
+//   Blank/malformed criteria   → blocked (an unmeasurable bet never advances)
 //   Malformed confidence/stake → blocked (garbage never advances)
+//   Malformed line or context  → requires_ceo_click (garbage never opens the gate)
 //   Unknown status transition  → refused
+//   Settlement without a valid settledAt timestamp → refused
 
 // ---------------------------------------------------------------------------
 // OODA loop
@@ -160,11 +163,16 @@ export function canTransitionWager(from: WagerStatus, to: WagerStatus): boolean 
 
 export type WagerSettleResult =
   | { ok: true; wager: OodaWager }
-  | { ok: false; reason: "illegal_transition" | "missing_evidence" };
+  | { ok: false; reason: "illegal_transition" | "missing_evidence" | "invalid_settled_at" };
+
+/** True for a non-blank string that parses to a valid date. Pure: no clock read. */
+function isValidIsoTimestamp(value: string): boolean {
+  return value.trim().length > 0 && !Number.isNaN(new Date(value).getTime());
+}
 
 /**
  * Pure settlement: returns a NEW wager, never mutates. Only an `active` wager
- * settles, and only with non-empty evidence.
+ * settles, and only with non-empty evidence and a valid injected settledAt.
  */
 export function settleWager(
   wager: OodaWager,
@@ -175,6 +183,9 @@ export function settleWager(
   }
   if (settlement.evidence.trim().length === 0) {
     return { ok: false, reason: "missing_evidence" };
+  }
+  if (!isValidIsoTimestamp(settlement.settledAt)) {
+    return { ok: false, reason: "invalid_settled_at" };
   }
   return {
     ok: true,
@@ -216,7 +227,7 @@ export function zeroTrustLine(
   unit: string,
 ): PersonalOperatingLine {
   return {
-    id: "line:zero-trust",
+    id: `line:zero-trust:${stakeKind}:${unit}`,
     stakeKind,
     unit,
     maxStakePerWager: 0,
@@ -235,12 +246,15 @@ export type WagerGateReason =
   | "invalid_confidence"
   | "invalid_stake"
   | "no_kill_criteria"
+  | "malformed_kill_criteria"
   | "irreversible_blocked_by_line"
   | "irreversible_requires_ceo"
   | "no_operating_line"
+  | "malformed_line"
   | "stake_kind_mismatch"
   | "stake_unit_mismatch"
   | "stake_over_line"
+  | "invalid_active_count"
   | "concurrency_over_line"
   | "within_line";
 
@@ -287,6 +301,20 @@ export function evaluateWagerAgainstLine(
       detail: "No falsification condition: a bet you cannot lose is not a wager.",
     };
   }
+  if (
+    wager.killCriteria.some(
+      (criterion) =>
+        criterion.metric.trim().length === 0 ||
+        criterion.threshold.trim().length === 0 ||
+        !isValidIsoTimestamp(criterion.reviewBy),
+    )
+  ) {
+    return {
+      outcome: "blocked",
+      reason: "malformed_kill_criteria",
+      detail: "A kill criterion is blank or lacks a usable reviewBy date; an unmeasurable bet never advances.",
+    };
+  }
   if (wager.reversibility === "irreversible") {
     if (!line || !line.allowIrreversible) {
       return {
@@ -308,6 +336,18 @@ export function evaluateWagerAgainstLine(
       detail: "No Personal Operating Line supplied; ambiguity routes to the CEO.",
     };
   }
+  if (
+    !Number.isFinite(line.maxStakePerWager) ||
+    line.maxStakePerWager < 0 ||
+    !Number.isFinite(line.maxConcurrentActive) ||
+    line.maxConcurrentActive < 0
+  ) {
+    return {
+      outcome: "requires_ceo_click",
+      reason: "malformed_line",
+      detail: "Operating line limits are not finite non-negative numbers; a garbage line never opens the gate.",
+    };
+  }
   if (line.stakeKind !== wager.stake.kind) {
     return {
       outcome: "requires_ceo_click",
@@ -327,6 +367,13 @@ export function evaluateWagerAgainstLine(
       outcome: "requires_ceo_click",
       reason: "stake_over_line",
       detail: `Stake ${wager.stake.amount} ${wager.stake.unit} exceeds the line's ${line.maxStakePerWager} ${line.unit} per wager.`,
+    };
+  }
+  if (!Number.isFinite(ctx.activeWagerCount) || ctx.activeWagerCount < 0) {
+    return {
+      outcome: "requires_ceo_click",
+      reason: "invalid_active_count",
+      detail: `Active wager count ${String(ctx.activeWagerCount)} is not a finite non-negative number; bad context closes the gate.`,
     };
   }
   if (ctx.activeWagerCount >= line.maxConcurrentActive) {

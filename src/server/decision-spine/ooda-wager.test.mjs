@@ -13,8 +13,10 @@
 //   INV-W4: malformed confidence or stake  → blocked
 //   INV-W5: zero-trust line                → nothing is within_line
 //   INV-W6: unknown/terminal transitions   → refused
-//   INV-W7: settlement requires active + non-empty evidence
+//   INV-W7: settlement requires active + non-empty evidence + valid settledAt
 //   INV-W8: determinism — same input, same decision; ids never random
+//   INV-W9: malformed kill criteria, line limits, or active count never open
+//           the gate (blocked or requires_ceo_click, never within_line)
 
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -132,6 +134,15 @@ test("Decision Spine — OodaWager type foundation (pure)", async (t) => {
 
     const noEvidence = settleWager(active, { ...settlement, evidence: "   " });
     assert.deepEqual(noEvidence, { ok: false, reason: "missing_evidence" });
+
+    for (const settledAt of ["", "   ", "not-a-date"]) {
+      const badTimestamp = settleWager(active, { ...settlement, settledAt });
+      assert.deepEqual(
+        badTimestamp,
+        { ok: false, reason: "invalid_settled_at" },
+        `settledAt ${JSON.stringify(settledAt)}`,
+      );
+    }
   });
 
   await t.test("INV-W1: no operating line → requires_ceo_click", () => {
@@ -165,6 +176,54 @@ test("Decision Spine — OodaWager type foundation (pure)", async (t) => {
     });
     assert.equal(d.outcome, "blocked");
     assert.equal(d.reason, "no_kill_criteria");
+  });
+
+  await t.test("INV-W9: blank or malformed kill criteria → blocked", () => {
+    for (const bad of [
+      killCriterion({ metric: "   " }),
+      killCriterion({ metric: "" }),
+      killCriterion({ threshold: "   " }),
+      killCriterion({ reviewBy: "" }),
+      killCriterion({ reviewBy: "   " }),
+      killCriterion({ reviewBy: "not-a-date" }),
+    ]) {
+      const d = evaluateWagerAgainstLine(wager({ killCriteria: [bad] }), line(), {
+        activeWagerCount: 0,
+      });
+      assert.equal(d.outcome, "blocked", JSON.stringify(bad));
+      assert.equal(d.reason, "malformed_kill_criteria");
+    }
+
+    const oneBadAmongValid = evaluateWagerAgainstLine(
+      wager({ killCriteria: [killCriterion(), killCriterion({ metric: " " })] }),
+      line(),
+      { activeWagerCount: 0 },
+    );
+    assert.equal(oneBadAmongValid.outcome, "blocked", "one blank criterion taints the wager");
+    assert.equal(oneBadAmongValid.reason, "malformed_kill_criteria");
+  });
+
+  await t.test("INV-W9: malformed operating-line limits escalate to CEO, never within_line", () => {
+    for (const bad of [
+      line({ maxStakePerWager: Number.NaN }),
+      line({ maxStakePerWager: Number.POSITIVE_INFINITY }),
+      line({ maxStakePerWager: -1 }),
+      line({ maxConcurrentActive: Number.NaN }),
+      line({ maxConcurrentActive: Number.POSITIVE_INFINITY }),
+      line({ maxConcurrentActive: -2 }),
+    ]) {
+      const d = evaluateWagerAgainstLine(wager(), bad, { activeWagerCount: 0 });
+      assert.equal(d.outcome, "requires_ceo_click", JSON.stringify(bad));
+      assert.equal(d.reason, "malformed_line");
+    }
+  });
+
+  await t.test("INV-W9: malformed active-count context escalates to CEO", () => {
+    for (const activeWagerCount of [Number.NaN, -1, Number.POSITIVE_INFINITY, -0.0001]) {
+      const d = evaluateWagerAgainstLine(wager(), line(), { activeWagerCount });
+      assert.equal(d.outcome, "requires_ceo_click", `activeWagerCount ${activeWagerCount}`);
+      assert.equal(d.reason, "invalid_active_count");
+    }
   });
 
   await t.test("INV-W4: malformed confidence or stake → blocked", () => {
@@ -211,6 +270,13 @@ test("Decision Spine — OodaWager type foundation (pure)", async (t) => {
     assert.equal(d.outcome, "within_line");
     assert.equal(d.reason, "within_line");
     assert.match(d.detail, /Sentinelle/);
+  });
+
+  await t.test("zeroTrustLine ids never collide across stake kinds or units", () => {
+    assert.equal(zeroTrustLine("money", "CAD").id, "line:zero-trust:money:CAD");
+    assert.equal(zeroTrustLine("time", "hours").id, "line:zero-trust:time:hours");
+    assert.notEqual(zeroTrustLine("money", "CAD").id, zeroTrustLine("money", "USD").id);
+    assert.notEqual(zeroTrustLine("money", "CAD").id, zeroTrustLine("time", "CAD").id);
   });
 
   await t.test("INV-W5: zero-trust line lets nothing through", () => {
