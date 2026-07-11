@@ -14,24 +14,23 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 374 |
+| LIVE | 391 |
 | TEST_ONLY | 9 |
-| INCUBATION | 52 |
-| **Total source** | **435** |
+| INCUBATION | 48 |
+| **Total source** | **448** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
-| server/agents | 12 |
 | features/cockpit | 9 |
+| server/agents | 9 |
 | features/memory | 7 |
 | features/ventures | 6 |
 | server/ventures | 4 |
 | server/missions | 3 |
 | server/arena | 2 |
 | features/agents | 1 |
-| features/hq | 1 |
 | features/outbound | 1 |
 | features/skills | 1 |
 | lib/cn.ts | 1 |
@@ -54,7 +53,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/cockpit/components/morning-readiness-panel.tsx`
 - `src/features/cockpit/components/venture-suggestions.tsx`
 - `src/features/cockpit/widgets/widget-manifest.ts`
-- `src/features/hq/capability-status.ts`
 - `src/features/memory/components/agent-leaderboard.tsx`
 - `src/features/memory/components/daily-log-card.tsx`
 - `src/features/memory/components/memory-subject-card.tsx`
@@ -74,13 +72,10 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/check-supabase-config.ts`
 - `src/scripts/mcl-archive-dir.ts`
 - `src/scripts/process-document.ts`
-- `src/server/agents/evidence/runtime-evidence-pack.ts`
 - `src/server/agents/models/agent-model-profile-contract.ts`
 - `src/server/agents/models/model-provider-contract.ts`
 - `src/server/agents/models/model-selection-policy.ts`
 - `src/server/agents/models/provider-registry-contract.ts`
-- `src/server/agents/providers/adapter-provider-contract.ts`
-- `src/server/agents/providers/cli-runtime-provider-contract.ts`
 - `src/server/agents/providers/mailbox-provider-contract.ts`
 - `src/server/agents/providers/tool-provider-contract.ts`
 - `src/server/agents/providers/web-automation-provider-contract.ts`
