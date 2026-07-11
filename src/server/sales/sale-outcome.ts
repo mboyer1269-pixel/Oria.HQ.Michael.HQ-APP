@@ -37,7 +37,7 @@ export function captureSaleOutcome(input: SaleOutcomeInput): SaleOutcomeResult {
         soldStockId: input.soldStockId.trim(),
         soldAt: nowIso,
         lostReason: undefined,
-        nextFollowUpAt: undefined,
+        nextFollowUpAt: null,
         notes: input.notes?.trim()
           ? `${existing.notes}\n[sold] ${input.notes.trim()}`.trim()
           : existing.notes,
@@ -57,7 +57,7 @@ export function captureSaleOutcome(input: SaleOutcomeInput): SaleOutcomeResult {
       lostReason: input.lostReason.trim(),
       soldStockId: undefined,
       soldAt: undefined,
-      nextFollowUpAt: undefined,
+      nextFollowUpAt: null,
       notes: input.notes?.trim()
         ? `${existing.notes}\n[lost] ${input.notes.trim()}`.trim()
         : existing.notes,

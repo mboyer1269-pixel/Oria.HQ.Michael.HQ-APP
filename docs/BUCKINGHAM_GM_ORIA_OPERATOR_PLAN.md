@@ -24,7 +24,7 @@
 
 ## 1. Intention
 
-```
+```text
 Inventaire (manuel JSON)
   → Fiches Marketplace (Oria prépare, toi publies)
     → Inbound Messenger / appel / RDV
@@ -107,11 +107,13 @@ Capacités HQ : `sales_lead_bank`, `marketplace_listing_prepare`, `dealership_in
 
 ## 7. Hors scope (volontaire)
 
-- Fetch HTML auto `buckinghamgm.com` (Yellow + accord concession)  
+- Cron inventaire / multi-concession (au-delà du sync allowlist manuel via `/api/inventory/sync`)  
 - Auto-post Facebook / cookies / bot  
 - Envoi SMS/email live (Send Desk ultérieur)  
 - Persistance Supabase lead bank  
 - Phase 1 / auth / secrets  
+
+> **Note sync :** `POST /api/inventory/sync` est **livré** (allowlist `buckinghamgm.com`, read-only public HTML). Ce qui reste hors scope, c’est le cron auto et tout accès DMS/CRM.
 
 ---
 

@@ -184,6 +184,7 @@ test("Buckingham loop: stock → marketplace → lead → follow-up → sold", a
     assert.equal(sold.ok, true);
     assert.equal(sold.lead.stage, "sold");
     assert.equal(sold.lead.soldStockId, "stk_trax_1");
+    assert.equal(sold.lead.nextFollowUpAt, undefined);
   });
 
   await t.test("lost requires reason", () => {
@@ -202,5 +203,6 @@ test("Buckingham loop: stock → marketplace → lead → follow-up → sold", a
     });
     assert.equal(ok.ok, true);
     assert.equal(ok.lead.stage, "lost");
+    assert.equal(ok.lead.nextFollowUpAt, undefined);
   });
 });

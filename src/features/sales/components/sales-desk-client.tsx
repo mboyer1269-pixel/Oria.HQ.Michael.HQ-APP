@@ -103,6 +103,7 @@ export function SalesDeskClient({
     initialListings[0] ?? null,
   );
   const [captureMsg, setCaptureMsg] = useState<string>("");
+  const [captureOk, setCaptureOk] = useState(true);
   const [captureBusy, setCaptureBusy] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
@@ -134,6 +135,7 @@ export function SalesDeskClient({
       const payload = await res.json().catch(() => null);
       if (!res.ok || !payload?.draft) {
         setCaptureMsg(payload?.errors?.join("; ") ?? "Préparation relance échouée.");
+        setCaptureOk(false);
         return;
       }
       setDraftByLead((prev) => ({
@@ -145,6 +147,9 @@ export function SalesDeskClient({
         },
       }));
       setExpandedLeadId(leadId);
+    } catch (err) {
+      setCaptureOk(false);
+      setCaptureMsg(err instanceof Error ? err.message : "Préparation relance échouée.");
     } finally {
       setBusyLeadId(null);
     }
@@ -159,6 +164,14 @@ export function SalesDeskClient({
         body: JSON.stringify({ leadId, outcome, ...extra }),
       });
       if (res.ok) startTransition(() => router.refresh());
+      else {
+        const payload = await res.json().catch(() => null);
+        setCaptureOk(false);
+        setCaptureMsg(payload?.errors?.join("; ") ?? "Mise à jour outcome échouée.");
+      }
+    } catch (err) {
+      setCaptureOk(false);
+      setCaptureMsg(err instanceof Error ? err.message : "Mise à jour outcome échouée.");
     } finally {
       setBusyLeadId(null);
     }
@@ -198,10 +211,14 @@ export function SalesDeskClient({
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok || !payload?.packet) {
+        setSyncState("err");
         setSyncMsg(payload?.errors?.join("; ") ?? "Préparation fiche échouée.");
         return;
       }
       setListingPacket(payload.packet as MarketplaceListingPacket);
+    } catch (err) {
+      setSyncState("err");
+      setSyncMsg(err instanceof Error ? err.message : "Préparation fiche échouée.");
     } finally {
       setListingBusy(null);
     }
@@ -211,6 +228,7 @@ export function SalesDeskClient({
     e.preventDefault();
     setCaptureBusy(true);
     setCaptureMsg("");
+    setCaptureOk(true);
     try {
       const res = await fetch("/api/sales/leads", {
         method: "POST",
@@ -235,12 +253,17 @@ export function SalesDeskClient({
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
+        setCaptureOk(false);
         setCaptureMsg(payload?.errors?.join("; ") ?? "Capture échouée.");
         return;
       }
+      setCaptureOk(true);
       setCaptureMsg(`Lead capturé : ${payload.lead?.fullName ?? form.fullName}`);
       setForm({ fullName: "", phone: "", source: "phone_in", stockId: "", notes: "" });
       startTransition(() => router.refresh());
+    } catch (err) {
+      setCaptureOk(false);
+      setCaptureMsg(err instanceof Error ? err.message : "Capture échouée.");
     } finally {
       setCaptureBusy(false);
     }
@@ -585,7 +608,9 @@ export function SalesDeskClient({
               {captureBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
               Ajouter à la lead bank
             </button>
-            {captureMsg ? <p className="text-xs text-emerald-300">{captureMsg}</p> : null}
+            {captureMsg ? (
+              <p className={`text-xs ${captureOk ? "text-emerald-300" : "text-rose-300"}`}>{captureMsg}</p>
+            ) : null}
           </form>
         </section>
       </div>

@@ -134,6 +134,14 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     evidence: "src/server/inventory/inventory-ingest.ts + public-inventory-sync.ts (allowlist buckinghamgm.com)",
     note: "Ingest manuel + sync HTML public allowlist. Persistance in-memory ; pas de DMS/CRM.",
   },
+  {
+    id: "joris_marketplace_listing_prepare",
+    label: "Marketplace listing via Joris",
+    status: "shadow",
+    surface: "/api/joris/chat",
+    evidence: "src/server/joris/marketplace-listing-intent.ts (intent marketplace.listing.prepare)",
+    note: "Chat prepare-only : sync inventaire + fiche stock #. Pas d'auto-post Facebook.",
+  },
 ];
 
 const STATUS_LABELS: Record<CapabilityStatus, string> = {

@@ -8,6 +8,8 @@ import { checkPublicInventoryUrl } from "./public-inventory-allowlist";
 const D2C_IMG_RE =
   /https:\/\/(?:imagescdn|carimages)\.d2cmedia\.ca\/[^"'\s>]+\.(?:jpg|jpeg|png|webp)/gi;
 
+const VDP_FETCH_TIMEOUT_MS = 15_000;
+
 export async function enrichPhotoUrlsFromVdp(input: {
   listingUrl?: string;
   existingPhotoUrls: string[];
@@ -23,6 +25,8 @@ export async function enrichPhotoUrlsFromVdp(input: {
     return { photoUrls: existing, enriched: false, warning: check.reason };
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), VDP_FETCH_TIMEOUT_MS);
   try {
     const fetchImpl = input.fetchImpl ?? fetch;
     const res = await fetchImpl(check.normalizedUrl, {
@@ -31,12 +35,13 @@ export async function enrichPhotoUrlsFromVdp(input: {
         accept: "text/html",
       },
       redirect: "follow",
+      signal: controller.signal,
     });
     if (!res.ok) {
       return { photoUrls: existing, enriched: false, warning: `VDP HTTP ${res.status}` };
     }
     const html = await res.text();
-    const found = [...html.matchAll(D2C_IMG_RE)].map((m) => m[0]);
+    const found = Array.from(html.matchAll(D2C_IMG_RE), (m) => m[0]);
     const gallery = found.filter((u) => /\/\d+\/\d+\//.test(u));
     const merged = [...new Set([...existing, ...(gallery.length ? gallery : found)])];
     return {
@@ -46,5 +51,7 @@ export async function enrichPhotoUrlsFromVdp(input: {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { photoUrls: existing, enriched: false, warning: message };
+  } finally {
+    clearTimeout(timer);
   }
 }

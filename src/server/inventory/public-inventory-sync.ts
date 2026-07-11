@@ -30,12 +30,15 @@ export type PublicInventorySyncResult =
   | { ok: false; errors: string[]; warnings: string[] };
 
 const DEFAULT_UA = "OriaHQ-InventorySync/1.0 (+https://oria.local; public-read-only)";
+const FETCH_TIMEOUT_MS = 20_000;
 
 async function fetchHtml(
   url: string,
   fetchImpl: typeof fetch,
   userAgent: string,
 ): Promise<{ ok: true; html: string } | { ok: false; error: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetchImpl(url, {
       method: "GET",
@@ -44,6 +47,7 @@ async function fetchHtml(
         accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",
+      signal: controller.signal,
     });
     if (!res.ok) {
       return { ok: false, error: `HTTP ${res.status} for ${url}` };
@@ -56,6 +60,8 @@ async function fetchHtml(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: `fetch failed for ${url}: ${message}` };
+  } finally {
+    clearTimeout(timer);
   }
 }
 

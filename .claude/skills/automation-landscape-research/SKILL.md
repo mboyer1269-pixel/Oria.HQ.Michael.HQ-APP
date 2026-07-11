@@ -35,7 +35,7 @@ outil risqué (bot Facebook) ou de rater un feed/API propre.
 
 ## Quick Start
 
-```
+```text
 /automation-landscape-research
 Sujet: inventaire concession → fiche Facebook Marketplace
 Contraintes Oria: prepare-only, pas d'auto-post, allowlist publique only

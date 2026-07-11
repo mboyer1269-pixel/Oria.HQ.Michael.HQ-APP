@@ -59,9 +59,11 @@ function findDedupeMatch(
 
 export type UpsertLeadInput = {
   workspaceId: string;
-  lead: Omit<SalesLead, "createdAt" | "updatedAt"> & {
+  lead: Omit<SalesLead, "createdAt" | "updatedAt" | "nextFollowUpAt"> & {
     createdAt?: string;
     updatedAt?: string;
+    /** `null` clears the follow-up date; `undefined` keeps prior on merge. */
+    nextFollowUpAt?: string | null;
   };
   nowIso?: string;
   /** When true, merge into existing phone/email match instead of failing. */
@@ -101,6 +103,15 @@ export function upsertSalesLead(input: UpsertLeadInput): UpsertLeadResult {
   }
 
   const prior = map.get(targetId);
+  const resolvedStage =
+    prior &&
+    incoming.stage === "new" &&
+    prior.stage !== "sold" &&
+    prior.stage !== "lost" &&
+    prior.stage !== "new"
+      ? prior.stage
+      : incoming.stage;
+
   const lead: SalesLead = {
     leadId: targetId,
     fullName: incoming.fullName.trim(),
@@ -116,14 +127,17 @@ export function upsertSalesLead(input: UpsertLeadInput): UpsertLeadResult {
       ...(prior?.interestedModels ?? []),
       ...(incoming.interestedModels ?? []),
     ]),
-    stage: incoming.stage,
+    stage: resolvedStage,
     consentBasis: incoming.consentBasis,
     consentNote: incoming.consentNote ?? prior?.consentNote,
-    nextFollowUpAt: incoming.nextFollowUpAt ?? prior?.nextFollowUpAt,
+    nextFollowUpAt:
+      incoming.nextFollowUpAt === null
+        ? undefined
+        : (incoming.nextFollowUpAt ?? prior?.nextFollowUpAt),
     lastContactAt: incoming.lastContactAt ?? prior?.lastContactAt,
-    lostReason: incoming.lostReason,
-    soldStockId: incoming.soldStockId,
-    soldAt: incoming.soldAt,
+    lostReason: resolvedStage === "lost" ? incoming.lostReason : undefined,
+    soldStockId: resolvedStage === "sold" ? incoming.soldStockId : undefined,
+    soldAt: resolvedStage === "sold" ? (incoming.soldAt ?? prior?.soldAt) : undefined,
     notes: mergeNotes(prior?.notes, incoming.notes),
     createdAt: prior?.createdAt ?? incoming.createdAt ?? nowIso,
     updatedAt: nowIso,
