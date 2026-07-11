@@ -44,11 +44,11 @@ export default async function SalesDeskPage() {
         eyebrow="Sales Desk — Buckingham GM"
         icon={Car}
         tone="amber"
-        title="Ta matinée. Tes leads. Tes annonces."
+        title="Inventaire visuel. Fiches Marketplace. Relances."
         description={
           <>
-            Trois gestes qui vendent : traiter la file du matin, préparer une fiche Marketplace depuis
-            le stock du site, capturer chaque inbound. Oria prépare — tu publies et tu closes.
+            Sync le site → grille photo des véhicules → prépare une fiche Facebook. Les leads Activix
+            arrivent lundi ; en attendant, file du matin locale.
           </>
         }
       />

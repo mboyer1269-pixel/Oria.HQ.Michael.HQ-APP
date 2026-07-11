@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     ok: true,
     snapshotId: result.snapshot.snapshotId,
     vehicleCount: result.vehicleCount,
+    vehicles: result.snapshot.vehicles,
     fetchedUrls: result.fetchedUrls,
     warnings: result.warnings,
     persistence: "in_memory",
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
     defaultUrls: BUCKINGHAM_DEFAULT_INVENTORY_URLS,
     note:
       "Public allowlist sync only (buckinghamgm.com). " +
-      "Next: POST /api/marketplace/listings with a stockId to prepare a Marketplace fiche.",
+      "Vehicles are returned in this response for the Sales Desk visual grid. " +
+      "Next: prepare a Marketplace fiche from a stock card.",
   });
 }
