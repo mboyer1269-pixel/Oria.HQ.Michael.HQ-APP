@@ -108,6 +108,32 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
       "src/server/ledger/hash-chain-write-flag.ts (LEDGER_HASH_CHAIN_WRITE off par défaut)",
     note: "Vérificateur + sealer prêts ; écriture live mandate-gated (migration Phase 1 + LEDGER_HMAC_KEY).",
   },
+  {
+    id: "sales_lead_bank",
+    label: "Sales lead bank + morning queue",
+    status: "shadow",
+    surface: "/api/sales/leads",
+    evidence:
+      "src/server/sales/lead-bank-store.ts + morning-queue + follow-up prepare (in-memory, prepare-only)",
+    note: "Banque de leads process-locale. Pas d'auto-send. Persistance durable = mandat futur.",
+  },
+  {
+    id: "marketplace_listing_prepare",
+    label: "Marketplace listing prepare → lead capture",
+    status: "shadow",
+    surface: "/api/marketplace/listings",
+    evidence:
+      "src/server/marketplace-listings/prepare-listing.ts + capture-lead.ts (manual publish only)",
+    note: "Prépare fiches FB Marketplace depuis stock ; capture inbound → lead bank. Pas d'auto-post.",
+  },
+  {
+    id: "dealership_inventory_snapshot",
+    label: "Dealership inventory snapshot (manual ingest)",
+    status: "shadow",
+    surface: "/api/inventory/snapshot",
+    evidence: "src/server/inventory/inventory-ingest.ts (manual JSON only, no public fetch yet)",
+    note: "Ingest manuel CSV/JSON. Fetch HTML allowlist buckinghamgm.com = Yellow ultérieur.",
+  },
 ];
 
 const STATUS_LABELS: Record<CapabilityStatus, string> = {

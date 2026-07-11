@@ -26,6 +26,9 @@
 | Memory vault (v0.1 fichier) | **live** | `/hq/memory` | `memory/` + `learning-loop-service.ts` |
 | Memory vault — Supabase/pgvector | **planned** | — | `MEMORY_VAULT_CONTRACT.md` (verrouillé) |
 | Ledger integrity hash-chain | **shadow** | — | `hash-chain-write-flag.ts` (flag off) |
+| Sales lead bank + morning queue | **shadow** | `/api/sales/leads` | `lead-bank-store.ts` (in-memory) |
+| Marketplace listing → lead capture | **shadow** | `/api/marketplace/listings` | prepare + capture-lead (manual publish) |
+| Dealership inventory snapshot | **shadow** | `/api/inventory/snapshot` | manual JSON ingest only |
 
 ## Comment ce registre reste honnête
 
