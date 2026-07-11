@@ -7,7 +7,9 @@ import {
   validateMarketplaceListingPacket,
   type MarketplaceListingPacket,
 } from "@/features/marketplace-listings/listing-packet";
-import { findVehicleInSnapshot } from "@/server/inventory/inventory-store";
+import { findVehicleInSnapshot, getInventorySnapshot } from "@/server/inventory/inventory-store";
+import { enrichPhotoUrlsFromVdp } from "@/server/inventory/vdp-photo-enrich";
+import type { VehicleStock } from "@/features/inventory/vehicle-stock";
 import { saveMarketplaceListing } from "./listing-store";
 
 export type PrepareListingInput = {
@@ -16,28 +18,65 @@ export type PrepareListingInput = {
   packetId?: string;
   locationHint?: string;
   nowIso?: string;
+  /** When true (default), try VDP page for more photos. */
+  enrichPhotos?: boolean;
+  fetchImpl?: typeof fetch;
 };
 
 export type PrepareListingResult =
-  | { ok: true; packet: MarketplaceListingPacket }
+  | {
+      ok: true;
+      packet: MarketplaceListingPacket;
+      photoEnrichment?: { enriched: boolean; warning?: string };
+    }
   | { ok: false; errors: string[] };
 
-export function prepareMarketplaceListing(input: PrepareListingInput): PrepareListingResult {
+function resolveVehicle(workspaceId: string, stockId: string): VehicleStock | null {
+  const direct = findVehicleInSnapshot(workspaceId, stockId);
+  if (direct) return direct;
+  const snap = getInventorySnapshot(workspaceId);
+  if (!snap) return null;
+  const needle = stockId.trim().toLowerCase();
+  return (
+    snap.vehicles.find(
+      (v) =>
+        v.stockId.toLowerCase() === needle ||
+        v.stockNumber?.toLowerCase() === needle ||
+        v.vin?.toLowerCase() === needle,
+    ) ?? null
+  );
+}
+
+export async function prepareMarketplaceListing(
+  input: PrepareListingInput,
+): Promise<PrepareListingResult> {
   const nowIso = input.nowIso ?? new Date().toISOString();
-  const vehicle = findVehicleInSnapshot(input.workspaceId, input.stockId);
+  const vehicle = resolveVehicle(input.workspaceId, input.stockId);
   if (!vehicle) {
     return {
       ok: false,
       errors: [
-        `stockId not found in inventory snapshot: ${input.stockId}. Ingest inventory first.`,
+        `stockId not found in inventory snapshot: ${input.stockId}. Sync or ingest inventory first.`,
       ],
     };
+  }
+
+  let working = vehicle;
+  let photoEnrichment: { enriched: boolean; warning?: string } | undefined;
+  if (input.enrichPhotos !== false) {
+    const enriched = await enrichPhotoUrlsFromVdp({
+      listingUrl: vehicle.listingUrl,
+      existingPhotoUrls: vehicle.photoUrls,
+      fetchImpl: input.fetchImpl,
+    });
+    photoEnrichment = { enriched: enriched.enriched, warning: enriched.warning };
+    working = { ...vehicle, photoUrls: enriched.photoUrls };
   }
 
   const packet = prepareListingFromStock({
     packetId: input.packetId ?? `mkt_${vehicle.stockId}_${nowIso.replace(/[:.]/g, "")}`,
     workspaceId: input.workspaceId,
-    vehicle,
+    vehicle: working,
     locationHint: input.locationHint,
     nowIso,
   });
@@ -45,5 +84,5 @@ export function prepareMarketplaceListing(input: PrepareListingInput): PrepareLi
   const validation = validateMarketplaceListingPacket(packet);
   if (!validation.valid) return { ok: false, errors: validation.errors };
 
-  return { ok: true, packet: saveMarketplaceListing(packet) };
+  return { ok: true, packet: saveMarketplaceListing(packet), photoEnrichment };
 }

@@ -20,6 +20,7 @@ import {
 import { formatMissionDraftProposalSummary } from "@/server/missions/mission-draft-builder";
 import { getPendingMissionDraft, setPendingMissionDraft } from "@/server/missions/mission-draft-session";
 import { detectIntent } from "@/server/joris/detect-intent";
+import { handleMarketplaceListingIntent } from "@/server/joris/marketplace-listing-intent";
 import { generateJorisReply, type JorisReplyResult } from "@/server/joris/joris-reply-generator";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
@@ -87,6 +88,7 @@ const INTENT_TASK_CLASS: Record<JorisIntent, TaskClass> = {
   "mission.plan": "general",
   "mission.draft": "general",
   "governance.audit": "general",
+  "marketplace.listing.prepare": "general",
 };
 
 /** Conservative, pure mapping from a detected intent to its shadow task class. */
@@ -452,6 +454,21 @@ export async function runJorisCommand(
     return {
       intent,
       summary: attachMemexPreview(briefSummary, "brief.generate"),
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "marketplace.listing.prepare") {
+    const listing = await handleMarketplaceListingIntent({
+      workspaceId: ctx.workspace.id,
+      message,
+    });
+    return {
+      intent,
+      summary: listing.summary,
       modelId: routedModel.model.id,
       costMode: routedModel.mode,
       ...workspaceMeta,

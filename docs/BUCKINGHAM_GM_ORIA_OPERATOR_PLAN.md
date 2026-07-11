@@ -1,12 +1,12 @@
 # Buckingham GM × Oria — Plan opérateur ventes
 
-**Status:** Green Zone implanté (in-memory) — lead bank + Marketplace prepare + capture inbound + sold/lost  
+**Status:** Green Zone — inventaire public allowlist + fiches Marketplace prepare-only + lead bank + intent Joris  
 **Owner:** Michael Boyer  
 **Contexte:** Représentant aux ventes — Buckingham Chevrolet Buick GMC (`buckinghamgm.com`, Gatineau)  
 **Produit:** Oria HQ  
 **Date:** 2026-07-11  
 
-**Objectif :** renforcer la lead bank, générer des leads via Marketplace, accélérer des ventes — toujours prepare → action humaine.
+**Objectif :** depuis le site public (stock # + photos) → fiche Marketplace parfaite prête à uploader → leads → ventes. Prepare → humain publie.
 
 ---
 
@@ -55,6 +55,7 @@ Oria prépare. **Toi** tu closes.
 
 | Méthode | Route | Rôle |
 |---------|-------|------|
+| `POST` | `/api/inventory/sync` | Fetch HTML public allowlist → snapshot |
 | `POST`/`GET` | `/api/inventory/snapshot` | Ingest manuel JSON / lire snapshot |
 | `POST`/`GET` | `/api/sales/leads` | Upsert / lister lead bank |
 | `GET` | `/api/sales/morning-queue` | File du matin (due → score) |
@@ -62,6 +63,8 @@ Oria prépare. **Toi** tu closes.
 | `POST` | `/api/sales/outcome` | `sold` (exige stock) / `lost` (exige raison) |
 | `POST`/`GET` | `/api/marketplace/listings` | Préparer fiche depuis stock / marquer publié |
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
+
+**Joris (chat)** : « sync inventaire » / « prépare fiche Marketplace 26344-NEUF » → intent `marketplace.listing.prepare` (checklist + URLs photos, pas d’auto-post).
 
 Persistance : **process-locale** (`persistence: "in_memory"`). Perdu au redémarrage jusqu’à mandat store durable.
 

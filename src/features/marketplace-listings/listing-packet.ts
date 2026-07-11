@@ -110,18 +110,20 @@ export function prepareListingFromStock(input: {
   const mileage =
     v.mileageKm !== undefined
       ? `${new Intl.NumberFormat("fr-CA").format(v.mileageKm)} km`
-      : "kilométrage à confirmer";
+      : null;
+  const photoCount = v.photoUrls.length;
   const description = [
     `${title} — ${conditionLabel}`,
-    `Prix : ${formatPrice(v.priceCad)}`,
-    v.condition !== "new" ? `Kilométrage : ${mileage}` : null,
-    v.exteriorColor ? `Couleur : ${v.exteriorColor}` : null,
-    v.stockNumber ? `Stock # ${v.stockNumber}` : null,
+    `Prix affiché : ${formatPrice(v.priceCad)} (+ taxes & frais)`,
+    mileage ? `Kilométrage : ${mileage}` : v.condition === "new" ? "Kilométrage : neuf / bas km" : null,
+    v.exteriorColor ? `Couleur ext. : ${v.exteriorColor}` : null,
+    v.stockNumber || v.stockId ? `Stock : ${v.stockNumber ?? v.stockId}` : null,
+    v.vin ? `NIV : ${v.vin}` : null,
     "",
-    "Disponible chez Buckingham Chevrolet Buick GMC (Gatineau).",
-    "Répondez à cette annonce ou visitez-nous pour un essai.",
+    "Disponible chez Buckingham Chevrolet Buick GMC (Gatineau / Buckingham).",
+    "Essai et prise de rendez-vous bienvenus — répondez à cette annonce.",
     v.listingUrl ? `Fiche concession : ${v.listingUrl}` : null,
-    v.notes ? `Notes : ${v.notes}` : null,
+    photoCount > 0 ? `Photos jointes : ${photoCount} (à uploader depuis les URLs du packet).` : null,
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -133,7 +135,7 @@ export function prepareListingFromStock(input: {
     title,
     description,
     priceCad: v.priceCad,
-    photoUrls: [...v.photoUrls],
+    photoUrls: [...v.photoUrls].slice(0, 20),
     locationHint: input.locationHint ?? "Gatineau / Buckingham, QC",
     disclaimers: [...DEFAULT_DISCLAIMERS, ...(input.extraDisclaimers ?? [])],
     sourceListingUrl: v.listingUrl,
@@ -143,4 +145,25 @@ export function prepareListingFromStock(input: {
     requiresManualPublish: true,
     noExecutionAuthorized: true,
   };
+}
+
+/** Human checklist for copying a packet into Facebook Marketplace. */
+export function formatMarketplaceUploadChecklist(packet: MarketplaceListingPacket): string {
+  const lines = [
+    "Fiche Marketplace prête (publication manuelle) :",
+    `• Titre : ${packet.title}`,
+    packet.priceCad !== undefined ? `• Prix : ${formatPrice(packet.priceCad)}` : "• Prix : sur demande",
+    `• Lieu : ${packet.locationHint}`,
+    `• Photos (${packet.photoUrls.length}) :`,
+    ...packet.photoUrls.map((u, i) => `  ${i + 1}. ${u}`),
+    "",
+    "Description à coller :",
+    packet.description,
+    "",
+    "Disclaimers :",
+    ...packet.disclaimers.map((d) => `• ${d}`),
+    "",
+    "Oria ne publie pas sur Facebook — copie/upload manuel uniquement.",
+  ];
+  return lines.join("\n");
 }

@@ -131,8 +131,8 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     label: "Dealership inventory snapshot (manual ingest)",
     status: "shadow",
     surface: "/api/inventory/snapshot",
-    evidence: "src/server/inventory/inventory-ingest.ts (manual JSON only, no public fetch yet)",
-    note: "Ingest manuel CSV/JSON. Fetch HTML allowlist buckinghamgm.com = Yellow ultérieur.",
+    evidence: "src/server/inventory/inventory-ingest.ts + public-inventory-sync.ts (allowlist buckinghamgm.com)",
+    note: "Ingest manuel + sync HTML public allowlist. Persistance in-memory ; pas de DMS/CRM.",
   },
 ];
 

@@ -28,7 +28,8 @@
 | Ledger integrity hash-chain | **shadow** | — | `hash-chain-write-flag.ts` (flag off) |
 | Sales lead bank + morning queue | **shadow** | `/api/sales/leads` | `lead-bank-store.ts` (in-memory) |
 | Marketplace listing → lead capture | **shadow** | `/api/marketplace/listings` | prepare + capture-lead (manual publish) |
-| Dealership inventory snapshot | **shadow** | `/api/inventory/snapshot` | manual JSON ingest only |
+| Dealership inventory snapshot | **shadow** | `/api/inventory/snapshot` + `/api/inventory/sync` | manual JSON + allowlisted public HTML |
+| Marketplace listing via Joris | **shadow** | chat intent `marketplace.listing.prepare` | prepare-only fiche from stock # |
 
 ## Comment ce registre reste honnête
 

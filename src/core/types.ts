@@ -355,7 +355,8 @@ export type JorisIntent =
   | "task.create"
   | "mission.plan" // dry-run plan surface only — never executes
   | "mission.draft" // calendar.book proposal — pending user confirmation
-  | "governance.audit";
+  | "governance.audit"
+  | "marketplace.listing.prepare"; // prepare-only Marketplace fiche from stock
 
 // --- Calendar domain ---------------------------------------------------------
 

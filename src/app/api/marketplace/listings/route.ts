@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const result = prepareMarketplaceListing({
+  const result = await prepareMarketplaceListing({
     workspaceId: ctx.workspace.id,
     stockId: parsed.data.stockId,
     packetId: parsed.data.packetId,
@@ -81,6 +81,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     packet: result.packet,
+    photoEnrichment: result.photoEnrichment,
     publishAuthorized: false,
     persistence: "in_memory",
     note:

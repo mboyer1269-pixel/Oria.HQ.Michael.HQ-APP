@@ -96,12 +96,13 @@ test("Buckingham loop: stock → marketplace → lead → follow-up → sold", a
 
   let packetId = "";
 
-  await t.test("prepare marketplace listing from stock", () => {
-    const result = prepareMarketplaceListing({
+  await t.test("prepare marketplace listing from stock", async () => {
+    const result = await prepareMarketplaceListing({
       workspaceId: WS,
       stockId: "stk_trax_1",
       packetId: "mkt_trax_demo",
       nowIso: NOW,
+      enrichPhotos: false,
     });
     assert.equal(result.ok, true);
     assert.equal(result.packet.requiresManualPublish, true);
