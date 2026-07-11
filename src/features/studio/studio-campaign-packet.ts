@@ -31,6 +31,11 @@ export const STUDIO_CAMPAIGN_PRIORITIES: readonly StudioCampaignPriority[] = [
   "low",
 ];
 
+/**
+ * Lifecycle statuses. `approved_for_manual_publish` / `rejected` are reserved
+ * for a future CEO-gate transition — Yellow 3 only writes prepared /
+ * ready_for_ceo_review (and marks superseded on refresh).
+ */
 export type StudioCampaignStatus =
   | "prepared"
   | "ready_for_ceo_review"
@@ -45,6 +50,12 @@ export const STUDIO_CAMPAIGN_STATUSES: readonly StudioCampaignStatus[] = [
   "rejected",
   "superseded",
 ];
+
+/** Statuses still awaiting CEO review (mirrors Relay prepared-action queue). */
+export const REVIEWABLE_STUDIO_CAMPAIGN_STATUSES: ReadonlySet<StudioCampaignStatus> = new Set([
+  "prepared",
+  "ready_for_ceo_review",
+]);
 
 export type StudioCampaignPacket = {
   packetId: string;

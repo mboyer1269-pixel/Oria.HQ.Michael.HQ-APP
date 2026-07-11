@@ -44,8 +44,8 @@ export type StudioPrepTickResult = {
 };
 
 /**
- * Runs one Studio prep tick. Returns the plan and persisted campaigns.
- * Never publishes or executes anything.
+ * Runs one Studio prep tick: plan + in-memory enqueue for CEO review.
+ * Never publishes or executes anything. Queue is process-local (not durable).
  */
 export async function runStudioPrepTick(
   input: StudioPrepTickInput,
@@ -65,6 +65,9 @@ export async function runStudioPrepTick(
   for (const entry of plan.toEnqueue) {
     enqueued.push(await deps.enqueue(input.workspaceId, entry.campaign));
   }
+
+  // userId is accepted for future ledger attribution; Yellow 3 does not persist it.
+  void input.userId;
 
   return { plan, enqueued, createdAt, publishAuthorized: false };
 }

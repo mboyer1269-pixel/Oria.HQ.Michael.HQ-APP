@@ -136,12 +136,12 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
   },
   {
     id: "marketplace_tool_corridor",
-    label: "Marketplace tool corridor (Studio)",
-    status: "live",
+    label: "Marketplace catalog browse (static)",
+    status: "shadow",
     surface: "/api/marketplace/catalog + MCP marketplace_catalog_browse",
     evidence:
       "src/server/agents/marketplace/marketplace-catalog.ts + marketplace-catalog-browse tool",
-    note: "Browse dry-run (catalogue seed statique). Aucun OAuth live. Enable/execute restent CEO-gated.",
+    note: "Browse seed only (statique, no OAuth). Corridor enable/execute = mandat futur.",
   },
   {
     id: "studio_marketing_autonomy",
@@ -150,7 +150,7 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     surface: "/api/studio/prep-tick",
     evidence:
       "src/server/studio/studio-prep-tick.ts + studio-campaign-packet.ts — prepare-only, publishAuthorized=false",
-    note: "Heartbeat prepare-only câblé (file in-memory). Publish/spend restent manuels.",
+    note: "Heartbeat prepare-only (file in-memory, non durable). Publish/spend restent manuels.",
   },
 ];
 

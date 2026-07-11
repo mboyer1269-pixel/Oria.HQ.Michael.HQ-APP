@@ -6,9 +6,9 @@
 // to the JSON-Schema shape an external MCP server would advertise, so this
 // registry can later be exposed over the wire without changing tool code.
 //
-// Tools are the ONLY sanctioned place for an agent-driven side effect. The first
-// tool, n8n_webhook_trigger, is the single outbound network chokepoint toward
-// the n8n execution layer.
+// Tools are the ONLY sanctioned place for an agent-driven side effect.
+// Sanctioned tools today: n8n_webhook_trigger (outbound network chokepoint)
+// and marketplace_catalog_browse (read-only static catalog; no OAuth).
 
 import { z } from "zod";
 

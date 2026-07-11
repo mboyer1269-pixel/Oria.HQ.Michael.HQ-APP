@@ -1,9 +1,10 @@
 // MCP Tool Registry -- the in-process catalog of agent tools.
 //
 // A tiny, deterministic registry: register on module load, look up by name,
-// list definitions for discovery. The singleton is pre-seeded with the first
-// tool (n8n_webhook_trigger). This is the foundation an external MCP server can
-// later wrap to advertise/execute these tools over the wire.
+// list definitions for discovery. The singleton is pre-seeded with sanctioned
+// tools (n8n_webhook_trigger for CEO-gated outbound; marketplace_catalog_browse
+// for read-only static catalog). This is the foundation an external MCP server
+// can later wrap to advertise/execute these tools over the wire.
 
 import type { McpTool, McpToolDefinition } from "./types";
 import { toMcpToolDefinition } from "./types";

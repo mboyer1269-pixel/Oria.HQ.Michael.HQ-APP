@@ -1,14 +1,26 @@
 // src/server/studio/studio-campaign-store.ts
 //
 // In-memory prepared-campaign queue for Studio prep ticks (dev / local
-// fallback). Never publishes. Production persistence is a future mandate.
+// fallback). Never publishes. Not durable across restarts or multi-instance —
+// production persistence is a future mandate.
 
-import type { StudioPreparedCampaign } from "@/features/studio/studio-campaign-packet";
+import {
+  REVIEWABLE_STUDIO_CAMPAIGN_STATUSES,
+  type StudioPreparedCampaign,
+} from "@/features/studio/studio-campaign-packet";
 
 const store = new Map<string, StudioPreparedCampaign[]>();
 
+/** All rows for a workspace (including superseded / rejected). */
 export function listStudioPreparedCampaigns(workspaceId: string): StudioPreparedCampaign[] {
   return [...(store.get(workspaceId) ?? [])];
+}
+
+/** CEO review queue only — prepared / ready_for_ceo_review. */
+export function listReviewableStudioCampaigns(workspaceId: string): StudioPreparedCampaign[] {
+  return listStudioPreparedCampaigns(workspaceId).filter((campaign) =>
+    REVIEWABLE_STUDIO_CAMPAIGN_STATUSES.has(campaign.status),
+  );
 }
 
 export function enqueueStudioPreparedCampaign(

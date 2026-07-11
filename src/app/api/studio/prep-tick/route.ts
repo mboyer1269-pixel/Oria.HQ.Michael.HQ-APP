@@ -9,7 +9,7 @@ import {
 } from "@/server/studio/studio-prep-tick";
 
 // POST /api/studio/prep-tick — Studio campaign heartbeat (prepare-only).
-// Never publishes or spends.
+// Never publishes or spends. Enqueue is in-memory only (not durable).
 
 const packetSchema = z.object({
   packetId: z.string().min(1),
@@ -77,9 +77,12 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     publishAuthorized: false,
+    persistence: "in_memory",
     createdAt: result.createdAt,
     summary: result.plan.summary,
     enqueued: result.enqueued,
-    note: "Studio prepare-only — CEO must approve manual publish. No auto-send.",
+    note:
+      "Studio prepare-only — in-memory enqueue for CEO review. " +
+      "No durable store, no auto-publish, no spend.",
   });
 }

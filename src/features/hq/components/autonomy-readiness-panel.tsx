@@ -83,7 +83,8 @@ export function AutonomyReadinessPanel() {
           </li>
         </ol>
         <p className="mt-3 text-neutral-600">
-          Suivant (mandat explicite) : subprocess CLI réel, OAuth marketplace live, publish Studio.
+          Suivant (mandat explicite) : subprocess CLI réel + ledger attach, OAuth
+          marketplace live, publish Studio + store durable.
         </p>
       </div>
     </section>

@@ -108,9 +108,8 @@ export function computeStudioPrepPlan(input: StudioPrepPlanInput): StudioPrepPla
     const existing = byHash.get(hash);
 
     if (existing) {
-      const same =
-        contentSignature(existing.packet) === contentSignature(packet) &&
-        existing.status !== "rejected";
+      // Active index already excludes rejected/superseded.
+      const same = contentSignature(existing.packet) === contentSignature(packet);
       if (same) {
         deduped += 1;
         continue;
