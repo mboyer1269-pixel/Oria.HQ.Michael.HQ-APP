@@ -14,6 +14,24 @@ const prepareSchema = z.object({
   stockId: z.string().min(1),
   packetId: z.string().optional(),
   locationHint: z.string().optional(),
+  vehicle: z
+    .object({
+      stockId: z.string().min(1),
+      vin: z.string().optional(),
+      year: z.number().int(),
+      make: z.string().min(1),
+      model: z.string().min(1),
+      trim: z.string().optional(),
+      condition: z.enum(["new", "used", "cpo"]),
+      priceCad: z.number().optional(),
+      mileageKm: z.number().optional(),
+      exteriorColor: z.string().optional(),
+      stockNumber: z.string().optional(),
+      listingUrl: z.string().optional(),
+      photoUrls: z.array(z.string()),
+      notes: z.string().optional(),
+    })
+    .optional(),
 });
 
 const publishedSchema = z.object({
@@ -72,6 +90,7 @@ export async function POST(request: Request) {
     packetId: parsed.data.packetId,
     locationHint: parsed.data.locationHint,
     nowIso,
+    vehicleOverride: "vehicle" in parsed.data ? parsed.data.vehicle : undefined,
   });
 
   if (!result.ok) {

@@ -356,7 +356,8 @@ export type JorisIntent =
   | "mission.plan" // dry-run plan surface only — never executes
   | "mission.draft" // calendar.book proposal — pending user confirmation
   | "governance.audit"
-  | "marketplace.listing.prepare"; // prepare-only Marketplace fiche from stock
+  | "marketplace.listing.prepare" // prepare-only Marketplace fiche from stock
+  | "inventory.market.brief"; // inventaire debrief + comps marché (AutoTrader)
 
 // --- Calendar domain ---------------------------------------------------------
 

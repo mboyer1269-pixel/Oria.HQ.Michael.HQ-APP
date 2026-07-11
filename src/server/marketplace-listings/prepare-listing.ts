@@ -21,6 +21,11 @@ export type PrepareListingInput = {
   /** When true (default), try VDP page for more photos. */
   enrichPhotos?: boolean;
   fetchImpl?: typeof fetch;
+  /**
+   * Optional vehicle payload from the Sales Desk client.
+   * Used when the in-memory snapshot is empty on another serverless instance.
+   */
+  vehicleOverride?: VehicleStock;
 };
 
 export type PrepareListingResult =
@@ -31,11 +36,18 @@ export type PrepareListingResult =
     }
   | { ok: false; errors: string[] };
 
-function resolveVehicle(workspaceId: string, stockId: string): VehicleStock | null {
+function resolveVehicle(
+  workspaceId: string,
+  stockId: string,
+  vehicleOverride?: VehicleStock,
+): VehicleStock | null {
+  if (vehicleOverride && vehicleOverride.stockId === stockId) {
+    return vehicleOverride;
+  }
   const direct = findVehicleInSnapshot(workspaceId, stockId);
   if (direct) return direct;
   const snap = getInventorySnapshot(workspaceId);
-  if (!snap) return null;
+  if (!snap) return vehicleOverride ?? null;
   const needle = stockId.trim().toLowerCase();
   return (
     snap.vehicles.find(
@@ -43,7 +55,9 @@ function resolveVehicle(workspaceId: string, stockId: string): VehicleStock | nu
         v.stockId.toLowerCase() === needle ||
         v.stockNumber?.toLowerCase() === needle ||
         v.vin?.toLowerCase() === needle,
-    ) ?? null
+    ) ??
+    vehicleOverride ??
+    null
   );
 }
 
@@ -51,7 +65,7 @@ export async function prepareMarketplaceListing(
   input: PrepareListingInput,
 ): Promise<PrepareListingResult> {
   const nowIso = input.nowIso ?? new Date().toISOString();
-  const vehicle = resolveVehicle(input.workspaceId, input.stockId);
+  const vehicle = resolveVehicle(input.workspaceId, input.stockId, input.vehicleOverride);
   if (!vehicle) {
     return {
       ok: false,

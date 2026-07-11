@@ -42,9 +42,10 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       // Inline event handlers are blocked; Next.js adds its own scripts.
       "script-src 'self' 'unsafe-inline'",
-      // Supabase is the only external data source.
+      // Supabase is the only external API host; dealership CDN hosts inventory photos.
       `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""}`,
-      "img-src 'self' data: blob:",
+      // Buckingham / d2cmedia public inventory images + AutoTrader comps thumbnails.
+      "img-src 'self' data: blob: https://imagescdn.d2cmedia.ca https://carimages.d2cmedia.ca https://www.buckinghamgm.com https://prod.pictures.autoscout24.net",
       "font-src 'self'",
       "object-src 'none'",
       "base-uri 'self'",

@@ -70,6 +70,9 @@ const priorityAndAccentCases = [
   { message: "prépare fiche Marketplace 26344-NEUF", expected: "marketplace.listing.prepare" },
   { message: "sync inventaire Buckingham", expected: "marketplace.listing.prepare" },
   { message: "Prépare une annonce marketplace pour le stock", expected: "marketplace.listing.prepare" },
+  { message: "débrief inventaire", expected: "inventory.market.brief" },
+  { message: "compare Hyundai Tucson 2023 au marché", expected: "inventory.market.brief" },
+  { message: "plus-value pour mon inventaire vs 2023 Hyundai Tucson", expected: "inventory.market.brief" },
 ];
 
 for (const { message, expected } of priorityAndAccentCases) {
