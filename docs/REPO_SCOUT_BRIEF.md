@@ -1,7 +1,8 @@
 # Repo Scout Brief — Oria HQ
 
-> Produced by `.cursor/agents/orya-repo-scout.md` on 2026-07-11.  
+> Produced by `.cursor/agents/oria-repo-scout.md` on 2026-07-11.  
 > Research only — no Phase 1, no new dependencies, no auth changes.
+> Product spelling: **Oria** (not “Orya”).
 
 ## Question
 
@@ -57,6 +58,12 @@ Which open-source repos / patterns can make Oria HQ **simpler, more efficient, a
 - **WATCH:** Paddock’s Hermes harness adapters if Oria later mandates external runtime adapters (future phase).
 - **WATCH:** Nous Hermes `approvals.mode` (manual/smart/off) as vocabulary for Oria permission modes — naming only until mandated.
 
+## Model / subscription coherence (verified 2026-07-11)
+
+OpenAI and Anthropic are **not blocked** in code. Live chat uses `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` via `llm-json-provider.ts`. Missing keys → deterministic fallback (looks “dumb”, not banned).
+
+Connecting ChatGPT / Claude **subscriptions** (not API keys) is documented in `docs/LOCAL_SUBSCRIPTION_RUNTIME_GATE.md`: official CLIs only; cookie/OAuth interception = permanent NO-GO; CLI **dispatch** into Joris is still `future_pr` (Yellow mandate). Cursor MCP is editor-side, not the HQ model runtime.
+
 ## Self-check
 
 - [x] Repo URLs from live search (Bright Data SERP 401 → WebSearch fallback)
@@ -64,3 +71,4 @@ Which open-source repos / patterns can make Oria HQ **simpler, more efficient, a
 - [x] Yellow/Red called out for deps and rewrites
 - [x] Winner is green-zone UI glue
 - [x] Accounts for JorisDock / agenda work already in flight (PR #339)
+- [x] Product name corrected to **Oria**

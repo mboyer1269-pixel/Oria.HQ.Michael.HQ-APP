@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import type { Route } from "next";
 import Link from "next/link";
 import { AlertCircle, Loader2, MessageSquare, Minimize2, Send } from "lucide-react";
 import { MISSION_DRAFT_CHANGED_EVENT } from "@/features/hq/mission-draft-format";
+import {
+  APPROVAL_RESOLVED_EVENT,
+  type ApprovalResolvedDetail,
+} from "@/features/hq/approval-resolved-event";
 
 // ---------------------------------------------------------------------------
 // Joris dock — omnipresent conversation surface.
@@ -29,6 +34,7 @@ type Turn = {
   text: string;
   muted?: boolean;
   requiresConfirmation?: boolean;
+  href?: string;
 };
 
 const SEED: Turn[] = [
@@ -71,6 +77,25 @@ export function JorisDock() {
     if (!node) return;
     node.scrollTop = node.scrollHeight;
   }, [turns, loading, open]);
+
+  useEffect(() => {
+    function onApprovalResolved(event: Event) {
+      const detail = (event as CustomEvent<ApprovalResolvedDetail>).detail;
+      if (!detail?.summary) return;
+      setOpen(true);
+      setTurns((prev) => [
+        ...prev,
+        {
+          role: "joris",
+          text: detail.summary,
+          href: detail.href,
+        },
+      ]);
+    }
+
+    window.addEventListener(APPROVAL_RESOLVED_EVENT, onApprovalResolved);
+    return () => window.removeEventListener(APPROVAL_RESOLVED_EVENT, onApprovalResolved);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -129,7 +154,9 @@ export function JorisDock() {
         <span className="h-[30px] w-[30px] shrink-0 rounded-[10px] bg-[radial-gradient(circle_at_30%_30%,#22d3ee,#8b5cf6_70%)] shadow-[0_0_18px_rgba(139,92,246,.6)]" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-[#eff1fb]">Joris</p>
-          <p className="text-[10.5px] font-semibold text-emerald-300">chat owner-gated · propose seulement</p>
+          <p className="text-[10.5px] font-semibold text-emerald-300">
+            API Anthropic/OpenAI · abonnements CLI = mandat Yellow
+          </p>
         </div>
         <button
           type="button"
@@ -170,6 +197,14 @@ export function JorisDock() {
                   className="self-start rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-200 transition hover:border-amber-400/50"
                 >
                   Approuver le draft sur HQ →
+                </Link>
+              ) : null}
+              {turn.href && !turn.requiresConfirmation ? (
+                <Link
+                  href={turn.href as Route}
+                  className="self-start rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-200 transition hover:border-emerald-400/40"
+                >
+                  Voir le détail →
                 </Link>
               ) : null}
             </div>

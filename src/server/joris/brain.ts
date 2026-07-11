@@ -245,7 +245,11 @@ async function handleGovernanceReviewReply(
 
 /** Injectable dependencies — lets tests supply a mock LLM reply / vault (no network). */
 export type RunJorisCommandDeps = {
-  generateReply: (input: { message: string; memoryContext?: string | null }) => Promise<JorisReplyResult>;
+  generateReply: (input: {
+    message: string;
+    memoryContext?: string | null;
+    routedModelId?: string;
+  }) => Promise<JorisReplyResult>;
   /** Verified-vault reader; defaults to the real one. Injectable for tests. */
   readVerifiedVault?: (workspaceId: string) => MemoryVaultReadResult;
   /** Optional Memex read-only enrichment — defaults to env-gated stdio client. */
@@ -593,7 +597,11 @@ export async function runJorisCommand(
   // LLM reply via the shared provider; when no provider is configured (no API
   // keys) or the call fails, fall back to a deterministic summary. The result is
   // labelled (`generation`) so nothing claims "AI mode" when rules produced it.
-  const llmReply = await deps.generateReply({ message, memoryContext });
+  const llmReply = await deps.generateReply({
+    message,
+    memoryContext,
+    routedModelId: routedModel.model.id,
+  });
   if (llmReply.ok) {
     // Preserve the deterministic verified-memory/lessons rail verbatim by
     // appending it OUTSIDE the LLM (board.consult), so the audit block is
@@ -606,9 +614,9 @@ export async function runJorisCommand(
       intent,
       summary: attachMemexPreview(summary, intent),
       modelId: llmReply.modelId,
-      // The shared provider uses a low-cost default model; report an honest
-      // conservative cost mode rather than the routed (possibly premium) one.
-      costMode: "economy",
+      // Prefer the live provider's model id; keep routed cost mode when the
+      // live call succeeded so UI and dispatch stay coherent.
+      costMode: routedModel.mode,
       ...workspaceMeta,
       requiresConfirmation: false,
       generation: "llm",
