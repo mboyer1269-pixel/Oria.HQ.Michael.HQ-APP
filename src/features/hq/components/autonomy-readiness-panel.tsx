@@ -66,12 +66,25 @@ export function AutonomyReadinessPanel() {
       </ul>
 
       <div className="mt-5 rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/30 p-4 text-sm leading-6 text-neutral-500">
-        <p className="font-medium text-neutral-300">Prochains mandats Yellow (explicites)</p>
+        <p className="font-medium text-neutral-300">Yellow 1–3 livrés (bornés)</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
-          <li>Dispatch CLI Claude/Codex local derrière Sentinelle + Ledger</li>
-          <li>Premier connecteur marketplace (Zapier MCP dry-run ou browse Hermes skills)</li>
-          <li>Heartbeat Studio (prépare campagnes) — publish toujours manuel</li>
+          <li>
+            CLI dry-run — <code className="text-neutral-400">POST /api/runtimes/local/dry-run</code>{" "}
+            (pas de subprocess)
+          </li>
+          <li>
+            Marketplace browse —{" "}
+            <code className="text-neutral-400">GET /api/marketplace/catalog</code> + MCP{" "}
+            <code className="text-neutral-400">marketplace_catalog_browse</code>
+          </li>
+          <li>
+            Studio heartbeat — <code className="text-neutral-400">POST /api/studio/prep-tick</code>{" "}
+            (prepare-only)
+          </li>
         </ol>
+        <p className="mt-3 text-neutral-600">
+          Suivant (mandat explicite) : subprocess CLI réel, OAuth marketplace live, publish Studio.
+        </p>
       </div>
     </section>
   );

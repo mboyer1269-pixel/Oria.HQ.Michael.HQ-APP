@@ -7,6 +7,7 @@
 
 import type { McpTool, McpToolDefinition } from "./types";
 import { toMcpToolDefinition } from "./types";
+import { marketplaceCatalogBrowseTool } from "./marketplace-catalog-browse";
 import { n8nWebhookTriggerTool } from "./n8n-webhook-trigger";
 
 export class McpToolRegistry {
@@ -39,3 +40,4 @@ export class McpToolRegistry {
 // The process-wide registry. Pre-seeded with the sanctioned tools.
 export const mcpToolRegistry = new McpToolRegistry();
 mcpToolRegistry.register(n8nWebhookTriggerTool);
+mcpToolRegistry.register(marketplaceCatalogBrowseTool);

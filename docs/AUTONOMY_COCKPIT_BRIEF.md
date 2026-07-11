@@ -69,11 +69,12 @@ Autonomous marketing **does not** mean auto-posting ads. It means:
 
 | Stage | Zone | Deliverable |
 |-------|------|-------------|
-| **A — this PR** | Green | Brief + capability registry entries + Autonomy Readiness panel + marketplace **contract** (types only) |
-| **B** | Yellow | CLI subscription **dispatch** behind Sentinelle + Ledger (local only) |
-| **C** | Yellow | First marketplace connector (Zapier MCP dry-run or Hermes skills browse read-only) |
-| **D** | Mandate | Relay prep worker loop (`HERMES_ITERATIVE_PREP_AGENT.md` §9) |
-| **E** | Mandate | Studio campaign heartbeat + review-first publish |
+| **A** | Green | Brief + capability registry + Autonomy Readiness panel + marketplace **contract** |
+| **B — Yellow 1** | Yellow | CLI subscription **dry-run** (`local-runtime-dispatch.ts` + `POST /api/runtimes/local/dry-run`). Subprocess = future written approval. |
+| **C — Yellow 2** | Yellow | Marketplace **browse** dry-run (static catalog + MCP `marketplace_catalog_browse`). No OAuth. |
+| **D — Yellow 3** | Yellow | Studio campaign **heartbeat prepare-only** (`studio-prep-tick` + `/api/studio/prep-tick`). Publish stays manual. |
+| **E** | Mandate | Relay prep worker loop (`HERMES_ITERATIVE_PREP_AGENT.md` §9) |
+| **F** | Mandate | Real CLI subprocess + live marketplace OAuth + Studio publish path |
 
 ## 7. Orchestrate note
 
@@ -84,6 +85,7 @@ Autonomous marketing **does not** mean auto-posting ads. It means:
 - [x] Viktor researched from primary product pages
 - [x] Hermes Agent ≠ Oria Relay distinguished
 - [x] No claim of live marketplace OAuth
-- [x] No claim of subscription CLI dispatch
+- [x] No claim of live subscription CLI **subprocess** (dry-run only; `enablesDispatch=false`)
 - [x] Autonomy panel shows capability registry truth only
+- [x] Yellow 1–3 corridors wired (dry-run / browse / prepare-only)
 - [x] Validation: typecheck, lint, build, smoke:joris

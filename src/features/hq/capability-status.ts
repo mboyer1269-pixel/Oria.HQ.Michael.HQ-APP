@@ -120,10 +120,11 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
   {
     id: "subscription_cli_dispatch",
     label: "Subscription CLI dispatch into Joris",
-    status: "planned",
-    surface: null,
-    evidence: "docs/LOCAL_SUBSCRIPTION_RUNTIME_GATE.md §9 Invocation PR",
-    note: "Mandat Yellow requis. Cookies/OAuth interception = NO-GO permanent.",
+    status: "shadow",
+    surface: "/api/runtimes/local/dry-run",
+    evidence:
+      "src/server/agents/runtimes/local-runtime-dispatch.ts — dry_run only, enablesDispatch=false",
+    note: "Corridor dry-run live (plan argv + evidence pack). Subprocess réel = mandat + approval écrite. Cookies/OAuth = NO-GO.",
   },
   {
     id: "nous_hermes_agent_adapter",
@@ -136,19 +137,20 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
   {
     id: "marketplace_tool_corridor",
     label: "Marketplace tool corridor (Studio)",
-    status: "contract_only",
-    surface: "/hq/runtime (Autonomy Readiness)",
+    status: "live",
+    surface: "/api/marketplace/catalog + MCP marketplace_catalog_browse",
     evidence:
-      "src/server/agents/providers/marketplace-provider-contract.ts + docs/AUTONOMY_COCKPIT_BRIEF.md",
-    note: "Contrat fail-closed. Aucun OAuth marketplace live. Studio prépare, CEO publie.",
+      "src/server/agents/marketplace/marketplace-catalog.ts + marketplace-catalog-browse tool",
+    note: "Browse dry-run (catalogue seed statique). Aucun OAuth live. Enable/execute restent CEO-gated.",
   },
   {
     id: "studio_marketing_autonomy",
     label: "Studio marketing autonomy loop",
-    status: "planned",
-    surface: "/hq/agents (Studio charter)",
-    evidence: "src/features/agents/seed.ts id=marketing + REVENUE_EXECUTION_LANE / OUTBOUND_POLICY",
-    note: "Agent Studio existe ; heartbeat campagne + marketplace metrics = mandat futur.",
+    status: "shadow",
+    surface: "/api/studio/prep-tick",
+    evidence:
+      "src/server/studio/studio-prep-tick.ts + studio-campaign-packet.ts — prepare-only, publishAuthorized=false",
+    note: "Heartbeat prepare-only câblé (file in-memory). Publish/spend restent manuels.",
   },
 ];
 
