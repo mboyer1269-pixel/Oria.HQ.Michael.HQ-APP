@@ -138,7 +138,7 @@ type SalesLead = {
   phone?: string;
   email?: string;
   source: LeadSource;
-  sourceRef?: string;            // packetId Marketplace, URL post, etc.
+  sourceRef?: string;
   interestedStockIds: string[];
   interestedModels: string[];
   stage: LeadStage;
@@ -158,16 +158,12 @@ type SalesLead = {
 
 ### 5.2 Renforcer la lead bank dès le jour 1
 
-**Semaine 0–1 (manuel) :**
 1. Saisir tous les leads déjà chauds.  
 2. Forcer `source` + `consentBasis` + `nextFollowUpAt`.  
 3. Lier chaque lead à un stock ou modèle.  
-4. Traiter chaque jour les follow-ups dus.
-
-**Semaine 1–2 (assisté) :**
+4. Traiter chaque jour les follow-ups dus.  
 5. Chaque listing Marketplace a un `packetId` ; chaque inbound enrichit un lead.  
-6. Chaque relance met à jour `lastContactAt` + prochain `nextFollowUpAt`.  
-7. Chaque `sold` / `lost` écrit stock + raison.
+6. Chaque `sold` / `lost` écrit stock + raison.
 
 ### 5.3 Score simple
 - +3 marketplace_message / phone_in / walk_in  
@@ -191,7 +187,7 @@ Stock → préparer listing → [toi publies]
   → sold | lost
 ```
 
-Oria n’est pas vendeur. Il empêche la fuite : pas de lead oublié, pas de post sans capture, pas d’essai sans follow-up, pas de perte sans raison.
+Oria empêche la fuite : pas de lead oublié, pas de post sans capture, pas d’essai sans follow-up, pas de perte sans raison.
 
 ---
 
@@ -236,45 +232,45 @@ buckinghamgm.com (public HTML)
 ## 7. Workflows détaillés
 
 ### W1 — `inventory.sync`
-- Fetch allowlist → parse Stock/VIN/année/modèle/trim/prix/photos/url → diff → snapshot → ledger read-only  
-- Failure : CSV/JSON manuel toujours dispo  
-- Done when : « Combien de Trax LT ? » répond depuis le snapshot
+Fetch allowlist → parse Stock/VIN/année/modèle/trim/prix/photos/url → diff → snapshot → ledger read-only.  
+Failure : CSV/JSON manuel toujours dispo.  
+Done when : « Combien de Trax LT ? » répond depuis le snapshot.
 
 ### W2 — `lead.bank.upsert`
-- Validate → dedupe phone/email → upsert → `nextFollowUpAt` → lien stock  
-- Invariants : `source` + `consentBasis` obligatoires  
-- Done when : toute conversation utile finit dans la lead bank
+Validate → dedupe phone/email → upsert → `nextFollowUpAt` → lien stock.  
+Invariants : `source` + `consentBasis` obligatoires.  
+Done when : toute conversation utile finit dans la lead bank.
 
 ### W3 — `sales.follow_up.prepare`
-- Draft FR (SMS ou email) → policy warm-only → Send Desk/copy  
-- Sous-voies v1 : `reply_assist` | `follow_up` ; cold bloqué  
-- Done when : relance prête en &lt; 2 minutes
+Draft FR (SMS ou email) → policy warm-only → Send Desk/copy.  
+Sous-voies v1 : `reply_assist` | `follow_up` ; cold bloqué.  
+Done when : relance prête en &lt; 2 minutes.
 
 ### W4 — `marketplace.listing.prepare`
-- Titre + description + prix + photos + disclaimers → packet  
-- `requiresManualPublish: true` ; no Facebook bot  
-- Done when : packet collable en 5 minutes
+Titre + description + prix + photos + disclaimers → packet.  
+`requiresManualPublish: true` ; no Facebook bot.  
+Done when : packet collable en 5 minutes.
 
 ### W5 — `marketplace.lead.capture`
-- Inbound post Marketplace → upsert lead `marketplace_message` → `sourceRef=packetId` → follow-up dû maintenant  
-- Done when : chaque réponse Marketplace enrichit la lead bank
+Inbound post Marketplace → upsert lead `marketplace_message` → `sourceRef=packetId` → follow-up dû maintenant.  
+Done when : chaque réponse Marketplace enrichit la lead bank.
 
 ### W6 — `sale.outcome.capture`
-- `sold` exige `soldStockId` ; `lost` exige `lostReason` → ledger  
-- Done when : funnel réel `new → appt → sold/lost`
+`sold` exige `soldStockId` ; `lost` exige `lostReason` → ledger.  
+Done when : funnel réel `new → appt → sold/lost`.
 
 ---
 
 ## 8. Banque de leads — renforcer maintenant
 
 ### Jour 1 (même sans code réseau)
-1. Saisir tous les leads déjà chauds.  
+1. Saisir **tous** les leads déjà chauds.  
 2. Forcer `source` + `consentBasis` + `nextFollowUpAt`.  
 3. Lier chaque lead à un modèle/stock.  
 4. Préparer 5–10 drafts types (Trax, Trailblazer, Sierra, Equinox EV…).  
 5. Publier 1–2 annonces Marketplace manuellement et logger chaque inbound comme lead.
 
-### Score simple
+### Score lead
 - +3 marketplace_message / phone_in / walk_in  
 - +2 stock précis  
 - +2 consent express  
@@ -282,10 +278,8 @@ buckinghamgm.com (public HTML)
 - −2 consent unknown  
 - −5 lost  
 
-File du matin : **follow-up dû → score → stage**.
-
-### Funnel à mesurer dès semaine 2
-`new → contacted → appt_set → appt_done → sold|lost`
+File du matin : **follow-up dû → score → stage**.  
+Funnel semaine 2 : `new → contacted → appt_set → appt_done → sold|lost`.
 
 ---
 
