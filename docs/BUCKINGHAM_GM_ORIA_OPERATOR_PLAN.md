@@ -62,9 +62,12 @@ Oria prépare. **Toi** tu closes.
 | `POST` | `/api/sales/follow-up/prepare` | Draft SMS/email (jamais d’envoi) |
 | `POST` | `/api/sales/outcome` | `sold` (exige stock) / `lost` (exige raison) |
 | `POST`/`GET` | `/api/marketplace/listings` | Préparer fiche depuis stock / marquer publié |
+| `POST` | `/api/sales/market-brief` | Comps AutoTrader Gatineau + angles vs lot |
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
 
-**Joris (chat)** : « sync inventaire » / « prépare fiche Marketplace 26344-NEUF » → intent `marketplace.listing.prepare` (checklist + URLs photos, pas d’auto-post).
+**Joris (chat)** :
+- « sync inventaire » / « prépare fiche Marketplace 26344-NEUF » → `marketplace.listing.prepare`
+- « débrief inventaire » / « compare Hyundai Tucson 2023 au marché » → `inventory.market.brief`
 
 Persistance : **process-locale** (`persistence: "in_memory"`). Perdu au redémarrage jusqu’à mandat store durable.
 

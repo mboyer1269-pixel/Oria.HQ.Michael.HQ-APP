@@ -47,8 +47,8 @@ export default async function SalesDeskPage() {
         title="Inventaire visuel. Fiches Marketplace. Relances."
         description={
           <>
-            Sync le site → grille photo des véhicules → prépare une fiche Facebook. Les leads Activix
-            arrivent lundi ; en attendant, file du matin locale.
+            Sync le site → débrief du lot → grille photo → fiche Facebook. Compare aussi au marché
+            AutoTrader (ex. Hyundai Tucson 2023) pour des angles plus-value. Activix arrive lundi.
           </>
         }
       />

@@ -70,6 +70,51 @@ export function detectIntent(message: string): JorisIntent {
     return "governance.audit";
   }
 
+  // Inventory debrief + market comps (AutoTrader) — before Marketplace fiche
+  const inventoryMarketSignals = [
+    "débrief",
+    "debrief",
+    "bref inventaire",
+    "résumé inventaire",
+    "resume inventaire",
+    "connais mon inventaire",
+    "connaître mon inventaire",
+    "connaitre mon inventaire",
+    "en stock",
+    "plus-value",
+    "plus value",
+    "autotrader",
+    "comparable",
+    "comps",
+    "contre le marché",
+    "contre le marche",
+    "vs mon inventaire",
+    "versus mon inventaire",
+    "compare",
+    "comparer",
+  ];
+  const hasYearMakeModel =
+    /\b20\d{2}\s+(hyundai|kia|toyota|honda|ford|chevrolet|chevy|gmc|buick|nissan|mazda|volkswagen|vw|jeep|ram|dodge|subaru)\b/i.test(
+      message,
+    ) ||
+    /\b(hyundai|kia|toyota|honda|ford|chevrolet|chevy|gmc|buick|nissan|mazda|volkswagen|vw|jeep|ram|dodge|subaru)\s+[a-z0-9][a-z0-9\-]*(?:\s+[a-z0-9][a-z0-9\-]*){0,2}\s+20\d{2}\b/i.test(
+      message,
+    );
+  if (
+    inventoryMarketSignals.some((s) => lower.includes(s)) ||
+    (hasYearMakeModel &&
+      (lower.includes("marché") ||
+        lower.includes("marche") ||
+        lower.includes("comparer") ||
+        lower.includes("compare") ||
+        lower.includes("versus") ||
+        lower.includes(" vs "))) ||
+    (lower.includes("inventaire") &&
+      (lower.includes("résumé") || lower.includes("resume") || lower.includes("brief")))
+  ) {
+    return "inventory.market.brief";
+  }
+
   // Marketplace fiche prepare / inventory sync for dealership listings
   const marketplaceSignals = [
     "marketplace",

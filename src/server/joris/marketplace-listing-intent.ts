@@ -3,6 +3,7 @@
 // Parse stock refs from chat and prepare Marketplace packets (no publish).
 
 import { formatMarketplaceUploadChecklist } from "@/features/marketplace-listings/listing-packet";
+import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
 import { getInventorySnapshot } from "@/server/inventory/inventory-store";
 import { syncPublicInventory } from "@/server/inventory/public-inventory-sync";
 import { prepareMarketplaceListing } from "@/server/marketplace-listings/prepare-listing";
@@ -73,8 +74,10 @@ export async function handleMarketplaceListingIntent(input: {
   ) {
     return {
       summary:
-        `Inventaire public synchronisé : ${vehicleCount} véhicules en mémoire. ` +
-        `Dis-moi un # de stock (ex. « prépare fiche Marketplace 26344-NEUF ») et je prépare la fiche.`,
+        `Inventaire public synchronisé : ${vehicleCount} véhicules en mémoire.\n` +
+        `${buildInventoryDebrief(getInventorySnapshot(input.workspaceId)?.vehicles ?? []).frenchSummary}\n` +
+        `Dis-moi un # de stock (ex. « prépare fiche Marketplace 26344-NEUF ») ` +
+        `ou « compare Hyundai Tucson 2023 au marché » pour des angles plus-value.`,
       synced,
       vehicleCount,
     };

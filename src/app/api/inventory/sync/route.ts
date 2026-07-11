@@ -4,6 +4,7 @@ import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { requireOwnerApiSession } from "@/server/auth/owner";
 import { syncPublicInventory } from "@/server/inventory/public-inventory-sync";
 import { BUCKINGHAM_DEFAULT_INVENTORY_URLS } from "@/server/inventory/public-inventory-allowlist";
+import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
 
 // POST /api/inventory/sync — allowlisted public HTML fetch → in-memory snapshot
 // No credentials. Manual ingest remains available via POST /api/inventory/snapshot.
@@ -43,11 +44,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const debrief = buildInventoryDebrief(result.snapshot.vehicles);
+
   return NextResponse.json({
     ok: true,
     snapshotId: result.snapshot.snapshotId,
     vehicleCount: result.vehicleCount,
     vehicles: result.snapshot.vehicles,
+    debrief,
     fetchedUrls: result.fetchedUrls,
     warnings: result.warnings,
     persistence: "in_memory",
@@ -55,7 +59,7 @@ export async function POST(request: Request) {
     defaultUrls: BUCKINGHAM_DEFAULT_INVENTORY_URLS,
     note:
       "Public allowlist sync only (buckinghamgm.com). " +
-      "Vehicles are returned in this response for the Sales Desk visual grid. " +
-      "Next: prepare a Marketplace fiche from a stock card.",
+      "Vehicles + debrief returned for the Sales Desk visual grid. " +
+      "Next: open a stock card or ask Joris for a market brief (ex. Hyundai Tucson 2023).",
   });
 }
