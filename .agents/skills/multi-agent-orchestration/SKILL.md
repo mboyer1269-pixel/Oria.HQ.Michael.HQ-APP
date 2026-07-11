@@ -17,7 +17,7 @@ write → review loop with explicit artifacts at each step.
 
 This skill is the **meta-pipeline** for skill authoring and ad-hoc multi-role work.
 For Orya product delivery (Scout → Architect → Builder → QA → UI → Docs → PR), use
-[orya-multi-agent-delivery-loop](../../../.agents/skills/orya-multi-agent-delivery-loop/SKILL.md) instead.
+[orya-multi-agent-delivery-loop](../orya-multi-agent-delivery-loop/SKILL.md) instead.
 
 ## When to Use
 
@@ -177,6 +177,6 @@ The Ruflo entrypoint `./bin/cli.js` is **not present** in this repository. Agent
 ## Related Skills
 
 - [create-skill](../create-skill/SKILL.md) — Short helper to kick a new skill through this pipeline
-- [orya-multi-agent-delivery-loop](../../../.agents/skills/orya-multi-agent-delivery-loop/SKILL.md) — Product delivery gates
-- [orya-pr-planner](../../../.agents/skills/orya-pr-planner/SKILL.md) — PR scope, validation, description template
-- [orya-doc-updater](../../../.agents/skills/orya-doc-updater/SKILL.md) — Documentation updates after delivery
+- [orya-multi-agent-delivery-loop](../orya-multi-agent-delivery-loop/SKILL.md) — Product delivery gates
+- [orya-pr-planner](../orya-pr-planner/SKILL.md) — PR scope, validation, description template
+- [orya-doc-updater](../orya-doc-updater/SKILL.md) — Documentation updates after delivery
