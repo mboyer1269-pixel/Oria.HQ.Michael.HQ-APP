@@ -67,6 +67,9 @@ const priorityAndAccentCases = [
   { message: "mission planifie la relance", expected: "mission.plan" },
   { message: "Quelle est la priorité du jour?", expected: "brief.generate" },
   { message: "génère un résumé avec priorité haute", expected: "brief.generate" },
+  { message: "prépare fiche Marketplace 26344-NEUF", expected: "marketplace.listing.prepare" },
+  { message: "sync inventaire Buckingham", expected: "marketplace.listing.prepare" },
+  { message: "Prépare une annonce marketplace pour le stock", expected: "marketplace.listing.prepare" },
 ];
 
 for (const { message, expected } of priorityAndAccentCases) {

@@ -70,6 +70,31 @@ export function detectIntent(message: string): JorisIntent {
     return "governance.audit";
   }
 
+  // Marketplace fiche prepare / inventory sync for dealership listings
+  const marketplaceSignals = [
+    "marketplace",
+    "fiche marketplace",
+    "annonce marketplace",
+    "prépare fiche",
+    "prepare fiche",
+    "préparer fiche",
+    "preparer fiche",
+  ];
+  const inventorySyncSignals = [
+    "sync inventaire",
+    "synchronise inventaire",
+    "synchroniser inventaire",
+    "rafraîchir inventaire",
+    "rafraichir inventaire",
+  ];
+  if (
+    marketplaceSignals.some((s) => lower.includes(s)) ||
+    inventorySyncSignals.some((s) => lower.includes(s)) ||
+    (lower.includes("fiche") && (lower.includes("stock") || lower.includes("inventaire")))
+  ) {
+    return "marketplace.listing.prepare";
+  }
+
   if (matchesCalendarBookingIntent(message)) {
     return "calendar.book";
   }

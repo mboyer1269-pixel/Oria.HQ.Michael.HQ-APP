@@ -108,6 +108,40 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
       "src/server/ledger/hash-chain-write-flag.ts (LEDGER_HASH_CHAIN_WRITE off par défaut)",
     note: "Vérificateur + sealer prêts ; écriture live mandate-gated (migration Phase 1 + LEDGER_HMAC_KEY).",
   },
+  {
+    id: "sales_lead_bank",
+    label: "Sales lead bank + morning queue",
+    status: "shadow",
+    surface: "/hq/sales",
+    evidence:
+      "src/app/hq/sales/page.tsx + lead-bank-store.ts + morning-queue + follow-up prepare (in-memory, prepare-only)",
+    note: "Sales Desk UI + banque process-locale. Pas d'auto-send. Persistance durable = mandat futur.",
+  },
+  {
+    id: "marketplace_listing_prepare",
+    label: "Marketplace listing prepare → lead capture",
+    status: "shadow",
+    surface: "/hq/sales",
+    evidence:
+      "src/features/sales/components/sales-desk-client.tsx + prepare-listing.ts + capture-lead.ts",
+    note: "Prépare fiches FB Marketplace depuis stock ; capture inbound → lead bank. Pas d'auto-post.",
+  },
+  {
+    id: "dealership_inventory_snapshot",
+    label: "Dealership inventory snapshot (manual ingest)",
+    status: "shadow",
+    surface: "/hq/sales",
+    evidence: "src/server/inventory/inventory-ingest.ts + public-inventory-sync.ts (allowlist buckinghamgm.com)",
+    note: "Ingest manuel + sync HTML public allowlist. Persistance in-memory ; pas de DMS/CRM.",
+  },
+  {
+    id: "joris_marketplace_listing_prepare",
+    label: "Marketplace listing via Joris",
+    status: "shadow",
+    surface: "/api/joris/chat",
+    evidence: "src/server/joris/marketplace-listing-intent.ts (intent marketplace.listing.prepare)",
+    note: "Chat prepare-only : sync inventaire + fiche stock #. Pas d'auto-post Facebook.",
+  },
 ];
 
 const STATUS_LABELS: Record<CapabilityStatus, string> = {
