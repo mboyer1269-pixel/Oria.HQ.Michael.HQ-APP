@@ -108,6 +108,48 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
       "src/server/ledger/hash-chain-write-flag.ts (LEDGER_HASH_CHAIN_WRITE off par défaut)",
     note: "Vérificateur + sealer prêts ; écriture live mandate-gated (migration Phase 1 + LEDGER_HMAC_KEY).",
   },
+  {
+    id: "subscription_cli_probe",
+    label: "Subscription CLI probe (Claude / Codex)",
+    status: "live",
+    surface: "/hq (Command Tower runtime board)",
+    evidence:
+      "src/server/agents/runtimes/local-runtime-probe.ts + runtime-status-source.ts — enablesDispatch=false",
+    note: "Détection locale seulement. Dispatch abonnement → Joris reste Yellow (LOCAL_SUBSCRIPTION_RUNTIME_GATE).",
+  },
+  {
+    id: "subscription_cli_dispatch",
+    label: "Subscription CLI dispatch into Joris",
+    status: "planned",
+    surface: null,
+    evidence: "docs/LOCAL_SUBSCRIPTION_RUNTIME_GATE.md §9 Invocation PR",
+    note: "Mandat Yellow requis. Cookies/OAuth interception = NO-GO permanent.",
+  },
+  {
+    id: "nous_hermes_agent_adapter",
+    label: "Nous Hermes Agent adapter",
+    status: "planned",
+    surface: null,
+    evidence: "docs/AUTONOMY_COCKPIT_BRIEF.md §3 — distinct from Oria Relay (id hermes)",
+    note: "Intégration future via corridor adaptateur ; ne remplace pas Relay prepare-only.",
+  },
+  {
+    id: "marketplace_tool_corridor",
+    label: "Marketplace tool corridor (Studio)",
+    status: "contract_only",
+    surface: "/hq/runtime (Autonomy Readiness)",
+    evidence:
+      "src/server/agents/providers/marketplace-provider-contract.ts + docs/AUTONOMY_COCKPIT_BRIEF.md",
+    note: "Contrat fail-closed. Aucun OAuth marketplace live. Studio prépare, CEO publie.",
+  },
+  {
+    id: "studio_marketing_autonomy",
+    label: "Studio marketing autonomy loop",
+    status: "planned",
+    surface: "/hq/agents (Studio charter)",
+    evidence: "src/features/agents/seed.ts id=marketing + REVENUE_EXECUTION_LANE / OUTBOUND_POLICY",
+    note: "Agent Studio existe ; heartbeat campagne + marketplace metrics = mandat futur.",
+  },
 ];
 
 const STATUS_LABELS: Record<CapabilityStatus, string> = {
