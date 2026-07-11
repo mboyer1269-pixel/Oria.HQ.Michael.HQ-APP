@@ -244,7 +244,7 @@ Done when : toute conversation utile finit dans la lead bank.
 ### W3 — `sales.follow_up.prepare`
 Draft FR (SMS ou email) → policy warm-only → Send Desk/copy.  
 Sous-voies v1 : `reply_assist` | `follow_up` ; cold bloqué.  
-Done when : relance prête en &lt; 2 minutes.
+Done when : relance prête en < 2 minutes.
 
 ### W4 — `marketplace.listing.prepare`
 Titre + description + prix + photos + disclaimers → packet.  
