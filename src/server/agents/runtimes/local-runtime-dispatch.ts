@@ -152,7 +152,7 @@ function buildDryRunEvidencePack(input: {
         },
       },
     ],
-    redactionsApplied: redactedPrompt.reded + commandSummary.reded,
+    redactionsApplied: redactedPrompt.redactions + commandSummary.redactions,
     nextAction: "approve",
     createdAtIso: input.nowIso,
   };

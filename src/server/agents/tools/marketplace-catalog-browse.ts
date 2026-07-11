@@ -18,7 +18,7 @@ export const marketplaceCatalogBrowseInputSchema = z
   })
   .strict();
 
-async function browseCatalog(rawInput: unknown, _ctx: McpToolContext): Promise<McpToolResult> {
+async function browseCatalog(rawInput: unknown, ctx: McpToolContext): Promise<McpToolResult> {
   const parsed = marketplaceCatalogBrowseInputSchema.safeParse(rawInput ?? {});
   if (!parsed.success) {
     return { ok: false, error: "Invalid marketplace_catalog_browse payload." };
@@ -32,7 +32,7 @@ async function browseCatalog(rawInput: unknown, _ctx: McpToolContext): Promise<M
 
   return {
     ok: true,
-    actionRef: `marketplace_browse_${snapshot.generatedAtIso}`,
+    actionRef: `marketplace_browse_${ctx.workspaceId}_${snapshot.generatedAtIso}`,
     output: {
       source: snapshot.source,
       browseIsReadOnly: snapshot.browseIsReadOnly,
