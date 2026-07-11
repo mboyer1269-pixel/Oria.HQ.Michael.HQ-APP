@@ -15,17 +15,26 @@
 | `contract_only` | contrat/logique pur existe, ni affiché ni câblé |
 | `planned` | intention déclarée, peu/pas de code (souvent mandate-gated) |
 
-## Registre actuel (2026-06-13)
+## Registre actuel
+
+Source exécutable : `src/features/hq/capability-status.ts` (ne pas dupliquer à la main
+sans re-sync). Entrées autonomy Yellow 1–3 (à jour avec le code) :
 
 | Capacité | Statut | Surface | Preuve |
 |----------|--------|---------|--------|
 | Workflow run board | **live** | `/hq/workflows` | `workflow-run-projection.ts` (ledger réel) |
 | Agent charters / DNA | **live** | `/hq/agents` | `agent-charter.ts` (+ charter-seed) |
 | Mission execution boundary | **live** | — | `approval-derivation.ts` + `execution-attempt-store.ts` |
-| Agent council (délibération) | **live** | `/hq/ventures/cash-actions` | run durable (runId/status/verdict) persisté sur `prepared_actions` (P4b) |
+| Agent council (délibération) | **live** | `/hq/ventures/cash-actions` | run durable persisté sur `prepared_actions` |
 | Memory vault (v0.1 fichier) | **live** | `/hq/memory` | `memory/` + `learning-loop-service.ts` |
 | Memory vault — Supabase/pgvector | **planned** | — | `MEMORY_VAULT_CONTRACT.md` (verrouillé) |
+| Cost Ladder | **display_only** | — | `cost-ladder.ts` + model-router |
 | Ledger integrity hash-chain | **shadow** | — | `hash-chain-write-flag.ts` (flag off) |
+| Subscription CLI probe | **live** | `/hq` Command Tower | `local-runtime-probe.ts` |
+| Subscription CLI dispatch | **shadow** | `/api/runtimes/local/dry-run` | dry-run only, `enablesDispatch=false` |
+| Nous Hermes Agent adapter | **planned** | — | `AUTONOMY_COCKPIT_BRIEF.md` |
+| Marketplace catalog browse | **shadow** | `/api/marketplace/catalog` | static seed + MCP browse |
+| Studio marketing autonomy | **shadow** | `/api/studio/prep-tick` | prepare-only, in-memory |
 
 ## Comment ce registre reste honnête
 

@@ -31,6 +31,7 @@ import {
   HqWidget,
   HqWidgetGrid,
 } from "@/features/hq/components/hq-widget-system";
+import { AutonomyReadinessPanel } from "@/features/hq/components/autonomy-readiness-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -251,6 +252,8 @@ export default async function RuntimePage() {
           </div>
         </HqSummaryRail>
       </HqPageHeader>
+
+      <AutonomyReadinessPanel />
 
       <HqWidget
         title="Chemin d'exécution des agents"

@@ -108,6 +108,50 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
       "src/server/ledger/hash-chain-write-flag.ts (LEDGER_HASH_CHAIN_WRITE off par défaut)",
     note: "Vérificateur + sealer prêts ; écriture live mandate-gated (migration Phase 1 + LEDGER_HMAC_KEY).",
   },
+  {
+    id: "subscription_cli_probe",
+    label: "Subscription CLI probe (Claude / Codex)",
+    status: "live",
+    surface: "/hq (Command Tower runtime board)",
+    evidence:
+      "src/server/agents/runtimes/local-runtime-probe.ts + runtime-status-source.ts — enablesDispatch=false",
+    note: "Détection locale seulement. Dispatch abonnement → Joris reste Yellow (LOCAL_SUBSCRIPTION_RUNTIME_GATE).",
+  },
+  {
+    id: "subscription_cli_dispatch",
+    label: "Subscription CLI dispatch into Joris",
+    status: "shadow",
+    surface: "/api/runtimes/local/dry-run",
+    evidence:
+      "src/server/agents/runtimes/local-runtime-dispatch.ts — dry_run only, enablesDispatch=false",
+    note: "Corridor dry-run live (plan argv + evidence pack). Subprocess réel = mandat + approval écrite. Cookies/OAuth = NO-GO.",
+  },
+  {
+    id: "nous_hermes_agent_adapter",
+    label: "Nous Hermes Agent adapter",
+    status: "planned",
+    surface: null,
+    evidence: "docs/AUTONOMY_COCKPIT_BRIEF.md §3 — distinct from Oria Relay (id hermes)",
+    note: "Intégration future via corridor adaptateur ; ne remplace pas Relay prepare-only.",
+  },
+  {
+    id: "marketplace_tool_corridor",
+    label: "Marketplace catalog browse (static)",
+    status: "shadow",
+    surface: "/api/marketplace/catalog + MCP marketplace_catalog_browse",
+    evidence:
+      "src/server/agents/marketplace/marketplace-catalog.ts + marketplace-catalog-browse tool",
+    note: "Browse seed only (statique, no OAuth). Corridor enable/execute = mandat futur.",
+  },
+  {
+    id: "studio_marketing_autonomy",
+    label: "Studio marketing autonomy loop",
+    status: "shadow",
+    surface: "/api/studio/prep-tick",
+    evidence:
+      "src/server/studio/studio-prep-tick.ts + studio-campaign-packet.ts — prepare-only, publishAuthorized=false",
+    note: "Heartbeat prepare-only (file in-memory, non durable). Publish/spend restent manuels.",
+  },
 ];
 
 const STATUS_LABELS: Record<CapabilityStatus, string> = {

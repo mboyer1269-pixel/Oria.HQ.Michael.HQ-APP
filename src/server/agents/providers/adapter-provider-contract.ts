@@ -38,7 +38,8 @@ export type AdapterKind =
   | "mailbox_provider"
   | "web_automation"
   | "cli_runtime"
-  | "workflow_runtime";
+  | "workflow_runtime"
+  | "marketplace_provider";
 
 // ---------------------------------------------------------------------------
 // Bindings — every capability is an explicit skillId, never a wildcard
