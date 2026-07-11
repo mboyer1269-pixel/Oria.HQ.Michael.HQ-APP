@@ -38,8 +38,9 @@ For Orya product delivery (Scout → Architect → Builder → QA → UI → Doc
 1. **Lead** states objective, scope, success criteria, and one example of the expected result.
 2. Run the pipeline: `researcher` → `designer` → `writer` → `reviewer`.
 3. Save the skill at `.agents/skills/<name>/SKILL.md` (canonical). Optionally mirror under `.claude/skills/<name>/`.
-4. Confirm the skill passes the Checklist below before publishing.
-5. For product delivery after a skill exists, hand off to the matching `orya-*` skill or the delivery loop.
+4. Stage with `git add -f .agents/skills/<name>/SKILL.md` (`.agents/` is gitignored) and verify `git ls-files --error-unmatch` succeeds.
+5. Confirm the skill passes the Checklist below before publishing.
+6. For product delivery after a skill exists, hand off to the matching `orya-*` skill or the delivery loop.
 
 ## Agent Mapping
 
@@ -104,6 +105,7 @@ For Orya product delivery (Scout → Architect → Builder → QA → UI → Doc
 - Do not start Phase 1 or later product work without an explicit mandate.
 - Prefer English for skills registered in the Orya operating model.
 - Canonical skill home for operating-model entries: `.agents/skills/<name>/SKILL.md`.
+- `.agents/` is listed in `.gitignore`; new canonical skills must be force-added (`git add -f`) and confirmed tracked before commit.
 - Mirror under `.claude/skills/` only when following the existing dual-home pattern (e.g. Supabase).
 - Do not implement or invent `bin/cli.js` / Ruflo runtime unless explicitly mandated.
 - Keep diffs to skills/docs for orchestration-only tasks; no opportunistic `src/` edits.
@@ -168,6 +170,7 @@ The Ruflo entrypoint `./bin/cli.js` is **not present** in this repository. Agent
 - [ ] Boundary Constraints section present
 - [ ] Output Format / handoff template present when the skill produces artifacts
 - [ ] Canonical path is `.agents/skills/<name>/SKILL.md` if listed in the operating model
+- [ ] New `.agents/skills/` files force-added (`git add -f`) and verified tracked (`git ls-files --error-unmatch`)
 - [ ] Cursor/MCP notes accurate (including Ruflo/`bin/cli.js` status if referenced)
 - [ ] No secrets, credentials, or `.env` values in the skill
 - [ ] Language matches Orya operational skills (English) unless Michael requests otherwise

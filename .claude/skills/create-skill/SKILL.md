@@ -28,8 +28,9 @@ skill conventions and the multi-agent orchestration pipeline.
 2. Follow [multi-agent-orchestration](../multi-agent-orchestration/SKILL.md):
    researcher → designer → writer → reviewer.
 3. Save the file at `.agents/skills/<name>/SKILL.md` (canonical).
-4. Optionally mirror under `.claude/skills/<name>/SKILL.md` when dual-home is desired.
-5. Pass the orchestration Checklist before publishing.
+4. Stage with `git add -f .agents/skills/<name>/SKILL.md` (`.agents/` is gitignored) and verify it is tracked.
+5. Optionally mirror under `.claude/skills/<name>/SKILL.md` when dual-home is desired.
+6. Pass the orchestration Checklist before publishing.
 
 ## Examples
 
@@ -45,5 +46,6 @@ skill conventions and the multi-agent orchestration pipeline.
 - [ ] Frontmatter `name` and `description` present
 - [ ] Quick Start, Examples, and Checklist sections included
 - [ ] Canonical path under `.agents/skills/`
+- [ ] New `.agents/skills/` files force-added (`git add -f`) and verified tracked
 - [ ] No secrets or credential material
 - [ ] Cross-link to multi-agent-orchestration when the pipeline is used
