@@ -1,221 +1,362 @@
-# Buckingham GM × Oria — Plan opérateur ventes (solide, sans casser le HQ)
+# Buckingham GM × Oria — Plan opérateur ventes
 
-**Status:** Plan d’implantation (docs-only) — **pas encore de code**  
+**Status:** Plan d’implantation (docs-only) — pas encore de code métier  
 **Owner:** Michael Boyer  
-**Contexte:** Poste de représentant aux ventes automobiles — Buckingham Chevrolet Buick GMC (`buckinghamgm.com`, Gatineau)  
-**Produit:** Oria HQ (orthographe canonique : **Oria**, pas « Horia »)  
+**Contexte:** Représentant aux ventes — Buckingham Chevrolet Buick GMC (`buckinghamgm.com`, Gatineau)  
+**Produit:** Oria HQ  
 **Date:** 2026-07-11  
 
-> Objectif : une boucle quotidienne simple pour ton nouveau poste — inventaire → relances → annonces Marketplace — **sans overbuild** et **sans briser** les garde-fous Oria existants.
+**Objectif :** renforcer la lead bank, générer des leads via Marketplace, accélérer des ventes — toujours prepare → action humaine.
 
 ---
 
-## 1. Intention (une phrase)
+## 0. Décisions
 
-Oria devient ton **assistant de plancher** : il connaît l’inventaire public Buckingham, prépare des relances et des fiches Marketplace ; **toi** tu valides, tu contacts, tu publies.
-
----
-
-## 2. Principes (non négociables)
-
-| Règle | Pourquoi |
-|-------|----------|
-| **Prepare → CEO approve → manual act** | Aligné Relay / Send Desk / Studio : pas d’auto-send, pas d’auto-publish |
-| **Ne pas toucher Phase 1 / multi-workspace** | Gelé jusqu’à mandat explicite (`AGENTS.md`) |
-| **Ne pas empiler de nouveaux agents** | Réutiliser Joris + Relay (+ Studio seulement si besoin contenu) |
-| **Inventaire = lecture publique d’abord** | Pages inventaire du site concession ; pas de scrape CRM interne / cookies employeur |
-| **CASL + politique concession** | Relances seulement sur leads consentis / contacts légitimes ; valider avec le concessionnaire |
-| **Facebook Marketplace = prepare-only v1** | Auto-post Marketplace est fragile, ToS-sensitive, et Yellow/Red ; v1 = fiche prête + copie manuelle |
-| **1 boucle live à la fois** | Anti-overbuild : inventaire d’abord, puis relances, puis Marketplace |
+| # | Décision | Choix |
+|---|----------|--------|
+| D1 | Sprint inventaire dès le démarrage | **Oui** |
+| D2 | Canal relance semaine 1 | **SMS** (recommandé) — à verrouiller vs email |
+| D3 | Facebook Marketplace | **Prepare-only manuel** |
+| D4 | Leads depuis posts Marketplace | **Oui** |
+| D5 | Priorité | **Lead bank + ventes**, pas plus d’agents |
 
 ---
 
-## 3. Réalité terrain (Buckingham GM)
+## 1. Intention
 
-Sources publiques utiles (à re-vérifier lundi) :
+```
+Inventaire public
+  → Fiches Marketplace (toi publies)
+    → Inbound Messenger / appel / RDV
+      → Lead bank
+        → Relances préparées (toi envoies)
+          → Essai / offre
+            → Vente ou perte propre
+```
 
-- Inventaire neufs (FR) : `https://www.buckinghamgm.com/neufs/inventaire/recherche.html`
-- Variantes marque/modèle/année sous `/neufs/inventaire/…`
-- Champs typiques visibles : **Stock**, **NIV/VIN**, marque, modèle, année, finition, prix (quand affiché)
-
-**Implication technique :** un *inventory snapshot* peut être construit à partir de pages publiques structurées (HTML/listes), **sans** accéder au DMS/CRM concession tant que tu n’as pas d’accord écrit.
-
----
-
-## 4. Spécifications Workflow (3 workflows seulement)
-
-### W1 — `inventory.sync` (Radar lecture + Joris surface)
-
-| Champ | Spec |
-|-------|------|
-| **Trigger** | Manuel (matin / soir) ou cron Yellow plus tard |
-| **Input** | URL inventaire + filtres optionnels (neufs / occasion / marque) |
-| **Étapes** | 1) Fetch pages publiques allowlistées → 2) Parse Stock/VIN/année/modèle/prix → 3) Diff vs snapshot précédent → 4) Écrire snapshot local + ledger *read* |
-| **Output** | `InventorySnapshot` + liste « nouveaux / vendus / prix changés » |
-| **Agent** | Ingest technique (outil) ; **Joris** résume : « 12 Trax LT en stock, 2 nouveaux aujourd’hui » |
-| **Zone** | Yellow (réseau sortant lecture) — **pas** Green autonome au début |
-| **Invariants** | Allowlist hostname `buckinghamgm.com` only ; pas de credentials ; pas d’écriture externe ; rate-limit strict |
-| **Done when** | Tu peux demander à Joris « qu’est-ce qu’on a en Trax LT ? » et obtenir une réponse basée sur le dernier snapshot |
-
-### W2 — `sales.follow_up.prepare` (Relay + Send Desk)
-
-| Champ | Spec |
-|-------|------|
-| **Trigger** | Lead tiède / prospect connu / rendez-vous manqué (saisi par toi ou import CSV) |
-| **Input** | Contact + véhicule d’intérêt (Stock/VIN) + historique court |
-| **Étapes** | 1) Joindre fiche inventaire → 2) Draft SMS/email FR → 3) Enfiler `prepared` / Send Desk → 4) **Toi** envoies |
-| **Output** | Prepared action outbound (`follow_up` / `reply_assist` seulement en v1) |
-| **Agent** | **Relay** prépare ; **Joris** orchestre ; **Send Desk** envoie |
-| **Zone** | Yellow batch / manual send — warm-first (`REVENUE_EXECUTION_LANE.md`) |
-| **Invariants** | `requiresCeoApproval` + `requiresManualSend` ; pas de cold massif v1 ; consentement connu |
-| **Done when** | En &lt; 2 min : lead + véhicule → message prêt → tu copies/envoies |
-
-### W3 — `marketplace.listing.prepare` (Studio-style packet, publish manuel)
-
-| Champ | Spec |
-|-------|------|
-| **Trigger** | Véhicule choisi à pousser sur Facebook Marketplace |
-| **Input** | Stock/VIN + photos URLs publiques + prix + points forts |
-| **Étapes** | 1) Générer titre + description FR Marketplace → 2) Checklist photos / prix / disclaimers → 3) Queue « prêt à publier » → 4) **Toi** colles sur Marketplace |
-| **Output** | `MarketplaceListingPacket` (prepare-only) |
-| **Agent** | Studio (copy) ou Relay (packet) — **un seul** module, pas les deux |
-| **Zone** | Yellow prepare ; publish = **toujours manuel** en v1 |
-| **Invariants** | `publishAuthorized: false` ; pas d’API Facebook auto ; pas de bot UI Marketplace |
-| **Done when** | 1 clic « préparer Marketplace » → texte + checklist prêts à coller |
-
-**Explicitement hors v1 (NO-GO jusqu’à mandat + conformité) :**
-
-- Auto-post Facebook Marketplace / scraping session Facebook  
-- Scraping CRM / intranet employeur  
-- Cold outreach massif  
-- Modification prix / inventaire côté concession  
+Oria prépare. **Toi** tu closes.
 
 ---
 
-## 5. Contrats de données (minimaux)
+## 2. Principes non négociables
 
-```ts
-// Inventaire — lecture seule
-type VehicleInventoryItem = {
-  stockId: string;       // ex. 26326-NEUF
-  vin?: string;          // NIV
-  year: number;
-  make: string;          // Chevrolet | Buick | GMC
-  model: string;
-  trim?: string;
-  condition: "new" | "demo" | "used";
-  priceCents?: number | null;
-  url: string;           // fiche publique
-  photoUrls: string[];
-  capturedAtIso: string;
-};
+1. Prepare → action humaine (pas d’auto-send, pas d’auto-publish).  
+2. Pas de Phase 1 sans mandat.  
+3. Pas de 4ᵉ agent : Joris orchestre, Relay relances, Studio/Relay fiches Marketplace.  
+4. Inventaire public only (`buckinghamgm.com`) — pas de DMS/CRM sans accord écrit.  
+5. Cookies / session Facebook / bot UI = NO-GO.  
+6. Warm-first : `reply_assist` + `follow_up` ; cold bloqué en v1.  
+7. Chaque lead a `source` + `consentBasis` + prochain pas daté.  
+8. Chaque `sold` / `lost` laisse une preuve.
 
-type InventorySnapshot = {
-  snapshotId: string;
-  sourceHost: "buckinghamgm.com";
-  capturedAtIso: string;
-  items: VehicleInventoryItem[];
-  added: string[];       // stockIds
-  removed: string[];
-  priceChanged: string[];
-};
+---
 
-// Relance — réutilise outbound existant (follow_up / reply_assist)
-// Marketplace — prepare-only
-type MarketplaceListingPacket = {
-  packetId: string;
-  stockId: string;
-  title: string;
-  body: string;
-  suggestedPriceLabel: string;
-  photoUrls: string[];
-  sourceUrl: string;
-  requiresManualPublish: true;
-  noExecutionAuthorized: true;
-  createdAtIso: string;
-};
+## 3. Réalité terrain
+
+- Neufs : `https://www.buckinghamgm.com/neufs/inventaire/recherche.html`
+- Occasion : `https://www.buckinghamgm.com/occasion/recherche.html`
+- Hub : `https://www.buckinghamgm.com/inventaire.html`
+- Signaux : Stock, NIV, marque, modèle, année, finition, prix, URL, photos
+
+Avant sync auto : confirmer OK direction / marketing concession.
+
+---
+
+## 4. Architecture
+
+```
+buckinghamgm.com (public HTML)
+        │
+        ▼
+ W1 inventory.sync ──► InventorySnapshot (local)
+        │
+        ├─► Joris (questions stock)
+        │
+        ├─► W3 marketplace.listing.prepare
+        │         │
+        │         ▼
+        │   [TOI → Facebook Marketplace]
+        │         │
+        │         ▼
+        │   W4 marketplace.lead.capture
+        │
+        └─► LeadBank ◄── walk-in / phone / web / import
+                │
+                ▼
+         W2 sales.follow_up.prepare
+                │
+                ▼
+         Send Desk / copy
+                │
+                ▼
+         [TOI envoies]
+                │
+                ▼
+         RDV / essai / offre
+                │
+                ▼
+         W5 sale.outcome.capture → sold | lost
 ```
 
 ---
 
-## 6. Plan d’implantation (sans rien briser)
+## 5. Banque de leads
 
-Ordre strict. Chaque PR = petit, validé (`typecheck` / `lint` / `build` / `smoke:joris`), mergeable seul.
+### 5.1 Modèle `SalesLead`
 
-### Préalable (lundi humain, pas de code)
-0. Merger **#343** si encore ouverte (approve + squash)  
-1. Clarifier avec le concessionnaire : OK d’utiliser l’inventaire **public** + outils perso pour relances ; règles photos / prix Marketplace  
-2. Choisir **1 canal de relance** pour la semaine 1 : SMS **ou** email (pas les deux)
+```ts
+type LeadSource =
+  | "walk_in"
+  | "phone_in"
+  | "web_form"
+  | "marketplace_post"
+  | "marketplace_message"
+  | "referral"
+  | "repeat_customer"
+  | "manual_other";
 
-### Sprint A — Inventaire solide (fondation)
-| PR | Contenu | Risque |
-|----|---------|--------|
-| **A1** | Contrat pur `VehicleInventoryItem` + `InventorySnapshot` + validateurs + tests | Green / nul effet produit |
-| **A2** | Ingest **manuel** : coller JSON/CSV export ou fixture → snapshot local (pas de réseau) | Green |
-| **A3** | Fetch allowlist `buckinghamgm.com` + parse minimal + dry-run API owner-gated + ledger note « read only » | Yellow borné |
-| **A4** | Surface Joris : intent « inventaire / stock / Trax » lit le **dernier** snapshot (pas de scrape live à chaque message) | Faible |
+type LeadStage =
+  | "new"
+  | "contacted"
+  | "qualified"
+  | "appointment_set"
+  | "appointment_done"
+  | "negotiation"
+  | "sold"
+  | "lost"
+  | "nurture";
 
-**Critère A :** lundi soir, tu as une liste locale à jour et Joris peut la résumer.
+type ConsentBasis =
+  | "express"
+  | "implied_verified"
+  | "manual_review_required"
+  | "unknown";
 
-### Sprint B — Relances (cash loop)
-| PR | Contenu | Risque |
-|----|---------|--------|
-| **B1** | Modèle `SalesLead` minimal (nom, téléphone/email, stockId intérêt, consentBasis) + store local | Green |
-| **B2** | Wire Relay/outbound existant : packet follow_up lié à un véhicule du snapshot | Réutilise Send Desk |
-| **B3** | UX minimale : « Préparer relance » depuis une fiche stock → draft dans Send Desk / copy | Faible |
+type SalesLead = {
+  leadId: string;
+  fullName: string;
+  phone?: string;
+  email?: string;
+  source: LeadSource;
+  sourceRef?: string;            // packetId Marketplace, URL post, etc.
+  interestedStockIds: string[];
+  interestedModels: string[];
+  stage: LeadStage;
+  consentBasis: ConsentBasis;
+  consentNote?: string;
+  nextFollowUpAt?: string;
+  lastContactAt?: string;
+  lostReason?: string;
+  soldStockId?: string;
+  soldAt?: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  createdByUserId: string;
+};
+```
 
-**Critère B :** un lead + un stock → message prêt → envoi manuel.
+### 5.2 Renforcer la lead bank dès le jour 1
 
-### Sprint C — Marketplace prepare-only
-| PR | Contenu | Risque |
-|----|---------|--------|
-| **C1** | `MarketplaceListingPacket` + builder + queue in-memory (miroir Studio) | Green |
-| **C2** | « Préparer pour Marketplace » depuis stock → titre/body/photos checklist | Faible |
-| **C3** | (Plus tard, mandat) connecteur officiel Meta **si** dispo + conformité — sinon rester manuel | Yellow/Red |
+**Semaine 0–1 (manuel) :**
+1. Saisir tous les leads déjà chauds.  
+2. Forcer `source` + `consentBasis` + `nextFollowUpAt`.  
+3. Lier chaque lead à un stock ou modèle.  
+4. Traiter chaque jour les follow-ups dus.
 
-**Critère C :** 5 minutes pour coller une annonce Marketplace propre à partir du stock.
+**Semaine 1–2 (assisté) :**
+5. Chaque listing Marketplace a un `packetId` ; chaque inbound enrichit un lead.  
+6. Chaque relance met à jour `lastContactAt` + prochain `nextFollowUpAt`.  
+7. Chaque `sold` / `lost` écrit stock + raison.
 
-### Explicitement reporté
-- Phase 1 multi-workspace  
-- Subprocess CLI / OAuth marketplace générique  
-- Auto-publish Marketplace  
-- Worker scrape 24/7  
+### 5.3 Score simple
+- +3 marketplace_message / phone_in / walk_in  
+- +2 stock précis  
+- +2 consent express  
+- +1 follow-up dû  
+- −2 consent unknown  
+- −5 lost  
+
+File du matin : **follow-up dû → score → stage**.
+
+### 5.4 Marketplace → leads → ventes
+```
+Stock → préparer listing → [toi publies]
+  → inbound Messenger/appel
+  → capture lead (sourceRef = packetId)
+  → lead bank++
+  → préparer relance
+  → [toi contactes]
+  → RDV / essai
+  → sold | lost
+```
+
+Oria n’est pas vendeur. Il empêche la fuite : pas de lead oublié, pas de post sans capture, pas d’essai sans follow-up, pas de perte sans raison.
 
 ---
 
-## 7. Boucle quotidienne cible (après A+B)
+## 6. Architecture
 
-1. **Matin (3 min)** — sync inventaire → lire « nouveaux / partis »  
-2. **Journée** — leads : 1 relance préparée à la fois via Oria → envoi manuel  
-3. **Soir (5 min)** — 0–2 fiches Marketplace préparées → publish manuel si pertinent  
-
-Si tu te demandes « c’est live ou shadow ? », le scope a dérivé.
+```
+buckinghamgm.com (public HTML)
+        │
+        ▼
+ W1 inventory.sync ──► InventorySnapshot (local)
+        │
+        ├─► Joris (questions stock)
+        │
+        ├─► W3 marketplace.listing.prepare
+        │         │
+        │         ▼
+        │   [TOI → Facebook Marketplace]
+        │         │
+        │         ▼
+        │   W4 marketplace.lead.capture
+        │
+        └─► LeadBank ◄── walk-in / phone / web / import
+                │
+                ▼
+         W2 sales.follow_up.prepare
+                │
+                ▼
+         Send Desk / copy
+                │
+                ▼
+         [TOI envoies]
+                │
+                ▼
+         RDV / essai / offre
+                │
+                ▼
+         W5 sale.outcome.capture → sold | lost
+```
 
 ---
 
-## 8. Risques & mitigations
+## 7. Workflows détaillés
 
-| Risque | Mitigation |
-|--------|------------|
-| HTML site change → scrape casse | Snapshot + parser versionné ; fallback CSV manuel (A2) toujours dispo |
-| ToS / robots.txt | Respecter allowlist + rate limit ; préférer export concession si offert |
-| CASL / mauvaise relance | Warm-only v1 ; consentBasis obligatoire ; pas de cold |
-| Overbuild | 3 workflows max ; pas de 4ᵉ agent ; pas de panel Autonomy comme todo |
-| Casser HQ existant | Pas de refactor core ; nouveaux modules `inventory/` / venture locale ; validation 4 checks |
+### W1 — `inventory.sync`
+- Fetch allowlist → parse Stock/VIN/année/modèle/trim/prix/photos/url → diff → snapshot → ledger read-only  
+- Failure : CSV/JSON manuel toujours dispo  
+- Done when : « Combien de Trax LT ? » répond depuis le snapshot
+
+### W2 — `lead.bank.upsert`
+- Validate → dedupe phone/email → upsert → `nextFollowUpAt` → lien stock  
+- Invariants : `source` + `consentBasis` obligatoires  
+- Done when : toute conversation utile finit dans la lead bank
+
+### W3 — `sales.follow_up.prepare`
+- Draft FR (SMS ou email) → policy warm-only → Send Desk/copy  
+- Sous-voies v1 : `reply_assist` | `follow_up` ; cold bloqué  
+- Done when : relance prête en &lt; 2 minutes
+
+### W4 — `marketplace.listing.prepare`
+- Titre + description + prix + photos + disclaimers → packet  
+- `requiresManualPublish: true` ; no Facebook bot  
+- Done when : packet collable en 5 minutes
+
+### W5 — `marketplace.lead.capture`
+- Inbound post Marketplace → upsert lead `marketplace_message` → `sourceRef=packetId` → follow-up dû maintenant  
+- Done when : chaque réponse Marketplace enrichit la lead bank
+
+### W6 — `sale.outcome.capture`
+- `sold` exige `soldStockId` ; `lost` exige `lostReason` → ledger  
+- Done when : funnel réel `new → appt → sold/lost`
 
 ---
 
-## 9. Décision à trancher avant code
+## 8. Banque de leads — renforcer maintenant
 
-Réponds par oui/non (sinon on reste docs-only) :
+### Jour 1 (même sans code réseau)
+1. Saisir tous les leads déjà chauds.  
+2. Forcer `source` + `consentBasis` + `nextFollowUpAt`.  
+3. Lier chaque lead à un modèle/stock.  
+4. Préparer 5–10 drafts types (Trax, Trailblazer, Sierra, Equinox EV…).  
+5. Publier 1–2 annonces Marketplace manuellement et logger chaque inbound comme lead.
 
-1. **Sprint A lundi** (inventaire local + Joris résumé) — mandat ?  
-2. Canal relance semaine 1 : **SMS** ou **email** ?  
-3. Marketplace : confirmer **prepare-only manuel** (recommandé) — OK ?
+### Score simple
+- +3 marketplace_message / phone_in / walk_in  
+- +2 stock précis  
+- +2 consent express  
+- +1 follow-up dû  
+- −2 consent unknown  
+- −5 lost  
+
+File du matin : **follow-up dû → score → stage**.
+
+### Funnel à mesurer dès semaine 2
+`new → contacted → appt_set → appt_done → sold|lost`
 
 ---
 
-## 10. Lien avec le plan recentrage HQ
+## 9. Implantation détaillée
 
-Ce plan **remplace** la tentation « Yellow 4 / autonomie générique » par une **verticale métier** bornée.  
-Le HQ reste la plateforme ; Buckingham = **premier usage réel** qui doit te faire gagner du temps dès la première semaine — pas un nouveau cockpit parallèle.
+Chaque PR : petite, typée, testée, `typecheck` + `lint` + `build` + `smoke:joris`.
+
+### Jour 0
+1. Merger **PR #343**.  
+2. Accordo concession (inventaire public + outils perso + Marketplace).  
+3. Verrouiller canal : **SMS** (recommandé) ou email.  
+4. Dump initial lead bank.
+
+### Sprint A — Inventaire
+| PR | Contenu | Zone |
+|----|---------|------|
+| A1 | Types + validateurs inventaire + tests | Green |
+| A2 | Ingest manuel CSV/JSON → snapshot local | Green |
+| A3 | Fetch allowlist + parse + API owner-gated + ledger read-only | Yellow |
+| A4 | Intent Joris inventaire = dernier snapshot | Faible |
+
+### Sprint B — Lead bank + ventes assistées
+| PR | Contenu | Zone |
+|----|---------|------|
+| B1 | `SalesLead` + store + dedupe + import CSV | Green |
+| B2 | File du matin (follow-ups dus + score) | Green |
+| B3 | Prepare follow-up → Send Desk / copy | Yellow |
+| B4 | Capture sold/lost + rappels appts sans outcome | Green |
+
+### Sprint C — Marketplace → leads → ventes
+| PR | Contenu | Zone |
+|----|---------|------|
+| C1 | `MarketplaceListingPacket` + queue | Green |
+| C2 | Préparer listing depuis stock | Faible |
+| C3 | Capture lead depuis inbound post | Green |
+| C4 | Enchaînement listing → publish manuel → lead → relance | Faible |
+
+### Sprint D — seulement si A/B/C convertissent
+- Cron inventaire  
+- 2ᵉ canal relance  
+- Connecteur Meta officiel (pas de bot)  
+- Leçons Memex depuis sold/lost  
+
+---
+
+## 11. Semaine 1 opérations (même avant le code réseau)
+
+1. Saisir **tous** les leads déjà chauds.  
+2. Forcer source + consentement + `nextFollowUpAt`.  
+3. Lier chaque lead à un modèle/stock.  
+4. Préparer 5–10 drafts types (Trax, Trailblazer, Sierra, Equinox EV…).  
+5. Publier 1–2 annonces Marketplace manuellement et logger chaque inbound comme lead.
+
+### Score lead
+- +3 marketplace_message / phone_in / walk_in  
+- +2 stock précis  
+- +2 consent express  
+- +1 follow-up dû  
+- −2 consent unknown  
+- −5 lost  
+
+File du matin : **follow-up dû → score → stage**.  
+Funnel semaine 2 : `new → contacted → appt_set → appt_done → sold|lost`.
+
+---
+
+## 12. Décisions avant code
+
+1. Mandat **Sprint A** maintenant ?  
+2. Canal semaine 1 : **SMS** (recommandé) ou **email** ?  
+3. Marketplace **prepare-only manuel** confirmé ?  
+4. Semaine 1 : saisir **tous** les prospects déjà connus — OK ?
+
+Dès que c’est oui → implantation **A1** (contrats + tests), sans toucher auth, secrets, ni Phase 1.
