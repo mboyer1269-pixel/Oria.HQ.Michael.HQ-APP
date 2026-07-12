@@ -33,6 +33,9 @@ import {
   lookupModelKnowledge,
 } from "@/features/sales/gm-model-knowledge";
 import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
+import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
+import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
+import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
 
 type MarketBriefPayload = {
   frenchSummary: string;
@@ -163,7 +166,8 @@ export function SalesDeskClient({
   );
   const [marketBusy, setMarketBusy] = useState(false);
   const [marketBrief, setMarketBrief] = useState<MarketBriefPayload | null>(null);
-  const [marketForm, setMarketForm] = useState({ year: "2023", make: "Hyundai", model: "Tucson" });
+  const [marketSelection, setMarketSelection] = useState<VehicleSelection | null>(null);
+  const [marketSelectSeed, setMarketSelectSeed] = useState<Partial<VehicleSelection> | null>(null);
   const [listingPacket, setListingPacket] = useState<MarketplaceListingPacket | null>(
     initialListings[0] ?? null,
   );
@@ -372,9 +376,21 @@ export function SalesDeskClient({
     setMarketBusy(true);
     setSyncMsg("");
     try {
-      const year = opts?.year ?? Number.parseInt(marketForm.year, 10);
-      const make = opts?.make ?? marketForm.make.trim();
-      const model = opts?.model ?? marketForm.model.trim();
+      const year = opts?.year ?? marketSelection?.year;
+      const make = opts?.make ?? marketSelection?.makeName;
+      const model = opts?.model ?? marketSelection?.modelName;
+      if (!year || !make || !model) {
+        setSyncState("err");
+        setSyncMsg("Choisis année, marque et modèle dans les listes.");
+        return;
+      }
+      if (opts?.year && opts.make && opts.model) {
+        setMarketSelectSeed({
+          year: opts.year,
+          makeId: buildMakeId(opts.make),
+          modelId: buildModelId(opts.make, opts.model),
+        });
+      }
       const res = await fetch("/api/sales/market-brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -757,39 +773,24 @@ export function SalesDeskClient({
               <div>
                 <p className="text-sm font-bold text-violet-100">Brief marché (AutoTrader Gatineau)</p>
                 <p className="mt-1 text-[11px] leading-5 text-neutral-400">
-                  Ex. Hyundai Tucson 2023 → comps + angles vs ton lot GM.
+                  Listes liées marque → modèle (catalogue API). Aucune saisie libre.
                 </p>
               </div>
             </div>
-            <div className="grid flex-1 grid-cols-3 gap-2">
-              <label className="block">
-                <span className="text-[10px] font-semibold text-neutral-500">Année</span>
-                <input
-                  value={marketForm.year}
-                  onChange={(e) => setMarketForm((f) => ({ ...f, year: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500/40"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[10px] font-semibold text-neutral-500">Marque</span>
-                <input
-                  value={marketForm.make}
-                  onChange={(e) => setMarketForm((f) => ({ ...f, make: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500/40"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[10px] font-semibold text-neutral-500">Modèle</span>
-                <input
-                  value={marketForm.model}
-                  onChange={(e) => setMarketForm((f) => ({ ...f, model: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500/40"
-                />
-              </label>
-            </div>
+            <VehicleMakeModelSelects
+              key={
+                marketSelectSeed
+                  ? `${marketSelectSeed.year}-${marketSelectSeed.makeId}-${marketSelectSeed.modelId}`
+                  : "market-select-default"
+              }
+              initialValue={marketSelectSeed}
+              onChange={setMarketSelection}
+              disabled={marketBusy}
+              size="sm"
+            />
             <button
               type="button"
-              disabled={marketBusy}
+              disabled={marketBusy || !marketSelection}
               onClick={() => void runMarketBrief()}
               className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-bold text-white hover:bg-violet-400 disabled:opacity-40"
             >

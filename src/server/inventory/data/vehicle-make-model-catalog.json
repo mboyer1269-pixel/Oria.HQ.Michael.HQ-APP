@@ -1,0 +1,1064 @@
+{
+  "schemaVersion": 1,
+  "description": "Relational make/model catalog for Sales Desk market analysis. Consumed via API only.",
+  "makes": [
+    {
+      "makeId": "chevrolet",
+      "name": "Chevrolet",
+      "marketRole": "oem_gm",
+      "sortOrder": 0
+    },
+    {
+      "makeId": "buick",
+      "name": "Buick",
+      "marketRole": "oem_gm",
+      "sortOrder": 1
+    },
+    {
+      "makeId": "gmc",
+      "name": "GMC",
+      "marketRole": "oem_gm",
+      "sortOrder": 2
+    },
+    {
+      "makeId": "cadillac",
+      "name": "Cadillac",
+      "marketRole": "oem_gm",
+      "sortOrder": 3
+    },
+    {
+      "makeId": "hyundai",
+      "name": "Hyundai",
+      "marketRole": "competitor",
+      "sortOrder": 4
+    },
+    {
+      "makeId": "kia",
+      "name": "Kia",
+      "marketRole": "competitor",
+      "sortOrder": 5
+    },
+    {
+      "makeId": "toyota",
+      "name": "Toyota",
+      "marketRole": "competitor",
+      "sortOrder": 6
+    },
+    {
+      "makeId": "honda",
+      "name": "Honda",
+      "marketRole": "competitor",
+      "sortOrder": 7
+    },
+    {
+      "makeId": "ford",
+      "name": "Ford",
+      "marketRole": "competitor",
+      "sortOrder": 8
+    },
+    {
+      "makeId": "nissan",
+      "name": "Nissan",
+      "marketRole": "competitor",
+      "sortOrder": 9
+    },
+    {
+      "makeId": "mazda",
+      "name": "Mazda",
+      "marketRole": "competitor",
+      "sortOrder": 10
+    },
+    {
+      "makeId": "volkswagen",
+      "name": "Volkswagen",
+      "marketRole": "competitor",
+      "sortOrder": 11
+    },
+    {
+      "makeId": "jeep",
+      "name": "Jeep",
+      "marketRole": "competitor",
+      "sortOrder": 12
+    },
+    {
+      "makeId": "ram",
+      "name": "Ram",
+      "marketRole": "competitor",
+      "sortOrder": 13
+    },
+    {
+      "makeId": "subaru",
+      "name": "Subaru",
+      "marketRole": "competitor",
+      "sortOrder": 14
+    },
+    {
+      "makeId": "dodge",
+      "name": "Dodge",
+      "marketRole": "competitor",
+      "sortOrder": 15
+    },
+    {
+      "makeId": "tesla",
+      "name": "Tesla",
+      "marketRole": "competitor",
+      "sortOrder": 16
+    },
+    {
+      "makeId": "bmw",
+      "name": "BMW",
+      "marketRole": "competitor",
+      "sortOrder": 17
+    },
+    {
+      "makeId": "mercedes-benz",
+      "name": "Mercedes-Benz",
+      "marketRole": "competitor",
+      "sortOrder": 18
+    },
+    {
+      "makeId": "audi",
+      "name": "Audi",
+      "marketRole": "competitor",
+      "sortOrder": 19
+    },
+    {
+      "makeId": "lexus",
+      "name": "Lexus",
+      "marketRole": "competitor",
+      "sortOrder": 20
+    },
+    {
+      "makeId": "volvo",
+      "name": "Volvo",
+      "marketRole": "competitor",
+      "sortOrder": 21
+    }
+  ],
+  "models": [
+    {
+      "modelId": "chevrolet--trax",
+      "makeId": "chevrolet",
+      "name": "Trax",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "chevrolet--trailblazer",
+      "makeId": "chevrolet",
+      "name": "Trailblazer",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "chevrolet--equinox",
+      "makeId": "chevrolet",
+      "name": "Equinox",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "chevrolet--blazer",
+      "makeId": "chevrolet",
+      "name": "Blazer",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "chevrolet--traverse",
+      "makeId": "chevrolet",
+      "name": "Traverse",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "chevrolet--tahoe",
+      "makeId": "chevrolet",
+      "name": "Tahoe",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "chevrolet--suburban",
+      "makeId": "chevrolet",
+      "name": "Suburban",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "chevrolet--colorado",
+      "makeId": "chevrolet",
+      "name": "Colorado",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "chevrolet--silverado-1500",
+      "makeId": "chevrolet",
+      "name": "Silverado 1500",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "chevrolet--silverado-2500hd",
+      "makeId": "chevrolet",
+      "name": "Silverado 2500HD",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "chevrolet--malibu",
+      "makeId": "chevrolet",
+      "name": "Malibu",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "chevrolet--bolt",
+      "makeId": "chevrolet",
+      "name": "Bolt",
+      "segment": "ev"
+    },
+    {
+      "modelId": "chevrolet--bolt-euv",
+      "makeId": "chevrolet",
+      "name": "Bolt EUV",
+      "segment": "ev"
+    },
+    {
+      "modelId": "chevrolet--corvette",
+      "makeId": "chevrolet",
+      "name": "Corvette",
+      "segment": "other"
+    },
+    {
+      "modelId": "chevrolet--spark",
+      "makeId": "chevrolet",
+      "name": "Spark",
+      "segment": "subcompact_suv"
+    },
+    {
+      "modelId": "buick--envista",
+      "makeId": "buick",
+      "name": "Envista",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "buick--encore-gx",
+      "makeId": "buick",
+      "name": "Encore GX",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "buick--envision",
+      "makeId": "buick",
+      "name": "Envision",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "buick--enclave",
+      "makeId": "buick",
+      "name": "Enclave",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "gmc--terrain",
+      "makeId": "gmc",
+      "name": "Terrain",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "gmc--acadia",
+      "makeId": "gmc",
+      "name": "Acadia",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "gmc--yukon",
+      "makeId": "gmc",
+      "name": "Yukon",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "gmc--yukon-xl",
+      "makeId": "gmc",
+      "name": "Yukon XL",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "gmc--canyon",
+      "makeId": "gmc",
+      "name": "Canyon",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "gmc--sierra-1500",
+      "makeId": "gmc",
+      "name": "Sierra 1500",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "gmc--sierra-2500hd",
+      "makeId": "gmc",
+      "name": "Sierra 2500HD",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "gmc--hummer-ev",
+      "makeId": "gmc",
+      "name": "Hummer EV",
+      "segment": "ev"
+    },
+    {
+      "modelId": "cadillac--ct4",
+      "makeId": "cadillac",
+      "name": "CT4",
+      "segment": "other"
+    },
+    {
+      "modelId": "cadillac--ct5",
+      "makeId": "cadillac",
+      "name": "CT5",
+      "segment": "other"
+    },
+    {
+      "modelId": "cadillac--xt4",
+      "makeId": "cadillac",
+      "name": "XT4",
+      "segment": "other"
+    },
+    {
+      "modelId": "cadillac--xt5",
+      "makeId": "cadillac",
+      "name": "XT5",
+      "segment": "other"
+    },
+    {
+      "modelId": "cadillac--xt6",
+      "makeId": "cadillac",
+      "name": "XT6",
+      "segment": "other"
+    },
+    {
+      "modelId": "cadillac--escalade",
+      "makeId": "cadillac",
+      "name": "Escalade",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "cadillac--lyriq",
+      "makeId": "cadillac",
+      "name": "Lyriq",
+      "segment": "ev"
+    },
+    {
+      "modelId": "cadillac--optiq",
+      "makeId": "cadillac",
+      "name": "Optiq",
+      "segment": "ev"
+    },
+    {
+      "modelId": "hyundai--venue",
+      "makeId": "hyundai",
+      "name": "Venue",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "hyundai--kona",
+      "makeId": "hyundai",
+      "name": "Kona",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "hyundai--tucson",
+      "makeId": "hyundai",
+      "name": "Tucson",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "hyundai--santa-fe",
+      "makeId": "hyundai",
+      "name": "Santa Fe",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "hyundai--palisade",
+      "makeId": "hyundai",
+      "name": "Palisade",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "hyundai--elantra",
+      "makeId": "hyundai",
+      "name": "Elantra",
+      "segment": "compact_car"
+    },
+    {
+      "modelId": "hyundai--sonata",
+      "makeId": "hyundai",
+      "name": "Sonata",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "hyundai--ioniq-5",
+      "makeId": "hyundai",
+      "name": "Ioniq 5",
+      "segment": "ev"
+    },
+    {
+      "modelId": "hyundai--ioniq-6",
+      "makeId": "hyundai",
+      "name": "Ioniq 6",
+      "segment": "ev"
+    },
+    {
+      "modelId": "hyundai--santa-cruz",
+      "makeId": "hyundai",
+      "name": "Santa Cruz",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "kia--soul",
+      "makeId": "kia",
+      "name": "Soul",
+      "segment": "subcompact_suv"
+    },
+    {
+      "modelId": "kia--seltos",
+      "makeId": "kia",
+      "name": "Seltos",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "kia--sportage",
+      "makeId": "kia",
+      "name": "Sportage",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "kia--sorento",
+      "makeId": "kia",
+      "name": "Sorento",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "kia--telluride",
+      "makeId": "kia",
+      "name": "Telluride",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "kia--forte",
+      "makeId": "kia",
+      "name": "Forte",
+      "segment": "compact_car"
+    },
+    {
+      "modelId": "kia--k5",
+      "makeId": "kia",
+      "name": "K5",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "kia--niro",
+      "makeId": "kia",
+      "name": "Niro",
+      "segment": "other"
+    },
+    {
+      "modelId": "kia--ev6",
+      "makeId": "kia",
+      "name": "EV6",
+      "segment": "ev"
+    },
+    {
+      "modelId": "kia--carnival",
+      "makeId": "kia",
+      "name": "Carnival",
+      "segment": "van"
+    },
+    {
+      "modelId": "toyota--corolla",
+      "makeId": "toyota",
+      "name": "Corolla",
+      "segment": "compact_car"
+    },
+    {
+      "modelId": "toyota--camry",
+      "makeId": "toyota",
+      "name": "Camry",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "toyota--prius",
+      "makeId": "toyota",
+      "name": "Prius",
+      "segment": "other"
+    },
+    {
+      "modelId": "toyota--corolla-cross",
+      "makeId": "toyota",
+      "name": "Corolla Cross",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "toyota--rav4",
+      "makeId": "toyota",
+      "name": "RAV4",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "toyota--venza",
+      "makeId": "toyota",
+      "name": "Venza",
+      "segment": "other"
+    },
+    {
+      "modelId": "toyota--highlander",
+      "makeId": "toyota",
+      "name": "Highlander",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "toyota--4runner",
+      "makeId": "toyota",
+      "name": "4Runner",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "toyota--tacoma",
+      "makeId": "toyota",
+      "name": "Tacoma",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "toyota--tundra",
+      "makeId": "toyota",
+      "name": "Tundra",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "toyota--sienna",
+      "makeId": "toyota",
+      "name": "Sienna",
+      "segment": "van"
+    },
+    {
+      "modelId": "honda--civic",
+      "makeId": "honda",
+      "name": "Civic",
+      "segment": "compact_car"
+    },
+    {
+      "modelId": "honda--accord",
+      "makeId": "honda",
+      "name": "Accord",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "honda--hr-v",
+      "makeId": "honda",
+      "name": "HR-V",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "honda--cr-v",
+      "makeId": "honda",
+      "name": "CR-V",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "honda--pilot",
+      "makeId": "honda",
+      "name": "Pilot",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "honda--passport",
+      "makeId": "honda",
+      "name": "Passport",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "honda--ridgeline",
+      "makeId": "honda",
+      "name": "Ridgeline",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "honda--odyssey",
+      "makeId": "honda",
+      "name": "Odyssey",
+      "segment": "van"
+    },
+    {
+      "modelId": "ford--escape",
+      "makeId": "ford",
+      "name": "Escape",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "ford--bronco-sport",
+      "makeId": "ford",
+      "name": "Bronco Sport",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "ford--bronco",
+      "makeId": "ford",
+      "name": "Bronco",
+      "segment": "other"
+    },
+    {
+      "modelId": "ford--edge",
+      "makeId": "ford",
+      "name": "Edge",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "ford--explorer",
+      "makeId": "ford",
+      "name": "Explorer",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "ford--expedition",
+      "makeId": "ford",
+      "name": "Expedition",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "ford--maverick",
+      "makeId": "ford",
+      "name": "Maverick",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "ford--ranger",
+      "makeId": "ford",
+      "name": "Ranger",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "ford--f-150",
+      "makeId": "ford",
+      "name": "F-150",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "ford--mustang",
+      "makeId": "ford",
+      "name": "Mustang",
+      "segment": "other"
+    },
+    {
+      "modelId": "nissan--versa",
+      "makeId": "nissan",
+      "name": "Versa",
+      "segment": "subcompact_suv"
+    },
+    {
+      "modelId": "nissan--sentra",
+      "makeId": "nissan",
+      "name": "Sentra",
+      "segment": "compact_car"
+    },
+    {
+      "modelId": "nissan--altima",
+      "makeId": "nissan",
+      "name": "Altima",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "nissan--kicks",
+      "makeId": "nissan",
+      "name": "Kicks",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "nissan--rogue",
+      "makeId": "nissan",
+      "name": "Rogue",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "nissan--murano",
+      "makeId": "nissan",
+      "name": "Murano",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "nissan--pathfinder",
+      "makeId": "nissan",
+      "name": "Pathfinder",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "nissan--frontier",
+      "makeId": "nissan",
+      "name": "Frontier",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "nissan--titan",
+      "makeId": "nissan",
+      "name": "Titan",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "nissan--leaf",
+      "makeId": "nissan",
+      "name": "Leaf",
+      "segment": "ev"
+    },
+    {
+      "modelId": "nissan--ariya",
+      "makeId": "nissan",
+      "name": "Ariya",
+      "segment": "ev"
+    },
+    {
+      "modelId": "mazda--mazda3",
+      "makeId": "mazda",
+      "name": "Mazda3",
+      "segment": "compact_car"
+    },
+    {
+      "modelId": "mazda--cx-30",
+      "makeId": "mazda",
+      "name": "CX-30",
+      "segment": "other"
+    },
+    {
+      "modelId": "mazda--cx-5",
+      "makeId": "mazda",
+      "name": "CX-5",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "mazda--cx-50",
+      "makeId": "mazda",
+      "name": "CX-50",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "mazda--cx-70",
+      "makeId": "mazda",
+      "name": "CX-70",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "mazda--cx-90",
+      "makeId": "mazda",
+      "name": "CX-90",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "mazda--mx-5",
+      "makeId": "mazda",
+      "name": "MX-5",
+      "segment": "other"
+    },
+    {
+      "modelId": "volkswagen--jetta",
+      "makeId": "volkswagen",
+      "name": "Jetta",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "volkswagen--golf",
+      "makeId": "volkswagen",
+      "name": "Golf",
+      "segment": "other"
+    },
+    {
+      "modelId": "volkswagen--taos",
+      "makeId": "volkswagen",
+      "name": "Taos",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "volkswagen--tiguan",
+      "makeId": "volkswagen",
+      "name": "Tiguan",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "volkswagen--atlas",
+      "makeId": "volkswagen",
+      "name": "Atlas",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "volkswagen--id-4",
+      "makeId": "volkswagen",
+      "name": "ID.4",
+      "segment": "ev"
+    },
+    {
+      "modelId": "jeep--renegade",
+      "makeId": "jeep",
+      "name": "Renegade",
+      "segment": "other"
+    },
+    {
+      "modelId": "jeep--compass",
+      "makeId": "jeep",
+      "name": "Compass",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "jeep--cherokee",
+      "makeId": "jeep",
+      "name": "Cherokee",
+      "segment": "other"
+    },
+    {
+      "modelId": "jeep--grand-cherokee",
+      "makeId": "jeep",
+      "name": "Grand Cherokee",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "jeep--wrangler",
+      "makeId": "jeep",
+      "name": "Wrangler",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "jeep--gladiator",
+      "makeId": "jeep",
+      "name": "Gladiator",
+      "segment": "pickup_midsize"
+    },
+    {
+      "modelId": "ram--1500",
+      "makeId": "ram",
+      "name": "1500",
+      "segment": "other"
+    },
+    {
+      "modelId": "ram--2500",
+      "makeId": "ram",
+      "name": "2500",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "ram--3500",
+      "makeId": "ram",
+      "name": "3500",
+      "segment": "pickup_fullsize"
+    },
+    {
+      "modelId": "ram--promaster",
+      "makeId": "ram",
+      "name": "ProMaster",
+      "segment": "van"
+    },
+    {
+      "modelId": "subaru--impreza",
+      "makeId": "subaru",
+      "name": "Impreza",
+      "segment": "compact_car"
+    },
+    {
+      "modelId": "subaru--crosstrek",
+      "makeId": "subaru",
+      "name": "Crosstrek",
+      "segment": "other"
+    },
+    {
+      "modelId": "subaru--forester",
+      "makeId": "subaru",
+      "name": "Forester",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "subaru--outback",
+      "makeId": "subaru",
+      "name": "Outback",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "subaru--ascent",
+      "makeId": "subaru",
+      "name": "Ascent",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "subaru--wrx",
+      "makeId": "subaru",
+      "name": "WRX",
+      "segment": "other"
+    },
+    {
+      "modelId": "dodge--hornet",
+      "makeId": "dodge",
+      "name": "Hornet",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "dodge--durango",
+      "makeId": "dodge",
+      "name": "Durango",
+      "segment": "midsize_suv"
+    },
+    {
+      "modelId": "dodge--charger",
+      "makeId": "dodge",
+      "name": "Charger",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "tesla--model-3",
+      "makeId": "tesla",
+      "name": "Model 3",
+      "segment": "ev"
+    },
+    {
+      "modelId": "tesla--model-y",
+      "makeId": "tesla",
+      "name": "Model Y",
+      "segment": "ev"
+    },
+    {
+      "modelId": "tesla--model-s",
+      "makeId": "tesla",
+      "name": "Model S",
+      "segment": "ev"
+    },
+    {
+      "modelId": "tesla--model-x",
+      "makeId": "tesla",
+      "name": "Model X",
+      "segment": "ev"
+    },
+    {
+      "modelId": "bmw--3-series",
+      "makeId": "bmw",
+      "name": "3 Series",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "bmw--5-series",
+      "makeId": "bmw",
+      "name": "5 Series",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "bmw--x1",
+      "makeId": "bmw",
+      "name": "X1",
+      "segment": "other"
+    },
+    {
+      "modelId": "bmw--x3",
+      "makeId": "bmw",
+      "name": "X3",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "bmw--x5",
+      "makeId": "bmw",
+      "name": "X5",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "mercedes-benz--c-class",
+      "makeId": "mercedes-benz",
+      "name": "C-Class",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "mercedes-benz--e-class",
+      "makeId": "mercedes-benz",
+      "name": "E-Class",
+      "segment": "other"
+    },
+    {
+      "modelId": "mercedes-benz--gla",
+      "makeId": "mercedes-benz",
+      "name": "GLA",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "mercedes-benz--glc",
+      "makeId": "mercedes-benz",
+      "name": "GLC",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "mercedes-benz--gle",
+      "makeId": "mercedes-benz",
+      "name": "GLE",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "audi--a3",
+      "makeId": "audi",
+      "name": "A3",
+      "segment": "other"
+    },
+    {
+      "modelId": "audi--a4",
+      "makeId": "audi",
+      "name": "A4",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "audi--q3",
+      "makeId": "audi",
+      "name": "Q3",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "audi--q5",
+      "makeId": "audi",
+      "name": "Q5",
+      "segment": "other"
+    },
+    {
+      "modelId": "audi--q7",
+      "makeId": "audi",
+      "name": "Q7",
+      "segment": "fullsize_suv"
+    },
+    {
+      "modelId": "lexus--ux",
+      "makeId": "lexus",
+      "name": "UX",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "lexus--nx",
+      "makeId": "lexus",
+      "name": "NX",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "lexus--rx",
+      "makeId": "lexus",
+      "name": "RX",
+      "segment": "other"
+    },
+    {
+      "modelId": "lexus--es",
+      "makeId": "lexus",
+      "name": "ES",
+      "segment": "midsize_car"
+    },
+    {
+      "modelId": "lexus--gx",
+      "makeId": "lexus",
+      "name": "GX",
+      "segment": "other"
+    },
+    {
+      "modelId": "volvo--xc40",
+      "makeId": "volvo",
+      "name": "XC40",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "volvo--xc60",
+      "makeId": "volvo",
+      "name": "XC60",
+      "segment": "compact_suv"
+    },
+    {
+      "modelId": "volvo--xc90",
+      "makeId": "volvo",
+      "name": "XC90",
+      "segment": "fullsize_suv"
+    }
+  ]
+}

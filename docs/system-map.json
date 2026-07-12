@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 470,
-    "live": 409,
+    "sourceFiles": 474,
+    "live": 413,
     "testOnly": 9,
     "incubation": 52
   },
@@ -44,6 +44,7 @@
     "src/app/api/inngest/route.ts",
     "src/app/api/inventory/snapshot/route.ts",
     "src/app/api/inventory/sync/route.ts",
+    "src/app/api/inventory/vehicle-catalog/route.ts",
     "src/app/api/joris/chat/route.ts",
     "src/app/api/marketplace/leads/capture/route.ts",
     "src/app/api/marketplace/listings/route.ts",
@@ -163,6 +164,7 @@
     "src/features/hq/seed.ts",
     "src/features/hq/types.ts",
     "src/features/inventory/inventory-debrief.ts",
+    "src/features/inventory/vehicle-catalog.ts",
     "src/features/inventory/vehicle-stock.ts",
     "src/features/marketplace-listings/listing-packet.ts",
     "src/features/memory/components/memory-vault-explorer.tsx",
@@ -182,6 +184,7 @@
     "src/features/runtime/components/agent-flow-map.tsx",
     "src/features/sales/components/model-knowledge-panel.tsx",
     "src/features/sales/components/sales-desk-client.tsx",
+    "src/features/sales/components/vehicle-make-model-selects.tsx",
     "src/features/sales/follow-up-draft.ts",
     "src/features/sales/gm-model-knowledge.ts",
     "src/features/sales/sales-lead.ts",
@@ -343,6 +346,7 @@
     "src/server/inventory/public-inventory-allowlist.ts",
     "src/server/inventory/public-inventory-sync.ts",
     "src/server/inventory/vdp-photo-enrich.ts",
+    "src/server/inventory/vehicle-catalog-service.ts",
     "src/server/jobs/inngest-client.ts",
     "src/server/jobs/joris-execute-job.ts",
     "src/server/joris/brain.ts",
