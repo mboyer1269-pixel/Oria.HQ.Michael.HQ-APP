@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 468,
-    "live": 407,
+    "sourceFiles": 470,
+    "live": 409,
     "testOnly": 9,
     "incubation": 52
   },
@@ -180,8 +180,10 @@
     "src/features/notes/components/notes-workspace.tsx",
     "src/features/notes/note-action.ts",
     "src/features/runtime/components/agent-flow-map.tsx",
+    "src/features/sales/components/model-knowledge-panel.tsx",
     "src/features/sales/components/sales-desk-client.tsx",
     "src/features/sales/follow-up-draft.ts",
+    "src/features/sales/gm-model-knowledge.ts",
     "src/features/sales/sales-lead.ts",
     "src/features/skills/components/skill-card.tsx",
     "src/features/skills/seed.ts",

@@ -65,9 +65,12 @@ Oria prépare. **Toi** tu closes.
 | `POST` | `/api/sales/market-brief` | Comps AutoTrader Gatineau + angles vs lot |
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
 
+**Formation modèles (Sales Desk)** : fiches microlearning Chevy/Buick/GMC (must-know, walkaround 3-line story, objections Outaouais). Bouton **Apprendre** sur les neufs.
+
 **Joris (chat)** :
 - « sync inventaire » / « prépare fiche Marketplace 26344-NEUF » → `marketplace.listing.prepare`
 - « débrief inventaire » / « compare Hyundai Tucson 2023 au marché » → `inventory.market.brief`
+- « explique-moi le Trax 2026 » / « formation Terrain » → fiche formation modèle
 
 Persistance : **process-locale** (`persistence: "in_memory"`). Perdu au redémarrage jusqu’à mandat store durable.
 

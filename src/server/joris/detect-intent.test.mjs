@@ -73,6 +73,8 @@ const priorityAndAccentCases = [
   { message: "débrief inventaire", expected: "inventory.market.brief" },
   { message: "compare Hyundai Tucson 2023 au marché", expected: "inventory.market.brief" },
   { message: "plus-value pour mon inventaire vs 2023 Hyundai Tucson", expected: "inventory.market.brief" },
+  { message: "explique-moi le Trax 2026", expected: "inventory.market.brief" },
+  { message: "formation modèle Terrain", expected: "inventory.market.brief" },
 ];
 
 for (const { message, expected } of priorityAndAccentCases) {

@@ -92,6 +92,13 @@ export function detectIntent(message: string): JorisIntent {
     "versus mon inventaire",
     "compare",
     "comparer",
+    "formation modèle",
+    "formation modele",
+    "apprendre le",
+    "explique-moi le",
+    "explique moi le",
+    "must-know",
+    "walkaround",
   ];
   const hasYearMakeModel =
     /\b20\d{2}\s+(hyundai|kia|toyota|honda|ford|chevrolet|chevy|gmc|buick|nissan|mazda|volkswagen|vw|jeep|ram|dodge|subaru)\b/i.test(
