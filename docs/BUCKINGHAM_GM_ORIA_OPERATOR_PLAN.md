@@ -62,6 +62,7 @@ Oria prépare. **Toi** tu closes.
 | `POST` | `/api/sales/follow-up/prepare` | Draft SMS/email (jamais d’envoi) |
 | `POST` | `/api/sales/outcome` | `sold` (exige stock) / `lost` (exige raison) |
 | `POST`/`GET` | `/api/marketplace/listings` | Préparer fiche depuis stock / marquer publié |
+| `GET` | `/api/inventory/vehicle-catalog` | Catalogue relationnel marques→modèles (Selects liés) |
 | `POST` | `/api/sales/market-brief` | Comps AutoTrader Gatineau + angles vs lot |
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
 
