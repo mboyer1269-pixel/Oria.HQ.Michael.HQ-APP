@@ -1,6 +1,10 @@
 // Joris intent: inventory debrief + market advantage brief (prepare-only).
 
 import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
+import {
+  formatKnowledgeStudySheet,
+  lookupModelKnowledge,
+} from "@/features/sales/gm-model-knowledge";
 import { getInventorySnapshot } from "@/server/inventory/inventory-store";
 import { syncPublicInventory } from "@/server/inventory/public-inventory-sync";
 import { fetchMarketAdvantageBrief } from "@/server/market/fetch-market-comps";
@@ -31,6 +35,28 @@ function normalizeModel(raw: string): string | null {
     .join(" ");
 }
 
+const MODEL_ONLY_YEAR_RE =
+  /\b(trax|trailblazer|equinox|terrain|encore(?:\s+gx)?|envista|colorado|bolt(?:\s+euv)?|sierra|silverado|tahoe|yukon|acadia|enclave)\s+(20\d{2})\b/i;
+
+const MODEL_MAKE_HINTS: Record<string, { make: string; model: string }> = {
+  trax: { make: "Chevrolet", model: "Trax" },
+  trailblazer: { make: "Chevrolet", model: "TrailBlazer" },
+  equinox: { make: "Chevrolet", model: "Equinox" },
+  terrain: { make: "GMC", model: "Terrain" },
+  encore: { make: "Buick", model: "Encore GX" },
+  encoregx: { make: "Buick", model: "Encore GX" },
+  envista: { make: "Buick", model: "Envista" },
+  colorado: { make: "Chevrolet", model: "Colorado" },
+  bolt: { make: "Chevrolet", model: "Bolt" },
+  bolteuv: { make: "Chevrolet", model: "Bolt" },
+  sierra: { make: "GMC", model: "Sierra" },
+  silverado: { make: "Chevrolet", model: "Silverado" },
+  tahoe: { make: "Chevrolet", model: "Tahoe" },
+  yukon: { make: "GMC", model: "Yukon" },
+  acadia: { make: "GMC", model: "Acadia" },
+  enclave: { make: "Buick", model: "Enclave" },
+};
+
 export function extractMarketTargetFromMessage(
   message: string,
 ): { year: number; make: string; model: string } | null {
@@ -50,6 +76,29 @@ export function extractMarketTargetFromMessage(
     if (model) return { year, make, model };
   }
 
+  const modelOnly = message.match(MODEL_ONLY_YEAR_RE);
+  if (modelOnly) {
+    const key = modelOnly[1]!.toLowerCase().replace(/\s+/g, "");
+    const hint = MODEL_MAKE_HINTS[key];
+    const year = Number.parseInt(modelOnly[2]!, 10);
+    if (hint) return { year, make: hint.make, model: hint.model };
+  }
+
+  return null;
+}
+
+/** Resolve GM model mentions without requiring year (for formation intents). */
+export function extractGmModelMention(
+  message: string,
+): { year?: number; make: string; model: string } | null {
+  const withYear = extractMarketTargetFromMessage(message);
+  if (withYear) return withYear;
+
+  for (const [key, hint] of Object.entries(MODEL_MAKE_HINTS)) {
+    const pattern = key === "encoregx" ? "encore\\s*gx" : key;
+    const re = new RegExp(`\\b${pattern}\\b`, "i");
+    if (re.test(message)) return { make: hint.make, model: hint.model };
+  }
   return null;
 }
 
@@ -91,6 +140,24 @@ export function wantsMarketBrief(message: string): boolean {
   );
 }
 
+export function wantsProductLearn(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("formation") ||
+    lower.includes("must-know") ||
+    lower.includes("must know") ||
+    lower.includes("walkaround") ||
+    lower.includes("apprendre") ||
+    lower.includes("explique-moi") ||
+    lower.includes("explique moi") ||
+    lower.includes("qu'est-ce que je dois savoir") ||
+    lower.includes("details du modele") ||
+    lower.includes("détails du modèle") ||
+    lower.includes("details du modèle") ||
+    (lower.includes("modèle") && (lower.includes("savoir") || lower.includes("apprendre")))
+  );
+}
+
 export type InventoryMarketIntentResult = {
   summary: string;
   synced?: boolean;
@@ -107,6 +174,7 @@ export async function handleInventoryMarketIntent(input: {
 }): Promise<InventoryMarketIntentResult> {
   const debriefWanted = wantsInventoryDebrief(input.message);
   const marketWanted = wantsMarketBrief(input.message);
+  const learnWanted = wantsProductLearn(input.message);
   const syncWanted = wantsInventorySync(input.message);
   let synced = false;
 
@@ -136,6 +204,49 @@ export async function handleInventoryMarketIntent(input: {
           v.vin?.toLowerCase() === stockRef.toLowerCase(),
       )
     : undefined;
+
+  // Product knowledge / formation modèle
+  if (learnWanted && !marketWanted) {
+    const mention = extractGmModelMention(input.message);
+    const learnTarget = mention
+      ? { make: mention.make, model: mention.model, year: mention.year }
+      : focusVehicle
+        ? { make: focusVehicle.make, model: focusVehicle.model, year: focusVehicle.year }
+        : null;
+
+    if (!learnTarget) {
+      return {
+        kind: "help",
+        synced,
+        vehicleCount: debrief.vehicleCount,
+        summary:
+          `${debrief.frenchSummary}\n\n` +
+          `Pour la formation, précise un modèle neuf (ex. « explique-moi le Trax 2026 » ` +
+          `ou « formation Terrain »). Sur /hq/sales → bouton Apprendre.`,
+      };
+    }
+
+    const card = lookupModelKnowledge(learnTarget);
+    if (!card) {
+      return {
+        kind: "help",
+        synced,
+        vehicleCount: debrief.vehicleCount,
+        summary:
+          `Pas encore de fiche formation pour ${learnTarget.year ?? ""} ${learnTarget.make} ${learnTarget.model}. ` +
+          `Modèles couverts : Trax, Trailblazer, Equinox, Terrain, Encore GX, Envista, Colorado, Bolt.`,
+      };
+    }
+
+    return {
+      kind: "help",
+      synced,
+      vehicleCount: debrief.vehicleCount,
+      summary:
+        `${formatKnowledgeStudySheet(card)}\n\n` +
+        `Astuce : sur /hq/sales, ouvre « Apprendre » pour cocher tes must-know (progression sauvegardée).`,
+    };
+  }
 
   // Pure debrief
   if (debriefWanted && !marketWanted && !target) {

@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ClipboardCopy,
   ExternalLink,
+  GraduationCap,
   ImageOff,
   Loader2,
   MessageSquareText,
@@ -26,6 +27,12 @@ import type { InventoryDebrief } from "@/features/inventory/inventory-debrief";
 import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
 import type { LeadSource, SalesLead } from "@/features/sales/sales-lead";
 import type { MarketplaceListingPacket } from "@/features/marketplace-listings/listing-packet";
+import type { ModelKnowledgeCard } from "@/features/sales/gm-model-knowledge";
+import {
+  listKnowledgeForInventory,
+  lookupModelKnowledge,
+} from "@/features/sales/gm-model-knowledge";
+import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
 
 type MarketBriefPayload = {
   frenchSummary: string;
@@ -147,6 +154,9 @@ export function SalesDeskClient({
   const [listingBusy, setListingBusy] = useState<string | null>(null);
   const [selectedStockId, setSelectedStockId] = useState<string | null>(null);
   const [inventoryFilter, setInventoryFilter] = useState("");
+  const [conditionFilter, setConditionFilter] = useState<"all" | "new" | "used">("all");
+  const [activeKnowledge, setActiveKnowledge] = useState<ModelKnowledgeCard | null>(null);
+  const [knowledgeStockLabel, setKnowledgeStockLabel] = useState<string | undefined>();
   const [localVehicles, setLocalVehicles] = useState<VehicleStock[]>(initialVehicles);
   const [debrief, setDebrief] = useState<InventoryDebrief | null>(
     initialVehicles.length > 0 ? buildInventoryDebrief(initialVehicles) : null,
@@ -173,8 +183,10 @@ export function SalesDeskClient({
 
   const filteredVehicles = useMemo(() => {
     const q = inventoryFilter.trim().toLowerCase();
-    if (!q) return localVehicles;
     return localVehicles.filter((v) => {
+      if (conditionFilter === "new" && v.condition !== "new") return false;
+      if (conditionFilter === "used" && v.condition === "new") return false;
+      if (!q) return true;
       const hay = [
         v.stockId,
         v.stockNumber,
@@ -190,7 +202,40 @@ export function SalesDeskClient({
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [localVehicles, inventoryFilter]);
+  }, [localVehicles, inventoryFilter, conditionFilter]);
+
+  const newCount = useMemo(
+    () => localVehicles.filter((v) => v.condition === "new").length,
+    [localVehicles],
+  );
+  const usedCount = useMemo(
+    () => localVehicles.filter((v) => v.condition !== "new").length,
+    [localVehicles],
+  );
+  const learningOnLot = useMemo(
+    () => listKnowledgeForInventory(localVehicles),
+    [localVehicles],
+  );
+
+  function openKnowledge(vehicle: VehicleStock) {
+    const card = lookupModelKnowledge(vehicle);
+    if (!card) {
+      setSyncState("err");
+      setSyncMsg(
+        `Pas encore de fiche formation pour ${vehicle.year} ${vehicle.make} ${vehicle.model}.`,
+      );
+      return;
+    }
+    setSelectedStockId(vehicle.stockId);
+    setActiveKnowledge(card);
+    setKnowledgeStockLabel(`${vehicle.stockId} · ${formatPrice(vehicle.priceCad)}`);
+    window.requestAnimationFrame(() => {
+      document.getElementById("sales-model-knowledge")?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    });
+  }
 
   async function flashCopy(key: string, text: string) {
     const ok = await copyText(text);
@@ -506,34 +551,43 @@ export function SalesDeskClient({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.08] via-black/20 to-black/40 p-4">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-300/80">Relances dues</p>
-          <p className="mt-1 text-3xl font-extrabold text-white">{dueCount}</p>
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-300/80">Relances dues</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{dueCount}</p>
         </div>
-        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-sky-500/[0.08] via-black/20 to-black/40 p-4">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-sky-300/80">Leads actifs</p>
-          <p className="mt-1 text-3xl font-extrabold text-white">{activeLeadCount}</p>
+        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-sky-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-sky-300/80">Leads actifs</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{activeLeadCount}</p>
         </div>
-        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-emerald-500/[0.08] via-black/20 to-black/40 p-4">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-300/80">Stock visible</p>
-          <p className="mt-1 text-3xl font-extrabold text-white">{localVehicles.length}</p>
+        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-emerald-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-300/80">Neufs / occasions</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">
+            {newCount}
+            <span className="text-lg font-semibold text-neutral-500"> / {usedCount}</span>
+          </p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-teal-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-teal-300/80">Fiches formation</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{learningOnLot.length}</p>
         </div>
       </div>
 
       {/* HERO — Visual inventory (what sync feeds) */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.06] via-black/20 to-black/40 p-4 sm:p-5">
+      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.07] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-300">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-500/30 bg-sky-500/10 text-sky-300">
               <Car className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-lg font-bold text-white sm:text-xl">Inventaire Buckingham — grille visuelle</h2>
+              <h2 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+                Inventaire Buckingham
+              </h2>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:text-sm">
-                Sync tire photos + stock + prix depuis le site. Clique une carte → fiche Marketplace prête à
-                coller. Les images restent liées au CDN du concessionnaire.
+                Sync → photos. Apprends → must-know Chevy/Buick/GMC. Fiche FB → Marketplace. Marché →
+                comps AutoTrader.
               </p>
             </div>
           </div>
@@ -541,7 +595,7 @@ export function SalesDeskClient({
             type="button"
             onClick={() => void syncInventory()}
             disabled={syncState === "loading"}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 text-sm font-bold text-neutral-950 hover:bg-sky-400 disabled:opacity-40"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 text-sm font-bold text-neutral-950 shadow-[0_0_24px_rgba(14,165,233,0.25)] hover:bg-sky-400 disabled:opacity-40"
           >
             {syncState === "loading" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -552,18 +606,40 @@ export function SalesDeskClient({
           </button>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
           <label className="relative block min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
             <input
               value={inventoryFilter}
               onChange={(e) => setInventoryFilter(e.target.value)}
-              placeholder="Filtrer : Trax, Sierra, 26344-NEUF, VIN…"
+              placeholder="Filtrer : Trax, Terrain, Bolt, stock…"
               className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-2.5 pl-10 pr-3 text-sm text-white outline-none ring-sky-500/30 placeholder:text-neutral-600 focus:ring-2"
             />
           </label>
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                ["all", `Tous (${localVehicles.length})`],
+                ["new", `Neufs (${newCount})`],
+                ["used", `Occasions (${usedCount})`],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setConditionFilter(id)}
+                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                  conditionFilter === id
+                    ? "border-sky-500/40 bg-sky-500/15 text-sky-100"
+                    : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-600"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {syncMsg ? (
-            <p className={`text-xs sm:max-w-sm ${syncState === "err" ? "text-rose-300" : "text-emerald-300"}`}>
+            <p className={`text-xs lg:max-w-xs ${syncState === "err" ? "text-rose-300" : "text-emerald-300"}`}>
               {syncMsg}
             </p>
           ) : null}
@@ -619,6 +695,58 @@ export function SalesDeskClient({
                 ) : null}
               </div>
             </div>
+          </div>
+        ) : null}
+
+        {learningOnLot.length > 0 ? (
+          <div className="mt-4 rounded-2xl border border-teal-500/20 bg-teal-500/[0.05] p-4">
+            <div className="flex items-start gap-2">
+              <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-teal-300" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-teal-100">Formation — modèles neufs sur ton lot</p>
+                <p className="mt-1 text-[11px] leading-5 text-neutral-400">
+                  Microlearning vendeur : must-know, walkaround, objections (Chevy / Buick / GMC).
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {learningOnLot.map(({ card, vehicleCount }) => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveKnowledge(card);
+                        setKnowledgeStockLabel(`${vehicleCount} en stock neuf`);
+                        window.requestAnimationFrame(() => {
+                          document
+                            .getElementById("sales-model-knowledge")
+                            ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                        });
+                      }}
+                      className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                        activeKnowledge?.id === card.id
+                          ? "border-teal-400/50 bg-teal-500/20 text-teal-50"
+                          : "border-teal-500/25 bg-black/30 text-teal-100 hover:border-teal-400/40"
+                      }`}
+                    >
+                      {card.make} {card.model} · {vehicleCount}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {activeKnowledge ? (
+          <div className="mt-4">
+            <ModelKnowledgePanel
+              key={activeKnowledge.id}
+              card={activeKnowledge}
+              stockLabel={knowledgeStockLabel}
+              onClose={() => {
+                setActiveKnowledge(null);
+                setKnowledgeStockLabel(undefined);
+              }}
+            />
           </div>
         ) : null}
 
@@ -744,27 +872,34 @@ export function SalesDeskClient({
           </div>
         ) : (
           <div className="mt-4 grid max-h-[42rem] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredVehicles.map((v) => {
+            {filteredVehicles.map((v, index) => {
               const title = `${v.year} ${v.make} ${v.model}${v.trim ? ` ${v.trim}` : ""}`;
               const selected = selectedStockId === v.stockId;
+              const hasKnowledge = Boolean(lookupModelKnowledge(v));
               return (
                 <article
                   key={v.stockId}
-                  className={`group overflow-hidden rounded-2xl border bg-neutral-950/70 transition ${
+                  className={`group oria-fadein overflow-hidden rounded-2xl border bg-neutral-950/70 transition duration-300 ${
                     selected
                       ? "border-amber-500/50 shadow-[0_0_0_1px_rgba(245,158,11,0.25)]"
-                      : "border-neutral-800 hover:border-neutral-600"
+                      : "border-neutral-800 hover:-translate-y-0.5 hover:border-neutral-500 hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
                   }`}
+                  style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-neutral-900">
                     <VehiclePhoto src={v.photoUrls[0]} alt={title} />
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-3 pt-10">
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-3 pt-12">
                       <p className="text-sm font-bold leading-tight text-white">{title}</p>
                       <p className="mt-1 text-xs font-semibold text-amber-300">{formatPrice(v.priceCad)}</p>
                     </div>
                     <span className="absolute left-2 top-2 rounded-full border border-white/10 bg-black/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-neutral-200 backdrop-blur">
                       {v.condition === "new" ? "Neuf" : v.condition === "cpo" ? "CPO" : "Occasion"}
                     </span>
+                    {hasKnowledge && v.condition === "new" ? (
+                      <span className="absolute right-2 top-2 rounded-full border border-teal-400/30 bg-teal-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-100 backdrop-blur">
+                        Formation
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex items-center justify-between gap-2 p-3">
                     <div className="min-w-0">
@@ -785,6 +920,16 @@ export function SalesDeskClient({
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
+                      ) : null}
+                      {hasKnowledge ? (
+                        <button
+                          type="button"
+                          onClick={() => openKnowledge(v)}
+                          className="inline-flex min-h-9 items-center rounded-lg border border-teal-500/40 bg-teal-500/10 px-2.5 text-[11px] font-bold text-teal-100 hover:bg-teal-500/20"
+                          title="Formation modèle"
+                        >
+                          Apprendre
+                        </button>
                       ) : null}
                       <button
                         type="button"

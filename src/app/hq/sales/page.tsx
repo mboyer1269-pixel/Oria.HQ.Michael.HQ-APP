@@ -44,11 +44,11 @@ export default async function SalesDeskPage() {
         eyebrow="Sales Desk — Buckingham GM"
         icon={Car}
         tone="amber"
-        title="Inventaire visuel. Fiches Marketplace. Relances."
+        title="Inventaire. Formation modèles. Marketplace."
         description={
           <>
-            Sync le site → débrief du lot → grille photo → fiche Facebook. Compare aussi au marché
-            AutoTrader (ex. Hyundai Tucson 2023) pour des angles plus-value. Activix arrive lundi.
+            Sync le site → apprends tes neufs Chevy/Buick/GMC (must-know + walkaround) → fiche Facebook
+            → comps marché. Activix arrive lundi.
           </>
         }
       />
