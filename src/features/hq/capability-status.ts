@@ -142,6 +142,24 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     evidence: "src/server/joris/marketplace-listing-intent.ts (intent marketplace.listing.prepare)",
     note: "Chat prepare-only : sync inventaire + fiche stock #. Pas d'auto-post Facebook.",
   },
+  {
+    id: "social_publisher_agent",
+    label: "Publisher agent (Page FB auto + file Marketplace)",
+    status: "shadow",
+    surface: "/hq/sales",
+    evidence:
+      "src/server/marketing/publish-service.ts + facebook-page-publisher.ts (Graph API officielle ; simulé sans token)",
+    note: "Auto-publication Page FB via API Meta quand FACEBOOK_PAGE_ID/TOKEN configurés ; Marketplace reste clic humain (pas d'API Meta). In-memory.",
+  },
+  {
+    id: "marketing_director",
+    label: "Directeur marketing (packs contenu + calendrier)",
+    status: "shadow",
+    surface: "/hq/sales",
+    evidence:
+      "src/features/marketing/content-pack.ts + content-calendar.ts (génération déterministe, model knowledge)",
+    note: "Post FB, description Marketplace, pub, scripts Reel/YouTube + plan 7 jours. Génération locale sans clé AI.",
+  },
 ];
 
 const STATUS_LABELS: Record<CapabilityStatus, string> = {

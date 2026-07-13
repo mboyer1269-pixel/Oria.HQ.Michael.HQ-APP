@@ -34,6 +34,8 @@ import {
 } from "@/features/sales/gm-model-knowledge";
 import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
+import { PublisherPanel } from "@/features/marketing/components/publisher-panel";
+import { MarketingStudioPanel } from "@/features/marketing/components/marketing-studio-panel";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
 import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
 
@@ -1019,6 +1021,12 @@ export function SalesDeskClient({
           </div>
         ) : null}
       </section>
+
+      {/* Publisher agent — auto-pilot FB Page + Marketplace queue */}
+      <PublisherPanel vehicles={localVehicles} />
+
+      {/* Marketing director — content packs + 7-day calendar */}
+      <MarketingStudioPanel vehicles={localVehicles} />
 
       {/* Secondary — leads */}
       <div className="grid gap-4 xl:grid-cols-2">

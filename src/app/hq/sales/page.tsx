@@ -15,12 +15,14 @@ import { buildMorningQueue } from "@/features/sales/sales-lead";
 import { getInventorySnapshot } from "@/server/inventory/inventory-store";
 import { listSalesLeads } from "@/server/sales/lead-bank-store";
 import { listMarketplaceListings } from "@/server/marketplace-listings/listing-store";
+import { listSocialPublications } from "@/server/marketing/publication-store";
 
 export const dynamic = "force-dynamic";
 
 // /hq/sales — Sales Desk (Buckingham operator morning loop)
-// Inventory sync → Marketplace fiche prepare → lead bank → SMS drafts.
-// Prepare-only: human publishes and sends.
+// Inventory sync → publisher agent (FB Page auto via Graph API + Marketplace
+// assisted queue) → marketing director (content packs + calendar) → lead bank
+// → SMS drafts. Marketplace final click and sends stay human.
 
 export default async function SalesDeskPage() {
   const access = await requireOwnerAccess("/hq/sales");
@@ -34,6 +36,7 @@ export default async function SalesDeskPage() {
   const queue = buildMorningQueue(leads, nowIso);
   const snapshot = getInventorySnapshot(activeWorkspace.id);
   const listings = listMarketplaceListings(activeWorkspace.id);
+  const publications = listSocialPublications(activeWorkspace.id);
   const dueCount = queue.filter((q) => q.due).length;
   const activeLeadCount = leads.filter((l) => l.stage !== "sold" && l.stage !== "lost").length;
 
@@ -44,11 +47,12 @@ export default async function SalesDeskPage() {
         eyebrow="Sales Desk — Buckingham GM"
         icon={Car}
         tone="amber"
-        title="Inventaire. Formation modèles. Marketplace."
+        title="Inventaire. Publication. Marketing. Leads."
         description={
           <>
-            Sync le site → apprends tes neufs Chevy/Buick/GMC (must-know + walkaround) → fiche Facebook
-            → comps marché. Activix arrive lundi.
+            Sync le site → l&apos;agent publication pousse tes véhicules (Page FB auto + file
+            Marketplace) → le directeur marketing génère posts, pubs et scripts vidéo → chaque
+            réponse devient un lead. Activix arrive lundi.
           </>
         }
       />
@@ -65,6 +69,11 @@ export default async function SalesDeskPage() {
           label="Fiches préparées"
           value={listings.length}
           tone={listings.length > 0 ? "violet" : "neutral"}
+        />
+        <HqMetric
+          label="Publications agent"
+          value={publications.length}
+          tone={publications.length > 0 ? "emerald" : "neutral"}
         />
       </HqSummaryRail>
 

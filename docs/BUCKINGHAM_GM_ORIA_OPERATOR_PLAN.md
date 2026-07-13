@@ -65,6 +65,9 @@ Oria prépare. **Toi** tu closes.
 | `GET` | `/api/inventory/vehicle-catalog` | Catalogue relationnel marques→modèles (Selects liés) |
 | `POST` | `/api/sales/market-brief` | Comps AutoTrader Gatineau + angles vs lot |
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
+| `POST`/`GET` | `/api/marketing/publications` | Agent publication : auto-pilote Page FB (Graph API) + file Marketplace |
+| `POST` | `/api/marketing/content-pack` | Directeur marketing : pack contenu par véhicule (post, pub, scripts vidéo) |
+| `POST` | `/api/marketing/calendar` | Directeur marketing : calendrier de contenu 7 jours |
 
 **Formation modèles (Sales Desk)** : fiches microlearning Chevy/Buick/GMC (must-know, walkaround 3-line story, objections Outaouais). Bouton **Apprendre** sur les neufs.
 
@@ -112,10 +115,37 @@ Capacités HQ : `sales_lead_bank`, `marketplace_listing_prepare`, `dealership_in
 
 ---
 
+## 6b. Agent publication + directeur marketing (mandat 2026-07-13)
+
+Sur mandat explicite de Michael (générer plus de prospects et de ventes) :
+
+- **Agent publication** (`/api/marketing/publications`, panneau Sales Desk) :
+  - **Page Facebook** : auto-publication via l'**API Graph officielle Meta** quand
+    `FACEBOOK_PAGE_ID` + `FACEBOOK_PAGE_ACCESS_TOKEN` sont configurés (token Page,
+    `pages_manage_posts`). Sans token : simulation locale (dev) ou copie prête.
+  - **Marketplace** : Meta n'offre **aucune API publique** pour les annonces
+    véhicules (feeds concessionnaires retirés en 2023). L'agent prépare tout
+    (texte optimisé, photos, deep link composer) — le clic final reste humain.
+    Cookies / session / bot UI restent **NO-GO**.
+  - **Auto-pilote** : scoring déterministe (photos ≥3, prix affiché, modèle en
+    demande, neuf, lien traçable UTM) + cooldown 7 jours par stock.
+  - Chaque publication porte un lien UTM (`utm_medium=oria_publisher`) et chaque
+    inbound se capture en lead (`source marketplace_message`, `sourceRef=packetId`).
+- **Directeur marketing** (`/api/marketing/content-pack`, `/api/marketing/calendar`) :
+  - Pack contenu par véhicule : post FB, description Marketplace hook-first,
+    copy pub (headline/primary/CTA), scripts vidéo Reel 30s + YouTube 60s
+    (hook, plans, voix off, CTA), hashtags — ancrés sur les fiches formation GM.
+  - Calendrier 7 jours : spotlights auto-pilote, jours vidéo, preuve sociale,
+    lead magnets (évaluation d'échange), chiffre marché.
+
+Persistance : in-memory (même statut shadow que le reste du Sales Desk).
+
+---
+
 ## 7. Hors scope (volontaire)
 
 - Cron inventaire / multi-concession (au-delà du sync allowlist manuel via `/api/inventory/sync`)  
-- Auto-post Facebook / cookies / bot  
+- Auto-post **Marketplace** / cookies / bot UI (l'auto-post **Page** passe par l'API Graph officielle — voir 6b)  
 - Envoi SMS/email live (Send Desk ultérieur)  
 - Persistance Supabase lead bank  
 - Phase 1 / auth / secrets  
