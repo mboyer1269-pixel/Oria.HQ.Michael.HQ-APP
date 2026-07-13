@@ -357,6 +357,7 @@ export type JorisIntent =
   | "mission.draft" // calendar.book proposal — pending user confirmation
   | "governance.audit"
   | "marketplace.listing.prepare" // prepare-only Marketplace fiche from stock
+  | "sales.marketing.prepare" // Directeur Marketing — pubs, Reels, YouTube (prepare-only)
   | "inventory.market.brief"; // inventaire debrief + comps marché (AutoTrader)
 
 // --- Calendar domain ---------------------------------------------------------

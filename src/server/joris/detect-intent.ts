@@ -122,6 +122,45 @@ export function detectIntent(message: string): JorisIntent {
     return "inventory.market.brief";
   }
 
+  // Directeur Marketing — pubs / Reels / YouTube (before Marketplace fiche)
+  const marketingContentSignals = [
+    "contenu marketing",
+    "directeur marketing",
+    "génère une pub",
+    "genere une pub",
+    "génère pub",
+    "genere pub",
+    "prépare pub",
+    "prepare pub",
+    "prépare une pub",
+    "prepare une pub",
+    "script reel",
+    "script reel",
+    "youtube short",
+    "script youtube",
+    "pub facebook",
+    "pub meta",
+    "post facebook",
+    "crée une pub",
+    "cree une pub",
+    "reel instagram",
+    "génère un reel",
+    "genere un reel",
+    "génère reel",
+    "genere reel",
+  ];
+  const isMarketplaceFicheRequest =
+    lower.includes("fiche marketplace") ||
+    lower.includes("annonce marketplace") ||
+    (lower.includes("marketplace") &&
+      (lower.includes("fiche") || lower.includes("stock") || lower.includes("sync")));
+  if (
+    marketingContentSignals.some((s) => lower.includes(s)) &&
+    !isMarketplaceFicheRequest
+  ) {
+    return "sales.marketing.prepare";
+  }
+
   // Marketplace fiche prepare / inventory sync for dealership listings
   const marketplaceSignals = [
     "marketplace",

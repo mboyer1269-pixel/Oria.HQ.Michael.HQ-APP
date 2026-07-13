@@ -3,6 +3,11 @@
 // Parse stock refs from chat and prepare Marketplace packets (no publish).
 
 import { formatMarketplaceUploadChecklist } from "@/features/marketplace-listings/listing-packet";
+import {
+  AUTO_PUBLISH_BLOCKED_REASON_FR,
+  wantsAutoPublishOnMarketplace,
+} from "@/features/marketplace-listings/publish-policy";
+import { formatPublishBundle } from "@/features/sales/publish-agent";
 import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
 import { getInventorySnapshot } from "@/server/inventory/inventory-store";
 import { syncPublicInventory } from "@/server/inventory/public-inventory-sync";
@@ -111,10 +116,21 @@ export async function handleMarketplaceListingIntent(input: {
     };
   }
 
+  const autoPublishRequested = wantsAutoPublishOnMarketplace(input.message);
   const checklist = formatMarketplaceUploadChecklist(prepared.packet);
+  const bundle = formatPublishBundle(prepared.packet);
+
+  const publishNote = autoPublishRequested
+    ? `\n\n${AUTO_PUBLISH_BLOCKED_REASON_FR}\n\n--- BUNDLE RAPIDE ---\n${bundle}`
+    : `\n\n${checklist}`;
+
   return {
     summary:
-      `Fiche Marketplace prête pour ${stockRef} (publication manuelle).\n\n${checklist}` +
+      `Fiche Marketplace prête pour ${stockRef}` +
+      (autoPublishRequested
+        ? " — auto-publish refusé (conformité Meta), bundle copier-coller ci-dessous."
+        : " (publication manuelle).") +
+      publishNote +
       (prepared.photoEnrichment?.enriched ? "\n\n(Photos enrichies depuis la fiche concession.)" : ""),
     stockRef,
     packetId: prepared.packet.packetId,

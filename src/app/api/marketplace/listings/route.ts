@@ -5,6 +5,7 @@ import { requireOwnerApiSession } from "@/server/auth/owner";
 import { listMarketplaceListings } from "@/server/marketplace-listings/listing-store";
 import { prepareMarketplaceListing } from "@/server/marketplace-listings/prepare-listing";
 import { markListingPublishedManual } from "@/server/marketplace-listings/listing-store";
+import { AUTO_PUBLISH_BLOCKED_REASON_FR } from "@/features/marketplace-listings/publish-policy";
 
 // GET  /api/marketplace/listings — prepared listing packets
 // POST /api/marketplace/listings — prepare from stock OR mark published_manual
@@ -39,7 +40,13 @@ const publishedSchema = z.object({
   packetId: z.string().min(1),
 });
 
-const bodySchema = z.union([prepareSchema, publishedSchema]);
+const autoPublishSchema = z.object({
+  action: z.literal("auto_publish"),
+  stockId: z.string().optional(),
+  packetId: z.string().optional(),
+});
+
+const bodySchema = z.union([prepareSchema, publishedSchema, autoPublishSchema]);
 
 export async function GET() {
   const authError = await requireOwnerApiSession();
@@ -71,6 +78,20 @@ export async function POST(request: Request) {
   }
 
   const nowIso = new Date().toISOString();
+
+  if ("action" in parsed.data && parsed.data.action === "auto_publish") {
+    return NextResponse.json(
+      {
+        ok: false,
+        publishAuthorized: false,
+        error: "Auto-publish blocked.",
+        policy: AUTO_PUBLISH_BLOCKED_REASON_FR,
+        alternative:
+          "Use action prepare, copy bundle from Sales Desk, publish manually on Facebook Marketplace.",
+      },
+      { status: 403 },
+    );
+  }
 
   if ("action" in parsed.data && parsed.data.action === "mark_published_manual") {
     const packet = markListingPublishedManual(ctx.workspace.id, parsed.data.packetId, nowIso);

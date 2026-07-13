@@ -4,9 +4,9 @@
 import type { VehicleStock } from "@/features/inventory/vehicle-stock";
 import type { InventoryHighlight } from "@/features/inventory/inventory-debrief";
 import type { MarketplaceListingPacket } from "@/features/marketplace-listings/listing-packet";
+import { FACEBOOK_MARKETPLACE_CREATE_URL } from "@/features/marketplace-listings/publish-policy";
 
-export const FACEBOOK_MARKETPLACE_CREATE_URL =
-  "https://www.facebook.com/marketplace/create/vehicle";
+export { FACEBOOK_MARKETPLACE_CREATE_URL };
 
 export type PublishCandidate = {
   stockId: string;

@@ -75,6 +75,10 @@ const priorityAndAccentCases = [
   { message: "plus-value pour mon inventaire vs 2023 Hyundai Tucson", expected: "inventory.market.brief" },
   { message: "explique-moi le Trax 2026", expected: "inventory.market.brief" },
   { message: "formation modèle Terrain", expected: "inventory.market.brief" },
+  { message: "prépare pub pour le Trax 2026", expected: "sales.marketing.prepare" },
+  { message: "génère un reel pour le Terrain", expected: "sales.marketing.prepare" },
+  { message: "script youtube pour 26344-NEUF", expected: "sales.marketing.prepare" },
+  { message: "publie sur marketplace le stock 26344-NEUF", expected: "marketplace.listing.prepare" },
 ];
 
 for (const { message, expected } of priorityAndAccentCases) {

@@ -20,6 +20,7 @@ import {
   FACEBOOK_MARKETPLACE_CREATE_URL,
   formatPublishBundle,
 } from "@/features/sales/publish-agent";
+import { AUTO_PUBLISH_BLOCKED_REASON_FR } from "@/features/marketplace-listings/publish-policy";
 import { prepareMarketplaceInboundDraft } from "@/features/sales/marketplace-inbound-draft";
 
 type Props = {
@@ -183,7 +184,7 @@ export function SalesPublishAgentPanel({
             <h2 className="text-xl font-extrabold tracking-tight text-white">Agent Publication</h2>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:text-sm">
               Prépare en lot, copie le bundle, publie sur Marketplace en 2 min, capture chaque
-              prospect. Pas d&apos;auto-post (conformité Meta) — workflow le plus rapide possible.
+              prospect. Auto-publish impossible (Meta / ban compte) — assistant guidé ci-dessous.
             </p>
           </div>
         </div>
@@ -208,6 +209,15 @@ export function SalesPublishAgentPanel({
           </button>
         </div>
       </div>
+
+      <details className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3 text-[11px] leading-5 text-neutral-400">
+        <summary className="cursor-pointer font-semibold text-amber-200">
+          Pourquoi pas de publication automatique ?
+        </summary>
+        <pre className="mt-2 whitespace-pre-wrap font-sans text-[11px] text-neutral-400">
+          {AUTO_PUBLISH_BLOCKED_REASON_FR}
+        </pre>
+      </details>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-white/[0.06] bg-black/30 p-3">
@@ -273,6 +283,39 @@ export function SalesPublishAgentPanel({
                     <p className="text-[11px] text-neutral-500">
                       {packet.packetId} · {formatPrice(packet.priceCad)}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void flashCopy(`title-${packet.packetId}`, packet.title)}
+                        className="rounded border border-neutral-800 px-2 py-0.5 text-[10px] text-neutral-400 hover:text-white"
+                      >
+                        Titre
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void flashCopy(
+                            `desc-${packet.packetId}`,
+                            packet.description,
+                          )
+                        }
+                        className="rounded border border-neutral-800 px-2 py-0.5 text-[10px] text-neutral-400 hover:text-white"
+                      >
+                        Description
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void flashCopy(
+                            `photos-${packet.packetId}`,
+                            packet.photoUrls.join("\n"),
+                          )
+                        }
+                        className="rounded border border-neutral-800 px-2 py-0.5 text-[10px] text-neutral-400 hover:text-white"
+                      >
+                        URLs photos
+                      </button>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     <button
