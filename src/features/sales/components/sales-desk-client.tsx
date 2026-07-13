@@ -389,6 +389,28 @@ export function SalesDeskClient({
         block: "nearest",
       });
     });
+    void (async () => {
+      try {
+        const res = await fetch("/api/sales/marketing/prepare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stockId: vehicle.stockId, vehicle }),
+        });
+        const payload = await res.json().catch(() => null);
+        if (!res.ok || !payload?.pack) {
+          setSyncState("err");
+          setSyncMsg(payload?.errors?.join("; ") ?? "Préparation pack marketing échouée.");
+          return;
+        }
+        const pack = payload.pack as MarketingContentPack;
+        setMarketingPacks((prev) => [pack, ...prev.filter((p) => p.packId !== pack.packId)]);
+        setSyncState("ok");
+        setSyncMsg(`Directeur Marketing prêt — ${pack.vehicleLabel}`);
+      } catch (err) {
+        setSyncState("err");
+        setSyncMsg(err instanceof Error ? err.message : "Préparation pack marketing échouée.");
+      }
+    })();
   }
 
   async function runMarketBrief(opts?: {
@@ -632,7 +654,6 @@ export function SalesDeskClient({
         vehicles={localVehicles}
         initialStockId={marketingFocusStockId}
         packs={marketingPacks}
-        autoPrepare={Boolean(marketingFocusStockId)}
         onPackReady={(pack) => {
           setMarketingPacks((prev) => [pack, ...prev.filter((p) => p.packId !== pack.packId)]);
         }}

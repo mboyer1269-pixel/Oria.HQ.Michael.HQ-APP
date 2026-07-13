@@ -3,14 +3,14 @@
 // Directeur Marketing — packs multi-canal (Marketplace, FB, Reel, Short, pub Meta).
 // Prepare-only content studio for lead gen. Human publishes.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Clapperboard,
   ClipboardCopy,
   Loader2,
   Megaphone,
+  Play,
   Sparkles,
-  Youtube,
 } from "lucide-react";
 import type { VehicleStock } from "@/features/inventory/vehicle-stock";
 import type {
@@ -46,8 +46,6 @@ export type MarketingDirectorPanelProps = {
   packs: MarketingContentPack[];
   onPackReady: (pack: MarketingContentPack) => void;
   onPackPublished: (pack: MarketingContentPack) => void;
-  /** When true, auto-generate pack for initialStockId on mount. */
-  autoPrepare?: boolean;
 };
 
 export function MarketingDirectorPanel({
@@ -56,7 +54,6 @@ export function MarketingDirectorPanel({
   packs,
   onPackReady,
   onPackPublished,
-  autoPrepare = false,
 }: MarketingDirectorPanelProps) {
   const [stockId, setStockId] = useState(initialStockId ?? vehicles[0]?.stockId ?? "");
   const [busy, setBusy] = useState(false);
@@ -125,14 +122,6 @@ export function MarketingDirectorPanel({
       setBusy(false);
     }
   }
-
-  useEffect(() => {
-    if (!autoPrepare || !initialStockId) return;
-    const v = vehicles.find((x) => x.stockId === initialStockId);
-    if (v) void preparePack(v);
-    // Mount-only auto prepare when opened from inventory / publish queue.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-shot
-  }, []);
 
   async function markPublished() {
     if (!activePack) return;
@@ -234,7 +223,7 @@ export function MarketingDirectorPanel({
           <div className="rounded-2xl border border-white/[0.06] bg-black/30 p-4">
             <div className="flex flex-wrap items-center gap-2">
               {activeAsset?.channel === "youtube_short" ? (
-                <Youtube className="h-4 w-4 text-rose-300" />
+                <Play className="h-4 w-4 text-rose-300" />
               ) : activeAsset?.channel === "instagram_reel" ? (
                 <Clapperboard className="h-4 w-4 text-fuchsia-300" />
               ) : (
