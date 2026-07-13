@@ -9,10 +9,12 @@ import {
   Car,
   CheckCircle2,
   ClipboardCopy,
+  Clapperboard,
   ExternalLink,
   GraduationCap,
   ImageOff,
   Loader2,
+  Megaphone,
   MessageSquareText,
   Phone,
   RefreshCw,
@@ -36,6 +38,8 @@ import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
 import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
+import type { MarketingContentPack } from "@/features/sales/marketing-content-pack";
+import { formatMarketingPackClipboard } from "@/features/sales/marketing-content-pack";
 
 type MarketBriefPayload = {
   frenchSummary: string;
@@ -171,6 +175,10 @@ export function SalesDeskClient({
   const [listingPacket, setListingPacket] = useState<MarketplaceListingPacket | null>(
     initialListings[0] ?? null,
   );
+  const [marketingPack, setMarketingPack] = useState<MarketingContentPack | null>(null);
+  const [marketingTab, setMarketingTab] = useState<
+    "checklist" | "marketplace" | "facebook" | "reel" | "youtube" | "ads" | "lead"
+  >("checklist");
   const [captureMsg, setCaptureMsg] = useState<string>("");
   const [captureOk, setCaptureOk] = useState(true);
   const [captureBusy, setCaptureBusy] = useState(false);
@@ -346,22 +354,29 @@ export function SalesDeskClient({
     setListingBusy(vehicle.stockId);
     setSelectedStockId(vehicle.stockId);
     try {
-      const res = await fetch("/api/marketplace/listings", {
+      // Directeur Marketing kit: Marketplace + FB + Reel + YT + Meta Ad (prepare-only).
+      const res = await fetch("/api/sales/marketing/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stockId: vehicle.stockId, vehicle }),
       });
       const payload = await res.json().catch(() => null);
-      if (!res.ok || !payload?.packet) {
+      if (!res.ok || !payload?.packet || !payload?.pack) {
         setSyncState("err");
-        setSyncMsg(payload?.errors?.join("; ") ?? "Préparation fiche échouée.");
+        setSyncMsg(payload?.errors?.join("; ") ?? "Préparation kit marketing échouée.");
         return;
       }
       setListingPacket(payload.packet as MarketplaceListingPacket);
-      document.getElementById("sales-listing-packet")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      setMarketingPack(payload.pack as MarketingContentPack);
+      setMarketingTab("checklist");
+      setSyncState("ok");
+      setSyncMsg(
+        `Kit Directeur Marketing prêt — ${payload.pack.vehicleLabel as string} (${payload.pack.publishPriority as string}). Publication manuelle multi-canal.`,
+      );
+      document.getElementById("sales-marketing-desk")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (err) {
       setSyncState("err");
-      setSyncMsg(err instanceof Error ? err.message : "Préparation fiche échouée.");
+      setSyncMsg(err instanceof Error ? err.message : "Préparation kit marketing échouée.");
     } finally {
       setListingBusy(null);
     }
@@ -602,8 +617,8 @@ export function SalesDeskClient({
                 Inventaire Buckingham
               </h2>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:text-sm">
-                Sync → photos. Apprends → must-know Chevy/Buick/GMC. Fiche FB → Marketplace. Marché →
-                comps AutoTrader.
+                Sync → photos. Apprends → must-know Chevy/Buick/GMC. Kit Marketing → Marketplace +
+                FB + Reel + YouTube. Marché → comps AutoTrader.
               </p>
             </div>
           </div>
@@ -938,7 +953,7 @@ export function SalesDeskClient({
                         onClick={() => void prepareListing(v)}
                         className="inline-flex min-h-9 items-center rounded-lg bg-amber-500 px-3 text-[11px] font-bold text-neutral-950 hover:bg-amber-400 disabled:opacity-40"
                       >
-                        {listingBusy === v.stockId ? "…" : "Fiche FB"}
+                        {listingBusy === v.stockId ? "…" : "Kit Marketing"}
                       </button>
                       <button
                         type="button"
@@ -968,7 +983,318 @@ export function SalesDeskClient({
           <p className="mt-3 text-center text-xs text-neutral-500">Aucun véhicule ne correspond au filtre.</p>
         ) : null}
 
-        {listingPacket ? (
+        {marketingPack && listingPacket ? (
+          <div
+            id="sales-marketing-desk"
+            className="mt-4 rounded-2xl border border-rose-500/25 bg-gradient-to-b from-rose-500/[0.08] via-amber-500/[0.05] to-black/40 p-4"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-200">
+                  <Megaphone className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-rose-100">Directeur Marketing — kit publication</p>
+                  <p className="mt-1 text-base font-semibold text-white">{marketingPack.vehicleLabel}</p>
+                  <p className="mt-1 text-[11px] text-neutral-400">
+                    Marketplace · Facebook · Reel · YouTube Short · Meta Ads — prepare → tu publies
+                    (pas de bot Facebook).
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                    marketingPack.publishPriority === "hot"
+                      ? "border-amber-500/40 bg-amber-500/15 text-amber-200"
+                      : marketingPack.publishPriority === "standard"
+                        ? "border-sky-500/40 bg-sky-500/15 text-sky-200"
+                        : "border-neutral-600 bg-neutral-900 text-neutral-300"
+                  }`}
+                >
+                  Priorité {marketingPack.publishPriority}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void flashCopy("mkt-full", formatMarketingPackClipboard(marketingPack))
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/25"
+                >
+                  <ClipboardCopy className="h-3.5 w-3.5" />
+                  {copiedId === "mkt-full" ? "Kit copié" : "Copier kit complet"}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {(
+                [
+                  ["checklist", "Checklist"],
+                  ["marketplace", "Marketplace"],
+                  ["facebook", "Facebook"],
+                  ["reel", "Reel"],
+                  ["youtube", "YouTube"],
+                  ["ads", "Meta Ads"],
+                  ["lead", "Script lead"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMarketingTab(id)}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                    marketingTab === id
+                      ? "border-rose-400/50 bg-rose-500/20 text-rose-50"
+                      : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-600"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-[14rem_1fr]">
+              <div className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible">
+                {listingPacket.photoUrls.slice(0, 6).map((url) => (
+                  <div
+                    key={url}
+                    className="relative h-20 w-32 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 lg:h-24 lg:w-full"
+                  >
+                    <VehiclePhoto src={url} alt={marketingPack.vehicleLabel} />
+                  </div>
+                ))}
+              </div>
+
+              <div className="min-w-0">
+                {marketingTab === "checklist" ? (
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-amber-300" />
+                      <p className="text-sm font-bold text-amber-100">Ordre de publication (leads)</p>
+                    </div>
+                    <ul className="mt-3 space-y-2 text-xs leading-5 text-neutral-300">
+                      {marketingPack.publishChecklist.map((step) => (
+                        <li key={step} className="rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2">
+                          {step}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {marketingTab === "marketplace" ? (
+                  <div>
+                    <p className="text-sm font-bold text-amber-100">Fiche Marketplace</p>
+                    <p className="mt-2 text-base font-semibold text-white">
+                      {marketingPack.marketplace.title}
+                    </p>
+                    <p className="mt-1 text-sm text-amber-300">
+                      {formatPrice(marketingPack.marketplace.priceCad)}
+                    </p>
+                    <pre className="mt-3 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
+                      {marketingPack.marketplace.description}
+                    </pre>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void flashCopy("listing-full", listingChecklist(listingPacket))
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        <ClipboardCopy className="h-3.5 w-3.5" />
+                        {copiedId === "listing-full" ? "Copié" : "Copier fiche complète"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void flashCopy("listing-title", marketingPack.marketplace.title)
+                        }
+                        className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:text-white"
+                      >
+                        Copier titre
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {marketingTab === "facebook" ? (
+                  <div>
+                    <p className="text-sm font-bold text-sky-100">Post Facebook</p>
+                    <pre className="mt-3 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
+                      {marketingPack.facebookPost.caption}
+                    </pre>
+                    <p className="mt-2 text-[11px] text-sky-300/80">
+                      {marketingPack.facebookPost.hashtags.join(" ")}
+                    </p>
+                    <p className="mt-2 text-xs text-neutral-400">CTA : {marketingPack.facebookPost.cta}</p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void flashCopy(
+                          "fb-caption",
+                          `${marketingPack.facebookPost.caption}\n\n${marketingPack.facebookPost.hashtags.join(" ")}`,
+                        )
+                      }
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-500/20"
+                    >
+                      <ClipboardCopy className="h-3.5 w-3.5" />
+                      {copiedId === "fb-caption" ? "Copié" : "Copier caption FB"}
+                    </button>
+                  </div>
+                ) : null}
+
+                {marketingTab === "reel" ? (
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Clapperboard className="h-4 w-4 text-fuchsia-300" />
+                      <p className="text-sm font-bold text-fuchsia-100">
+                        Script Reel / Short ({marketingPack.reel.durationSec}s)
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-white">Hook : {marketingPack.reel.hook}</p>
+                    <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+                      Voiceover
+                    </p>
+                    <pre className="mt-1 whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
+                      {marketingPack.reel.voiceover}
+                    </pre>
+                    <ul className="mt-3 space-y-1.5 text-[11px] leading-5 text-neutral-300">
+                      {marketingPack.reel.beats.map((b) => (
+                        <li key={b}>• {b}</li>
+                      ))}
+                    </ul>
+                    <p className="mt-3 text-[11px] text-neutral-400">
+                      Texte à l’écran : {marketingPack.reel.onScreenText.join(" · ")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void flashCopy(
+                          "reel-script",
+                          [
+                            marketingPack.reel.hook,
+                            "",
+                            marketingPack.reel.voiceover,
+                            "",
+                            ...marketingPack.reel.beats,
+                            "",
+                            marketingPack.reel.cta,
+                          ].join("\n"),
+                        )
+                      }
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-fuchsia-500/40 bg-fuchsia-500/10 px-3 py-2 text-xs font-semibold text-fuchsia-100 hover:bg-fuchsia-500/20"
+                    >
+                      <ClipboardCopy className="h-3.5 w-3.5" />
+                      {copiedId === "reel-script" ? "Copié" : "Copier script Reel"}
+                    </button>
+                  </div>
+                ) : null}
+
+                {marketingTab === "youtube" ? (
+                  <div>
+                    <p className="text-sm font-bold text-red-100">YouTube Short</p>
+                    <p className="mt-2 text-sm font-semibold text-white">{marketingPack.youtubeShort.title}</p>
+                    <pre className="mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
+                      {marketingPack.youtubeShort.description}
+                    </pre>
+                    <p className="mt-2 text-[11px] text-neutral-400">
+                      Miniature : {marketingPack.youtubeShort.thumbnailHint}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void flashCopy(
+                          "yt-short",
+                          `${marketingPack.youtubeShort.title}\n\n${marketingPack.youtubeShort.description}`,
+                        )
+                      }
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-500/20"
+                    >
+                      <ClipboardCopy className="h-3.5 w-3.5" />
+                      {copiedId === "yt-short" ? "Copié" : "Copier titre + description"}
+                    </button>
+                  </div>
+                ) : null}
+
+                {marketingTab === "ads" ? (
+                  <div>
+                    <p className="text-sm font-bold text-violet-100">Meta Ads (copie)</p>
+                    <dl className="mt-3 space-y-3 text-xs leading-5 text-neutral-300">
+                      <div className="rounded-xl border border-white/[0.06] bg-black/30 p-3">
+                        <dt className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+                          Primary text
+                        </dt>
+                        <dd className="mt-1">{marketingPack.metaAd.primaryText}</dd>
+                      </div>
+                      <div className="rounded-xl border border-white/[0.06] bg-black/30 p-3">
+                        <dt className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+                          Headline
+                        </dt>
+                        <dd className="mt-1 font-semibold text-white">{marketingPack.metaAd.headline}</dd>
+                      </div>
+                      <div className="rounded-xl border border-white/[0.06] bg-black/30 p-3">
+                        <dt className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+                          Description · CTA
+                        </dt>
+                        <dd className="mt-1">
+                          {marketingPack.metaAd.description} · {marketingPack.metaAd.callToAction}
+                        </dd>
+                      </div>
+                    </dl>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void flashCopy(
+                          "meta-ad",
+                          [
+                            marketingPack.metaAd.primaryText,
+                            "",
+                            marketingPack.metaAd.headline,
+                            marketingPack.metaAd.description,
+                            marketingPack.metaAd.callToAction,
+                          ].join("\n"),
+                        )
+                      }
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-500/20"
+                    >
+                      <ClipboardCopy className="h-3.5 w-3.5" />
+                      {copiedId === "meta-ad" ? "Copié" : "Copier copie pub"}
+                    </button>
+                  </div>
+                ) : null}
+
+                {marketingTab === "lead" ? (
+                  <div>
+                    <p className="text-sm font-bold text-emerald-100">Script capture inbound</p>
+                    <p className="mt-1 text-[11px] text-neutral-400">
+                      À coller dès qu’un message Marketplace / FB arrive — puis Capture rapide.
+                    </p>
+                    <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
+                      {marketingPack.leadCaptureScript}
+                    </pre>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void flashCopy("lead-script", marketingPack.leadCaptureScript)
+                      }
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/20"
+                    >
+                      <ClipboardCopy className="h-3.5 w-3.5" />
+                      {copiedId === "lead-script" ? "Copié" : "Copier script lead"}
+                    </button>
+                  </div>
+                ) : null}
+
+                <p className="mt-4 text-[11px] text-neutral-500">
+                  Oria prépare et accélère — tu publies. Auto-post Facebook/Marketplace = hors scope
+                  (ToS Meta + cookies/bot = NO-GO).
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : listingPacket ? (
           <div
             id="sales-listing-packet"
             className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4"
@@ -1003,17 +1329,7 @@ export function SalesDeskClient({
                     <ClipboardCopy className="h-3.5 w-3.5" />
                     {copiedId === "listing-full" ? "Copié" : "Copier fiche complète"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => void flashCopy("listing-title", listingPacket.title)}
-                    className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:text-white"
-                  >
-                    Copier titre
-                  </button>
                 </div>
-                <p className="mt-2 text-[11px] text-neutral-500">
-                  Oria ne publie pas sur Facebook — copie / upload manuel uniquement.
-                </p>
               </div>
             </div>
           </div>

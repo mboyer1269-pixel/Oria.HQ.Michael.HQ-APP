@@ -28,6 +28,7 @@
 | Ledger integrity hash-chain | **shadow** | — | `hash-chain-write-flag.ts` (flag off) |
 | Sales lead bank + morning queue | **shadow** | `/hq/sales` + `/api/sales/leads` | Sales Desk UI + in-memory APIs |
 | Marketplace listing → lead capture | **shadow** | `/hq/sales` + `/api/marketplace/listings` | prepare + capture (manual publish) |
+| Sales Directeur Marketing multi-canal | **shadow** | `/hq/sales` + `/api/sales/marketing/prepare` | Marketplace+FB+Reel+YT+Ads kits |
 | Dealership inventory snapshot | **shadow** | `/hq/sales` + `/api/inventory/sync` | Sync site + manual JSON |
 | Marketplace listing via Joris | **shadow** | chat intent `marketplace.listing.prepare` | prepare-only fiche from stock # |
 

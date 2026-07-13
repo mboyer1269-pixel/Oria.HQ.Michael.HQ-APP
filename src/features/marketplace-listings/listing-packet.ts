@@ -4,6 +4,7 @@
 // Prepare-only: requiresManualPublish locked true. No Facebook bot / cookies.
 
 import type { VehicleStock } from "@/features/inventory/vehicle-stock";
+import { buildMarketplaceLeadDescription } from "@/features/sales/marketing-content-pack";
 
 export type MarketplaceListingStatus =
   | "prepared"
@@ -104,29 +105,11 @@ export function prepareListingFromStock(input: {
 }): MarketplaceListingPacket {
   const v = input.vehicle;
   const trim = v.trim ? ` ${v.trim}` : "";
-  const title = `${v.year} ${v.make} ${v.model}${trim}`.trim();
+  const baseTitle = `${v.year} ${v.make} ${v.model}${trim}`.trim();
   const conditionLabel =
     v.condition === "new" ? "Neuf" : v.condition === "cpo" ? "CPO" : "Occasion";
-  const mileage =
-    v.mileageKm !== undefined
-      ? `${new Intl.NumberFormat("fr-CA").format(v.mileageKm)} km`
-      : null;
-  const photoCount = v.photoUrls.length;
-  const description = [
-    `${title} — ${conditionLabel}`,
-    `Prix affiché : ${formatPrice(v.priceCad)} (+ taxes & frais)`,
-    mileage ? `Kilométrage : ${mileage}` : v.condition === "new" ? "Kilométrage : neuf / bas km" : null,
-    v.exteriorColor ? `Couleur ext. : ${v.exteriorColor}` : null,
-    v.stockNumber || v.stockId ? `Stock : ${v.stockNumber ?? v.stockId}` : null,
-    v.vin ? `NIV : ${v.vin}` : null,
-    "",
-    "Disponible chez Buckingham Chevrolet Buick GMC (Gatineau / Buckingham).",
-    "Essai et prise de rendez-vous bienvenus — répondez à cette annonce.",
-    v.listingUrl ? `Fiche concession : ${v.listingUrl}` : null,
-    photoCount > 0 ? `Photos jointes : ${photoCount} (à uploader depuis les URLs du packet).` : null,
-  ]
-    .filter((line) => line !== null)
-    .join("\n");
+  const title = `${baseTitle} — ${conditionLabel} | Buckingham GM`;
+  const description = buildMarketplaceLeadDescription(v);
 
   return {
     packetId: input.packetId,

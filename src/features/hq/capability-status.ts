@@ -127,6 +127,15 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     note: "Prépare fiches FB Marketplace depuis stock ; capture inbound → lead bank. Pas d'auto-post.",
   },
   {
+    id: "sales_marketing_director",
+    label: "Sales Directeur Marketing (multi-canal prepare)",
+    status: "shadow",
+    surface: "/hq/sales",
+    evidence:
+      "src/features/sales/marketing-content-pack.ts + /api/sales/marketing/prepare + sales-desk-client.tsx",
+    note: "Kit Marketplace + FB + Reel + YouTube Short + Meta Ads + script lead. Prepare-only — pas d'auto-post.",
+  },
+  {
     id: "dealership_inventory_snapshot",
     label: "Dealership inventory snapshot (manual ingest)",
     status: "shadow",

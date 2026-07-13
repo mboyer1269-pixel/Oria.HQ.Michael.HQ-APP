@@ -43,7 +43,9 @@ test("marketplace listing packet from stock", async (t) => {
     assert.equal(packet.noExecutionAuthorized, true);
     assert.equal(packet.status, "ready_for_manual_publish");
     assert.match(packet.title, /2025 Chevrolet Trax LT/);
+    assert.match(packet.title, /Buckingham GM/);
     assert.match(packet.description, /Buckingham/);
+    assert.match(packet.description, /ESSAI/);
     assert.equal(validateMarketplaceListingPacket(packet).valid, true);
   });
 });

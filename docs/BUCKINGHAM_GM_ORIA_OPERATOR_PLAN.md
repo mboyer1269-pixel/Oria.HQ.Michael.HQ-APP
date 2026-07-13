@@ -1,12 +1,12 @@
 # Buckingham GM × Oria — Plan opérateur ventes
 
-**Status:** Green Zone — inventaire public allowlist + fiches Marketplace prepare-only + lead bank + intent Joris  
+**Status:** Green Zone — inventaire public allowlist + kit Directeur Marketing (Marketplace/FB/Reel/YT/Ads) prepare-only + lead bank + intent Joris  
 **Owner:** Michael Boyer  
 **Contexte:** Représentant aux ventes — Buckingham Chevrolet Buick GMC (`buckinghamgm.com`, Gatineau)  
 **Produit:** Oria HQ  
-**Date:** 2026-07-11  
+**Date:** 2026-07-13  
 
-**Objectif :** depuis le site public (stock # + photos) → fiche Marketplace parfaite prête à uploader → leads → ventes. Prepare → humain publie.
+**Objectif :** depuis le site public (stock # + photos) → kit publication multi-canal prêt à uploader → leads → ventes. Prepare → humain publie.
 
 ---
 
@@ -16,25 +16,27 @@
 |---|----------|--------|
 | D1 | Sprint inventaire dès le démarrage | **Oui** (ingest manuel livré ; fetch HTML = plus tard) |
 | D2 | Canal relance semaine 1 | **SMS** (recommandé) — drafts prepare-only |
-| D3 | Facebook Marketplace | **Prepare-only manuel** |
+| D3 | Facebook Marketplace | **Prepare-only manuel** (kit multi-canal ; pas de bot) |
 | D4 | Leads depuis posts Marketplace | **Oui** (`sourceRef = packetId`) |
-| D5 | Priorité | **Lead bank + ventes**, pas plus d’agents |
+| D5 | Priorité | **Lead bank + ventes** + Directeur Marketing prepare |
+| D6 | Auto-post Facebook / Marketplace | **NO-GO** (ToS Meta, cookies/bot) — kit copy-ready à la place |
 
 ---
 
 ## 1. Intention
 
 ```text
-Inventaire (manuel JSON)
-  → Fiches Marketplace (Oria prépare, toi publies)
-    → Inbound Messenger / appel / RDV
-      → Lead bank
-        → Relances préparées (toi envoies)
-          → Essai / offre
-            → Vente ou perte propre
+Inventaire (sync site / JSON)
+  → Kit Directeur Marketing (Marketplace + FB + Reel + YT + Meta Ads)
+    → Toi publies manuellement (checklist ordonnée)
+      → Inbound Messenger / appel / RDV
+        → Lead bank (+ script capture)
+          → Relances préparées (toi envoies)
+            → Essai / offre
+              → Vente ou perte propre
 ```
 
-Oria prépare. **Toi** tu closes.
+Oria prépare le kit marketing et accélère la cadence de publication. **Toi** tu closes.
 
 ---
 
@@ -62,6 +64,7 @@ Oria prépare. **Toi** tu closes.
 | `POST` | `/api/sales/follow-up/prepare` | Draft SMS/email (jamais d’envoi) |
 | `POST` | `/api/sales/outcome` | `sold` (exige stock) / `lost` (exige raison) |
 | `POST`/`GET` | `/api/marketplace/listings` | Préparer fiche depuis stock / marquer publié |
+| `POST`/`GET` | `/api/sales/marketing/prepare` | Kit Directeur Marketing (Marketplace+FB+Reel+YT+Ad) |
 | `GET` | `/api/inventory/vehicle-catalog` | Catalogue relationnel marques→modèles (Selects liés) |
 | `POST` | `/api/sales/market-brief` | Comps AutoTrader Gatineau + angles vs lot |
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
@@ -80,12 +83,13 @@ Persistance : **process-locale** (`persistence: "in_memory"`). Perdu au redémar
 ## 4. Boucle opérateur (jour 1)
 
 1. **Ingest stock** — `POST /api/inventory/snapshot` avec 5–20 véhicules chauds (JSON).  
-2. **Préparer Marketplace** — `POST /api/marketplace/listings` `{ "stockId": "…" }` → copier titre/desc/prix/photos sur FB.  
-3. **Marquer publié** — `{ "action": "mark_published_manual", "packetId": "…" }`.  
-4. **Chaque inbound** — `POST /api/marketplace/leads/capture` avec `packetId` + nom + téléphone.  
-5. **File du matin** — `GET /api/sales/morning-queue`.  
-6. **Relance** — `POST /api/sales/follow-up/prepare` `{ "leadId", "channel": "sms" }` → coller dans Messages.  
-7. **Closer** — `POST /api/sales/outcome` `sold` + `soldStockId` ou `lost` + `lostReason`.
+2. **Kit Marketing** — bouton **Kit Marketing** sur une unité (ou highlight débrief) → onglets Marketplace / FB / Reel / YT / Ads + checklist.  
+3. **Publier manuellement** — coller canal par canal (Marketplace d’abord = plus de leads).  
+4. **Marquer publié** — `{ "action": "mark_published_manual", "packetId": "…" }`.  
+5. **Chaque inbound** — script lead du kit + `POST /api/marketplace/leads/capture` ou Capture rapide.  
+6. **File du matin** — `GET /api/sales/morning-queue`.  
+7. **Relance** — `POST /api/sales/follow-up/prepare` `{ "leadId", "channel": "sms" }` → coller dans Messages.  
+8. **Closer** — `POST /api/sales/outcome` `sold` + `soldStockId` ou `lost` + `lostReason`.
 
 ---
 
