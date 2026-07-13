@@ -50,7 +50,7 @@ const NAV: NavItem[] = [
   { key: "runtime", label: "Runtime", href: "/hq/runtime", icon: CircleDot, group: "Pilotage", tipTitle: "Runtime", tipDetail: "Exécution verrouillée tant qu'une action n'est pas ledgerée et bornée.", tipMeta: "Verrouillé" },
   { key: "ventures", label: "Ventures", href: "/hq/ventures", icon: Building2, group: "Pilotage", tipTitle: "Ventures", tipDetail: "Portefeuille et file de décisions stratégiques." },
   { key: "outbound", label: "Send Desk", href: "/hq/outbound", icon: SendHorizonal, group: "Pilotage", tipTitle: "Send Desk", tipDetail: "File d'envoi ceo_single_send — un clic, un envoi, une preuve au ledger." },
-  { key: "sales", label: "Sales Desk", href: "/hq/sales", icon: Car, group: "Pilotage", tipTitle: "Sales Desk", tipDetail: "File du matin, fiches Marketplace, capture leads — prepare-only." },
+  { key: "sales", label: "Sales Desk", href: "/hq/sales", icon: Car, group: "Pilotage", tipTitle: "Sales Desk", tipDetail: "Agent Publication, Directeur Marketing, leads, fiches Marketplace — prepare-only." },
   { key: "notes", label: "Notes", href: "/hq/notes", icon: StickyNote, group: "Espace", tipTitle: "Notes CEO", tipDetail: "Scratchpad exécutif avec autosave." },
   { key: "documents", label: "Documents", href: "/dashboard/documents", icon: FileText, group: "Espace", tipTitle: "Documents", tipDetail: "En reconstruction — dossiers ouvrables, édition, permissions et audit trail.", tipMeta: "Bientôt" },
 ];

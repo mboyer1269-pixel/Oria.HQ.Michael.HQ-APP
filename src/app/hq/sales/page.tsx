@@ -44,11 +44,11 @@ export default async function SalesDeskPage() {
         eyebrow="Sales Desk — Buckingham GM"
         icon={Car}
         tone="amber"
-        title="Inventaire. Formation modèles. Marketplace."
+        title="Publication. Marketing. Leads. Ventes."
         description={
           <>
-            Sync le site → apprends tes neufs Chevy/Buick/GMC (must-know + walkaround) → fiche Facebook
-            → comps marché. Activix arrive lundi.
+            Agent Publication (Marketplace prepare → publier → capturer prospects) · Directeur Marketing
+            (pubs, Reels, YouTube) · inventaire · formation modèles · file du matin.
           </>
         }
       />
@@ -68,7 +68,7 @@ export default async function SalesDeskPage() {
         />
       </HqSummaryRail>
 
-      <HqWidget title="Poste de vente" eyebrow="Prepare → action humaine" icon={Car} tone="amber">
+      <HqWidget title="Poste de vente" eyebrow="Agents prepare → tu publies et closes" icon={Car} tone="amber">
         <SalesDeskClient
           queue={queue}
           vehicles={snapshot?.vehicles ?? []}

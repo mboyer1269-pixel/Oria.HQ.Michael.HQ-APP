@@ -33,6 +33,8 @@ import {
   lookupModelKnowledge,
 } from "@/features/sales/gm-model-knowledge";
 import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
+import { SalesMarketingStudioPanel } from "@/features/sales/components/sales-marketing-studio-panel";
+import { SalesPublishAgentPanel } from "@/features/sales/components/sales-publish-agent-panel";
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
 import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
@@ -171,6 +173,23 @@ export function SalesDeskClient({
   const [listingPacket, setListingPacket] = useState<MarketplaceListingPacket | null>(
     initialListings[0] ?? null,
   );
+  const [listingOverrides, setListingOverrides] = useState<MarketplaceListingPacket[]>([]);
+
+  const mergedListings = useMemo(() => {
+    const map = new Map(listingOverrides.map((l) => [l.packetId, l]));
+    for (const listing of initialListings) {
+      map.set(listing.packetId, listing);
+    }
+    return [...map.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }, [initialListings, listingOverrides]);
+
+  function upsertListingPacket(packet: MarketplaceListingPacket) {
+    setListingOverrides((prev) => {
+      const rest = prev.filter((p) => p.packetId !== packet.packetId);
+      return [packet, ...rest];
+    });
+    setListingPacket(packet);
+  }
   const [captureMsg, setCaptureMsg] = useState<string>("");
   const [captureOk, setCaptureOk] = useState(true);
   const [captureBusy, setCaptureBusy] = useState(false);
@@ -357,7 +376,8 @@ export function SalesDeskClient({
         setSyncMsg(payload?.errors?.join("; ") ?? "Préparation fiche échouée.");
         return;
       }
-      setListingPacket(payload.packet as MarketplaceListingPacket);
+      const packet = payload.packet as MarketplaceListingPacket;
+      upsertListingPacket(packet);
       document.getElementById("sales-listing-packet")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (err) {
       setSyncState("err");
@@ -568,6 +588,16 @@ export function SalesDeskClient({
 
   return (
     <div className="flex flex-col gap-6">
+      <SalesPublishAgentPanel
+        vehicles={localVehicles}
+        listings={mergedListings}
+        debrief={debrief}
+        onListingPrepared={upsertListingPacket}
+        onRefresh={() => startTransition(() => router.refresh())}
+      />
+
+      <SalesMarketingStudioPanel vehicles={localVehicles} />
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-300/80">Relances dues</p>
