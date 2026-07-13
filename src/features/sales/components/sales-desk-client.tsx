@@ -33,6 +33,7 @@ import {
   lookupModelKnowledge,
 } from "@/features/sales/gm-model-knowledge";
 import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
+import { SalesGrowthPanels } from "@/features/sales/components/sales-growth-panels";
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
 import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
@@ -66,6 +67,8 @@ export type SalesDeskProps = {
   listings: MarketplaceListingPacket[];
   dueCount: number;
   activeLeadCount: number;
+  prospectPlaybook?: import("@/features/sales/lead-prospect-playbook").LeadProspectPlaybook;
+  initialPublishingBundles?: import("@/features/sales/publishing-bundle").PublishingBundle[];
 };
 
 const SOURCE_CHIP: Record<string, string> = {
@@ -145,6 +148,8 @@ export function SalesDeskClient({
   listings: initialListings,
   dueCount,
   activeLeadCount,
+  prospectPlaybook,
+  initialPublishingBundles,
 }: SalesDeskProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -590,6 +595,13 @@ export function SalesDeskClient({
         </div>
       </div>
 
+      <SalesGrowthPanels
+        vehicles={localVehicles}
+        initialPlaybook={prospectPlaybook}
+        initialBundles={initialPublishingBundles}
+        onSelectStock={(stockId) => setSelectedStockId(stockId)}
+      />
+
       {/* HERO — Visual inventory (what sync feeds) */}
       <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.07] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -602,8 +614,8 @@ export function SalesDeskClient({
                 Inventaire Buckingham
               </h2>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:text-sm">
-                Sync → photos. Apprends → must-know Chevy/Buick/GMC. Fiche FB → Marketplace. Marché →
-                comps AutoTrader.
+                Agent Publication + Directeur Marketing → plus de leads. Sync photos · Formation ·
+                Marketplace · Marché AutoTrader.
               </p>
             </div>
           </div>

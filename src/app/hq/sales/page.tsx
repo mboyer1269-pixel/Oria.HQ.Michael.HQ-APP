@@ -15,6 +15,8 @@ import { buildMorningQueue } from "@/features/sales/sales-lead";
 import { getInventorySnapshot } from "@/server/inventory/inventory-store";
 import { listSalesLeads } from "@/server/sales/lead-bank-store";
 import { listMarketplaceListings } from "@/server/marketplace-listings/listing-store";
+import { buildLeadProspectPlaybook } from "@/features/sales/lead-prospect-playbook";
+import { listPublishingBundles } from "@/server/sales/publishing-queue-store";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,15 @@ export default async function SalesDeskPage() {
   const listings = listMarketplaceListings(activeWorkspace.id);
   const dueCount = queue.filter((q) => q.due).length;
   const activeLeadCount = leads.filter((l) => l.stage !== "sold" && l.stage !== "lost").length;
+  const publishingBundles = listPublishingBundles(activeWorkspace.id);
+  const prospectPlaybook = buildLeadProspectPlaybook({
+    vehicles: snapshot?.vehicles ?? [],
+    leads,
+    publishedStockIds: publishingBundles
+      .filter((b) => b.status === "published_manual")
+      .map((b) => b.stockId),
+    nowIso,
+  });
 
   return (
     <CockpitShell active="sales" crumb="Sales Desk">
@@ -44,11 +55,11 @@ export default async function SalesDeskPage() {
         eyebrow="Sales Desk — Buckingham GM"
         icon={Car}
         tone="amber"
-        title="Inventaire. Formation modèles. Marketplace."
+        title="Agent Publication. Directeur Marketing. Leads."
         description={
           <>
-            Sync le site → apprends tes neufs Chevy/Buick/GMC (must-know + walkaround) → fiche Facebook
-            → comps marché. Activix arrive lundi.
+            Agent Publication prépare Marketplace + Facebook en un clic. Directeur Marketing génère
+            posts, Reels, YouTube Shorts et pubs Meta. Playbook prospects pour vendre plus.
           </>
         }
       />
@@ -68,13 +79,15 @@ export default async function SalesDeskPage() {
         />
       </HqSummaryRail>
 
-      <HqWidget title="Poste de vente" eyebrow="Prepare → action humaine" icon={Car} tone="amber">
+      <HqWidget title="Poste de vente" eyebrow="Agents → approuve → publie" icon={Car} tone="amber">
         <SalesDeskClient
           queue={queue}
           vehicles={snapshot?.vehicles ?? []}
           listings={listings}
           dueCount={dueCount}
           activeLeadCount={activeLeadCount}
+          prospectPlaybook={prospectPlaybook}
+          initialPublishingBundles={publishingBundles}
         />
       </HqWidget>
     </CockpitShell>
