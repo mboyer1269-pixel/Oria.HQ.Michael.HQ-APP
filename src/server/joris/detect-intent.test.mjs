@@ -79,6 +79,11 @@ const priorityAndAccentCases = [
   { message: "génère un reel pour le Terrain", expected: "sales.marketing.prepare" },
   { message: "script youtube pour 26344-NEUF", expected: "sales.marketing.prepare" },
   { message: "publie sur marketplace le stock 26344-NEUF", expected: "marketplace.listing.prepare" },
+  { message: "file du matin ventes", expected: "sales.morning.queue" },
+  { message: "brief opérateur ventes", expected: "sales.operator.brief" },
+  { message: "capture lead marketplace Sam 819-555-0199", expected: "sales.lead.capture" },
+  { message: "marque publié le stock 26344-NEUF", expected: "marketplace.mark_published" },
+  { message: "prépare top 3 marketplace", expected: "marketplace.listing.prepare_batch" },
 ];
 
 for (const { message, expected } of priorityAndAccentCases) {

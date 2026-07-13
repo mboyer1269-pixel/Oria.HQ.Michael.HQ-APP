@@ -2,6 +2,7 @@
 // Rule-based generation (no API keys). Optimized for Outaouais lead conversion.
 
 import type { VehicleStock } from "@/features/inventory/vehicle-stock";
+import { lookupModelKnowledge } from "@/features/sales/gm-model-knowledge";
 
 export type MarketingChannel =
   | "facebook_post"
@@ -112,6 +113,10 @@ export function buildMarketingContentPack(input: {
   const km = mileageLine(v);
   const hashtags = makeHashtags(v);
   const hook = hookLine(v);
+  const knowledge = lookupModelKnowledge(v);
+  const knowledgeBullets =
+    knowledge?.mustKnowFr.slice(0, 3).map((line) => `• ${line}`) ?? [];
+  const storyLine = knowledge?.threeLineStory.useCaseFr;
   const dealerLine = "Buckingham Chevrolet Buick GMC — Gatineau / Buckingham, QC";
   const cta =
     "Répondez à ce poste, écrivez-nous en message privé ou appelez pour planifier votre essai.";
@@ -134,6 +139,8 @@ export function buildMarketingContentPack(input: {
         "",
         "Pourquoi maintenant?",
         `• ${cond.charAt(0).toUpperCase() + cond.slice(1)} disponible sur le lot`,
+        storyLine ? `• ${storyLine}` : null,
+        ...knowledgeBullets,
         "• Essai routier sur rendez-vous",
         "• Financement et échange bienvenus",
         "",
@@ -160,6 +167,7 @@ export function buildMarketingContentPack(input: {
         "Texte principal :",
         `${cond.charAt(0).toUpperCase() + cond.slice(1)} ${title} chez Buckingham GM.`,
         km ? `${km}.` : "",
+        knowledge?.threeLineStory.whyUsFr ? `${knowledge.threeLineStory.whyUsFr}.` : "",
         `Prix affiché ${price}. Essai rapide — réponse en moins de 2 h.`,
         "",
         "Description lien :",

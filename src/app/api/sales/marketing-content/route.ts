@@ -5,7 +5,14 @@ import { requireOwnerApiSession } from "@/server/auth/owner";
 import { findVehicleInSnapshot } from "@/server/inventory/inventory-store";
 import { buildMarketingContentPack } from "@/features/sales/marketing-content-pack";
 import type { VehicleStock } from "@/features/inventory/vehicle-stock";
+import {
+  getLatestMarketingPackForStock,
+  getMarketingPack,
+  listMarketingPacks,
+  saveMarketingPack,
+} from "@/server/sales/marketing-pack-store";
 
+// GET  /api/sales/marketing-content — list / fetch packs
 // POST /api/sales/marketing-content — generate multi-channel marketing pack (prepare-only)
 
 const vehicleSchema = z.object({
@@ -50,6 +57,40 @@ function resolveVehicle(
   return findVehicleInSnapshot(workspaceId, stockId) ?? override ?? null;
 }
 
+export async function GET(request: Request) {
+  const authError = await requireOwnerApiSession();
+  if (authError) return authError;
+
+  const ctx = getActiveWorkspaceContext();
+  const url = new URL(request.url);
+  const packId = url.searchParams.get("packId");
+  const stockId = url.searchParams.get("stockId");
+
+  if (packId) {
+    const pack = getMarketingPack(ctx.workspace.id, packId);
+    if (!pack) {
+      return NextResponse.json({ error: "Pack not found." }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true, pack, persistence: "in_memory" });
+  }
+
+  if (stockId) {
+    const pack = getLatestMarketingPackForStock(ctx.workspace.id, stockId);
+    return NextResponse.json({
+      ok: true,
+      pack,
+      persistence: "in_memory",
+      note: pack ? undefined : "No pack for this stock yet — POST to generate.",
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    packs: listMarketingPacks(ctx.workspace.id),
+    persistence: "in_memory",
+  });
+}
+
 export async function POST(request: Request) {
   const authError = await requireOwnerApiSession();
   if (authError) return authError;
@@ -83,6 +124,8 @@ export async function POST(request: Request) {
     nowIso,
     channels: parsed.data.channels,
   });
+
+  saveMarketingPack(ctx.workspace.id, pack);
 
   return NextResponse.json({
     ok: true,

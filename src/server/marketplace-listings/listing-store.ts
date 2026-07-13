@@ -61,6 +61,33 @@ export function markListingPublishedManual(
   return saveMarketplaceListing(next);
 }
 
+/** Mark prior packets for the same stock as superseded when re-preparing. */
+export function supersedeListingsForStock(
+  workspaceId: string,
+  stockId: string,
+  keepPacketId: string,
+  nowIso: string,
+): number {
+  const map = workspaceMap(workspaceId);
+  let count = 0;
+  for (const [id, packet] of map.entries()) {
+    if (packet.stockId !== stockId) continue;
+    if (id === keepPacketId) continue;
+    if (packet.status === "published_manual") continue;
+    map.set(id, {
+      ...packet,
+      status: "superseded",
+      updatedAt: nowIso,
+    });
+    count += 1;
+  }
+  return count;
+}
+
+export function listActiveListings(workspaceId: string): MarketplaceListingPacket[] {
+  return listMarketplaceListings(workspaceId).filter((l) => l.status !== "superseded");
+}
+
 export function clearMarketplaceListingStore(): void {
   getRoot().clear();
 }

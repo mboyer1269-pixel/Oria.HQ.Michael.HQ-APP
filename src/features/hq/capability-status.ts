@@ -142,6 +142,22 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     evidence: "src/server/joris/marketplace-listing-intent.ts (intent marketplace.listing.prepare)",
     note: "Chat prepare-only : sync inventaire + fiche stock #. Pas d'auto-post Facebook.",
   },
+  {
+    id: "sales_marketing_prepare",
+    label: "Directeur Marketing (packs multi-canal)",
+    status: "shadow",
+    surface: "/hq/sales + /api/joris/chat",
+    evidence: "src/features/sales/marketing-content-pack.ts + sales-marketing-intent.ts",
+    note: "Pubs, Reels, YouTube — prepare-only. Packs persistés in-memory.",
+  },
+  {
+    id: "sales_publish_agent",
+    label: "Agent Publication (wizard Marketplace)",
+    status: "shadow",
+    surface: "/hq/sales",
+    evidence: "src/features/sales/components/sales-publish-agent-panel.tsx + publish-agent.ts",
+    note: "Wizard 5 étapes, capture gated sur published_manual. Pas d'auto-post.",
+  },
 ];
 
 const STATUS_LABELS: Record<CapabilityStatus, string> = {

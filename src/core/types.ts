@@ -357,7 +357,12 @@ export type JorisIntent =
   | "mission.draft" // calendar.book proposal — pending user confirmation
   | "governance.audit"
   | "marketplace.listing.prepare" // prepare-only Marketplace fiche from stock
+  | "marketplace.listing.prepare_batch" // batch top priorities
+  | "marketplace.mark_published" // mark listing published_manual
   | "sales.marketing.prepare" // Directeur Marketing — pubs, Reels, YouTube (prepare-only)
+  | "sales.lead.capture" // capture Marketplace inbound → lead bank
+  | "sales.morning.queue" // morning follow-up queue
+  | "sales.operator.brief" // operator loop snapshot + next actions
   | "inventory.market.brief"; // inventaire debrief + comps marché (AutoTrader)
 
 // --- Calendar domain ---------------------------------------------------------

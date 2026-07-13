@@ -1,13 +1,14 @@
 "use client";
 
-// Directeur Marketing — multi-channel content packs for lead generation.
+// Directeur Marketing — multi-channel packs, chained to Marketplace publish.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ClipboardCopy,
   Film,
   Loader2,
   Megaphone,
+  Rocket,
   Sparkles,
   Video,
 } from "lucide-react";
@@ -20,6 +21,9 @@ import type {
 
 type Props = {
   vehicles: VehicleStock[];
+  selectedStockId?: string | null;
+  onPrepareListing?: (vehicle: VehicleStock) => void;
+  onNavigatePublication?: () => void;
 };
 
 const CHANNEL_ICON: Record<MarketingChannel, typeof Megaphone> = {
@@ -39,17 +43,35 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function SalesMarketingStudioPanel({ vehicles }: Props) {
-  const [stockId, setStockId] = useState(vehicles[0]?.stockId ?? "");
+export function SalesMarketingStudioPanel({
+  vehicles,
+  selectedStockId,
+  onPrepareListing,
+  onNavigatePublication,
+}: Props) {
+  const [manualStockId, setManualStockId] = useState<string | null>(null);
+  const stockId = manualStockId ?? selectedStockId ?? vehicles[0]?.stockId ?? "";
   const [busy, setBusy] = useState(false);
   const [pack, setPack] = useState<MarketingContentPack | null>(null);
   const [activeChannel, setActiveChannel] = useState<MarketingChannel>("facebook_post");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [err, setErr] = useState("");
 
+  useEffect(() => {
+    if (!stockId) return;
+    void fetch(`/api/sales/marketing-content?stockId=${encodeURIComponent(stockId)}`)
+      .then((r) => r.json())
+      .then((payload) => {
+        if (payload?.pack) setPack(payload.pack as MarketingContentPack);
+      })
+      .catch(() => undefined);
+  }, [stockId]);
+
   const activePiece: MarketingContentPiece | undefined = pack?.pieces.find(
     (p) => p.channel === activeChannel,
   );
+
+  const selectedVehicle = vehicles.find((v) => v.stockId === stockId);
 
   async function generate() {
     if (!stockId) return;
@@ -94,15 +116,14 @@ export function SalesMarketingStudioPanel({ vehicles }: Props) {
           <div>
             <h2 className="text-xl font-extrabold tracking-tight text-white">Directeur Marketing</h2>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:text-sm">
-              Pubs Meta, posts Facebook, scripts Reel et YouTube Short — optimisés pour générer des
-              prospects à Gatineau. Tu publies; Oria prépare le contenu gagnant.
+              Contenu social + accroche Marketplace. Enchaîne vers Agent Publication pour la fiche complète.
             </p>
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <select
             value={stockId}
-            onChange={(e) => setStockId(e.target.value)}
+            onChange={(e) => setManualStockId(e.target.value)}
             className="min-w-[12rem] rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-white"
           >
             {vehicles.length === 0 ? <option value="">Sync inventaire d&apos;abord</option> : null}
@@ -119,10 +140,30 @@ export function SalesMarketingStudioPanel({ vehicles }: Props) {
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-fuchsia-500 px-4 text-sm font-bold text-white hover:bg-fuchsia-400 disabled:opacity-40"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Générer contenus
+            Générer
           </button>
         </div>
       </div>
+
+      {pack && selectedVehicle ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onPrepareListing?.(selectedVehicle)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/15 px-3 py-2 text-xs font-bold text-rose-100"
+          >
+            <Rocket className="h-3.5 w-3.5" />
+            Préparer fiche Marketplace
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigatePublication?.()}
+            className="rounded-lg border border-neutral-700 px-3 py-2 text-xs text-neutral-300"
+          >
+            Aller à Publication
+          </button>
+        </div>
+      ) : null}
 
       {err ? <p className="mt-3 text-xs text-rose-300">{err}</p> : null}
 
@@ -170,11 +211,25 @@ export function SalesMarketingStudioPanel({ vehicles }: Props) {
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
+                  onClick={() => void flashCopy(`headline-${activePiece.channel}`, activePiece.headline)}
+                  className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:text-white"
+                >
+                  {copiedKey === `headline-${activePiece.channel}` ? "Copié" : "Titre / hook"}
+                </button>
+                <button
+                  type="button"
                   onClick={() => void flashCopy(`body-${activePiece.channel}`, activePiece.body)}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-200"
                 >
                   <ClipboardCopy className="h-3.5 w-3.5" />
-                  {copiedKey === `body-${activePiece.channel}` ? "Copié" : "Copier contenu"}
+                  {copiedKey === `body-${activePiece.channel}` ? "Copié" : "Corps complet"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void flashCopy(`cta-${activePiece.channel}`, activePiece.callToAction)}
+                  className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:text-white"
+                >
+                  CTA
                 </button>
                 {activePiece.hashtags.length > 0 ? (
                   <button
@@ -184,7 +239,7 @@ export function SalesMarketingStudioPanel({ vehicles }: Props) {
                     }
                     className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:text-white"
                   >
-                    Copier hashtags
+                    Hashtags
                   </button>
                 ) : null}
               </div>
@@ -202,7 +257,7 @@ export function SalesMarketingStudioPanel({ vehicles }: Props) {
         </div>
       ) : (
         <p className="mt-4 text-center text-xs text-neutral-500">
-          Choisis un véhicule et génère pubs, posts, Reels et scripts YouTube en un clic.
+          Choisis un véhicule — ou demande à Joris : « prépare pub pour le Trax 2026 ».
         </p>
       )}
     </section>

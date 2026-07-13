@@ -23,6 +23,13 @@ import { detectIntent } from "@/server/joris/detect-intent";
 import { handleMarketplaceListingIntent } from "@/server/joris/marketplace-listing-intent";
 import { handleInventoryMarketIntent } from "@/server/joris/inventory-market-intent";
 import { handleSalesMarketingIntent } from "@/server/joris/sales-marketing-intent";
+import {
+  handleMarketplaceBatchPrepareIntent,
+  handleMarketplaceMarkPublishedIntent,
+  handleSalesLeadCaptureIntent,
+  handleSalesMorningQueueIntent,
+  handleSalesOperatorBriefIntent,
+} from "@/server/joris/sales-operator-intent";
 import { generateJorisReply, type JorisReplyResult } from "@/server/joris/joris-reply-generator";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
@@ -91,7 +98,12 @@ const INTENT_TASK_CLASS: Record<JorisIntent, TaskClass> = {
   "mission.draft": "general",
   "governance.audit": "general",
   "marketplace.listing.prepare": "general",
+  "marketplace.listing.prepare_batch": "general",
+  "marketplace.mark_published": "general",
   "sales.marketing.prepare": "general",
+  "sales.lead.capture": "general",
+  "sales.morning.queue": "general",
+  "sales.operator.brief": "general",
   "inventory.market.brief": "general",
 };
 
@@ -488,6 +500,76 @@ export async function runJorisCommand(
     return {
       intent,
       summary: marketing.summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "sales.morning.queue") {
+    const queue = await handleSalesMorningQueueIntent({ workspaceId: ctx.workspace.id });
+    return {
+      intent,
+      summary: queue.summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "sales.operator.brief") {
+    const brief = await handleSalesOperatorBriefIntent({ workspaceId: ctx.workspace.id });
+    return {
+      intent,
+      summary: brief.summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "marketplace.listing.prepare_batch") {
+    const batch = await handleMarketplaceBatchPrepareIntent({
+      workspaceId: ctx.workspace.id,
+      message,
+    });
+    return {
+      intent,
+      summary: batch.summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "marketplace.mark_published") {
+    const marked = handleMarketplaceMarkPublishedIntent({
+      workspaceId: ctx.workspace.id,
+      message,
+    });
+    return {
+      intent,
+      summary: marked.summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "sales.lead.capture") {
+    const captured = handleSalesLeadCaptureIntent({
+      workspaceId: ctx.workspace.id,
+      message,
+      createdByUserId: ctx.userId,
+    });
+    return {
+      intent,
+      summary: captured.summary,
       modelId: routedModel.model.id,
       costMode: routedModel.mode,
       ...workspaceMeta,

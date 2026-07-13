@@ -10,7 +10,7 @@ import {
 import { findVehicleInSnapshot, getInventorySnapshot } from "@/server/inventory/inventory-store";
 import { enrichPhotoUrlsFromVdp } from "@/server/inventory/vdp-photo-enrich";
 import type { VehicleStock } from "@/features/inventory/vehicle-stock";
-import { saveMarketplaceListing } from "./listing-store";
+import { saveMarketplaceListing, supersedeListingsForStock } from "./listing-store";
 
 export type PrepareListingInput = {
   workspaceId: string;
@@ -98,5 +98,6 @@ export async function prepareMarketplaceListing(
   const validation = validateMarketplaceListingPacket(packet);
   if (!validation.valid) return { ok: false, errors: validation.errors };
 
+  supersedeListingsForStock(input.workspaceId, vehicle.stockId, packet.packetId, nowIso);
   return { ok: true, packet: saveMarketplaceListing(packet), photoEnrichment };
 }

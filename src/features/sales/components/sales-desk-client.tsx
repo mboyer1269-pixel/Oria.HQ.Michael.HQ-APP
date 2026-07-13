@@ -7,7 +7,6 @@ import { useMemo, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Car,
-  CheckCircle2,
   ClipboardCopy,
   ExternalLink,
   GraduationCap,
@@ -26,6 +25,7 @@ import type { VehicleStock } from "@/features/inventory/vehicle-stock";
 import type { InventoryDebrief } from "@/features/inventory/inventory-debrief";
 import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
 import type { LeadSource, SalesLead } from "@/features/sales/sales-lead";
+import { resolveFollowUpLane } from "@/features/sales/follow-up-lane";
 import type { MarketplaceListingPacket } from "@/features/marketplace-listings/listing-packet";
 import type { ModelKnowledgeCard } from "@/features/sales/gm-model-knowledge";
 import {
@@ -34,6 +34,7 @@ import {
 } from "@/features/sales/gm-model-knowledge";
 import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
 import { SalesMarketingStudioPanel } from "@/features/sales/components/sales-marketing-studio-panel";
+import { SalesOperatorLoopPanel } from "@/features/sales/components/sales-operator-loop-panel";
 import { SalesPublishAgentPanel } from "@/features/sales/components/sales-publish-agent-panel";
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
@@ -69,6 +70,15 @@ export type SalesDeskProps = {
   dueCount: number;
   activeLeadCount: number;
 };
+
+const LOST_REASONS = [
+  "Budget insuffisant",
+  "Acheté ailleurs",
+  "Pas de réponse",
+  "Financement refusé",
+  "Report du projet",
+  "Autre",
+];
 
 const SOURCE_CHIP: Record<string, string> = {
   marketplace_message: "border-sky-500/30 bg-sky-500/10 text-sky-300",
@@ -170,9 +180,6 @@ export function SalesDeskClient({
   const [marketBrief, setMarketBrief] = useState<MarketBriefPayload | null>(null);
   const [marketSelection, setMarketSelection] = useState<VehicleSelection | null>(null);
   const [marketSelectSeed, setMarketSelectSeed] = useState<Partial<VehicleSelection> | null>(null);
-  const [listingPacket, setListingPacket] = useState<MarketplaceListingPacket | null>(
-    initialListings[0] ?? null,
-  );
   const [listingOverrides, setListingOverrides] = useState<MarketplaceListingPacket[]>([]);
 
   const mergedListings = useMemo(() => {
@@ -188,7 +195,7 @@ export function SalesDeskClient({
       const rest = prev.filter((p) => p.packetId !== packet.packetId);
       return [packet, ...rest];
     });
-    setListingPacket(packet);
+    setSelectedStockId(packet.stockId);
   }
   const [captureMsg, setCaptureMsg] = useState<string>("");
   const [captureOk, setCaptureOk] = useState(true);
@@ -268,13 +275,17 @@ export function SalesDeskClient({
     }
   }
 
-  async function prepareFollowUp(leadId: string, channel: "sms" | "email") {
-    setBusyLeadId(leadId);
+  async function prepareFollowUp(lead: SalesLead, channel: "sms" | "email") {
+    setBusyLeadId(lead.leadId);
     try {
       const res = await fetch("/api/sales/follow-up/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, channel, lane: "follow_up" }),
+        body: JSON.stringify({
+          leadId: lead.leadId,
+          channel,
+          lane: resolveFollowUpLane(lead.source),
+        }),
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok || !payload?.draft) {
@@ -284,19 +295,40 @@ export function SalesDeskClient({
       }
       setDraftByLead((prev) => ({
         ...prev,
-        [leadId]: {
+        [lead.leadId]: {
           body: payload.draft.body as string,
           to: payload.draft.to as string,
           channel,
         },
       }));
-      setExpandedLeadId(leadId);
+      setExpandedLeadId(lead.leadId);
     } catch (err) {
       setCaptureOk(false);
       setCaptureMsg(err instanceof Error ? err.message : "Préparation relance échouée.");
     } finally {
       setBusyLeadId(null);
     }
+  }
+
+  async function touchLeadAfterContact(leadId: string) {
+    await fetch("/api/sales/leads/touch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leadId, notesAppend: "Message copié — envoi manuel." }),
+    });
+    startTransition(() => router.refresh());
+  }
+
+  function navigateToSection(section: "publication" | "marketing" | "inventory" | "leads") {
+    const id =
+      section === "publication"
+        ? "sales-section-publication"
+        : section === "marketing"
+          ? "sales-section-marketing"
+          : section === "inventory"
+            ? "sales-section-inventory"
+            : "sales-section-leads";
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function markOutcome(leadId: string, outcome: "sold" | "lost", extra: Record<string, string>) {
@@ -378,7 +410,7 @@ export function SalesDeskClient({
       }
       const packet = payload.packet as MarketplaceListingPacket;
       upsertListingPacket(packet);
-      document.getElementById("sales-listing-packet")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      navigateToSection("publication");
     } catch (err) {
       setSyncState("err");
       setSyncMsg(err instanceof Error ? err.message : "Préparation fiche échouée.");
@@ -486,20 +518,6 @@ export function SalesDeskClient({
     }
   }
 
-  function listingChecklist(packet: MarketplaceListingPacket): string {
-    return [
-      `Titre: ${packet.title}`,
-      packet.priceCad !== undefined ? `Prix: ${formatPrice(packet.priceCad)}` : "Prix: sur demande",
-      `Lieu: ${packet.locationHint}`,
-      "",
-      "Description:",
-      packet.description,
-      "",
-      `Photos (${packet.photoUrls.length}):`,
-      ...packet.photoUrls.map((u, i) => `${i + 1}. ${u}`),
-    ].join("\n");
-  }
-
   function LeadRow({ row }: { row: SalesDeskQueueRow }) {
     const { lead, score, due } = row;
     const draft = draftByLead[lead.leadId];
@@ -526,6 +544,7 @@ export function SalesDeskClient({
             <p className="mt-1 text-xs text-neutral-500">
               {lead.phone ?? lead.email ?? "—"} · {lead.stage} · score {score}
               {lead.interestedModels[0] ? ` · ${lead.interestedModels[0]}` : ""}
+              {lead.sourceRef ? ` · ref ${lead.sourceRef}` : ""}
             </p>
           </div>
           <Phone className="h-4 w-4 shrink-0 text-neutral-600" />
@@ -535,46 +554,66 @@ export function SalesDeskClient({
           <button
             type="button"
             disabled={busy}
-            onClick={() => void prepareFollowUp(lead.leadId, "sms")}
+            onClick={() => void prepareFollowUp(lead, "sms")}
             className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-40"
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquareText className="h-3.5 w-3.5" />}
             Préparer SMS
           </button>
+          {lead.email ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void prepareFollowUp(lead, "email")}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 text-xs font-semibold text-violet-300 hover:bg-violet-500/20 disabled:opacity-40"
+            >
+              Email
+            </button>
+          ) : null}
           <button
             type="button"
-            disabled={busy || !lead.interestedStockIds[0]}
+            disabled={busy}
             onClick={() =>
               void markOutcome(lead.leadId, "sold", {
-                soldStockId: lead.interestedStockIds[0] ?? "",
+                soldStockId: lead.interestedStockIds[0] ?? selectedStockId ?? localVehicles[0]?.stockId ?? "",
               })
             }
             className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-xs font-semibold text-neutral-300 hover:border-neutral-500 disabled:opacity-40"
           >
             Sold
           </button>
-          <button
-            type="button"
+          <select
             disabled={busy}
-            onClick={() => {
-              const reason = window.prompt("Raison de la perte ?");
-              if (reason?.trim()) void markOutcome(lead.leadId, "lost", { lostReason: reason.trim() });
+            defaultValue=""
+            onChange={(e) => {
+              const reason = e.target.value;
+              if (reason) void markOutcome(lead.leadId, "lost", { lostReason: reason });
+              e.target.value = "";
             }}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-neutral-800 px-3 text-xs font-semibold text-neutral-500 hover:border-rose-500/40 hover:text-rose-300 disabled:opacity-40"
+            className="min-h-9 rounded-lg border border-neutral-800 bg-neutral-950 px-2 text-xs text-neutral-400"
           >
-            Lost
-          </button>
+            <option value="">Lost…</option>
+            {LOST_REASONS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
         </div>
 
         {expanded && draft ? (
           <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
               Draft {draft.channel.toUpperCase()} → {draft.to}
+              {lead.source === "marketplace_message" ? " · reply_assist" : " · follow_up"}
             </p>
             <pre className="mt-2 whitespace-pre-wrap font-sans text-xs leading-5 text-neutral-200">{draft.body}</pre>
             <button
               type="button"
-              onClick={() => void flashCopy(`draft-${lead.leadId}`, draft.body)}
+              onClick={() => {
+                void flashCopy(`draft-${lead.leadId}`, draft.body);
+                void touchLeadAfterContact(lead.leadId);
+              }}
               className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-300 hover:border-amber-500/40 hover:text-amber-200"
             >
               <ClipboardCopy className="h-3.5 w-3.5" />
@@ -586,17 +625,41 @@ export function SalesDeskClient({
     );
   }
 
+  const allLeads = useMemo(() => queue.map((q) => q.lead), [queue]);
+
   return (
     <div className="flex flex-col gap-6">
-      <SalesPublishAgentPanel
+      <SalesOperatorLoopPanel
         vehicles={localVehicles}
         listings={mergedListings}
+        leads={allLeads}
         debrief={debrief}
-        onListingPrepared={upsertListingPacket}
-        onRefresh={() => startTransition(() => router.refresh())}
+        onNavigate={navigateToSection}
       />
 
-      <SalesMarketingStudioPanel vehicles={localVehicles} />
+      <div id="sales-section-publication">
+        <SalesPublishAgentPanel
+          vehicles={localVehicles}
+          listings={mergedListings}
+          debrief={debrief}
+          selectedStockId={selectedStockId}
+          onListingPrepared={upsertListingPacket}
+          onRefresh={() => startTransition(() => router.refresh())}
+          onError={(msg) => {
+            setSyncState("err");
+            setSyncMsg(msg);
+          }}
+        />
+      </div>
+
+      <div id="sales-section-marketing">
+        <SalesMarketingStudioPanel
+          vehicles={localVehicles}
+          selectedStockId={selectedStockId}
+          onPrepareListing={(vehicle) => void prepareListing(vehicle)}
+          onNavigatePublication={() => navigateToSection("publication")}
+        />
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -621,7 +684,10 @@ export function SalesDeskClient({
       </div>
 
       {/* HERO — Visual inventory (what sync feeds) */}
-      <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.07] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
+      <section
+        id="sales-section-inventory"
+        className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.07] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5"
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-sky-500/30 bg-sky-500/10 text-sky-300">
@@ -997,61 +1063,10 @@ export function SalesDeskClient({
         {filteredVehicles.length === 0 && localVehicles.length > 0 ? (
           <p className="mt-3 text-center text-xs text-neutral-500">Aucun véhicule ne correspond au filtre.</p>
         ) : null}
-
-        {listingPacket ? (
-          <div
-            id="sales-listing-packet"
-            className="mt-4 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row">
-              <div className="flex gap-2 overflow-x-auto lg:w-64 lg:flex-col lg:overflow-visible">
-                {listingPacket.photoUrls.slice(0, 6).map((url) => (
-                  <div
-                    key={url}
-                    className="relative h-20 w-32 shrink-0 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 lg:h-28 lg:w-full"
-                  >
-                    <VehiclePhoto src={url} alt={listingPacket.title} />
-                  </div>
-                ))}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-amber-300" />
-                  <p className="text-sm font-bold text-amber-100">Fiche Marketplace prête</p>
-                </div>
-                <p className="mt-2 text-base font-semibold text-white">{listingPacket.title}</p>
-                <p className="mt-1 text-sm text-amber-300">{formatPrice(listingPacket.priceCad)}</p>
-                <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
-                  {listingPacket.description}
-                </pre>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void flashCopy("listing-full", listingChecklist(listingPacket))}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
-                  >
-                    <ClipboardCopy className="h-3.5 w-3.5" />
-                    {copiedId === "listing-full" ? "Copié" : "Copier fiche complète"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void flashCopy("listing-title", listingPacket.title)}
-                    className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:text-white"
-                  >
-                    Copier titre
-                  </button>
-                </div>
-                <p className="mt-2 text-[11px] text-neutral-500">
-                  Oria ne publie pas sur Facebook — copie / upload manuel uniquement.
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </section>
 
       {/* Secondary — leads */}
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div id="sales-section-leads" className="grid gap-4 xl:grid-cols-2">
         <section className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.03] to-black/30 p-4">
           <div className="flex items-center gap-2">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300">

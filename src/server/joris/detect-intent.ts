@@ -122,6 +122,50 @@ export function detectIntent(message: string): JorisIntent {
     return "inventory.market.brief";
   }
 
+  // Operator tail — morning queue, capture, mark published, batch
+  if (
+    lower.includes("file du matin") ||
+    lower.includes("morning queue") ||
+    lower.includes("relances dues")
+  ) {
+    return "sales.morning.queue";
+  }
+  if (
+    lower.includes("brief opérateur") ||
+    lower.includes("brief operateur") ||
+    lower.includes("brief ventes") ||
+    (lower.includes("quoi faire") && (lower.includes("vente") || lower.includes("marketplace")))
+  ) {
+    return "sales.operator.brief";
+  }
+  if (
+    lower.includes("capture lead") ||
+    lower.includes("capture prospect") ||
+    lower.includes("ajoute prospect") ||
+    (lower.includes("lead") && lower.includes("marketplace") && lower.includes("capture"))
+  ) {
+    return "sales.lead.capture";
+  }
+  if (
+    lower.includes("marque publié") ||
+    lower.includes("marque publie") ||
+    lower.includes("marquer publié") ||
+    lower.includes("marquer publie") ||
+    lower.includes("annonce publiée") ||
+    lower.includes("annonce publiee")
+  ) {
+    return "marketplace.mark_published";
+  }
+  if (
+    lower.includes("prépare top") ||
+    lower.includes("prepare top") ||
+    lower.includes("batch marketplace") ||
+    lower.includes("prépare 3 fiches") ||
+    lower.includes("prepare 3 fiches")
+  ) {
+    return "marketplace.listing.prepare_batch";
+  }
+
   // Directeur Marketing — pubs / Reels / YouTube (before Marketplace fiche)
   const marketingContentSignals = [
     "contenu marketing",

@@ -1,6 +1,7 @@
 // Joris intent: Directeur Marketing — multi-channel content packs (prepare-only).
 
 import { buildMarketingContentPack } from "@/features/sales/marketing-content-pack";
+import { saveMarketingPack } from "@/server/sales/marketing-pack-store";
 import { getInventorySnapshot } from "@/server/inventory/inventory-store";
 import { syncPublicInventory } from "@/server/inventory/public-inventory-sync";
 import {
@@ -139,6 +140,8 @@ export async function handleSalesMarketingIntent(input: {
     vehicle,
     nowIso,
   });
+
+  saveMarketingPack(input.workspaceId, pack);
 
   return {
     summary: formatPackForChat(pack, detectChannelFilter(input.message)),
