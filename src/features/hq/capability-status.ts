@@ -123,8 +123,17 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     status: "shadow",
     surface: "/hq/sales",
     evidence:
-      "src/features/sales/components/sales-desk-client.tsx + prepare-listing.ts + capture-lead.ts",
-    note: "Prépare fiches FB Marketplace depuis stock ; capture inbound → lead bank. Pas d'auto-post.",
+      "src/features/sales/components/publish-agent-panel.tsx + prepare-listing.ts + capture-lead.ts",
+    note: "Agent Publication : file du jour, fiche FB convertissante, marquer publié, capture lead. Pas d'auto-post Meta.",
+  },
+  {
+    id: "sales_marketing_director",
+    label: "Directeur Marketing — packs multi-canal",
+    status: "shadow",
+    surface: "/hq/sales",
+    evidence:
+      "src/features/sales/marketing-content-pack.ts + marketing-director-panel.tsx + /api/sales/marketing/prepare",
+    note: "Posts FB, Reels, YouTube Shorts, pubs Meta — prepare-only + clipboard. Auto-publish Meta API = Yellow Zone.",
   },
   {
     id: "dealership_inventory_snapshot",

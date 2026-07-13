@@ -1,6 +1,6 @@
 "use client";
 
-// Sales Desk — visual inventory grid + morning queue + lead capture.
+// Sales Desk — inventaire + Agent Publication + Directeur Marketing + leads.
 // Prepare-only: copy drafts / checklists; human publishes and sends.
 
 import { useMemo, useState, useTransition, type FormEvent } from "react";
@@ -13,6 +13,7 @@ import {
   GraduationCap,
   ImageOff,
   Loader2,
+  Megaphone,
   MessageSquareText,
   Phone,
   RefreshCw,
@@ -34,8 +35,14 @@ import {
 } from "@/features/sales/gm-model-knowledge";
 import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
+import { PublishAgentPanel } from "@/features/sales/components/publish-agent-panel";
+import { MarketingDirectorPanel } from "@/features/sales/components/marketing-director-panel";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
 import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
+import {
+  rankVehiclesForPublishQueue,
+  type MarketingContentPack,
+} from "@/features/sales/marketing-content-pack";
 
 type MarketBriefPayload = {
   frenchSummary: string;
@@ -171,6 +178,8 @@ export function SalesDeskClient({
   const [listingPacket, setListingPacket] = useState<MarketplaceListingPacket | null>(
     initialListings[0] ?? null,
   );
+  const [marketingPacks, setMarketingPacks] = useState<MarketingContentPack[]>([]);
+  const [marketingFocusStockId, setMarketingFocusStockId] = useState<string | null>(null);
   const [captureMsg, setCaptureMsg] = useState<string>("");
   const [captureOk, setCaptureOk] = useState(true);
   const [captureBusy, setCaptureBusy] = useState(false);
@@ -218,6 +227,10 @@ export function SalesDeskClient({
   );
   const learningOnLot = useMemo(
     () => listKnowledgeForInventory(localVehicles),
+    [localVehicles],
+  );
+  const publishQueue = useMemo(
+    () => rankVehiclesForPublishQueue(localVehicles, 5),
     [localVehicles],
   );
 
@@ -358,13 +371,24 @@ export function SalesDeskClient({
         return;
       }
       setListingPacket(payload.packet as MarketplaceListingPacket);
-      document.getElementById("sales-listing-packet")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      document.getElementById("sales-publish-agent")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (err) {
       setSyncState("err");
       setSyncMsg(err instanceof Error ? err.message : "Préparation fiche échouée.");
     } finally {
       setListingBusy(null);
     }
+  }
+
+  function openMarketingForVehicle(vehicle: VehicleStock) {
+    setSelectedStockId(vehicle.stockId);
+    setMarketingFocusStockId(vehicle.stockId);
+    window.requestAnimationFrame(() => {
+      document.getElementById("sales-marketing-director")?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    });
   }
 
   async function runMarketBrief(opts?: {
@@ -590,6 +614,33 @@ export function SalesDeskClient({
         </div>
       </div>
 
+      <div id="sales-publish-agent">
+        <PublishAgentPanel
+          vehicles={localVehicles}
+          queueVehicles={publishQueue}
+          listingPacket={listingPacket}
+          listingBusy={listingBusy}
+          onPrepareListing={(v) => void prepareListing(v)}
+          onListingUpdated={setListingPacket}
+          onLeadCaptured={() => startTransition(() => router.refresh())}
+          onOpenMarketing={openMarketingForVehicle}
+        />
+      </div>
+
+      <MarketingDirectorPanel
+        key={marketingFocusStockId ?? "marketing-default"}
+        vehicles={localVehicles}
+        initialStockId={marketingFocusStockId}
+        packs={marketingPacks}
+        autoPrepare={Boolean(marketingFocusStockId)}
+        onPackReady={(pack) => {
+          setMarketingPacks((prev) => [pack, ...prev.filter((p) => p.packId !== pack.packId)]);
+        }}
+        onPackPublished={(pack) => {
+          setMarketingPacks((prev) => prev.map((p) => (p.packId === pack.packId ? pack : p)));
+        }}
+      />
+
       {/* HERO — Visual inventory (what sync feeds) */}
       <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.07] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -603,7 +654,7 @@ export function SalesDeskClient({
               </h2>
               <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:text-sm">
                 Sync → photos. Apprends → must-know Chevy/Buick/GMC. Fiche FB → Marketplace. Marché →
-                comps AutoTrader.
+                comps AutoTrader. Agent Publication + Directeur Marketing au-dessus.
               </p>
             </div>
           </div>
@@ -942,6 +993,15 @@ export function SalesDeskClient({
                       </button>
                       <button
                         type="button"
+                        onClick={() => openMarketingForVehicle(v)}
+                        className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-rose-500/40 bg-rose-500/10 px-2.5 text-[11px] font-bold text-rose-100 hover:bg-rose-500/20"
+                        title="Directeur Marketing — pack 5 canaux"
+                      >
+                        <Megaphone className="h-3.5 w-3.5" />
+                        Pub
+                      </button>
+                      <button
+                        type="button"
                         disabled={marketBusy}
                         onClick={() =>
                           void runMarketBrief({
@@ -1012,7 +1072,8 @@ export function SalesDeskClient({
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] text-neutral-500">
-                  Oria ne publie pas sur Facebook — copie / upload manuel uniquement.
+                  Préférence : utilise l&apos;Agent Publication (au-dessus) pour marquer publié +
+                  capturer chaque lead. Oria ne publie pas automatiquement sur Facebook.
                 </p>
               </div>
             </div>

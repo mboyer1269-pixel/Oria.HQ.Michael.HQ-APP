@@ -19,8 +19,8 @@ import { listMarketplaceListings } from "@/server/marketplace-listings/listing-s
 export const dynamic = "force-dynamic";
 
 // /hq/sales — Sales Desk (Buckingham operator morning loop)
-// Inventory sync → Marketplace fiche prepare → lead bank → SMS drafts.
-// Prepare-only: human publishes and sends.
+// Inventory sync → Agent Publication → Directeur Marketing → lead bank → SMS drafts.
+// Prepare-only: human publishes and sends (Meta auto-post = Yellow Zone).
 
 export default async function SalesDeskPage() {
   const access = await requireOwnerAccess("/hq/sales");
@@ -44,11 +44,12 @@ export default async function SalesDeskPage() {
         eyebrow="Sales Desk — Buckingham GM"
         icon={Car}
         tone="amber"
-        title="Inventaire. Formation modèles. Marketplace."
+        title="Publie. Contenu. Leads. Ventes."
         description={
           <>
-            Sync le site → apprends tes neufs Chevy/Buick/GMC (must-know + walkaround) → fiche Facebook
-            → comps marché. Activix arrive lundi.
+            Agent Publication (Marketplace) + Directeur Marketing (posts, Reels, Shorts, pubs) →
+            prospects → file du matin. Meta auto-post API = mandat Yellow Zone. Activix arrive
+            lundi.
           </>
         }
       />
@@ -68,7 +69,7 @@ export default async function SalesDeskPage() {
         />
       </HqSummaryRail>
 
-      <HqWidget title="Poste de vente" eyebrow="Prepare → action humaine" icon={Car} tone="amber">
+      <HqWidget title="Poste de vente" eyebrow="Publier → capturer → closer" icon={Car} tone="amber">
         <SalesDeskClient
           queue={queue}
           vehicles={snapshot?.vehicles ?? []}

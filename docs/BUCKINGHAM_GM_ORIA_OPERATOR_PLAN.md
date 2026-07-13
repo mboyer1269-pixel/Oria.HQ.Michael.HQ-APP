@@ -1,12 +1,12 @@
 # Buckingham GM × Oria — Plan opérateur ventes
 
-**Status:** Green Zone — inventaire public allowlist + fiches Marketplace prepare-only + lead bank + intent Joris  
+**Status:** Green Zone — inventaire + Agent Publication + Directeur Marketing + lead bank + intent Joris  
 **Owner:** Michael Boyer  
 **Contexte:** Représentant aux ventes — Buckingham Chevrolet Buick GMC (`buckinghamgm.com`, Gatineau)  
 **Produit:** Oria HQ  
 **Date:** 2026-07-11  
 
-**Objectif :** depuis le site public (stock # + photos) → fiche Marketplace parfaite prête à uploader → leads → ventes. Prepare → humain publie.
+**Objectif :** depuis le site public (stock # + photos) → Agent Publication (fiche Marketplace convertissante) + Directeur Marketing (posts / Reels / Shorts / pubs) → leads → ventes. Prepare → humain publie (Meta auto-post API = Yellow Zone).
 
 ---
 
@@ -16,22 +16,25 @@
 |---|----------|--------|
 | D1 | Sprint inventaire dès le démarrage | **Oui** (ingest manuel livré ; fetch HTML = plus tard) |
 | D2 | Canal relance semaine 1 | **SMS** (recommandé) — drafts prepare-only |
-| D3 | Facebook Marketplace | **Prepare-only manuel** |
+| D3 | Facebook Marketplace | **Prepare-only manuel** (+ Agent Publication UI) |
 | D4 | Leads depuis posts Marketplace | **Oui** (`sourceRef = packetId`) |
-| D5 | Priorité | **Lead bank + ventes**, pas plus d’agents |
+| D5 | Priorité | **Lead bank + ventes** + contenu multi-canal prepare-only |
+| D6 | Auto-publish Meta Graph API | **NO-GO sans mandat Yellow Zone** (secrets + app Meta) |
 
 ---
 
 ## 1. Intention
 
 ```text
-Inventaire (manuel JSON)
-  → Fiches Marketplace (Oria prépare, toi publies)
-    → Inbound Messenger / appel / RDV
-      → Lead bank
-        → Relances préparées (toi envoies)
-          → Essai / offre
-            → Vente ou perte propre
+Inventaire (sync buckinghamgm.com)
+  → Agent Publication (file du jour + fiche Marketplace)
+  → Directeur Marketing (FB / Reel / Short / pub Meta)
+    → Humain publie (copie 1 clic)
+      → Inbound Messenger / appel / RDV
+        → Lead bank
+          → Relances préparées (toi envoies)
+            → Essai / offre
+              → Vente ou perte propre
 ```
 
 Oria prépare. **Toi** tu closes.
@@ -62,9 +65,14 @@ Oria prépare. **Toi** tu closes.
 | `POST` | `/api/sales/follow-up/prepare` | Draft SMS/email (jamais d’envoi) |
 | `POST` | `/api/sales/outcome` | `sold` (exige stock) / `lost` (exige raison) |
 | `POST`/`GET` | `/api/marketplace/listings` | Préparer fiche depuis stock / marquer publié |
+| `POST`/`GET` | `/api/sales/marketing/prepare` | Directeur Marketing — pack 5 canaux / marquer publié |
 | `GET` | `/api/inventory/vehicle-catalog` | Catalogue relationnel marques→modèles (Selects liés) |
 | `POST` | `/api/sales/market-brief` | Comps AutoTrader Gatineau + angles vs lot |
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
+
+**Agent Publication (Sales Desk)** : file du jour (top véhicules), fiche Marketplace convertissante (CTA ESSAI), marquer publié, capture lead inline.
+
+**Directeur Marketing (Sales Desk)** : pack multi-canal — Marketplace, Facebook Page, Reel, YouTube Short, pub Meta (hooks + plans de tournage + CTA). Prepare-only.
 
 **Formation modèles (Sales Desk)** : fiches microlearning Chevy/Buick/GMC (must-know, walkaround 3-line story, objections Outaouais). Bouton **Apprendre** sur les neufs.
 
@@ -108,7 +116,7 @@ Score : +3 marketplace/phone/walk-in ; +2 stock ; +2 consent express ; +1 due ; 
 | APIs | `src/app/api/inventory/`, `src/app/api/sales/`, `src/app/api/marketplace/` |
 | Tests | `*.test.mjs` + `buckingham-sales-loop.test.mjs` (boucle complète) |
 
-Capacités HQ : `sales_lead_bank`, `marketplace_listing_prepare`, `dealership_inventory_snapshot` → **shadow**.
+Capacités HQ : `sales_lead_bank`, `marketplace_listing_prepare`, `sales_marketing_director`, `dealership_inventory_snapshot` → **shadow**.
 
 ---
 

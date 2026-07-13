@@ -31,6 +31,12 @@ const outcomeMod = await jiti.import(
 const prepareMod = await jiti.import(
   path.join(projectRoot, "src/server/marketplace-listings/prepare-listing.ts"),
 );
+const marketingPrepareMod = await jiti.import(
+  path.join(projectRoot, "src/server/sales/prepare-marketing-pack.ts"),
+);
+const marketingStoreMod = await jiti.import(
+  path.join(projectRoot, "src/server/sales/marketing-pack-store.ts"),
+);
 const captureMod = await jiti.import(
   path.join(projectRoot, "src/server/marketplace-listings/capture-lead.ts"),
 );
@@ -49,6 +55,8 @@ const { clearInventoryStore } = invStoreMod;
 const { upsertSalesLead, listSalesLeads, clearLeadBankStore } = leadStoreMod;
 const { captureSaleOutcome } = outcomeMod;
 const { prepareMarketplaceListing } = prepareMod;
+const { prepareMarketingContentPack } = marketingPrepareMod;
+const { clearMarketingPackStore, markMarketingPackPublishedManual } = marketingStoreMod;
 const { captureMarketplaceLead } = captureMod;
 const { clearMarketplaceListingStore, markListingPublishedManual } = listingStoreMod;
 const { prepareFollowUpDraft } = draftMod;
@@ -61,6 +69,7 @@ test("Buckingham loop: stock → marketplace → lead → follow-up → sold", a
   clearInventoryStore();
   clearLeadBankStore();
   clearMarketplaceListingStore();
+  clearMarketingPackStore();
 
   await t.test("ingest inventory", () => {
     const result = ingestManualInventory({
@@ -106,8 +115,24 @@ test("Buckingham loop: stock → marketplace → lead → follow-up → sold", a
     });
     assert.equal(result.ok, true);
     assert.equal(result.packet.requiresManualPublish, true);
+    assert.match(result.packet.description, /ESSAI/);
     packetId = result.packet.packetId;
     markListingPublishedManual(WS, packetId, NOW);
+  });
+
+  await t.test("directeur marketing — multi-channel pack", () => {
+    const result = prepareMarketingContentPack({
+      workspaceId: WS,
+      stockId: "stk_trax_1",
+      packId: "mktg_trax_demo",
+      nowIso: NOW,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.pack.assets.length, 5);
+    assert.equal(result.pack.requiresManualPublish, true);
+    assert.ok(result.pack.assets.some((a) => a.channel === "instagram_reel"));
+    assert.ok(result.pack.assets.some((a) => a.channel === "meta_ad"));
+    markMarketingPackPublishedManual(WS, result.pack.packId, NOW);
   });
 
   let leadId = "";

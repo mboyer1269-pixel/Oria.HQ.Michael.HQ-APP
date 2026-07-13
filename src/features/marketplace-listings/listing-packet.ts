@@ -112,16 +112,26 @@ export function prepareListingFromStock(input: {
       ? `${new Intl.NumberFormat("fr-CA").format(v.mileageKm)} km`
       : null;
   const photoCount = v.photoUrls.length;
+  const hook =
+    v.condition === "new"
+      ? `${title} NEUF — disponible pour essai cette semaine`
+      : `${title} — prêt pour essai à Gatineau / Buckingham`;
   const description = [
-    `${title} — ${conditionLabel}`,
-    `Prix affiché : ${formatPrice(v.priceCad)} (+ taxes & frais)`,
+    hook,
+    "",
+    `${conditionLabel} · Prix affiché : ${formatPrice(v.priceCad)} (+ taxes & frais)`,
     mileage ? `Kilométrage : ${mileage}` : v.condition === "new" ? "Kilométrage : neuf / bas km" : null,
     v.exteriorColor ? `Couleur ext. : ${v.exteriorColor}` : null,
     v.stockNumber || v.stockId ? `Stock : ${v.stockNumber ?? v.stockId}` : null,
     v.vin ? `NIV : ${v.vin}` : null,
     "",
+    "Pourquoi répondre maintenant ?",
+    "• Essai rapide (selon disponibilité)",
+    "• Équipe locale Outaouais — réponses sous les heures d'ouverture",
+    "• Financement et reprise évalués sans pression",
+    "",
     "Disponible chez Buckingham Chevrolet Buick GMC (Gatineau / Buckingham).",
-    "Essai et prise de rendez-vous bienvenus — répondez à cette annonce.",
+    "Écrivez ESSAI + votre numéro — on vous rappelle rapidement.",
     v.listingUrl ? `Fiche concession : ${v.listingUrl}` : null,
     photoCount > 0 ? `Photos jointes : ${photoCount} (à uploader depuis les URLs du packet).` : null,
   ]
