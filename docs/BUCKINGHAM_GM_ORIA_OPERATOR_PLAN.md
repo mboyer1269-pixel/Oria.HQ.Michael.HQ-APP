@@ -65,13 +65,22 @@ Oria prépare. **Toi** tu closes.
 | `GET` | `/api/inventory/vehicle-catalog` | Catalogue relationnel marques→modèles (Selects liés) |
 | `POST` | `/api/sales/market-brief` | Comps AutoTrader Gatineau + angles vs lot |
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
+| `GET`/`POST` | `/api/sales/appointments` | Livre de RDV (schedule / SMS prepare) |
+| `POST` | `/api/sales/marketing/content-pack` | Pack marketing + prospection (prepare-only) |
 
 **Formation modèles (Sales Desk)** : fiches microlearning Chevy/Buick/GMC (must-know, walkaround 3-line story, objections Outaouais). Bouton **Apprendre** sur les neufs.
+
+**Livre de RDV + marketing (adjoint ventes)** :
+- Ajouter un essai / visite au livre → stage `appointment_set`
+- SMS invite / confirm / reminder prepare-only
+- Pack marketing : post FB, hook Marketplace, SMS prospection (remplir le livre), pub, script Reel
 
 **Joris (chat)** :
 - « sync inventaire » / « prépare fiche Marketplace 26344-NEUF » → `marketplace.listing.prepare`
 - « débrief inventaire » / « compare Hyundai Tucson 2023 au marché » → `inventory.market.brief`
 - « explique-moi le Trax 2026 » / « formation Terrain » → fiche formation modèle
+- « montre mon livre de RDV » / « réserve un essai » → `sales.appointment.livre`
+- « pack marketing » / « post facebook » / « SMS prospection » → `sales.marketing.prepare`
 
 Persistance : **process-locale** (`persistence: "in_memory"`). Perdu au redémarrage jusqu’à mandat store durable.
 

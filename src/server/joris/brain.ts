@@ -22,6 +22,8 @@ import { getPendingMissionDraft, setPendingMissionDraft } from "@/server/mission
 import { detectIntent } from "@/server/joris/detect-intent";
 import { handleMarketplaceListingIntent } from "@/server/joris/marketplace-listing-intent";
 import { handleInventoryMarketIntent } from "@/server/joris/inventory-market-intent";
+import { handleSalesAppointmentLivreIntent } from "@/server/joris/sales-appointment-intent";
+import { handleSalesMarketingPrepareIntent } from "@/server/joris/sales-marketing-intent";
 import { generateJorisReply, type JorisReplyResult } from "@/server/joris/joris-reply-generator";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
@@ -91,6 +93,8 @@ const INTENT_TASK_CLASS: Record<JorisIntent, TaskClass> = {
   "governance.audit": "general",
   "marketplace.listing.prepare": "general",
   "inventory.market.brief": "general",
+  "sales.appointment.livre": "general",
+  "sales.marketing.prepare": "general",
 };
 
 /** Conservative, pure mapping from a detected intent to its shadow task class. */
@@ -486,6 +490,37 @@ export async function runJorisCommand(
     return {
       intent,
       summary: market.summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "sales.appointment.livre") {
+    const livre = await handleSalesAppointmentLivreIntent({
+      workspaceId: ctx.workspace.id,
+      userId: ctx.userId,
+      message,
+    });
+    return {
+      intent,
+      summary: livre.summary,
+      modelId: routedModel.model.id,
+      costMode: routedModel.mode,
+      ...workspaceMeta,
+      requiresConfirmation: false,
+    };
+  }
+
+  if (intent === "sales.marketing.prepare") {
+    const marketing = await handleSalesMarketingPrepareIntent({
+      workspaceId: ctx.workspace.id,
+      message,
+    });
+    return {
+      intent,
+      summary: marketing.summary,
       modelId: routedModel.model.id,
       costMode: routedModel.mode,
       ...workspaceMeta,

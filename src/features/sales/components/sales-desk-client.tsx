@@ -34,6 +34,8 @@ import {
 } from "@/features/sales/gm-model-knowledge";
 import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
+import { AppointmentLivrePanel } from "@/features/sales/components/appointment-livre-panel";
+import { MarketingPackPanel } from "@/features/sales/components/marketing-pack-panel";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
 import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
 
@@ -184,6 +186,7 @@ export function SalesDeskClient({
 
   const dueRows = useMemo(() => queue.filter((q) => q.due), [queue]);
   const otherRows = useMemo(() => queue.filter((q) => !q.due), [queue]);
+  const queueLeads = useMemo(() => queue.map((q) => q.lead), [queue]);
 
   const filteredVehicles = useMemo(() => {
     const q = inventoryFilter.trim().toLowerCase();
@@ -249,13 +252,17 @@ export function SalesDeskClient({
     }
   }
 
-  async function prepareFollowUp(leadId: string, channel: "sms" | "email") {
+  async function prepareFollowUp(
+    leadId: string,
+    channel: "sms" | "email",
+    lane: "follow_up" | "appointment_invite" = "follow_up",
+  ) {
     setBusyLeadId(leadId);
     try {
       const res = await fetch("/api/sales/follow-up/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, channel, lane: "follow_up" }),
+        body: JSON.stringify({ leadId, channel, lane }),
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok || !payload?.draft) {
@@ -523,6 +530,14 @@ export function SalesDeskClient({
           </button>
           <button
             type="button"
+            disabled={busy}
+            onClick={() => void prepareFollowUp(lead.leadId, "sms", "appointment_invite")}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 disabled:opacity-40"
+          >
+            Inviter essai (livre)
+          </button>
+          <button
+            type="button"
             disabled={busy || !lead.interestedStockIds[0]}
             onClick={() =>
               void markOutcome(lead.leadId, "sold", {
@@ -589,6 +604,20 @@ export function SalesDeskClient({
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{learningOnLot.length}</p>
         </div>
       </div>
+
+      <AppointmentLivrePanel
+        leads={queueLeads}
+        onFlashCopy={flashCopy}
+        copiedId={copiedId}
+      />
+
+      <MarketingPackPanel
+        vehicles={localVehicles}
+        selectedStockId={selectedStockId}
+        onSelectStock={setSelectedStockId}
+        onFlashCopy={flashCopy}
+        copiedId={copiedId}
+      />
 
       {/* HERO — Visual inventory (what sync feeds) */}
       <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.07] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">

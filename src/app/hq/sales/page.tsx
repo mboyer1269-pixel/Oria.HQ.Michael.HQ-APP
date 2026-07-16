@@ -44,11 +44,12 @@ export default async function SalesDeskPage() {
         eyebrow="Sales Desk — Buckingham GM"
         icon={Car}
         tone="amber"
-        title="Inventaire. Formation modèles. Marketplace."
+        title="Adjoint ventes — Livre, marketing, inventaire."
         description={
           <>
-            Sync le site → apprends tes neufs Chevy/Buick/GMC (must-know + walkaround) → fiche Facebook
-            → comps marché. Activix arrive lundi.
+            Remplis ton livre de RDV → packs marketing / prospection → sync inventaire → fiches
+            Marketplace → relances warm. Prepare-only : toi tu publies et tu envoies. Activix arrive
+            lundi.
           </>
         }
       />
