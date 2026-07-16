@@ -1098,42 +1098,105 @@ export function SalesDeskClient({
                 </div>
                 <p className="mt-2 text-base font-semibold text-white">{listingPacket.title}</p>
                 <p className="mt-1 text-sm text-amber-300">{formatPrice(listingPacket.priceCad)}</p>
+
+                {/* Flow copier-coller étape par étape */}
+                <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-300/80">
+                    Publication en 4 étapes (copie dans l&apos;ordre)
+                  </p>
+                  <ol className="mt-2 space-y-2">
+                    <li className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">1</span>
+                      <button
+                        type="button"
+                        disabled={photoPackBusy || listingPacket.photoUrls.length === 0}
+                        onClick={() => void downloadPhotoPack(listingPacket)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-neutral-950 hover:bg-amber-400 disabled:opacity-40"
+                      >
+                        {photoPackBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                        Photos (ZIP → galerie)
+                      </button>
+                      <span className="text-[11px] text-neutral-500">
+                        Couverture = avant 3/4 · 8-12 photos · odomètre inclus
+                      </span>
+                    </li>
+                    <li className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">2</span>
+                      <button
+                        type="button"
+                        onClick={() => void flashCopy("listing-title", listingPacket.title)}
+                        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        {copiedId === "listing-title" ? "Copié ✓" : "Copier titre"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void flashCopy(
+                            "listing-price",
+                            listingPacket.priceCad !== undefined ? String(listingPacket.priceCad) : "",
+                          )
+                        }
+                        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        {copiedId === "listing-price" ? "Copié ✓" : "Copier prix"}
+                      </button>
+                      <span className="text-[11px] text-neutral-500">Champs remplis = plus de reach</span>
+                    </li>
+                    <li className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">3</span>
+                      <button
+                        type="button"
+                        onClick={() => void flashCopy("listing-desc", listingPacket.description)}
+                        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        {copiedId === "listing-desc" ? "Copié ✓" : "Copier description"}
+                      </button>
+                      <span className="text-[11px] text-neutral-500">
+                        Hook 2 lignes → puces → confiance → CTA essai
+                      </span>
+                    </li>
+                    <li className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">4</span>
+                      <button
+                        type="button"
+                        onClick={() => void flashCopy("listing-full", listingChecklist(listingPacket))}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        <ClipboardCopy className="h-3.5 w-3.5" />
+                        {copiedId === "listing-full" ? "Copié ✓" : "Checklist complète"}
+                      </button>
+                      <span className="text-[11px] text-neutral-500">
+                        Publie → marque publié → réponds en &lt; 5 min
+                      </span>
+                    </li>
+                  </ol>
+                </div>
+
+                {listingPacket.marketplaceFieldsFr?.length ? (
+                  <details className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
+                    <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wide text-neutral-400">
+                      Champs Marketplace ({listingPacket.marketplaceFieldsFr.length}) — tout remplir
+                    </summary>
+                    <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                      {listingPacket.marketplaceFieldsFr.map((f) => (
+                        <li key={f.field} className="text-[11px] text-neutral-300">
+                          <span className="text-neutral-500">{f.field} :</span> {f.value}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+
                 <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
                   {listingPacket.description}
                 </pre>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={photoPackBusy || listingPacket.photoUrls.length === 0}
-                    onClick={() => void downloadPhotoPack(listingPacket)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-neutral-950 hover:bg-amber-400 disabled:opacity-40"
-                  >
-                    {photoPackBusy ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5" />
-                    )}
-                    Télécharger pack photos (ZIP)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void flashCopy("listing-full", listingChecklist(listingPacket))}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
-                  >
-                    <ClipboardCopy className="h-3.5 w-3.5" />
-                    {copiedId === "listing-full" ? "Copié" : "Copier fiche complète"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void flashCopy("listing-title", listingPacket.title)}
-                    className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:text-white"
-                  >
-                    Copier titre
-                  </button>
-                </div>
                 <p className="mt-2 text-[11px] text-neutral-500">
-                  Flow rapide : ZIP → galerie téléphone/ordi → Marketplace (photos) → coller titre /
-                  description. Oria ne publie pas.
+                  Oria ne publie pas sur Facebook — copie / upload manuel uniquement.
                 </p>
               </div>
             </div>

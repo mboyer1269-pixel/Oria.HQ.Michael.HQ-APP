@@ -73,6 +73,22 @@ export function ContentCalendarPanel({ initialCalendar }: Props) {
 
       {calendar ? (
         <>
+          {calendar.weeklyTargetsFr?.length ? (
+            <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-5">
+              {calendar.weeklyTargetsFr.map((t) => (
+                <div
+                  key={t.labelFr}
+                  className="rounded-xl border border-sky-500/20 bg-black/30 p-2.5 text-center"
+                >
+                  <p className="text-xl font-extrabold text-white">
+                    {t.target}
+                    <span className="ml-1 text-[10px] font-semibold text-neutral-500">{t.unitFr}</span>
+                  </p>
+                  <p className="mt-0.5 text-[10px] leading-4 text-neutral-400">{t.labelFr}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <ol className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {calendar.slots.map((slot) => (
               <li
@@ -89,6 +105,11 @@ export function ContentCalendarPanel({ initialCalendar }: Props) {
                 </div>
                 <p className="mt-2 text-xs font-semibold text-white">{slot.titleFr}</p>
                 <p className="mt-1 text-[11px] leading-5 text-neutral-400">{slot.briefFr}</p>
+                <div className="mt-2 space-y-1 border-t border-white/[0.05] pt-2">
+                  <p className="text-[10px] text-amber-300/90">⏰ {slot.bestTimeFr}</p>
+                  <p className="text-[10px] text-emerald-300/90">🎯 {slot.kpiFr}</p>
+                  <p className="text-[10px] leading-4 text-neutral-500">{slot.strategyFr}</p>
+                </div>
                 <p className="mt-2 text-[10px] uppercase tracking-wide text-neutral-600">
                   {slot.channelHint}
                   {slot.vehicleLabel ? ` · ${slot.vehicleLabel}` : ""}

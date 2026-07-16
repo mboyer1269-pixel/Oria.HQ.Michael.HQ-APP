@@ -169,4 +169,72 @@ test("7-day content calendar includes livre_fill day", async () => {
   assert.ok(calendar.slots.some((s) => s.kind === "livre_fill"));
   assert.equal(calendar.requiresManualPublish, true);
   assert.equal(calendar.noExecutionAuthorized, true);
+  // Strategic fields present on every slot
+  for (const slot of calendar.slots) {
+    assert.ok(slot.bestTimeFr.length > 0, `bestTimeFr missing on ${slot.titleFr}`);
+    assert.ok(slot.kpiFr.length > 0, `kpiFr missing on ${slot.titleFr}`);
+    assert.ok(slot.strategyFr.length > 0, `strategyFr missing on ${slot.titleFr}`);
+  }
+  assert.ok(calendar.weeklyTargetsFr.length >= 4);
+  assert.ok(calendar.weeklyTargetsFr.some((t) => /essais/i.test(t.labelFr)));
+});
+
+test("marketing pack includes quick replies, objections, follow-up sequence", async () => {
+  const pack = buildSalesMarketingPack({
+    vehicle: {
+      stockId: "stk_equinox_1",
+      year: 2023,
+      make: "Chevrolet",
+      model: "Equinox",
+      condition: "used",
+      priceCad: 24999,
+      mileageKm: 45000,
+      photoUrls: ["https://example.com/eq.jpg"],
+    },
+    workspaceId: WS,
+    nowIso: NOW,
+  });
+  assert.ok(pack.quickRepliesFr.length >= 4);
+  assert.ok(pack.quickRepliesFr.some((q) => /disponible/i.test(q.triggerFr)));
+  assert.ok(pack.objectionRepliesFr.length >= 2);
+  assert.equal(pack.followUpSequenceFr.length, 4);
+  assert.match(pack.followUpSequenceFr[0].whenFr, /J0/);
+  assert.match(pack.followUpSequenceFr[3].whenFr, /J5/);
+});
+
+test("marketplace listing packet uses 2026 structure (hook/bullets/trust/CTA)", async () => {
+  const packetMod = await jiti.import(
+    path.join(projectRoot, "src/features/marketplace-listings/listing-packet.ts"),
+  );
+  const packet = packetMod.prepareListingFromStock({
+    packetId: "pkt_1",
+    workspaceId: WS,
+    nowIso: NOW,
+    vehicle: {
+      stockId: "stk_terrain_1",
+      year: 2022,
+      make: "GMC",
+      model: "Terrain",
+      trim: "SLE",
+      condition: "used",
+      priceCad: 27999,
+      mileageKm: 52000,
+      exteriorColor: "Noir",
+      photoUrls: ["https://example.com/t1.jpg"],
+    },
+  });
+  const validation = packetMod.validateMarketplaceListingPacket(packet);
+  assert.equal(validation.valid, true, validation.errors.join("; "));
+  // Hook first line, bullets, trust, CTA
+  const lines = packet.description.split("\n");
+  assert.match(lines[0], /Terrain/);
+  assert.ok(packet.description.includes("• "), "bullets expected");
+  assert.match(packet.description, /essai routier/i);
+  assert.ok(packet.photoShotListFr.length >= 8);
+  assert.match(packet.photoShotListFr[0], /3\/4/);
+  assert.ok(packet.marketplaceFieldsFr.length >= 8);
+  assert.ok(packet.marketplaceFieldsFr.some((f) => f.field === "NIV"));
+  const checklist = packetMod.formatMarketplaceUploadChecklist(packet);
+  assert.match(checklist, /ÉTAPE 1/);
+  assert.match(checklist, /5 minutes/);
 });

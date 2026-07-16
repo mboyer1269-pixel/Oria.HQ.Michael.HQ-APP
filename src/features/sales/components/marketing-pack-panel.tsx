@@ -104,37 +104,110 @@ export function MarketingPackPanel({
       </div>
 
       {pack ? (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {(
-            [
-              ["Hook Marketplace", pack.marketplaceHookFr, "mkt-hook"],
-              ["Post Facebook", pack.facebookPostFr, "mkt-fb"],
-              ["SMS prospection (livre)", pack.prospectingSmsFr, "mkt-sms"],
-              ["Pub — texte", pack.adCopy.primaryTextFr, "mkt-ad"],
-              ["Reel — hook + CTA", `${pack.videoScript.hookFr}\n\n${pack.videoScript.ctaFr}`, "mkt-reel"],
-              ["Description Marketplace", pack.marketplaceDescriptionFr, "mkt-mp"],
-            ] as const
-          ).map(([title, body, key]) => (
-            <div key={key} className="rounded-xl border border-white/[0.06] bg-black/30 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-fuchsia-300/80">
-                  {title}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void onFlashCopy(key, body)}
-                  className="inline-flex items-center gap-1 rounded-md border border-neutral-700 px-2 py-1 text-[10px] font-semibold text-neutral-300 hover:border-fuchsia-500/40 hover:text-fuchsia-200"
-                >
-                  <ClipboardCopy className="h-3 w-3" />
-                  {copiedId === key ? "Copié" : "Copier"}
-                </button>
+        <>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {(
+              [
+                ["Hook Marketplace", pack.marketplaceHookFr, "mkt-hook"],
+                ["Post Facebook", pack.facebookPostFr, "mkt-fb"],
+                ["SMS prospection (livre)", pack.prospectingSmsFr, "mkt-sms"],
+                ["Pub — texte", pack.adCopy.primaryTextFr, "mkt-ad"],
+                ["Reel — hook + CTA", `${pack.videoScript.hookFr}\n\n${pack.videoScript.ctaFr}`, "mkt-reel"],
+                ["Description Marketplace", pack.marketplaceDescriptionFr, "mkt-mp"],
+              ] as const
+            ).map(([title, body, key]) => (
+              <div key={key} className="rounded-xl border border-white/[0.06] bg-black/30 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-fuchsia-300/80">
+                    {title}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void onFlashCopy(key, body)}
+                    className="inline-flex items-center gap-1 rounded-md border border-neutral-700 px-2 py-1 text-[10px] font-semibold text-neutral-300 hover:border-fuchsia-500/40 hover:text-fuchsia-200"
+                  >
+                    <ClipboardCopy className="h-3 w-3" />
+                    {copiedId === key ? "Copié" : "Copier"}
+                  </button>
+                </div>
+                <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap font-sans text-xs leading-5 text-neutral-200">
+                  {body}
+                </pre>
               </div>
-              <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap font-sans text-xs leading-5 text-neutral-200">
-                {body}
-              </pre>
+            ))}
+          </div>
+
+          {pack.quickRepliesFr?.length ? (
+            <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-300/80">
+                Réponses rapides inbound (&lt; 5 min = RDV)
+              </p>
+              <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                {pack.quickRepliesFr.map((qr, i) => (
+                  <div key={qr.triggerFr} className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-semibold text-emerald-200">« {qr.triggerFr} »</p>
+                      <button
+                        type="button"
+                        onClick={() => void onFlashCopy(`qr-${i}`, qr.replyFr)}
+                        className="shrink-0 rounded-md border border-neutral-700 px-2 py-0.5 text-[10px] font-semibold text-neutral-300 hover:border-emerald-500/40"
+                      >
+                        {copiedId === `qr-${i}` ? "Copié" : "Copier"}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-5 text-neutral-300">{qr.replyFr}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          ) : null}
+
+          {pack.followUpSequenceFr?.length ? (
+            <div className="mt-3 rounded-xl border border-sky-500/20 bg-sky-500/[0.05] p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-sky-300/80">
+                Séquence de relance (J0 → J5) — toi tu envoies
+              </p>
+              <ol className="mt-2 space-y-2">
+                {pack.followUpSequenceFr.map((step, i) => (
+                  <li key={step.whenFr} className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-semibold text-sky-200">
+                        {step.whenFr} · {step.channel.toUpperCase()}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void onFlashCopy(`fu-${i}`, step.messageFr)}
+                        className="shrink-0 rounded-md border border-neutral-700 px-2 py-0.5 text-[10px] font-semibold text-neutral-300 hover:border-sky-500/40"
+                      >
+                        {copiedId === `fu-${i}` ? "Copié" : "Copier"}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-5 text-neutral-300">{step.messageFr}</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-wide text-neutral-600">
+                      But : {step.goalFr}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+
+          {pack.objectionRepliesFr?.length ? (
+            <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-amber-300/80">
+                Objections fréquentes — réponses courtes
+              </p>
+              <ul className="mt-2 grid gap-2 lg:grid-cols-2">
+                {pack.objectionRepliesFr.map((o) => (
+                  <li key={o.objection} className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-2.5">
+                    <p className="text-[11px] font-semibold text-amber-200">« {o.objection} »</p>
+                    <p className="mt-1 text-[11px] leading-5 text-neutral-300">{o.reply}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {msg ? (

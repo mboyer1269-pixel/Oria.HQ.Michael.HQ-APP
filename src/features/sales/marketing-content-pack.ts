@@ -30,6 +30,21 @@ export type MarketingVideoScript = {
   hashtags: string[];
 };
 
+export type QuickReply = {
+  /** Buyer message this answers, e.g. "Est-ce encore disponible ?" */
+  triggerFr: string;
+  /** Copy-ready reply that pushes toward a booked test drive. */
+  replyFr: string;
+};
+
+export type FollowUpStep = {
+  /** e.g. "J0 — 1h après contact" */
+  whenFr: string;
+  channel: "sms" | "messenger";
+  messageFr: string;
+  goalFr: string;
+};
+
 export type SalesMarketingPack = {
   packId: string;
   stockId: string;
@@ -42,6 +57,12 @@ export type SalesMarketingPack = {
   marketplaceDescriptionFr: string;
   /** Warm SMS to invite a known contact for a test-drive slot (livre). */
   prospectingSmsFr: string;
+  /** Réponses rapides aux messages entrants (< 5 min = RDV). */
+  quickRepliesFr: QuickReply[];
+  /** Objections fréquentes + réponse courte (depuis fiches modèle GM). */
+  objectionRepliesFr: Array<{ objection: string; reply: string }>;
+  /** Séquence de relance J0 → J5 pour convertir inbound en essai. */
+  followUpSequenceFr: FollowUpStep[];
   adCopy: MarketingAdCopy;
   videoScript: MarketingVideoScript;
   sellingAnglesFr: string[];
@@ -198,6 +219,123 @@ export function buildSalesMarketingPack(input: BuildMarketingPackInput): SalesMa
 
   const card = lookupModelKnowledge(vehicle);
   const walkaround = card?.walkaroundFr ?? [];
+
+  // Réponses rapides — le premier à répondre gagne le RDV.
+  const quickRepliesFr: QuickReply[] = [
+    {
+      triggerFr: "Est-ce encore disponible ?",
+      replyFr:
+        `Oui, le ${label} est encore disponible ! Je peux vous le réserver pour un essai ` +
+        `aujourd'hui ou demain — quel moment vous convient ? (Je bloque le créneau tout de suite.)`,
+    },
+    {
+      triggerFr: "C'est quoi votre meilleur prix ?",
+      replyFr:
+        `Le prix affiché est ${price} + taxes/frais — déjà positionné sur le marché Gatineau. ` +
+        `Venez le voir : si le véhicule vous convient, on regarde financement + échange ensemble et ` +
+        `je vous fais le meilleur scénario total. Quel jour pour l'essai ?`,
+    },
+    {
+      triggerFr: "Acceptez-vous les échanges ?",
+      replyFr:
+        `Oui — échange accepté et évalué sur place en 20 minutes. Amenez le véhicule lors de ` +
+        `votre essai du ${vehicle.model}, vous repartez avec un chiffre ferme. Quel créneau vous arrange ?`,
+    },
+    {
+      triggerFr: "Financement possible ?",
+      replyFr:
+        `Financement sur place (GM Canada + banques). Pré-approbation possible avant même de vous ` +
+        `déplacer — envoyez-moi simplement un bon moment pour vous appeler 5 minutes.`,
+    },
+    {
+      triggerFr: "Il est où exactement ?",
+      replyFr:
+        `Chez Buckingham Chevrolet Buick GMC, à Gatineau (secteur Buckingham). Je peux préparer le ` +
+        `véhicule à l'avant pour votre arrivée — dites-moi quand vous passez.`,
+    },
+  ];
+
+  // Objections — fiche formation GM d'abord, complétées par les classiques du plancher.
+  const genericObjectionsFr =
+    vehicle.condition === "new"
+      ? [
+          {
+            objection: "C'est trop cher pour moi.",
+            reply:
+              "Regardons le paiement mensuel plutôt que le prix total — avec les taux GM et votre échange, ça change souvent tout.",
+          },
+          {
+            objection: "Je veux y penser.",
+            reply:
+              "Parfait — je vous bloque un essai sans engagement. C'est le meilleur moyen de savoir si ça vaut la réflexion.",
+          },
+          {
+            objection: "Je magasine encore ailleurs.",
+            reply:
+              "Bonne idée de comparer ! Venez faire l'essai ici d'abord — vous aurez une vraie référence, et mon chiffre échange en main.",
+          },
+        ]
+      : [
+          {
+            objection: "Pourquoi ce prix pour un usagé ?",
+            reply:
+              "Inspection complète + historique dispo — je vous montre le dossier sur place. Comparez avec le marché : le prix se défend.",
+          },
+          {
+            objection: "Je veux y penser.",
+            reply:
+              "Aucun souci — les occasions à ce prix partent vite par contre. Je peux vous le tenir 24h avec un essai réservé ?",
+          },
+          {
+            objection: "Il y a moins cher sur Marketplace.",
+            reply:
+              "Chez un particulier, oui — sans inspection, sans garantie, sans recours. Ici : dossier complet + financement. La différence se paie une fois.",
+          },
+        ];
+  const cardObjections =
+    card?.objectionsFr.slice(0, 4).map((o) => ({ objection: o.objection, reply: o.reply })) ?? [];
+  const seenObjections = new Set(cardObjections.map((o) => o.objection));
+  const objectionRepliesFr = [
+    ...cardObjections,
+    ...genericObjectionsFr.filter((o) => !seenObjections.has(o.objection)),
+  ].slice(0, 5);
+
+  // Séquence de relance — inbound → essai booké.
+  const followUpSequenceFr: FollowUpStep[] = [
+    {
+      whenFr: "J0 — dans les 5 minutes",
+      channel: "messenger",
+      messageFr:
+        `Oui, le ${label} est disponible ! Voulez-vous passer le voir aujourd'hui ou demain ? ` +
+        `Je réserve votre créneau d'essai tout de suite.`,
+      goalFr: "Répondre avant tout le monde — proposer 2 choix de créneau.",
+    },
+    {
+      whenFr: "J0 — 2-3h sans réponse",
+      channel: "messenger",
+      messageFr:
+        `Je garde le ${vehicle.model} à l'œil pour vous — il y a d'autres demandes dessus. ` +
+        `Souhaitez-vous que je vous bloque un essai avant le week-end ?`,
+      goalFr: "Urgence honnête (vrai intérêt marché) + créneau concret.",
+    },
+    {
+      whenFr: "J2 — relance valeur",
+      channel: "sms",
+      messageFr:
+        `Bonjour, c'est au sujet du ${label} chez Buckingham GM. J'ai les détails financement / ` +
+        `échange si ça peut aider votre décision. Un essai cette semaine ?`,
+      goalFr: "Ajouter de la valeur (financement/échange), pas juste « suivre ».",
+    },
+    {
+      whenFr: "J5 — dernière touche propre",
+      channel: "sms",
+      messageFr:
+        `Dernier message promis ! Le ${vehicle.model} est toujours là. Si le timing est mauvais, ` +
+        `dites-le-moi et je vous recontacte quand VOUS voulez. Sinon, mon livre a des places jeudi/vendredi.`,
+      goalFr: "Sortie propre ou conversion — jamais de spam après.",
+    },
+  ];
+
   const videoScript: MarketingVideoScript = {
     platform: "reel_short",
     durationSeconds: 20,
@@ -247,6 +385,9 @@ export function buildSalesMarketingPack(input: BuildMarketingPackInput): SalesMa
     marketplaceHookFr,
     marketplaceDescriptionFr,
     prospectingSmsFr,
+    quickRepliesFr,
+    objectionRepliesFr,
+    followUpSequenceFr,
     adCopy,
     videoScript,
     sellingAnglesFr: angles,
