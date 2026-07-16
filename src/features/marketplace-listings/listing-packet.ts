@@ -123,7 +123,9 @@ export function prepareListingFromStock(input: {
     "Disponible chez Buckingham Chevrolet Buick GMC (Gatineau / Buckingham).",
     "Essai et prise de rendez-vous bienvenus — répondez à cette annonce.",
     v.listingUrl ? `Fiche concession : ${v.listingUrl}` : null,
-    photoCount > 0 ? `Photos jointes : ${photoCount} (à uploader depuis les URLs du packet).` : null,
+    photoCount > 0
+      ? `Photos : ${photoCount} — télécharge le pack ZIP depuis le Sales Desk, enregistre dans ta galerie, puis uploade sur Marketplace.`
+      : null,
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -154,8 +156,9 @@ export function formatMarketplaceUploadChecklist(packet: MarketplaceListingPacke
     `• Titre : ${packet.title}`,
     packet.priceCad !== undefined ? `• Prix : ${formatPrice(packet.priceCad)}` : "• Prix : sur demande",
     `• Lieu : ${packet.locationHint}`,
-    `• Photos (${packet.photoUrls.length}) :`,
-    ...packet.photoUrls.map((u, i) => `  ${i + 1}. ${u}`),
+    `• Photos (${packet.photoUrls.length}) : télécharge le pack ZIP (Sales Desk) → galerie → Marketplace`,
+    ...packet.photoUrls.slice(0, 3).map((u, i) => `  ${i + 1}. ${u}`),
+    packet.photoUrls.length > 3 ? `  … +${packet.photoUrls.length - 3} autres (dans le ZIP)` : null,
     "",
     "Description à coller :",
     packet.description,
@@ -165,5 +168,5 @@ export function formatMarketplaceUploadChecklist(packet: MarketplaceListingPacke
     "",
     "Oria ne publie pas sur Facebook — copie/upload manuel uniquement.",
   ];
-  return lines.join("\n");
+  return lines.filter((l) => l !== null).join("\n");
 }

@@ -9,6 +9,7 @@ import {
   Car,
   CheckCircle2,
   ClipboardCopy,
+  Download,
   ExternalLink,
   GraduationCap,
   ImageOff,
@@ -186,6 +187,7 @@ export function SalesDeskClient({
   const [captureMsg, setCaptureMsg] = useState<string>("");
   const [captureOk, setCaptureOk] = useState(true);
   const [captureBusy, setCaptureBusy] = useState(false);
+  const [photoPackBusy, setPhotoPackBusy] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
@@ -356,6 +358,55 @@ export function SalesDeskClient({
     } catch (err) {
       setSyncState("err");
       setSyncMsg(err instanceof Error ? err.message : "Sync échouée");
+    }
+  }
+
+  async function downloadPhotoPack(packet: MarketplaceListingPacket) {
+    if (packet.photoUrls.length === 0) {
+      setCaptureOk(false);
+      setCaptureMsg("Aucune photo à empaqueter pour cette fiche.");
+      return;
+    }
+    setPhotoPackBusy(true);
+    try {
+      const res = await fetch("/api/marketplace/listings/photo-pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packetId: packet.packetId,
+          stockId: packet.stockId,
+          photoUrls: packet.photoUrls,
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        setCaptureOk(false);
+        setCaptureMsg(
+          payload?.errors?.join("; ") ?? payload?.error ?? "Téléchargement du pack photos échoué.",
+        );
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match?.[1] ?? `marketplace-photos-${packet.stockId}.zip`;
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      setCaptureOk(true);
+      setCaptureMsg(
+        `Pack photos téléchargé (${packet.photoUrls.length} images). Ouvre le ZIP → enregistre dans ta galerie → upload Marketplace.`,
+      );
+    } catch (err) {
+      setCaptureOk(false);
+      setCaptureMsg(err instanceof Error ? err.message : "Pack photos échoué.");
+    } finally {
+      setPhotoPackBusy(false);
     }
   }
 
@@ -1053,6 +1104,19 @@ export function SalesDeskClient({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
+                    disabled={photoPackBusy || listingPacket.photoUrls.length === 0}
+                    onClick={() => void downloadPhotoPack(listingPacket)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-neutral-950 hover:bg-amber-400 disabled:opacity-40"
+                  >
+                    {photoPackBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    Télécharger pack photos (ZIP)
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => void flashCopy("listing-full", listingChecklist(listingPacket))}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
                   >
@@ -1068,7 +1132,8 @@ export function SalesDeskClient({
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] text-neutral-500">
-                  Oria ne publie pas sur Facebook — copie / upload manuel uniquement.
+                  Flow rapide : ZIP → galerie téléphone/ordi → Marketplace (photos) → coller titre /
+                  description. Oria ne publie pas.
                 </p>
               </div>
             </div>

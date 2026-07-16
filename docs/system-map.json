@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 487,
-    "live": 426,
+    "sourceFiles": 491,
+    "live": 430,
     "testOnly": 9,
     "incubation": 52
   },
@@ -47,6 +47,7 @@
     "src/app/api/inventory/vehicle-catalog/route.ts",
     "src/app/api/joris/chat/route.ts",
     "src/app/api/marketplace/leads/capture/route.ts",
+    "src/app/api/marketplace/listings/photo-pack/route.ts",
     "src/app/api/marketplace/listings/route.ts",
     "src/app/api/memory/route.ts",
     "src/app/api/missions/draft/cancel/route.ts",
@@ -384,9 +385,12 @@
     "src/server/market/fetch-market-comps.ts",
     "src/server/market/market-advantage-brief.ts",
     "src/server/market/market-comps-allowlist.ts",
+    "src/server/marketplace-listings/build-photo-pack.ts",
     "src/server/marketplace-listings/capture-lead.ts",
     "src/server/marketplace-listings/listing-store.ts",
+    "src/server/marketplace-listings/photo-url-allowlist.ts",
     "src/server/marketplace-listings/prepare-listing.ts",
+    "src/server/marketplace-listings/zip-store.ts",
     "src/server/mcp/memex-bridge-contract.ts",
     "src/server/mcp/memex-readonly-client.ts",
     "src/server/mcp/memex-stdio-transport.ts",
