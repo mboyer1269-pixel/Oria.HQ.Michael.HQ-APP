@@ -8,6 +8,7 @@ import {
   HqSummaryRail,
   HqWidget,
 } from "@/features/hq/components/hq-widget-system";
+import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { MemoryVaultExplorer } from "@/features/memory/components/memory-vault-explorer";
 import { MemoryWritePanel } from "@/features/memory/components/memory-write-panel";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
@@ -126,6 +127,7 @@ export default async function MemoryPage() {
   const learningLoop = await getLearningLoopReport("michael-hq");
 
   return (
+    <CockpitShell active="memory" crumb="Memory">
     <HqPageShell>
       <HqPageHeader
         backHref={"/hq" as Route}
@@ -287,5 +289,6 @@ export default async function MemoryPage() {
         Écriture &amp; approbation CEO locales (in-memory) · Vault fichiers : <code>memory/</code> · Persistance Supabase verrouillée jusqu&apos;au prochain mandat
       </p>
     </HqPageShell>
+    </CockpitShell>
   );
 }

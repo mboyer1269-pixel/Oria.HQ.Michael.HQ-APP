@@ -27,6 +27,7 @@ import {
   type MissionDraftPanelUxState,
   type MissionDraftPendingClientView,
 } from "@/features/hq/mission-draft-format";
+import { dispatchApprovalResolved } from "@/features/hq/approval-resolved-event";
 
 type PanelVariant = "banner" | "embedded";
 
@@ -166,6 +167,14 @@ export function MissionDraftPendingPanel({
           });
           setUx("confirmed");
           window.dispatchEvent(new CustomEvent("michael-hq:calendar-changed"));
+          dispatchApprovalResolved({
+            source: "mission-draft",
+            decision: "approved",
+            summary:
+              mapped.summary ??
+              `Calendrier confirmé — ${mapped.calendarEvent.title} (${mapped.calendarEvent.dateISO} ${mapped.calendarEvent.startTime}).`,
+            href: "/hq#agenda-panel",
+          });
         } else {
           setFeedbackMessage(mapped.message);
           setUx("unavailable");
@@ -175,6 +184,12 @@ export function MissionDraftPendingPanel({
         if (mapped.outcome === "cancelled") {
           setConfirmed(null);
           setUx("cancelled");
+          dispatchApprovalResolved({
+            source: "mission-draft",
+            decision: "cancelled",
+            summary: "Proposition de booking refusée. Aucun événement créé.",
+            href: "/hq#command-center",
+          });
           if (cancelledTimerRef.current) {
             clearTimeout(cancelledTimerRef.current);
           }

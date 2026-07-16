@@ -9,6 +9,7 @@ import {
   type ExecutionIntentPanelState,
   type ExecutionIntentReviewRow,
 } from "@/features/agents/execution-intent-review-projection";
+import { dispatchApprovalResolved } from "@/features/hq/approval-resolved-event";
 
 type ExecutionIntentReviewPanelProps = {
   /** Agent whose pending intents are listed. v1 is bound to the strict registry (hermes). */
@@ -106,6 +107,15 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
         throw new Error(data.error ?? `API ${response.status}`);
       }
       setSuccess({ id: intentId, kind });
+      dispatchApprovalResolved({
+        source: "hermes-intent",
+        decision: kind === "approve" ? "approved" : "rejected",
+        summary:
+          kind === "approve"
+            ? `Intention Hermes approuvée (${intentId.slice(0, 8)}…). Exécution gouvernée en cours selon le rail.`
+            : `Intention Hermes rejetée (${intentId.slice(0, 8)}…). Aucune exécution lancée.`,
+        href: "/hq/agents",
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : ACTION_ERROR[kind]);
     } finally {

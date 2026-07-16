@@ -3,6 +3,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import {
   Bot,
+  Brain,
   Building2,
   CircleDot,
   FileText,
@@ -20,6 +21,7 @@ import { CockpitTopbar } from "./cockpit-topbar";
 import { CommandPalette } from "./command-palette";
 import { GovernanceBar } from "./governance-bar";
 import { ActivityRail } from "./activity-rail";
+import { JorisDock } from "./joris-dock";
 
 // ---------------------------------------------------------------------------
 // Cockpit shell — persistent sidebar + topbar + omnipresent Joris dock.
@@ -52,7 +54,8 @@ const NAV: NavItem[] = [
   { key: "outbound", label: "Send Desk", href: "/hq/outbound", icon: SendHorizonal, group: "Pilotage", tipTitle: "Send Desk", tipDetail: "File d'envoi ceo_single_send — un clic, un envoi, une preuve au ledger." },
   { key: "sales", label: "Sales Desk", href: "/hq/sales", icon: Car, group: "Pilotage", tipTitle: "Sales Desk", tipDetail: "File du matin, fiches Marketplace, capture leads — prepare-only." },
   { key: "notes", label: "Notes", href: "/hq/notes", icon: StickyNote, group: "Espace", tipTitle: "Notes CEO", tipDetail: "Scratchpad exécutif avec autosave." },
-  { key: "documents", label: "Documents", href: "/dashboard/documents", icon: FileText, group: "Espace", tipTitle: "Documents", tipDetail: "En reconstruction — dossiers ouvrables, édition, permissions et audit trail.", tipMeta: "Bientôt" },
+  { key: "memory", label: "Memory", href: "/hq/memory", icon: Brain, group: "Espace", tipTitle: "Memory", tipDetail: "Vault mémoire CEO — entrées locales, fichiers memory/, learning loop." },
+  { key: "documents", label: "Documents", href: "/dashboard/documents", icon: FileText, group: "Espace", tipTitle: "Documents", tipDetail: "En reconstruction — dossiers ouvrables, édition, permissions et audit trail.", tipMeta: "Bientôt", disabled: true },
 ];
 
 function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -176,6 +179,9 @@ export function CockpitShell({
 
       {/* Global ⌘K navigation palette (navigation-only, no execution). */}
       <CommandPalette />
+
+      {/* Omnipresent Joris chat — same /api/joris/chat contract as Command Center. */}
+      <JorisDock />
     </div>
   );
 }
