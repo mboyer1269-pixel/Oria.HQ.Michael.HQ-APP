@@ -9,6 +9,7 @@ import {
   Car,
   CheckCircle2,
   ClipboardCopy,
+  Download,
   ExternalLink,
   GraduationCap,
   ImageOff,
@@ -26,6 +27,7 @@ import type { VehicleStock } from "@/features/inventory/vehicle-stock";
 import type { InventoryDebrief } from "@/features/inventory/inventory-debrief";
 import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
 import type { LeadSource, SalesLead } from "@/features/sales/sales-lead";
+import type { LivreDay } from "@/features/sales/appointment-book";
 import type { MarketplaceListingPacket } from "@/features/marketplace-listings/listing-packet";
 import type { ModelKnowledgeCard } from "@/features/sales/gm-model-knowledge";
 import {
@@ -34,6 +36,10 @@ import {
 } from "@/features/sales/gm-model-knowledge";
 import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge-panel";
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
+import { AppointmentLivrePanel } from "@/features/sales/components/appointment-livre-panel";
+import { MarketingPackPanel } from "@/features/sales/components/marketing-pack-panel";
+import { ContentCalendarPanel } from "@/features/sales/components/content-calendar-panel";
+import type { SalesContentCalendar } from "@/features/sales/sales-content-calendar";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
 import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
 
@@ -58,12 +64,16 @@ export type SalesDeskQueueRow = {
   lead: SalesLead;
   score: number;
   due: boolean;
+  livreHint?: "today_appt" | "needs_slot" | "none";
 };
 
 export type SalesDeskProps = {
   queue: SalesDeskQueueRow[];
   vehicles: VehicleStock[];
   listings: MarketplaceListingPacket[];
+  livre: LivreDay[];
+  weekAppointmentCount: number;
+  contentCalendar: SalesContentCalendar | null;
   dueCount: number;
   activeLeadCount: number;
 };
@@ -143,6 +153,9 @@ export function SalesDeskClient({
   queue,
   vehicles: initialVehicles,
   listings: initialListings,
+  livre: initialLivre,
+  weekAppointmentCount,
+  contentCalendar,
   dueCount,
   activeLeadCount,
 }: SalesDeskProps) {
@@ -174,6 +187,7 @@ export function SalesDeskClient({
   const [captureMsg, setCaptureMsg] = useState<string>("");
   const [captureOk, setCaptureOk] = useState(true);
   const [captureBusy, setCaptureBusy] = useState(false);
+  const [photoPackBusy, setPhotoPackBusy] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
@@ -184,6 +198,7 @@ export function SalesDeskClient({
 
   const dueRows = useMemo(() => queue.filter((q) => q.due), [queue]);
   const otherRows = useMemo(() => queue.filter((q) => !q.due), [queue]);
+  const queueLeads = useMemo(() => queue.map((q) => q.lead), [queue]);
 
   const filteredVehicles = useMemo(() => {
     const q = inventoryFilter.trim().toLowerCase();
@@ -249,13 +264,17 @@ export function SalesDeskClient({
     }
   }
 
-  async function prepareFollowUp(leadId: string, channel: "sms" | "email") {
+  async function prepareFollowUp(
+    leadId: string,
+    channel: "sms" | "email",
+    lane: "follow_up" | "appointment_invite" = "follow_up",
+  ) {
     setBusyLeadId(leadId);
     try {
       const res = await fetch("/api/sales/follow-up/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, channel, lane: "follow_up" }),
+        body: JSON.stringify({ leadId, channel, lane }),
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok || !payload?.draft) {
@@ -339,6 +358,55 @@ export function SalesDeskClient({
     } catch (err) {
       setSyncState("err");
       setSyncMsg(err instanceof Error ? err.message : "Sync échouée");
+    }
+  }
+
+  async function downloadPhotoPack(packet: MarketplaceListingPacket) {
+    if (packet.photoUrls.length === 0) {
+      setCaptureOk(false);
+      setCaptureMsg("Aucune photo à empaqueter pour cette fiche.");
+      return;
+    }
+    setPhotoPackBusy(true);
+    try {
+      const res = await fetch("/api/marketplace/listings/photo-pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packetId: packet.packetId,
+          stockId: packet.stockId,
+          photoUrls: packet.photoUrls,
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        setCaptureOk(false);
+        setCaptureMsg(
+          payload?.errors?.join("; ") ?? payload?.error ?? "Téléchargement du pack photos échoué.",
+        );
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match?.[1] ?? `marketplace-photos-${packet.stockId}.zip`;
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      setCaptureOk(true);
+      setCaptureMsg(
+        `Pack photos téléchargé (${packet.photoUrls.length} images). Ouvre le ZIP → enregistre dans ta galerie → upload Marketplace.`,
+      );
+    } catch (err) {
+      setCaptureOk(false);
+      setCaptureMsg(err instanceof Error ? err.message : "Pack photos échoué.");
+    } finally {
+      setPhotoPackBusy(false);
     }
   }
 
@@ -481,7 +549,7 @@ export function SalesDeskClient({
   }
 
   function LeadRow({ row }: { row: SalesDeskQueueRow }) {
-    const { lead, score, due } = row;
+    const { lead, score, due, livreHint } = row;
     const draft = draftByLead[lead.leadId];
     const expanded = expandedLeadId === lead.leadId;
     const busy = busyLeadId === lead.leadId;
@@ -492,6 +560,16 @@ export function SalesDeskClient({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="truncate text-sm font-semibold text-white">{lead.fullName}</p>
+              {livreHint === "today_appt" ? (
+                <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-200">
+                  Essai aujourd&apos;hui
+                </span>
+              ) : null}
+              {livreHint === "needs_slot" ? (
+                <span className="rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fuchsia-200">
+                  Sans RDV
+                </span>
+              ) : null}
               {due ? (
                 <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
                   Dû
@@ -520,6 +598,14 @@ export function SalesDeskClient({
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquareText className="h-3.5 w-3.5" />}
             Préparer SMS
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void prepareFollowUp(lead.leadId, "sms", "appointment_invite")}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 text-xs font-semibold text-amber-300 hover:bg-amber-500/20 disabled:opacity-40"
+          >
+            Inviter essai (livre)
           </button>
           <button
             type="button"
@@ -568,10 +654,14 @@ export function SalesDeskClient({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-300/80">Relances dues</p>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-rose-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-rose-300/80">Relances dues</p>
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{dueCount}</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-300/80">Créneaux livre</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{weekAppointmentCount}</p>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-sky-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-sky-300/80">Leads actifs</p>
@@ -589,6 +679,23 @@ export function SalesDeskClient({
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{learningOnLot.length}</p>
         </div>
       </div>
+
+      <AppointmentLivrePanel
+        leads={queueLeads}
+        initialLivre={initialLivre}
+        onFlashCopy={flashCopy}
+        copiedId={copiedId}
+      />
+
+      <MarketingPackPanel
+        vehicles={localVehicles}
+        selectedStockId={selectedStockId}
+        onSelectStock={setSelectedStockId}
+        onFlashCopy={flashCopy}
+        copiedId={copiedId}
+      />
+
+      <ContentCalendarPanel initialCalendar={contentCalendar} />
 
       {/* HERO — Visual inventory (what sync feeds) */}
       <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.07] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">
@@ -991,26 +1098,103 @@ export function SalesDeskClient({
                 </div>
                 <p className="mt-2 text-base font-semibold text-white">{listingPacket.title}</p>
                 <p className="mt-1 text-sm text-amber-300">{formatPrice(listingPacket.priceCad)}</p>
+
+                {/* Flow copier-coller étape par étape */}
+                <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-300/80">
+                    Publication en 4 étapes (copie dans l&apos;ordre)
+                  </p>
+                  <ol className="mt-2 space-y-2">
+                    <li className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">1</span>
+                      <button
+                        type="button"
+                        disabled={photoPackBusy || listingPacket.photoUrls.length === 0}
+                        onClick={() => void downloadPhotoPack(listingPacket)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-neutral-950 hover:bg-amber-400 disabled:opacity-40"
+                      >
+                        {photoPackBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                        Photos (ZIP → galerie)
+                      </button>
+                      <span className="text-[11px] text-neutral-500">
+                        Couverture = avant 3/4 · 8-12 photos · odomètre inclus
+                      </span>
+                    </li>
+                    <li className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">2</span>
+                      <button
+                        type="button"
+                        onClick={() => void flashCopy("listing-title", listingPacket.title)}
+                        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        {copiedId === "listing-title" ? "Copié ✓" : "Copier titre"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void flashCopy(
+                            "listing-price",
+                            listingPacket.priceCad !== undefined ? String(listingPacket.priceCad) : "",
+                          )
+                        }
+                        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        {copiedId === "listing-price" ? "Copié ✓" : "Copier prix"}
+                      </button>
+                      <span className="text-[11px] text-neutral-500">Champs remplis = plus de reach</span>
+                    </li>
+                    <li className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">3</span>
+                      <button
+                        type="button"
+                        onClick={() => void flashCopy("listing-desc", listingPacket.description)}
+                        className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        {copiedId === "listing-desc" ? "Copié ✓" : "Copier description"}
+                      </button>
+                      <span className="text-[11px] text-neutral-500">
+                        Hook 2 lignes → puces → confiance → CTA essai
+                      </span>
+                    </li>
+                    <li className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">4</span>
+                      <button
+                        type="button"
+                        onClick={() => void flashCopy("listing-full", listingChecklist(listingPacket))}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
+                      >
+                        <ClipboardCopy className="h-3.5 w-3.5" />
+                        {copiedId === "listing-full" ? "Copié ✓" : "Checklist complète"}
+                      </button>
+                      <span className="text-[11px] text-neutral-500">
+                        Publie → marque publié → réponds en &lt; 5 min
+                      </span>
+                    </li>
+                  </ol>
+                </div>
+
+                {listingPacket.marketplaceFieldsFr?.length ? (
+                  <details className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
+                    <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wide text-neutral-400">
+                      Champs Marketplace ({listingPacket.marketplaceFieldsFr.length}) — tout remplir
+                    </summary>
+                    <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+                      {listingPacket.marketplaceFieldsFr.map((f) => (
+                        <li key={f.field} className="text-[11px] text-neutral-300">
+                          <span className="text-neutral-500">{f.field} :</span> {f.value}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+
                 <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
                   {listingPacket.description}
                 </pre>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void flashCopy("listing-full", listingChecklist(listingPacket))}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-xs font-semibold text-neutral-200 hover:border-amber-500/40"
-                  >
-                    <ClipboardCopy className="h-3.5 w-3.5" />
-                    {copiedId === "listing-full" ? "Copié" : "Copier fiche complète"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void flashCopy("listing-title", listingPacket.title)}
-                    className="rounded-lg border border-neutral-800 px-3 py-2 text-xs text-neutral-400 hover:text-white"
-                  >
-                    Copier titre
-                  </button>
-                </div>
                 <p className="mt-2 text-[11px] text-neutral-500">
                   Oria ne publie pas sur Facebook — copie / upload manuel uniquement.
                 </p>

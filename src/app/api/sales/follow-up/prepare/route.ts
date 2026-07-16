@@ -11,8 +11,11 @@ import { findVehicleInSnapshot } from "@/server/inventory/inventory-store";
 const bodySchema = z.object({
   leadId: z.string().min(1),
   channel: z.enum(["sms", "email"]),
-  lane: z.enum(["reply_assist", "follow_up"]).optional(),
+  lane: z
+    .enum(["reply_assist", "follow_up", "appointment_invite", "appointment_confirm"])
+    .optional(),
   vehicleHint: z.string().optional(),
+  appointmentSlotHint: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -48,6 +51,7 @@ export async function POST(request: Request) {
     channel: parsed.data.channel,
     lane: parsed.data.lane,
     vehicleHint,
+    appointmentSlotHint: parsed.data.appointmentSlotHint,
     nowIso,
   });
 

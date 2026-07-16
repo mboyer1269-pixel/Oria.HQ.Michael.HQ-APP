@@ -70,6 +70,53 @@ export function detectIntent(message: string): JorisIntent {
     return "governance.audit";
   }
 
+  // Marketing / prospection packs (prepare-only) — before Marketplace fiche
+  const marketingSignals = [
+    "pack marketing",
+    "contenu marketing",
+    "post facebook",
+    "post fb",
+    "script reel",
+    "script vidéo",
+    "script video",
+    "prospection",
+    "sms prospection",
+    "pack contenu",
+    "copie facebook",
+    "texte facebook",
+    "annonce facebook page",
+    "calendrier marketing",
+    "calendrier contenu",
+    "plan marketing",
+  ];
+  if (marketingSignals.some((s) => lower.includes(s))) {
+    return "sales.marketing.prepare";
+  }
+
+  // Dealership livre de RDV — before personal calendar.book
+  const livreSignals = [
+    "livre de rdv",
+    "livre de rendez-vous",
+    "livre rdv",
+    "mon livre",
+    "le livre",
+    "file d'essais",
+    "file d essais",
+    "créneau essai",
+    "creneau essai",
+    "réserver un essai",
+    "reserver un essai",
+    "rdv client",
+    "rendez-vous client",
+    "rendez vous client",
+    "essai routier",
+    "planifier un essai",
+    "planifie un essai",
+  ];
+  if (livreSignals.some((s) => lower.includes(s))) {
+    return "sales.appointment.livre";
+  }
+
   // Inventory debrief + market comps (AutoTrader) — before Marketplace fiche
   const inventoryMarketSignals = [
     "débrief",

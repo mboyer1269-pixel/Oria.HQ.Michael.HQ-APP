@@ -78,6 +78,29 @@ test("sales lead bank scoring + drafts", async (t) => {
     const queue = buildMorningQueue([warm, hot], NOW);
     assert.equal(queue[0].lead.leadId, "lead_mkt");
     assert.equal(queue[0].due, true);
+    assert.equal(queue[0].livreHint, "needs_slot");
+  });
+
+  await t.test("livre context boosts today's appointments to the front", () => {
+    const withAppt = sampleLead({
+      leadId: "lead_appt",
+      source: "web_form",
+      nextFollowUpAt: "2026-07-12T12:00:00.000Z",
+      stage: "appointment_set",
+    });
+    const needsSlot = sampleLead({
+      leadId: "lead_gap",
+      source: "marketplace_message",
+      nextFollowUpAt: "2026-07-11T09:00:00.000Z",
+    });
+    const livreByLeadId = new Map([
+      ["lead_appt", { hasAppointmentToday: true, hasUpcomingAppointment: true }],
+      ["lead_gap", { hasAppointmentToday: false, hasUpcomingAppointment: false }],
+    ]);
+    const queue = buildMorningQueue([needsSlot, withAppt], NOW, { livreByLeadId });
+    assert.equal(queue[0].lead.leadId, "lead_appt");
+    assert.equal(queue[0].livreHint, "today_appt");
+    assert.equal(queue[1].livreHint, "needs_slot");
   });
 
   await t.test("prepare follow-up draft is manual-send only", () => {

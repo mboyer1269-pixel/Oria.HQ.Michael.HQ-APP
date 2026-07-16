@@ -75,6 +75,12 @@ const priorityAndAccentCases = [
   { message: "plus-value pour mon inventaire vs 2023 Hyundai Tucson", expected: "inventory.market.brief" },
   { message: "explique-moi le Trax 2026", expected: "inventory.market.brief" },
   { message: "formation modèle Terrain", expected: "inventory.market.brief" },
+  { message: "montre mon livre de RDV", expected: "sales.appointment.livre" },
+  { message: "réserver un essai pour Marie", expected: "sales.appointment.livre" },
+  { message: "pack marketing pour le stock", expected: "sales.marketing.prepare" },
+  { message: "prépare un post facebook", expected: "sales.marketing.prepare" },
+  { message: "SMS prospection pour remplir le livre", expected: "sales.marketing.prepare" },
+  { message: "calendrier marketing 7 jours", expected: "sales.marketing.prepare" },
 ];
 
 for (const { message, expected } of priorityAndAccentCases) {
