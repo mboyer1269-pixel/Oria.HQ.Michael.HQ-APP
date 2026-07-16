@@ -1,6 +1,7 @@
 // Joris intent: marketing + prospecting pack (prepare-only).
 
 import { buildSalesMarketingPack } from "@/features/sales/marketing-content-pack";
+import { buildSalesContentCalendar } from "@/features/sales/sales-content-calendar";
 import {
   findVehicleInSnapshot,
   getInventorySnapshot,
@@ -14,20 +15,43 @@ export async function handleSalesMarketingPrepareIntent(input: {
 }): Promise<{ summary: string }> {
   const nowIso = new Date().toISOString();
   let snapshot = getInventorySnapshot(input.workspaceId);
+  const lower = input.message.toLowerCase();
+  const wantsCalendar =
+    lower.includes("calendrier") || lower.includes("plan marketing") || lower.includes("7 jours");
 
   if (wantsInventorySync(input.message) || !snapshot || snapshot.vehicles.length === 0) {
     const sync = await syncPublicInventory({
       workspaceId: input.workspaceId,
       nowIso,
     });
-    if (!sync.ok) {
+    if (!sync.ok && wantsCalendar === false && !snapshot) {
       return {
         summary:
           `Pack marketing bloqué : inventaire indisponible (${sync.errors.join("; ")}). ` +
           `Sync le site depuis le Sales Desk, puis redemande le pack.`,
       };
     }
-    snapshot = getInventorySnapshot(input.workspaceId);
+    snapshot = getInventorySnapshot(input.workspaceId) ?? snapshot;
+  }
+
+  if (wantsCalendar) {
+    const calendar = buildSalesContentCalendar({
+      workspaceId: input.workspaceId,
+      vehicles: snapshot?.vehicles ?? [],
+      nowIso,
+    });
+    const lines = [
+      "## Calendrier marketing 7 jours (prepare-only)",
+      "",
+      ...calendar.slots.map(
+        (s) =>
+          `**${s.dayLabelFr}** — ${s.titleFr}\n${s.briefFr}` +
+          (s.vehicleLabel ? `\nVéhicule : ${s.vehicleLabel}` : ""),
+      ),
+      "",
+      ...calendar.operatorNotesFr.map((n) => `• ${n}`),
+    ];
+    return { summary: lines.join("\n\n") };
   }
 
   const stockRef = extractStockRefFromMessage(input.message);
@@ -78,7 +102,7 @@ export async function handleSalesMarketingPrepareIntent(input: {
       : null,
     "",
     "Prepare-only : tu publies / tu envoies. Oria ne poste pas et n'envoie pas. " +
-      "Sales Desk → Marketing pour tout copier d'un clic.",
+      "Sales Desk → Marketing / Calendrier pour tout copier.",
   ];
 
   return { summary: lines.filter((l) => l !== null).join("\n") };

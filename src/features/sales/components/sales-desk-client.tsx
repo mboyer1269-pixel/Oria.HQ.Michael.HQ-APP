@@ -37,6 +37,8 @@ import { ModelKnowledgePanel } from "@/features/sales/components/model-knowledge
 import { VehicleMakeModelSelects } from "@/features/sales/components/vehicle-make-model-selects";
 import { AppointmentLivrePanel } from "@/features/sales/components/appointment-livre-panel";
 import { MarketingPackPanel } from "@/features/sales/components/marketing-pack-panel";
+import { ContentCalendarPanel } from "@/features/sales/components/content-calendar-panel";
+import type { SalesContentCalendar } from "@/features/sales/sales-content-calendar";
 import type { VehicleSelection } from "@/features/inventory/vehicle-catalog";
 import { buildMakeId, buildModelId } from "@/features/inventory/vehicle-catalog";
 
@@ -61,6 +63,7 @@ export type SalesDeskQueueRow = {
   lead: SalesLead;
   score: number;
   due: boolean;
+  livreHint?: "today_appt" | "needs_slot" | "none";
 };
 
 export type SalesDeskProps = {
@@ -68,6 +71,8 @@ export type SalesDeskProps = {
   vehicles: VehicleStock[];
   listings: MarketplaceListingPacket[];
   livre: LivreDay[];
+  weekAppointmentCount: number;
+  contentCalendar: SalesContentCalendar | null;
   dueCount: number;
   activeLeadCount: number;
 };
@@ -148,6 +153,8 @@ export function SalesDeskClient({
   vehicles: initialVehicles,
   listings: initialListings,
   livre: initialLivre,
+  weekAppointmentCount,
+  contentCalendar,
   dueCount,
   activeLeadCount,
 }: SalesDeskProps) {
@@ -491,7 +498,7 @@ export function SalesDeskClient({
   }
 
   function LeadRow({ row }: { row: SalesDeskQueueRow }) {
-    const { lead, score, due } = row;
+    const { lead, score, due, livreHint } = row;
     const draft = draftByLead[lead.leadId];
     const expanded = expandedLeadId === lead.leadId;
     const busy = busyLeadId === lead.leadId;
@@ -502,6 +509,16 @@ export function SalesDeskClient({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="truncate text-sm font-semibold text-white">{lead.fullName}</p>
+              {livreHint === "today_appt" ? (
+                <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-200">
+                  Essai aujourd&apos;hui
+                </span>
+              ) : null}
+              {livreHint === "needs_slot" ? (
+                <span className="rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fuchsia-200">
+                  Sans RDV
+                </span>
+              ) : null}
               {due ? (
                 <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
                   Dû
@@ -586,10 +603,14 @@ export function SalesDeskClient({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-300/80">Relances dues</p>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-rose-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-rose-300/80">Relances dues</p>
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{dueCount}</p>
+        </div>
+        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-300/80">Créneaux livre</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{weekAppointmentCount}</p>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-sky-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-sky-300/80">Leads actifs</p>
@@ -622,6 +643,8 @@ export function SalesDeskClient({
         onFlashCopy={flashCopy}
         copiedId={copiedId}
       />
+
+      <ContentCalendarPanel initialCalendar={contentCalendar} />
 
       {/* HERO — Visual inventory (what sync feeds) */}
       <section className="rounded-2xl border border-white/[0.08] bg-gradient-to-b from-sky-500/[0.07] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-5">

@@ -144,3 +144,29 @@ test("livre + marketing adjoint: schedule → SMS → pack", async (t) => {
     assert.ok(pack.videoScript.scenes.length >= 2);
   });
 });
+
+test("7-day content calendar includes livre_fill day", async () => {
+  const calMod = await jiti.import(
+    path.join(projectRoot, "src/features/sales/sales-content-calendar.ts"),
+  );
+  const calendar = calMod.buildSalesContentCalendar({
+    workspaceId: WS,
+    nowIso: NOW,
+    vehicles: [
+      {
+        stockId: "stk_trax_1",
+        year: 2025,
+        make: "Chevrolet",
+        model: "Trax",
+        condition: "new",
+        priceCad: 28999,
+        photoUrls: ["https://example.com/a.jpg", "https://example.com/b.jpg", "https://example.com/c.jpg"],
+      },
+    ],
+    livreTargetSlots: 5,
+  });
+  assert.equal(calendar.slots.length, 7);
+  assert.ok(calendar.slots.some((s) => s.kind === "livre_fill"));
+  assert.equal(calendar.requiresManualPublish, true);
+  assert.equal(calendar.noExecutionAuthorized, true);
+});

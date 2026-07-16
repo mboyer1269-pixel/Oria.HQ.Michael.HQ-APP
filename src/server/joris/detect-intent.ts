@@ -85,6 +85,9 @@ export function detectIntent(message: string): JorisIntent {
     "copie facebook",
     "texte facebook",
     "annonce facebook page",
+    "calendrier marketing",
+    "calendrier contenu",
+    "plan marketing",
   ];
   if (marketingSignals.some((s) => lower.includes(s))) {
     return "sales.marketing.prepare";

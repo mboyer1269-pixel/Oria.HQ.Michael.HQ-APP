@@ -160,10 +160,24 @@ export function normalizeEmail(email: string | undefined): string | undefined {
  * +2 precise stock
  * +2 consent express
  * +1 follow-up due
+ * +4 appointment today (livre)
+ * +2 needs livre slot (hot lead without upcoming RDV)
+ * +1 appointment_set
  * −2 consent unknown
  * −5 lost
  */
-export function scoreSalesLead(lead: SalesLead, nowIso: string): number {
+export type LivreScoreContext = {
+  /** Lead has an appointment starting today (America/Toronto day). */
+  hasAppointmentToday?: boolean;
+  /** Lead already has a future scheduled/confirmed appointment. */
+  hasUpcomingAppointment?: boolean;
+};
+
+export function scoreSalesLead(
+  lead: SalesLead,
+  nowIso: string,
+  livre?: LivreScoreContext,
+): number {
   let score = 0;
   if (
     lead.source === "marketplace_message" ||
@@ -177,26 +191,70 @@ export function scoreSalesLead(lead: SalesLead, nowIso: string): number {
   if (lead.consentBasis === "unknown") score -= 2;
   if (lead.stage === "lost") score -= 5;
   if (lead.nextFollowUpAt && lead.nextFollowUpAt <= nowIso) score += 1;
+  if (livre?.hasAppointmentToday) score += 4;
+  if (
+    !livre?.hasUpcomingAppointment &&
+    (lead.stage === "new" ||
+      lead.stage === "contacted" ||
+      lead.stage === "qualified" ||
+      lead.stage === "nurture")
+  ) {
+    score += 2;
+  }
+  if (lead.stage === "appointment_set") score += 1;
   return score;
 }
+
+export type LivreQueueHint = "today_appt" | "needs_slot" | "none";
 
 export type MorningQueueItem = {
   lead: SalesLead;
   score: number;
   due: boolean;
+  /** Adjoint ventes : priorité livre de RDV. */
+  livreHint: LivreQueueHint;
+};
+
+export type BuildMorningQueueOptions = {
+  /** leadId → livre context for scoring / hints. */
+  livreByLeadId?: ReadonlyMap<string, LivreScoreContext>;
 };
 
 /**
  * Morning queue: follow-ups due first, then score desc, then stage urgency.
+ * When livre context is provided, boosts essais du jour and leads without RDV.
  */
-export function buildMorningQueue(leads: readonly SalesLead[], nowIso: string): MorningQueueItem[] {
+export function buildMorningQueue(
+  leads: readonly SalesLead[],
+  nowIso: string,
+  options?: BuildMorningQueueOptions,
+): MorningQueueItem[] {
   const active = leads.filter((l) => l.stage !== "sold" && l.stage !== "lost");
-  const items: MorningQueueItem[] = active.map((lead) => ({
-    lead,
-    score: scoreSalesLead(lead, nowIso),
-    due: Boolean(lead.nextFollowUpAt && lead.nextFollowUpAt <= nowIso),
-  }));
+  const items: MorningQueueItem[] = active.map((lead) => {
+    const livre = options?.livreByLeadId?.get(lead.leadId);
+    let livreHint: LivreQueueHint = "none";
+    if (livre?.hasAppointmentToday) livreHint = "today_appt";
+    else if (
+      !livre?.hasUpcomingAppointment &&
+      (lead.stage === "new" ||
+        lead.stage === "contacted" ||
+        lead.stage === "qualified" ||
+        lead.stage === "nurture")
+    ) {
+      livreHint = "needs_slot";
+    }
+    return {
+      lead,
+      score: scoreSalesLead(lead, nowIso, livre),
+      due: Boolean(lead.nextFollowUpAt && lead.nextFollowUpAt <= nowIso),
+      livreHint,
+    };
+  });
   items.sort((a, b) => {
+    // Essais du jour before everything else
+    const aToday = a.livreHint === "today_appt" ? 1 : 0;
+    const bToday = b.livreHint === "today_appt" ? 1 : 0;
+    if (aToday !== bToday) return bToday - aToday;
     if (a.due !== b.due) return a.due ? -1 : 1;
     if (b.score !== a.score) return b.score - a.score;
     const aNext = a.lead.nextFollowUpAt ?? "9999";

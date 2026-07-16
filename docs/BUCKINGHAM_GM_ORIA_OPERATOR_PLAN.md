@@ -67,6 +67,7 @@ Oria prépare. **Toi** tu closes.
 | `POST` | `/api/marketplace/leads/capture` | Inbound Marketplace → lead bank |
 | `GET`/`POST` | `/api/sales/appointments` | Livre de RDV (schedule / SMS prepare) |
 | `POST` | `/api/sales/marketing/content-pack` | Pack marketing + prospection (prepare-only) |
+| `GET` | `/api/sales/marketing/calendar` | Calendrier contenu 7 jours (prepare-only) |
 
 **Formation modèles (Sales Desk)** : fiches microlearning Chevy/Buick/GMC (must-know, walkaround 3-line story, objections Outaouais). Bouton **Apprendre** sur les neufs.
 
@@ -89,12 +90,14 @@ Persistance : **process-locale** (`persistence: "in_memory"`). Perdu au redémar
 ## 4. Boucle opérateur (jour 1)
 
 1. **Ingest stock** — `POST /api/inventory/snapshot` avec 5–20 véhicules chauds (JSON).  
-2. **Préparer Marketplace** — `POST /api/marketplace/listings` `{ "stockId": "…" }` → copier titre/desc/prix/photos sur FB.  
-3. **Marquer publié** — `{ "action": "mark_published_manual", "packetId": "…" }`.  
-4. **Chaque inbound** — `POST /api/marketplace/leads/capture` avec `packetId` + nom + téléphone.  
-5. **File du matin** — `GET /api/sales/morning-queue`.  
-6. **Relance** — `POST /api/sales/follow-up/prepare` `{ "leadId", "channel": "sms" }` → coller dans Messages.  
-7. **Closer** — `POST /api/sales/outcome` `sold` + `soldStockId` ou `lost` + `lostReason`.
+2. **Calendrier 7 jours** — `GET /api/sales/marketing/calendar` (ou Sales Desk) → plan posts / Reels / jours livre.  
+3. **Préparer Marketplace + pack marketing** — fiches + posts à coller (prepare-only).  
+4. **Marquer publié** — `{ "action": "mark_published_manual", "packetId": "…" }`.  
+5. **Chaque inbound** — `POST /api/marketplace/leads/capture` avec `packetId` + nom + téléphone.  
+6. **Livre de RDV** — `POST /api/sales/appointments` pour bloquer essais ; SMS confirm prepare-only.  
+7. **File du matin** — `GET /api/sales/morning-queue` (essais du jour → due → sans RDV).  
+8. **Relance / invite essai** — `POST /api/sales/follow-up/prepare` (`appointment_invite` pour remplir le livre).  
+9. **Closer** — `POST /api/sales/outcome` `sold` + `soldStockId` ou `lost` + `lostReason`.
 
 ---
 

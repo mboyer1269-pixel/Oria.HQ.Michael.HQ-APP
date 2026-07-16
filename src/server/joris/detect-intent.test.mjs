@@ -80,6 +80,7 @@ const priorityAndAccentCases = [
   { message: "pack marketing pour le stock", expected: "sales.marketing.prepare" },
   { message: "prépare un post facebook", expected: "sales.marketing.prepare" },
   { message: "SMS prospection pour remplir le livre", expected: "sales.marketing.prepare" },
+  { message: "calendrier marketing 7 jours", expected: "sales.marketing.prepare" },
 ];
 
 for (const { message, expected } of priorityAndAccentCases) {
