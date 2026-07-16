@@ -12,8 +12,10 @@ import {
 } from "@/features/hq/components/hq-widget-system";
 import { SalesDeskClient } from "@/features/sales/components/sales-desk-client";
 import { buildMorningQueue } from "@/features/sales/sales-lead";
+import { buildLivre } from "@/features/sales/appointment-book";
 import { getInventorySnapshot } from "@/server/inventory/inventory-store";
 import { listSalesLeads } from "@/server/sales/lead-bank-store";
+import { listAppointments } from "@/server/sales/appointment-book-store";
 import { listMarketplaceListings } from "@/server/marketplace-listings/listing-store";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +36,8 @@ export default async function SalesDeskPage() {
   const queue = buildMorningQueue(leads, nowIso);
   const snapshot = getInventorySnapshot(activeWorkspace.id);
   const listings = listMarketplaceListings(activeWorkspace.id);
+  const appointments = listAppointments(activeWorkspace.id);
+  const livre = buildLivre(appointments, nowIso);
   const dueCount = queue.filter((q) => q.due).length;
   const activeLeadCount = leads.filter((l) => l.stage !== "sold" && l.stage !== "lost").length;
 
@@ -74,6 +78,7 @@ export default async function SalesDeskPage() {
           queue={queue}
           vehicles={snapshot?.vehicles ?? []}
           listings={listings}
+          livre={livre}
           dueCount={dueCount}
           activeLeadCount={activeLeadCount}
         />

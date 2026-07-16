@@ -26,6 +26,7 @@ import type { VehicleStock } from "@/features/inventory/vehicle-stock";
 import type { InventoryDebrief } from "@/features/inventory/inventory-debrief";
 import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
 import type { LeadSource, SalesLead } from "@/features/sales/sales-lead";
+import type { LivreDay } from "@/features/sales/appointment-book";
 import type { MarketplaceListingPacket } from "@/features/marketplace-listings/listing-packet";
 import type { ModelKnowledgeCard } from "@/features/sales/gm-model-knowledge";
 import {
@@ -66,6 +67,7 @@ export type SalesDeskProps = {
   queue: SalesDeskQueueRow[];
   vehicles: VehicleStock[];
   listings: MarketplaceListingPacket[];
+  livre: LivreDay[];
   dueCount: number;
   activeLeadCount: number;
 };
@@ -145,6 +147,7 @@ export function SalesDeskClient({
   queue,
   vehicles: initialVehicles,
   listings: initialListings,
+  livre: initialLivre,
   dueCount,
   activeLeadCount,
 }: SalesDeskProps) {
@@ -607,6 +610,7 @@ export function SalesDeskClient({
 
       <AppointmentLivrePanel
         leads={queueLeads}
+        initialLivre={initialLivre}
         onFlashCopy={flashCopy}
         copiedId={copiedId}
       />

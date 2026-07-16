@@ -81,7 +81,7 @@ export function MarketingPackPanel({
             className="min-w-[12rem] rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-sm text-white"
           >
             {vehicles.length === 0 ? (
-              <option value="">Sync inventaire d'abord</option>
+              <option value="">Sync inventaire d&apos;abord</option>
             ) : (
               vehicles.map((v) => (
                 <option key={v.stockId} value={v.stockId}>

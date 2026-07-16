@@ -216,16 +216,20 @@ export function buildSalesMarketingPack(input: BuildMarketingPackInput): SalesMa
       },
       {
         timecode: "3-10s",
-        shot: "Walkaround latéral + intérieur tableau de bord",
+        shot: walkaround[0]?.zone
+          ? `Walkaround ${walkaround[0].zone}`
+          : "Walkaround latéral + intérieur tableau de bord",
         voiceoverFr:
-          walkaround[0] ??
+          walkaround[0]?.talk ??
           angles[0] ??
           `Conçu pour le quotidien Outaouais — pratique, fiable, prêt à partir.`,
       },
       {
         timecode: "10-18s",
-        shot: "Détail clé (hayon / écran / hayon électrique) puis CTA face caméra",
-        voiceoverFr: `Passe nous voir à Buckingham GM — on te réserve un essai dans le livre cette semaine.`,
+        shot: "Détail clé puis CTA face caméra",
+        voiceoverFr:
+          walkaround[1]?.talk ??
+          `Passe nous voir à Buckingham GM — on te réserve un essai dans le livre cette semaine.`,
       },
     ],
     ctaFr: "Message privé → on bloque ton créneau",

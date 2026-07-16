@@ -2,9 +2,9 @@
 
 // Livre de RDV panel — schedule slots + prepare confirmation SMS.
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, ClipboardCopy, Loader2, Plus } from "lucide-react";
+import { BookOpen, ClipboardCopy, Loader2, Plus, RefreshCw } from "lucide-react";
 import type { LivreDay, SalesAppointment } from "@/features/sales/appointment-book";
 import {
   formatAppointmentSlotFr,
@@ -14,52 +14,55 @@ import type { SalesLead } from "@/features/sales/sales-lead";
 
 type Props = {
   leads: SalesLead[];
+  initialLivre: LivreDay[];
   onFlashCopy: (key: string, text: string) => Promise<void>;
   copiedId: string | null;
 };
 
-export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
+export function AppointmentLivrePanel({
+  leads,
+  initialLivre,
+  onFlashCopy,
+  copiedId,
+}: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const [livre, setLivre] = useState<LivreDay[]>([]);
-  const [loading, setLoading] = useState(true);
+  const activeLeads = leads.filter((l) => l.stage !== "sold" && l.stage !== "lost");
+  const [livre, setLivre] = useState<LivreDay[]>(initialLivre);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [ok, setOk] = useState(true);
   const [smsDraft, setSmsDraft] = useState<{ to: string; body: string } | null>(null);
-  const [form, setForm] = useState({
-    leadId: leads[0]?.leadId ?? "",
-    startsAtLocal: "",
-    purpose: "test_drive",
-    notes: "",
-  });
+  const [leadId, setLeadId] = useState(activeLeads[0]?.leadId ?? "");
+  const [startsAtLocal, setStartsAtLocal] = useState("");
+  const [purpose, setPurpose] = useState("test_drive");
+  const [notes, setNotes] = useState("");
+
+  const resolvedLeadId = leadId || activeLeads[0]?.leadId || "";
 
   async function refresh() {
-    setLoading(true);
+    setBusy(true);
     try {
       const res = await fetch("/api/sales/appointments");
       const payload = await res.json().catch(() => null);
       if (res.ok && Array.isArray(payload?.livre)) {
         setLivre(payload.livre as LivreDay[]);
+        setOk(true);
+        setMsg("Livre rafraîchi.");
+      } else {
+        setOk(false);
+        setMsg("Impossible de recharger le livre.");
       }
+    } catch (err) {
+      setOk(false);
+      setMsg(err instanceof Error ? err.message : "Refresh échoué.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
-  useEffect(() => {
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once
-  }, []);
-
-  useEffect(() => {
-    if (!form.leadId && leads[0]?.leadId) {
-      setForm((f) => ({ ...f, leadId: leads[0]!.leadId }));
-    }
-  }, [leads, form.leadId]);
-
   async function schedule() {
-    if (!form.leadId || !form.startsAtLocal) {
+    if (!resolvedLeadId || !startsAtLocal) {
       setOk(false);
       setMsg("Choisis un lead et un créneau.");
       return;
@@ -67,15 +70,15 @@ export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
     setBusy(true);
     setMsg("");
     try {
-      const startsAt = new Date(form.startsAtLocal).toISOString();
+      const startsAt = new Date(startsAtLocal).toISOString();
       const res = await fetch("/api/sales/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          leadId: form.leadId,
+          leadId: resolvedLeadId,
           startsAt,
-          purpose: form.purpose,
-          notes: form.notes,
+          purpose,
+          notes,
         }),
       });
       const payload = await res.json().catch(() => null);
@@ -86,7 +89,11 @@ export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
       }
       setOk(true);
       setMsg("Créneau ajouté au livre. Prépare le SMS confirm.");
-      await refresh();
+      const livreRes = await fetch("/api/sales/appointments");
+      const livrePayload = await livreRes.json().catch(() => null);
+      if (livreRes.ok && Array.isArray(livrePayload?.livre)) {
+        setLivre(livrePayload.livre as LivreDay[]);
+      }
       startTransition(() => router.refresh());
     } catch (err) {
       setOk(false);
@@ -125,8 +132,6 @@ export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
     }
   }
 
-  const activeLeads = leads.filter((l) => l.stage !== "sold" && l.stage !== "lost");
-
   return (
     <section className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-4 sm:p-5">
       <div className="flex items-start gap-3">
@@ -140,6 +145,15 @@ export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
             envoies.
           </p>
         </div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void refresh()}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-300 hover:border-amber-500/40"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          Rafraîchir
+        </button>
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1.1fr]">
@@ -150,8 +164,8 @@ export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
           <label className="mt-2 block text-[11px] text-neutral-500">
             Lead
             <select
-              value={form.leadId}
-              onChange={(e) => setForm((f) => ({ ...f, leadId: e.target.value }))}
+              value={resolvedLeadId}
+              onChange={(e) => setLeadId(e.target.value)}
               className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-sm text-white"
             >
               {activeLeads.length === 0 ? (
@@ -170,16 +184,16 @@ export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
             Créneau
             <input
               type="datetime-local"
-              value={form.startsAtLocal}
-              onChange={(e) => setForm((f) => ({ ...f, startsAtLocal: e.target.value }))}
+              value={startsAtLocal}
+              onChange={(e) => setStartsAtLocal(e.target.value)}
               className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-sm text-white"
             />
           </label>
           <label className="mt-2 block text-[11px] text-neutral-500">
             Type
             <select
-              value={form.purpose}
-              onChange={(e) => setForm((f) => ({ ...f, purpose: e.target.value }))}
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
               className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-sm text-white"
             >
               <option value="test_drive">Essai routier</option>
@@ -190,9 +204,18 @@ export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
               <option value="other">Autre</option>
             </select>
           </label>
+          <label className="mt-2 block text-[11px] text-neutral-500">
+            Notes
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-sm text-white"
+              placeholder="Optionnel"
+            />
+          </label>
           <button
             type="button"
-            disabled={busy || !form.leadId}
+            disabled={busy || !resolvedLeadId}
             onClick={() => void schedule()}
             className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 text-sm font-bold text-neutral-950 hover:bg-amber-400 disabled:opacity-40"
           >
@@ -205,9 +228,7 @@ export function AppointmentLivrePanel({ leads, onFlashCopy, copiedId }: Props) {
           <p className="text-[11px] font-bold uppercase tracking-wide text-amber-300/80">
             Semaine (America/Toronto)
           </p>
-          {loading ? (
-            <p className="mt-3 text-xs text-neutral-500">Chargement…</p>
-          ) : livre.every((d) => d.appointments.length === 0) ? (
+          {livre.every((d) => d.appointments.length === 0) ? (
             <p className="mt-3 text-xs leading-5 text-neutral-500">
               Livre vide. Objectif adjoint : 3–5 essais planifiés cette semaine.
             </p>

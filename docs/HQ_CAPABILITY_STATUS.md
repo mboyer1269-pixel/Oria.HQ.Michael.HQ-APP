@@ -29,6 +29,8 @@
 | Sales lead bank + morning queue | **shadow** | `/hq/sales` + `/api/sales/leads` | Sales Desk UI + in-memory APIs |
 | Marketplace listing → lead capture | **shadow** | `/hq/sales` + `/api/marketplace/listings` | prepare + capture (manual publish) |
 | Dealership inventory snapshot | **shadow** | `/hq/sales` + `/api/inventory/sync` | Sync site + manual JSON |
+| Livre de RDV (appointment book) | **shadow** | `/hq/sales` + `/api/sales/appointments` | schedule + SMS prepare-only |
+| Marketing + prospection pack | **shadow** | `/hq/sales` + content-pack API | FB / Marketplace / SMS / Reel prepare-only |
 | Marketplace listing via Joris | **shadow** | chat intent `marketplace.listing.prepare` | prepare-only fiche from stock # |
 
 ## Comment ce registre reste honnête
