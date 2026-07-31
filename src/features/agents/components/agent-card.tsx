@@ -1,7 +1,9 @@
 import {
   Bot,
+  ClipboardCheck,
   Eye,
   Hammer,
+  Headset,
   Lock,
   Megaphone,
   NotebookPen,
@@ -21,6 +23,8 @@ const ROLE_ICONS: Record<AgentRoleId, React.ComponentType<{ className?: string }
   auditor: ShieldAlert,
   memory: NotebookPen,
   money: TrendingUp,
+  support: Headset,
+  quality: ClipboardCheck,
 };
 
 const STATUS_STYLES: Record<AgentStatus, { badge: string; dot: string; label: string }> = {

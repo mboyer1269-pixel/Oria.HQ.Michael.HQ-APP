@@ -3,13 +3,25 @@ import type { WorkspaceConfig } from "@/core/workspaces/types";
 import { MICHAEL_HQ_WORKSPACE_CONFIG } from "@/config/workspaces/michael-hq.config";
 
 /**
- * The active workspace config. The core registry is generic -- all
- * workspace-specific proper nouns live in the config file, not here.
- *
- * Phase 7: replace this single-config constant with a map or DB resolver
- * when multiple workspaces are supported.
+ * Registered workspace configs, default first. The core registry is generic --
+ * all workspace-specific proper nouns live in the config files, not here.
+ * A DB-backed resolver (SaaS tenancy, docs/SAAS_TRANSFORMATION.md phase S2)
+ * will replace this static list; callers must go through the resolver
+ * functions below, never reach into the list directly.
  */
-const ACTIVE_WORKSPACE_CONFIG: WorkspaceConfig = MICHAEL_HQ_WORKSPACE_CONFIG;
+const WORKSPACE_CONFIGS: readonly WorkspaceConfig[] = [MICHAEL_HQ_WORKSPACE_CONFIG];
+
+const ACTIVE_WORKSPACE_CONFIG: WorkspaceConfig = WORKSPACE_CONFIGS[0];
+
+/** All registered workspace configs, default first. */
+export function listWorkspaceConfigs(): readonly WorkspaceConfig[] {
+  return WORKSPACE_CONFIGS;
+}
+
+/** Resolve a workspace config by slug; falls back to the default config. */
+export function getWorkspaceConfigBySlug(slug: string): WorkspaceConfig {
+  return WORKSPACE_CONFIGS.find((config) => config.slug === slug) ?? ACTIVE_WORKSPACE_CONFIG;
+}
 
 export const DEFAULT_WORKSPACE_SLUG = ACTIVE_WORKSPACE_CONFIG.slug;
 export const DEFAULT_WORKSPACE_MODE_ID = ACTIVE_WORKSPACE_CONFIG.defaultModeId;

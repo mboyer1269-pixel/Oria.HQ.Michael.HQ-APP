@@ -509,7 +509,9 @@ export type AgentRoleId =
   | "memory"
   | "money"
   | "builder"
-  | "closer";
+  | "closer"
+  | "support"
+  | "quality";
 
 /** Venture context an agent is scoped to. */
 export type AgentVenture = "hq" | "suivia" | "mcl" | "personal" | "global";

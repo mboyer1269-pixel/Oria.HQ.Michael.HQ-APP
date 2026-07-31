@@ -113,6 +113,16 @@ const ROLE_SUCCESS_METRICS: Record<AgentRoleId, string[]> = {
     "pipeline_followup_readiness",
     "approval_safe_outreach_quality",
   ],
+  support: [
+    "ticket_triage_latency",
+    "reply_draft_approval_rate",
+    "faq_deflection_rate",
+  ],
+  quality: [
+    "release_gate_coverage",
+    "defect_escape_rate",
+    "review_turnaround_time",
+  ],
 };
 
 function unique<T>(items: T[]): T[] {

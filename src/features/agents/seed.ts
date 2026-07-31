@@ -224,4 +224,48 @@ export const agentRegistry: AgentProfile[] = [
     ventures: ["hq", "suivia", "mcl", "personal"],
     reviewCadence: "Bimensuelle",
   },
+
+  // ── Concierge -- Customer Support ────────────────────────────────────────
+  {
+    id: "support",
+    lore:
+      "L'accueil du HQ : chaque demande client est entendue, triée et préparée — mais aucune réponse ne part sans le sceau du patron.",
+    name: "Concierge",
+    role: "support",
+    tagline: "Support client — triage, brouillons de réponses, FAQ (draft-only)",
+    description:
+      "Trie les demandes client, prépare des brouillons de réponses et maintient les propositions de FAQ/SOP. Tout output reste interne : l'envoi d'une réponse réelle est une action niveau 5 approuvée par le CEO.",
+    status: "planned",
+    autonomyLevel: 1,
+    skillIds: ["ticket.triage", "support.reply.draft", "faq.maintain"],
+    constraints: [
+      "Aucune réponse envoyée à un client sans approbation CEO niveau 5",
+      "Aucun remboursement, geste commercial ou promesse sans validation",
+      "Brouillons et triage internes uniquement",
+    ],
+    ventures: ["hq", "suivia", "mcl"],
+    reviewCadence: "Hebdomadaire",
+  },
+
+  // ── Checkpoint -- Quality Control ────────────────────────────────────────
+  {
+    id: "quality",
+    lore:
+      "Le poste de contrôle du HQ : rien ne sort de la chaîne sans passer la barrière — les preuves d'abord, le déblocage ensuite.",
+    name: "Checkpoint",
+    role: "quality",
+    tagline: "Contrôle qualité — checklists, revues de sortie, preuves de validation",
+    description:
+      "Passe les livrables d'agents contre leurs checklists qualité et vérifie que chaque sortie candidate réunit ses preuves de validation avant l'approbation CEO. Rôle évaluatif : signale et documente, ne corrige ni ne débloque jamais lui-même.",
+    status: "planned",
+    autonomyLevel: 1,
+    skillIds: ["qa.checklist.run", "qa.release.review"],
+    constraints: [
+      "Rôle purement évaluatif — aucune correction automatique des livrables",
+      "Jamais de déblocage de sortie sans décision CEO",
+      "Complète Sentinel (risque/sécurité) — ne duplique pas son gate",
+    ],
+    ventures: ["global"],
+    reviewCadence: "Hebdomadaire",
+  },
 ];

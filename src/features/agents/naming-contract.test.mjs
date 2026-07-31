@@ -28,6 +28,11 @@ const FROZEN_AGENT_IDS = [
   "closer",
   "marketing",
   "inventor",
+  // SaaS roster completion (docs/SAAS_TRANSFORMATION.md, phase S1): the
+  // customer-support and quality-control modules. Additions extend this
+  // frozen list; existing ids still never rename.
+  "support",
+  "quality",
 ];
 
 const RETIRED_MYTHOLOGICAL_NAMES = [
