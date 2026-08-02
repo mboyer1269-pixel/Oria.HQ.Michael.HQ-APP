@@ -214,6 +214,7 @@ export const agentRegistry: AgentProfile[] = [
       "concept.generate",
       "market.signal.read",
       "spec.draft",
+      "venture.suggest",
     ],
     constraints: [
       "Zone verte : tout output reste interne",

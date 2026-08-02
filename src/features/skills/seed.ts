@@ -117,6 +117,25 @@ export const skillsCatalog: SkillProfile[] = [
     testsRequired: ["Produit un rapport interne — aucune publication"],
     outputConstraint: "Rapport interne — aucune publication",
   },
+  {
+    id: "opportunity.score",
+    label: "Opportunity Score",
+    category: "marketing",
+    description:
+      "Score une opportunité (revenu potentiel, coût, délai de validation, différenciation) et recommande go/no-go/watch.",
+    status: "planned",
+    autonomyLevel: 1,
+    assignedRoles: ["scout"],
+    inputs: [{ name: "opportunity", type: "Opportunity", required: true }],
+    outputs: [{ name: "score", type: "OpportunityScore", required: true }],
+    sideEffects: "none",
+    canWriteDB: false,
+    canTriggerExternal: false,
+    requiresHumanApproval: false,
+    logsRequired: ["result"],
+    testsRequired: ["Grille de scoring constante — recommandation interne seulement"],
+    outputConstraint: "Score interne — aucune décision automatique de lancement",
+  },
 
   // ── Briefings ────────────────────────────────────────────────────────────
   {
