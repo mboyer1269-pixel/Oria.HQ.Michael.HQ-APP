@@ -134,13 +134,15 @@ This is the spine that lets HQ actually *operate* ventures. The design keeps
 
 The intent → approve → reject loop and the n8n tool are **implemented and
 verified against real n8n 2.26.6 in dry-run**. Migration `0024`
-(`agent_execution_intents`) is **drafted and preflighted**; its live-apply
-state is **not inferable from this repo — CEO confirmation required** (no
-in-repo apply note or post-apply verification artifact exists for 0024).
-Treat it as not applied until confirmed. The apply step is gated behind an
-explicit CEO GO — runbook `docs/runbooks/0024-execution-intents-live-apply.md`
-(lands via PR #316, not yet merged). Until confirmed, intents persist via the
-local/in-memory fallback in development.
+(`agent_execution_intents`) is **applied and verified on the live `Oria.hq`
+project**: applied 2026-06-19 (version `20260619022503`, with 0025
+`security_hardening`), formally verified 2026-08-04 on explicit CEO GO —
+every check of `0024_agent_execution_intents_verify.sql` matches Expected
+(see `docs/runbooks/0024-live-verification-2026-08-04.md`). The table holds
+0 rows: durable intent persistence is ready but the rail has never dispatched
+live. What remains is execution config only: the n8n workflow import + the
+`N8N_WEBHOOK_URL` / `N8N_SECRET` / `AGENT_WEBHOOK_SIGNING_SECRET` secrets
+(Voie B of `docs/runbooks/MOVE1_RAIL_GO_LIVE.md`).
 
 **This is the #1 lever for "launch ventures that become profitable fast":**
 making the rail live end-to-end (apply 0024 → real dispatch → ledger) turns the
