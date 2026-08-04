@@ -16,8 +16,8 @@
 |---|---|
 | LIVE | 430 |
 | TEST_ONLY | 9 |
-| INCUBATION | 52 |
-| **Total source** | **491** |
+| INCUBATION | 53 |
+| **Total source** | **492** |
 
 ## Incubation by area (built, not wired)
 
@@ -30,6 +30,7 @@
 | server/ventures | 4 |
 | server/missions | 3 |
 | server/arena | 2 |
+| core/workspaces | 1 |
 | features/agents | 1 |
 | features/hq | 1 |
 | features/outbound | 1 |
@@ -44,6 +45,7 @@
 
 These are healthy to keep — they are tested scaffolding. But nothing in the running product depends on them yet. Wire them to a route/page to graduate them to LIVE.
 
+- `src/core/workspaces/membership.ts`
 - `src/features/agents/agent-approval-persistence-read-models.ts`
 - `src/features/cockpit/components/agent-approval-preview-panel.tsx`
 - `src/features/cockpit/components/cockpit-overview.tsx`
