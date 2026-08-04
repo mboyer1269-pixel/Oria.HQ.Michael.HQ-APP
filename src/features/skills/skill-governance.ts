@@ -30,6 +30,8 @@ const KNOWN_AGENT_ROLES: readonly AgentRoleId[] = [
   "money",
   "builder",
   "closer",
+  "support",
+  "quality",
 ];
 
 const KNOWN_SIDE_EFFECTS: readonly SkillSideEffect[] = [
