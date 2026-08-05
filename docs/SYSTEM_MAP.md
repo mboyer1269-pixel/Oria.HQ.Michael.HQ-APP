@@ -16,8 +16,8 @@
 |---|---|
 | LIVE | 430 |
 | TEST_ONLY | 9 |
-| INCUBATION | 53 |
-| **Total source** | **492** |
+| INCUBATION | 54 |
+| **Total source** | **493** |
 
 ## Incubation by area (built, not wired)
 
@@ -27,7 +27,7 @@
 | features/cockpit | 9 |
 | features/memory | 7 |
 | features/ventures | 7 |
-| server/ventures | 4 |
+| server/ventures | 5 |
 | server/missions | 3 |
 | server/arena | 2 |
 | features/agents | 1 |
@@ -97,3 +97,4 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/ventures/agent-score-snapshot-row-mapping.ts`
 - `src/server/ventures/hermes-prep-tick.ts`
 - `src/server/ventures/snapshot-workspace-agent-scores.ts`
+- `src/server/ventures/venture-score-shadow-runner.ts`
