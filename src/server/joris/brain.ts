@@ -223,10 +223,10 @@ async function handleGovernanceReviewReply(
   // Persist the rendered decision as an audit record (dry-run). This records
   // that a planning decision was made — it authorizes nothing.
   //
-  // A persistence failure must not break the read-only governance response, but
-  // it must never be silent either: an audit trail that fails invisibly is worse
-  // than no audit trail, because it still looks like one. The failure is logged
-  // at error level AND surfaced to the reviewer in the summary below.
+  // A persistence failure preserves the read-only governance response: the
+  // decision still stands. The failure is logged at error level and surfaced to
+  // the reviewer in the summary below, so a decision is never presented as
+  // recorded when it was not.
   let auditPersisted = true;
   try {
     await recordGovernanceDecision(

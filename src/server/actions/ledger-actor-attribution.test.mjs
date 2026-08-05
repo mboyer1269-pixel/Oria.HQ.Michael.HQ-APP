@@ -133,4 +133,32 @@ test("Ledger actor/approver attribution (V7 Phase 0)", async (t) => {
       LedgerEventValidationError,
     );
   });
+
+  await t.test("execution-intent routes attribute from the authenticated session", async () => {
+    // ctx.userId comes from getServerUserContext(), which derives its id from
+    // configuration (MICHAEL_HQ_OWNER_ID) or the dev fallback. Since isOwnerUser()
+    // also authorizes on email, a valid session can carry a different user.id —
+    // attributing from the context would record an identity that never acted.
+    const fs = await import("node:fs/promises");
+    const routes = [
+      "src/app/api/agents/[agentId]/execution-intents/route.ts",
+      "src/app/api/agents/execution-intents/[intentId]/approve/route.ts",
+      "src/app/api/agents/execution-intents/[intentId]/reject/route.ts",
+    ];
+
+    for (const route of routes) {
+      const source = await fs.readFile(path.join(projectRoot, route), "utf8");
+
+      assert.match(
+        source,
+        /getAuthenticatedActorId\(\)/,
+        `${route} must resolve attribution from the authenticated session`,
+      );
+      assert.doesNotMatch(
+        source,
+        /(actorId|approverId):\s*ctx\.userId/,
+        `${route} must not attribute directly from the workspace context`,
+      );
+    }
+  });
 });

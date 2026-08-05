@@ -51,7 +51,11 @@ Companion of the preflight audit: [`0024-execution-intents-preflight.md`](./0024
 6. (Optional) smoke on a disposable clone only — never live.
 7. GO/NO-GO on the verify result; rollback ready if mismatch.
 
-## 4. Exact commands (DO NOT run without the final GO)
+## 4. Exact commands — historical record of the procedure
+
+> These are the commands the apply followed. **Do not re-run §4b/§4d against
+> `Oria.hq`** — the table exists. They remain valid for replay against a new
+> environment.
 
 ### a) Disposable rehearsal (throwaway DB only — never live)
 ```bash
@@ -59,8 +63,12 @@ psql "$DISPOSABLE_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/smoke/0024_agent_execut
 ```
 
 ### b) Confirm target — read-only, no writes
-Preferred via the Supabase MCP: `get_project_url` and `list_migrations`
-(confirm `0024` is **not** present). Or from the dashboard. No SQL is executed.
+Preferred via the Supabase MCP: `get_project_url` and `list_migrations`. No SQL
+is executed.
+
+> **Pre-apply check, now inverted.** This step confirmed `0024` was *absent*.
+> On `Oria.hq` it is now **present** (`20260619022503 agent_execution_intents`),
+> so the same read-only command is today the confirmation that the apply landed.
 
 ### c) Backup
 Dashboard → Database → Backups (PITR), or:
@@ -108,7 +116,11 @@ psql "$LIVE_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0024_agent_executi
   by #314 + the smoke.
 - **Additive apply** (`create table if not exists`): low risk, idempotent.
 
-## 7. GO / NO-GO
+## 7. GO / NO-GO — resolved
+
+**Outcome: GO, applied.** `0024` is live on `Oria.hq` as
+`20260619022503 agent_execution_intents`. The criteria below are kept as the
+decision record and for replay elsewhere.
 
 **Technically READY**: atomic transition code merged, schema audited (exact
 parity, RLS, indexes), verify + revert + smoke in place, CI green on `main`.
@@ -124,6 +136,11 @@ confirmed.
 ---
 
 ## 8. Out of scope of this document
-- Applying 0024 to live (or issuing any apply/SQL command).
-- Touching Supabase live, enabling remote n8n, or any real external action.
+
+*Scope as written before the apply — kept for the record. The first item no
+longer holds: the apply happened.*
+
+- ~~Applying 0024 to live (or issuing any apply/SQL command).~~ **Done.**
+- Touching Supabase live beyond 0024, enabling remote n8n, or any other real
+  external action.
 - Any product/code/migration change, or storing secrets.

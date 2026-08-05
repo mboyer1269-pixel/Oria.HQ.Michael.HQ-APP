@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireOwnerApiSession } from "@/server/auth/owner";
+import { getAuthenticatedActorId, requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { evaluateLiveExecution } from "@/server/runtime/execution-guard";
 import { recordLedgerEvent } from "@/server/actions/ledger-events";
@@ -130,8 +130,9 @@ export async function POST(
     agentId,
     ...(missionId ? { missionId } : {}),
     // Queuing an intent authorizes nothing — it only records who queued it. The
-    // approver is recorded later, on the approve route.
-    actorId: ctx.userId,
+    // approver is recorded later, on the approve route. Attribution comes from
+    // the authenticated session — see getAuthenticatedActorId.
+    actorId: (await getAuthenticatedActorId()) ?? ctx.userId,
     effect: { kind: "runtime_result", operation: "plan", target: "agent_execution_intent" },
     metadata: {
       phase: "eligible_for_approval",

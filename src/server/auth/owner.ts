@@ -53,6 +53,25 @@ export async function getCurrentAuthUser() {
   return user;
 }
 
+/**
+ * The identity to attribute an audited action to: the authenticated user's id.
+ *
+ * Prefer this over the workspace context's `userId` for ledger attribution.
+ * `getServerUserContext()` derives its id from configuration
+ * (`MICHAEL_HQ_OWNER_ID`) or the dev fallback, so it names the *configured*
+ * owner. `isOwnerUser()` also authorizes on email, so a session can be valid
+ * while its Supabase `user.id` differs from the configured id — attributing to
+ * configuration would then record an identity that never acted.
+ *
+ * Returns null when no authenticated session is resolvable (local/dev mode,
+ * where the synthetic single-user identity is the honest answer). Callers decide
+ * what to record in that case.
+ */
+export async function getAuthenticatedActorId(): Promise<string | null> {
+  const user = await getCurrentAuthUser();
+  return user?.id ?? null;
+}
+
 export async function requireOwnerAccess(nextPath = "/hq"): Promise<OwnerAccess> {
   const user = await getCurrentAuthUser();
 

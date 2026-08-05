@@ -20,8 +20,20 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
 
+// Captured so the process-global environment is restored after this file runs.
+const savedEnv = {
+  MICHAEL_HQ_OWNER_ID: process.env.MICHAEL_HQ_OWNER_ID,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+};
 delete process.env.MICHAEL_HQ_OWNER_ID;
 delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+function restoreEnv() {
+  for (const [key, value] of Object.entries(savedEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
 
 test("Joris governance audit-failure surfacing (V7 Phase 0)", async (t) => {
   const { createJiti } = await import("jiti");
@@ -72,8 +84,13 @@ test("Joris governance audit-failure surfacing (V7 Phase 0)", async (t) => {
     clearPersistenceOverride();
   });
 
+  // Leave no process-global state behind for whatever runs next.
   t.after(() => {
     clearPersistenceOverride();
+    resetGovernanceSessionForTests();
+    resetMissionDraftSessionForTests();
+    __clearGovernanceDecisionsForTests();
+    restoreEnv();
   });
 
   async function preview() {

@@ -42,21 +42,20 @@ export type LedgerEventPayload = {
   modelId?: string;
   costMode?: ModelMode;
   /**
-   * Who caused this row to exist — a human user id when the CEO acted directly,
-   * or an agent identity when an autonomous run did.
+   * Identity that caused this row to exist: an authenticated user id, or an
+   * agent identity when no human acted.
    *
-   * Distinct from `agentId`, which names the configured agent a skill belongs to.
-   * `agentId` answers "on whose behalf"; `actorId` answers "who acted". As runs
-   * become autonomous, this is the only field that can attribute an action when
-   * no human was in the loop.
+   * Distinct from `agentId`, which names the configured agent a skill belongs
+   * to — `agentId` answers "on whose behalf", `actorId` answers "who acted".
+   * It is the only field that attributes an action recorded without a human in
+   * the loop.
    */
   actorId?: string;
   /**
-   * Who authorized the action, when an approval gate was crossed. Absent when no
-   * approval was required — its presence is itself the signal that a gate ran.
-   *
-   * Without it, the audit trail cannot answer "who clicked approve" on the
-   * corridors that reach the outside world.
+   * Identity that authorized the action, when an approval gate was crossed.
+   * Absent when no approval was required, so its presence is itself the signal
+   * that a gate ran. Required to attribute an authorization on any path that
+   * produces an external effect.
    */
   approverId?: string;
   effect: {

@@ -54,17 +54,28 @@ test("Cockpit layout owner gate (V7 Phase 0)", async (t) => {
     );
   });
 
-  await t.test("both actions go through the owner gate", async () => {
+  await t.test("each exported action calls the owner gate itself", async () => {
     const source = await import("node:fs/promises").then((fs) =>
       fs.readFile(path.join(__dirname, "cockpit-layout.ts"), "utf8"),
     );
 
-    // Both exported actions must call the owner gate themselves rather than
-    // trusting the caller — the pattern every other feature action follows.
-    const gateCalls = source.match(/requireOwnerAccess\(/g) ?? [];
-    assert.ok(
-      gateCalls.length >= 2,
-      `both server actions must call requireOwnerAccess (found ${gateCalls.length})`,
-    );
+    /** Body of one exported action, up to the next top-level export. */
+    function bodyOf(name) {
+      const start = source.indexOf(`export async function ${name}(`);
+      assert.ok(start >= 0, `${name} must be an exported async function`);
+      const rest = source.slice(start + 1);
+      const nextExport = rest.indexOf("\nexport ");
+      return nextExport === -1 ? rest : rest.slice(0, nextExport);
+    }
+
+    // Scoped per action: a gate call elsewhere in the file must not satisfy the
+    // contract for an action that lacks one.
+    for (const name of ["getCockpitLayout", "saveCockpitLayout"]) {
+      assert.match(
+        bodyOf(name),
+        /requireOwnerAccess\(/,
+        `${name} must call requireOwnerAccess itself rather than trusting its caller`,
+      );
+    }
   });
 });
