@@ -57,6 +57,7 @@ function fullEvidence(overrides = {}) {
 
 function baseInput(evidence) {
   return {
+    proposalId: "prop_test",
     ventureId: "venture_1",
     workspaceId: "workspace_test",
     proposedBy: "agent_analyst",

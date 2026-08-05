@@ -58,6 +58,20 @@ export type EvidenceGateResult = {
 };
 
 export type VentureScoreProposal = {
+  /**
+   * Identity of this proposal, owned by the domain and generated before any
+   * persistence touches it.
+   *
+   * Deliberately NOT the ledger row id: that would couple venture evaluation to
+   * the audit infrastructure, make the identity unknowable until a write
+   * returned, and break the pairing if events were ever replayed or migrated.
+   * The ledger observes this id; it does not issue it.
+   *
+   * It is a CORRELATION key, never a lookup key — retrieval goes by venture and
+   * recency, and this value is what proves the outcome measured *this* proposal
+   * once retrieved.
+   */
+  proposalId: string;
   ventureId: string;
   workspaceId: string;
   /** Identity that produced the proposal. */
@@ -259,6 +273,8 @@ function isIsoTimestamp(value: string): boolean {
  * complete would corrupt the divergence measurement this whole mode exists for.
  */
 export function buildVentureScoreProposal(input: {
+  /** Supplied by the caller — this module stays pure and mints no ids. */
+  proposalId: string;
   ventureId: string;
   workspaceId: string;
   proposedBy: string;
@@ -266,6 +282,7 @@ export function buildVentureScoreProposal(input: {
   evidence: readonly ScoreEvidence[];
 }): BuildProposalResult {
   for (const [field, value] of [
+    ["proposalId", input.proposalId],
     ["ventureId", input.ventureId],
     ["workspaceId", input.workspaceId],
     ["proposedBy", input.proposedBy],
@@ -348,6 +365,7 @@ export function buildVentureScoreProposal(input: {
   return {
     status: "built",
     proposal: {
+      proposalId: input.proposalId,
       ventureId: input.ventureId,
       workspaceId: input.workspaceId,
       proposedBy: input.proposedBy,

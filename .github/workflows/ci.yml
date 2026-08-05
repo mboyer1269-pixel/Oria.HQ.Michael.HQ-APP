@@ -76,3 +76,42 @@ jobs:
 
       - name: Mission persistence not-live guard
         run: npm run mission:guard-not-live
+
+  # Wiring tripwires, deliberately separate from `verify`.
+  #
+  # `*-gap.test.mjs` files assert that something already built is actually
+  # called. They are RED ON PURPOSE while a gap is open and turn green on their
+  # own once the wiring lands — so a red `gap-check` is a debt indicator, not a
+  # broken build.
+  #
+  # Why its own job rather than a step inside `verify`:
+  #   * A step marked continue-on-error produces no status on the pull request.
+  #     The gap would only be visible to someone who opened the run and read the
+  #     log — a signal you have to go looking for is one that stops being found.
+  #   * A separate job surfaces a named check next to a green `verify`, so the
+  #     two signals stay legible and disjoint. `verify` answers "does the app
+  #     build and work"; `gap-check` answers "is anything built but unwired".
+  #   * Jobs run in parallel, so wall-clock is unaffected. The cost is one extra
+  #     `npm ci` in runner minutes, which is proportionate.
+  #
+  # No continue-on-error here: this check is meant to fail while the debt exists.
+  gap-check:
+    name: gap-check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wiring gap check
+        run: npm run test:gaps
