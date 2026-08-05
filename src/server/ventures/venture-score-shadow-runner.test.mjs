@@ -258,7 +258,25 @@ test("Shadow runner — the log mirrors, never acts (V7 Phase 1 step 3)", async 
     );
   });
 
-  await t.test("the ledger effect declares a plan, not a state change", () => {
+  await t.test("the emitted ledger effect declares a plan, not a state change", async () => {
+    // Asserted on the EMITTED event, not on a locally built metadata object:
+    // checking metadata alone would still pass if `operation` changed from
+    // "plan" to something that mutates state.
+    const events = [];
+    await runShadowProposalForVenture(ctx, venture(), {
+      generateJson: generatorReturning(modelReply()),
+      recordEvent: recorder(events),
+      now: () => NOW,
+    });
+
+    assert.deepEqual(events[0].effect, {
+      kind: "db_write",
+      operation: "plan",
+      target: "venture_score_proposal",
+    });
+  });
+
+  await t.test("the emitted metadata carries the proposal identity", () => {
     const parsed = parseShadowEvidence(modelReply());
     const built = buildVentureScoreProposal({
       ventureId: "v1",

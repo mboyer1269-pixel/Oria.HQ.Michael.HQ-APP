@@ -2,27 +2,25 @@
 
 // src/server/ventures/shadow-mode-wiring-gap.test.mjs
 //
-// ⚠️ THIS TEST FAILS ON PURPOSE. It is a tripwire, not a broken test.
+// Wiring tripwire. It fails while a gap is open and passes once the gap closes.
 //
-// Shadow mode has two halves. Both are implemented and tested. NEITHER IS
-// WIRED:
+// Condition asserted: `runShadowScorePass` and `recordShadowOutcome` each have
+// at least one caller in production source. Both are currently uncalled, so
+// both assertions fail. Expected state until the step-4 wiring lands.
 //
-//   * `runShadowScorePass` — produces proposals. Wired by the step-4 trigger.
-//   * `recordShadowOutcome` — records the owner's real decision against a
-//     proposal. Has no home in the step-4 scope as originally written, which is
-//     exactly how it would have been forgotten.
+// Why the condition matters: `runShadowScorePass` produces proposals and
+// `recordShadowOutcome` records the owner's decision against one. Divergence
+// between them is the output shadow mode exists to produce, and a proposal with
+// no matching outcome cannot be paired retroactively — a window where proposals
+// flow without the hook produces data that stays unusable.
 //
-// Divergence between the two is the entire asset of shadow mode. A proposal
-// with no matching outcome is worth nothing, and the pairing cannot be
-// reconstructed after the fact — so if proposals start flowing before this hook
-// exists, that window of data is permanently lost.
+// Detection is behavioural, not hardcoded: the scan reads production source
+// with comments stripped and looks for call sites. It reports green as soon as
+// a real caller exists, with no edit to this file.
 //
-// This test turns green on its own the moment a real caller appears. It is not
-// a hardcoded failure: it scans the source for callers outside the module and
-// outside test files. Wire the hook and it passes.
-//
-// DO NOT DELETE THIS TEST TO GET A GREEN SUITE. Deleting it removes the only
-// mechanical reminder that the measurement half of shadow mode is missing.
+// Removing this file removes the only automated check that the measurement half
+// of shadow mode is unwired. It is expected to be deleted when the gap closes,
+// not to make a suite green.
 
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
@@ -46,7 +44,10 @@ async function collectSourceFiles(dir) {
       continue;
     }
     if (!/\.(ts|tsx)$/.test(entry.name)) continue;
-    if (entry.name.endsWith(".test.ts")) continue;
+    // Both extensions, both conventions. Excluding only *.test.ts would let a
+    // call from a *.test.tsx file satisfy the tripwire while no production
+    // caller exists — a guard that can pass falsely is worse than none.
+    if (/\.(test|spec)\.(ts|tsx)$/.test(entry.name)) continue;
     if (entry.name === DEFINING_MODULE) continue;
     found.push(full);
   }
