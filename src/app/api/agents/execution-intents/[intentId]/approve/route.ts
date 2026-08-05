@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireOwnerApiSession } from "@/server/auth/owner";
+import { getAuthenticatedActorId, requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { evaluateLiveExecution } from "@/server/runtime/execution-guard";
 import { recordLedgerEvent } from "@/server/actions/ledger-events";
@@ -65,6 +65,12 @@ export async function POST(
     requestedMode: "live" as const,
   };
 
+  // Attribution comes from the authenticated session, not the workspace context:
+  // ctx.userId is derived from configuration and can name a different identity
+  // than the session that passed the owner gate. Falls back to ctx.userId only
+  // where no session exists (local/dev), which is the honest identity there.
+  const actorId = (await getAuthenticatedActorId()) ?? ctx.userId;
+
   try {
     const result = await approveAndDispatchExecutionIntent({
       evaluate: () => evaluateLiveExecution(sentinelleInput),
@@ -87,6 +93,9 @@ export async function POST(
           skillId: intent.skillId,
           agentId: intent.agentId,
           ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
+          // The approving session both authorizes and triggers the dispatch.
+          actorId,
+          approverId: actorId,
           effect: { kind: "external_call", operation: "execute", target: "n8n_webhook" },
           metadata: {
             phase: "attempt",
@@ -108,6 +117,8 @@ export async function POST(
           skillId: intent.skillId,
           agentId: intent.agentId,
           ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
+          actorId,
+          approverId: actorId,
           effect: { kind: "runtime_result", operation: "execute", target: "n8n_webhook" },
           metadata: { phase, intentId },
         }),

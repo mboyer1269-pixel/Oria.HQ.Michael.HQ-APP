@@ -16,10 +16,18 @@
 | Oria PR #316 (0024 live-apply runbook) | OPEN, **KEEP** — its runbook is not in #317 | `docs/runbooks/0024-execution-intents-live-apply.md` absent from #317 tree |
 | Oria PR #319 (OodaWager type foundation) | **DRAFT / ON HOLD** until the Autonomy Lines ADR | Hold comment on #319 |
 | Memex Core main | Memory Fabric validated and wired into `check`/`test` | commit `0a5a23b` |
-| Migration 0024 live state | **UNKNOWN** until explicit CEO GO | no in-repo apply artifact |
-| Migration 0025 live state | **UNKNOWN / claimed-by-doc** | `docs/SECURITY_FINDINGS.md` note (2026-06-18, unmerged branch) |
+| Migration 0024 live state | **APPLIED** — `20260619022503 agent_execution_intents` | live `list_migrations` + `list_tables` (RLS on), verified 2026-08-05 |
+| Migration 0025 live state | **APPLIED** — `20260619023056 security_hardening` | live `list_migrations`; `pg_policies` shows the restrictive block-all policies and no `cockpit_layout_all`, verified 2026-08-05 |
 
 Anything this brief proposes that contradicts the table above is wrong; fix the brief, not the table.
+
+> **Live-state note (2026-08-05).** Rows 0024/0025 read **UNKNOWN** until this
+> date; both are now confirmed applied by direct query against the live project,
+> not by document claim. The earlier `docs/SECURITY_FINDINGS.md` note (2026-06-18)
+> was substantially correct — the live migration timestamps are 2026-06-19.
+> The execution-intent rail therefore runs on the **live table**, not the
+> in-memory fallback. Verify live state before trusting any date in this file:
+> a static doc cannot know when a migration was applied out of band.
 
 ## 1. The product (corrected)
 
