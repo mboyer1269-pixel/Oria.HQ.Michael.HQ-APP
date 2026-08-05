@@ -14,9 +14,9 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 430 |
+| LIVE | 434 |
 | TEST_ONLY | 9 |
-| INCUBATION | 56 |
+| INCUBATION | 52 |
 | **Total source** | **495** |
 
 ## Incubation by area (built, not wired)
@@ -26,8 +26,8 @@
 | server/agents | 12 |
 | features/cockpit | 9 |
 | features/memory | 7 |
-| features/ventures | 7 |
-| server/ventures | 7 |
+| features/ventures | 6 |
+| server/ventures | 4 |
 | server/missions | 3 |
 | server/arena | 2 |
 | features/agents | 1 |
@@ -70,7 +70,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/ventures/executive-selection-index.ts`
 - `src/features/ventures/hermes-prep-plan.ts`
 - `src/features/ventures/venture-cash-score.ts`
-- `src/features/ventures/venture-score-proposal.ts`
 - `src/lib/cn.ts`
 - `src/scripts/check-supabase-config.ts`
 - `src/scripts/mcl-archive-dir.ts`
@@ -96,7 +95,4 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/ventures/agent-score-snapshot-repository.ts`
 - `src/server/ventures/agent-score-snapshot-row-mapping.ts`
 - `src/server/ventures/hermes-prep-tick.ts`
-- `src/server/ventures/shadow-outcome-hook.ts`
-- `src/server/ventures/shadow-proposal-read-model.ts`
 - `src/server/ventures/snapshot-workspace-agent-scores.ts`
-- `src/server/ventures/venture-score-shadow-runner.ts`
