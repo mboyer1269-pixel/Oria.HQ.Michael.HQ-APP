@@ -2,16 +2,16 @@
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
     "sourceFiles": 495,
-    "live": 430,
+    "live": 434,
     "testOnly": 9,
-    "incubation": 56
+    "incubation": 52
   },
   "incubationByArea": {
     "server/agents": 12,
     "features/cockpit": 9,
     "features/memory": 7,
-    "features/ventures": 7,
-    "server/ventures": 7,
+    "features/ventures": 6,
+    "server/ventures": 4,
     "server/missions": 3,
     "server/arena": 2,
     "features/agents": 1,
@@ -261,6 +261,7 @@
     "src/features/ventures/venture-promotion.ts",
     "src/features/ventures/venture-save-action.ts",
     "src/features/ventures/venture-save-types.ts",
+    "src/features/ventures/venture-score-proposal.ts",
     "src/features/ventures/venture-scoring.ts",
     "src/features/ventures/venture-suggestions.ts",
     "src/features/workflows/agent-quality-from-runs.ts",
@@ -450,11 +451,14 @@
     "src/server/ventures/loi96-target-store.ts",
     "src/server/ventures/prepared-action-repository.ts",
     "src/server/ventures/prepared-action-row-mapping.ts",
+    "src/server/ventures/shadow-outcome-hook.ts",
+    "src/server/ventures/shadow-proposal-read-model.ts",
     "src/server/ventures/venture-asset-repository.ts",
     "src/server/ventures/venture-lifecycle-service.ts",
     "src/server/ventures/venture-repository.ts",
     "src/server/ventures/venture-row-mapping.ts",
-    "src/server/ventures/venture-save-service.ts"
+    "src/server/ventures/venture-save-service.ts",
+    "src/server/ventures/venture-score-shadow-runner.ts"
   ],
   "testOnly": [
     "src/server/ledger/hash-chain-audit.ts",
@@ -494,7 +498,6 @@
     "src/features/ventures/executive-selection-index.ts",
     "src/features/ventures/hermes-prep-plan.ts",
     "src/features/ventures/venture-cash-score.ts",
-    "src/features/ventures/venture-score-proposal.ts",
     "src/lib/cn.ts",
     "src/scripts/check-supabase-config.ts",
     "src/scripts/mcl-archive-dir.ts",
@@ -520,9 +523,6 @@
     "src/server/ventures/agent-score-snapshot-repository.ts",
     "src/server/ventures/agent-score-snapshot-row-mapping.ts",
     "src/server/ventures/hermes-prep-tick.ts",
-    "src/server/ventures/shadow-outcome-hook.ts",
-    "src/server/ventures/shadow-proposal-read-model.ts",
-    "src/server/ventures/snapshot-workspace-agent-scores.ts",
-    "src/server/ventures/venture-score-shadow-runner.ts"
+    "src/server/ventures/snapshot-workspace-agent-scores.ts"
   ]
 }
