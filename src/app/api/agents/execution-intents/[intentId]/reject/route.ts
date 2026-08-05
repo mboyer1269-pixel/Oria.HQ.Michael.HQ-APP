@@ -80,6 +80,9 @@ export async function POST(
       skillId: intent.skillId,
       agentId: intent.agentId,
       ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
+      // actorId only: a rejection is an act, but it authorizes nothing, so there
+      // is no approver to record.
+      actorId: ctx.userId,
       effect: { kind: "runtime_result", operation: "plan", target: "agent_execution_intent" },
       metadata: {
         phase: "rejected",

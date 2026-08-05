@@ -37,7 +37,19 @@ function normalizeWidgetOrder(order: unknown): string[] {
   ];
 }
 
-export async function getCockpitLayout(userId: string): Promise<string[]> {
+/**
+ * Reads the owner's cockpit widget order.
+ *
+ * The user id is derived server-side from the authenticated owner — it is never
+ * accepted as a parameter. This is an exported server action, so it is
+ * independently invocable; taking a caller-supplied id would let any caller read
+ * another user's row through the service-role client (which bypasses RLS).
+ * Mirrors the owner gate in saveCockpitLayout below.
+ */
+export async function getCockpitLayout(): Promise<string[]> {
+  const access = await requireOwnerAccess("/hq/cockpit");
+  if (access.status === "forbidden") return [...DEFAULT_ORDER];
+
   try {
     const db = createOptionalSupabaseAdminClient();
     if (!db) return [...DEFAULT_ORDER];
@@ -45,7 +57,7 @@ export async function getCockpitLayout(userId: string): Promise<string[]> {
     const { data, error } = await db
       .from("cockpit_layout")
       .select("widget_order")
-      .eq("user_id", userId)
+      .eq("user_id", access.user.id)
       .single();
 
     if (error || !data?.widget_order) return [...DEFAULT_ORDER];

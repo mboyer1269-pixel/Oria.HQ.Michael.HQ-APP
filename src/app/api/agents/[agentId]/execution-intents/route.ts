@@ -129,6 +129,9 @@ export async function POST(
     skillId,
     agentId,
     ...(missionId ? { missionId } : {}),
+    // Queuing an intent authorizes nothing — it only records who queued it. The
+    // approver is recorded later, on the approve route.
+    actorId: ctx.userId,
     effect: { kind: "runtime_result", operation: "plan", target: "agent_execution_intent" },
     metadata: {
       phase: "eligible_for_approval",

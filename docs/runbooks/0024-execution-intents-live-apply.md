@@ -1,9 +1,18 @@
 # Live apply runbook — migration 0024 (`agent_execution_intents`) on `Oria.hq`
 
-> **Procedure document only.** Nothing here has been executed. Applying 0024 to
-> live is a separate operation that requires an explicit, freshly-stated CEO GO,
-> e.g. `GO APPLY 0024 LIVE SUR ORIA.HQ`. Until then, the execution-intent rail
-> runs on the in-memory local fallback.
+> **✅ EXECUTED — this runbook is now historical.**
+>
+> Migration 0024 **is applied on the live `Oria.hq` project**, as
+> `20260619022503 agent_execution_intents`. Confirmed 2026-08-05 by direct query
+> (`list_migrations` + `list_tables`, RLS enabled on the table). The
+> execution-intent rail runs on the **live table**, not the in-memory fallback.
+>
+> The procedure below is kept for audit and for replay against any future
+> environment. Do not re-run it against `Oria.hq` — the table already exists.
+>
+> *This block previously read "Nothing here has been executed", which was stale
+> and contradicted production for roughly six weeks. Treat any live-state claim
+> in a static document as unverified until re-checked against the database.*
 
 Companion of the preflight audit: [`0024-execution-intents-preflight.md`](./0024-execution-intents-preflight.md).
 

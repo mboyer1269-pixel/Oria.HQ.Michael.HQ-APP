@@ -29,7 +29,7 @@ export default async function CockpitPage() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const storageMode = getEventPersistenceMode();
 
-  const initialOrder = await getCockpitLayout(userId);
+  const initialOrder = await getCockpitLayout();
 
   let loadError = false;
   let ideas: IdeaProjection[] = [];

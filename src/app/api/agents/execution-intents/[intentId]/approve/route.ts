@@ -87,6 +87,10 @@ export async function POST(
           skillId: intent.skillId,
           agentId: intent.agentId,
           ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
+          // The CEO session both approves and triggers this dispatch — the only
+          // path in the codebase that reaches n8n.
+          actorId: ctx.userId,
+          approverId: ctx.userId,
           effect: { kind: "external_call", operation: "execute", target: "n8n_webhook" },
           metadata: {
             phase: "attempt",
@@ -108,6 +112,8 @@ export async function POST(
           skillId: intent.skillId,
           agentId: intent.agentId,
           ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
+          actorId: ctx.userId,
+          approverId: ctx.userId,
           effect: { kind: "runtime_result", operation: "execute", target: "n8n_webhook" },
           metadata: { phase, intentId },
         }),

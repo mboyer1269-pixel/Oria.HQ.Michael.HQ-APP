@@ -161,6 +161,16 @@ async function handleMissionDraftReply(
 }
 
 /**
+ * Shown to the reviewer when a governance decision was rendered but could not be
+ * written to the durable audit trail. The decision itself still stands — only
+ * its record is missing, and the reviewer is the one who needs to know that.
+ */
+const GOVERNANCE_AUDIT_UNPERSISTED_NOTICE =
+  "⚠️ Trace d'audit manquante — la décision ci-dessus a bien été rendue, mais " +
+  "elle n'a pas pu être enregistrée dans le registre de gouvernance. Aucune " +
+  "trace durable n'existe pour cette décision.";
+
+/**
  * Applies a CEO review message to a pending preview-state Governance Bundle
  * (PR130). Pure, read-only, dry-run: it advances the bundle's review session
  * via the applicator and returns a read-only summary. It NEVER books, persists,
@@ -210,10 +220,14 @@ async function handleGovernanceReviewReply(
   // A decision or safety block closes the dry-run loop for this preview.
   clearPendingGovernanceBundle(ctx.workspace.id, ctx.userId);
 
-  // Persist the rendered decision as an audit record (best-effort, dry-run).
-  // This records that a planning decision was made — it authorizes nothing.
-  // Persistence must never break the read-only governance response, so a
-  // failure (e.g. production without a Supabase implementation) is swallowed.
+  // Persist the rendered decision as an audit record (dry-run). This records
+  // that a planning decision was made — it authorizes nothing.
+  //
+  // A persistence failure must not break the read-only governance response, but
+  // it must never be silent either: an audit trail that fails invisibly is worse
+  // than no audit trail, because it still looks like one. The failure is logged
+  // at error level AND surfaced to the reviewer in the summary below.
+  let auditPersisted = true;
   try {
     await recordGovernanceDecision(
       buildGovernanceDecisionRecord({
@@ -223,8 +237,8 @@ async function handleGovernanceReviewReply(
       }),
     );
   } catch (err) {
-    // Audit persistence is best-effort; the dry-run response still stands.
-    logger.warn("governance.decision.persist.failed", {
+    auditPersisted = false;
+    logger.error("governance.decision.persist.failed", {
       workspaceId: ctx.workspace.id,
       reviewerId: ctx.userId,
       reason: err instanceof Error ? err.message : "unknown",
@@ -239,6 +253,9 @@ async function handleGovernanceReviewReply(
   if (isBundleApprovedToPlan(application.bundle)) {
     const plan = buildWorkOrderGovernancePlan({ bundle: application.bundle });
     summary = `${summary}\n\n${formatWorkOrderGovernancePlan(plan)}`;
+  }
+  if (!auditPersisted) {
+    summary = `${summary}\n\n${GOVERNANCE_AUDIT_UNPERSISTED_NOTICE}`;
   }
 
   return {

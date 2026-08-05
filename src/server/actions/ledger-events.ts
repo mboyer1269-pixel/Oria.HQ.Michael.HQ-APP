@@ -41,6 +41,24 @@ export type LedgerEventPayload = {
   missionId?: string;
   modelId?: string;
   costMode?: ModelMode;
+  /**
+   * Who caused this row to exist — a human user id when the CEO acted directly,
+   * or an agent identity when an autonomous run did.
+   *
+   * Distinct from `agentId`, which names the configured agent a skill belongs to.
+   * `agentId` answers "on whose behalf"; `actorId` answers "who acted". As runs
+   * become autonomous, this is the only field that can attribute an action when
+   * no human was in the loop.
+   */
+  actorId?: string;
+  /**
+   * Who authorized the action, when an approval gate was crossed. Absent when no
+   * approval was required — its presence is itself the signal that a gate ran.
+   *
+   * Without it, the audit trail cannot answer "who clicked approve" on the
+   * corridors that reach the outside world.
+   */
+  approverId?: string;
   effect: {
     kind: LedgerEffectKind;
     operation: LedgerEffectOperation;
@@ -168,6 +186,8 @@ function buildLedgerPayload(event: LedgerEventPayload): Json {
       ...(event.effect.target ? { target: event.effect.target } : {}),
     },
     ...(event.modeId ? { modeId: event.modeId } : {}),
+    ...(event.actorId ? { actorId: event.actorId } : {}),
+    ...(event.approverId ? { approverId: event.approverId } : {}),
     ...(event.metadata ? { metadata: toJsonRecord(event.metadata) } : {}),
   };
 }
@@ -208,6 +228,11 @@ export function validateLedgerEventPayload(event: LedgerEventPayload): void {
       "INVALID_LEDGER_FIELD",
     );
   }
+
+  // Identity fields are optional, but an empty/blank one is worse than absent:
+  // it looks like an attribution while carrying none.
+  if (event.actorId !== undefined) assertNonEmptyString(event.actorId, "actorId");
+  if (event.approverId !== undefined) assertNonEmptyString(event.approverId, "approverId");
 
   if (!isPlainObject(event.effect)) {
     throw new LedgerEventValidationError(
@@ -308,6 +333,8 @@ export async function recordLedgerEvent(
       ...(event.skillId ? { skillId: event.skillId } : {}),
       ...(event.agentId ? { agentId: event.agentId } : {}),
       ...(event.missionId ? { missionId: event.missionId } : {}),
+      ...(event.actorId ? { actorId: event.actorId } : {}),
+      ...(event.approverId ? { approverId: event.approverId } : {}),
     },
   });
 }
