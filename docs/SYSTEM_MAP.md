@@ -16,8 +16,8 @@
 |---|---|
 | LIVE | 430 |
 | TEST_ONLY | 9 |
-| INCUBATION | 53 |
-| **Total source** | **492** |
+| INCUBATION | 54 |
+| **Total source** | **493** |
 
 ## Incubation by area (built, not wired)
 
@@ -29,6 +29,7 @@
 | features/ventures | 7 |
 | server/ventures | 4 |
 | server/missions | 3 |
+| server/ai | 2 |
 | server/arena | 2 |
 | features/agents | 1 |
 | features/hq | 1 |
@@ -38,7 +39,6 @@
 | scripts/check-supabase-config.ts | 1 |
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
-| server/ai | 1 |
 
 ## Incubation files (full list)
 
@@ -88,6 +88,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/agents/providers/workflow-runtime-provider-contract.ts`
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
 - `src/server/ai/free-model-catalog.ts`
+- `src/server/ai/local-cli-json-client.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
 - `src/server/missions/approval-record-repository.ts`
