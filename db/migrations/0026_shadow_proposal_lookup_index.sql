@@ -1,0 +1,49 @@
+-- Migration 0026: lookup index for shadow score proposals.
+--
+-- Do NOT apply without an explicit CEO GO.
+--
+-- PREPARED, NOT NEEDED YET. As of writing, action_ledger holds 1 row. Applying
+-- an index to a table that size buys nothing and costs a production write. This
+-- exists so the fix is ready the day the volume justifies it, not so it ships
+-- early.
+--
+-- What it fixes
+-- -------------
+-- The outcome hook asks: "most recent shadow proposal for venture X". Measured
+-- against the live database, that query plans as:
+--
+--   Limit → Sort (created_at DESC)
+--           → Index Scan using action_ledger_workspace_id_idx
+--               Index Cond: workspace_id = …
+--               Filter: action_type = … AND (metadata ->> 'ventureId') = …
+--
+-- In a single-owner deployment workspace_id has one value, so that index scan
+-- reads essentially the whole table, filters row by row, then sorts. Nothing
+-- indexes action_type, created_at, or any jsonb path.
+--
+-- Why a PARTIAL EXPRESSION index and not a GIN
+-- --------------------------------------------
+--   * A GIN on the metadata column would index every key of every ledger row —
+--     large, useless for all but this one query, and it slows every ledger
+--     write, including the many that have nothing to do with shadow mode.
+--   * This index covers only rows of one action_type: a small slice of a
+--     journal that records everything else.
+--   * created_at DESC sits in the key, so "most recent" is served by index
+--     order and the Sort node disappears.
+--   * It follows the convention already in this table: action_ledger_mission_id_idx
+--     and action_ledger_skill_id_idx are both partial.
+--
+-- Coupling this creates
+-- ---------------------
+-- The index keys on metadata->>'ventureId'. If a writer ever moves that key,
+-- the index stops being used and the query silently degrades to a scan with
+-- nothing failing. shadow-proposal-read-model.test.mjs pins both key paths so
+-- the move breaks a test instead.
+--
+-- Note: proposalId is deliberately NOT indexed. It is a correlation key carried
+-- between the proposal and outcome events, compared after retrieval — never
+-- searched by.
+
+create index if not exists action_ledger_shadow_proposal_lookup_idx
+  on public.action_ledger ((metadata->>'ventureId'), created_at desc)
+  where action_type = 'venture.score.shadow_proposal';

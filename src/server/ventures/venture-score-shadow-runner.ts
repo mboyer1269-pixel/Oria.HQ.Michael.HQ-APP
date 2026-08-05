@@ -59,6 +59,7 @@
 
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type { VentureCard } from "@/core/types";
 import type { WorkspaceContext } from "@/core/workspace-context";
 import {
@@ -278,6 +279,10 @@ export function buildProposalLedgerMetadata(
   unresolved: readonly (keyof VentureSubScores)[],
 ): Record<string, unknown> {
   return {
+    // Written at a FIXED path. The prepared index keys on
+    // metadata->>'ventureId', so moving either key silently degrades the lookup
+    // to a scan without anything failing — pinned by a test for that reason.
+    proposalId: proposal.proposalId,
     ventureId: proposal.ventureId,
     proposedBy: proposal.proposedBy,
     overallScore: proposal.score.overallScore,
@@ -310,6 +315,8 @@ export type ShadowRunnerDeps = {
   recordEvent?: (ctx: WorkspaceContext, event: LedgerEventPayload) => Promise<unknown>;
   now?: () => string;
   agentId?: string;
+  /** Injectable so proposal identity is deterministic under test. */
+  newProposalId?: () => string;
 };
 
 export type ShadowProposalOutcome =
@@ -357,6 +364,9 @@ export async function runShadowProposalForVenture(
   const { evidence, unresolved } = parseShadowEvidence(generated.json);
 
   const built = buildVentureScoreProposal({
+    // Minted here, before anything is persisted: the domain owns its identity,
+    // and it must exist even if every downstream write fails.
+    proposalId: (deps.newProposalId ?? randomUUID)(),
     ventureId: venture.id,
     workspaceId: ctx.workspace.id,
     proposedBy: agentId,
@@ -473,6 +483,9 @@ export async function recordShadowOutcome(
       agentId: proposal.proposedBy,
       effect: { kind: "db_write", operation: "plan", target: "venture_score_outcome" },
       metadata: {
+        // The pairing. Without it an outcome cannot name WHICH proposal it
+        // measured when a venture has been proposed on more than one day.
+        proposalId: proposal.proposalId,
         ventureId: proposal.ventureId,
         proposedOverall: proposal.score.overallScore,
         actualOverall: actual.overallScore,

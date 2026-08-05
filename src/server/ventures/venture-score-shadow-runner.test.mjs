@@ -195,6 +195,7 @@ test("Shadow runner — graceful degradation (V7 Phase 1 step 3)", async (t) => 
   await t.test("an unresolved set still builds a proposal, and its gates refuse it", () => {
     const parsed = parseShadowEvidence({ evidence: [] });
     const built = buildVentureScoreProposal({
+      proposalId: "prop_test",
       ventureId: "v1",
       workspaceId: "w1",
       proposedBy: "agent",
@@ -279,6 +280,7 @@ test("Shadow runner — the log mirrors, never acts (V7 Phase 1 step 3)", async 
   await t.test("the emitted metadata carries the proposal identity", () => {
     const parsed = parseShadowEvidence(modelReply());
     const built = buildVentureScoreProposal({
+      proposalId: "prop_test",
       ventureId: "v1",
       workspaceId: ctx.workspace.id,
       proposedBy: "agent",
@@ -308,6 +310,7 @@ test("Shadow runner — the log mirrors, never acts (V7 Phase 1 step 3)", async 
     const long = "x".repeat(5000);
     const parsed = parseShadowEvidence(modelReply({ risk: { rationale: long } }));
     const built = buildVentureScoreProposal({
+      proposalId: "prop_test",
       ventureId: "v1",
       workspaceId: "w1",
       proposedBy: "agent",
@@ -417,6 +420,7 @@ test("Shadow runner — divergence outcome (V7 Phase 1 step 3)", async (t) => {
       modelReply(Object.fromEntries(DIMENSIONS.map((d) => [d, { value }]))),
     );
     return buildVentureScoreProposal({
+      proposalId: "prop_test",
       ventureId: "v1",
       workspaceId: ctx.workspace.id,
       proposedBy: "venture_scorer",

@@ -1,17 +1,17 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 493,
+    "sourceFiles": 495,
     "live": 430,
     "testOnly": 9,
-    "incubation": 54
+    "incubation": 56
   },
   "incubationByArea": {
     "server/agents": 12,
     "features/cockpit": 9,
     "features/memory": 7,
     "features/ventures": 7,
-    "server/ventures": 5,
+    "server/ventures": 7,
     "server/missions": 3,
     "server/arena": 2,
     "features/agents": 1,
@@ -520,6 +520,8 @@
     "src/server/ventures/agent-score-snapshot-repository.ts",
     "src/server/ventures/agent-score-snapshot-row-mapping.ts",
     "src/server/ventures/hermes-prep-tick.ts",
+    "src/server/ventures/shadow-outcome-hook.ts",
+    "src/server/ventures/shadow-proposal-read-model.ts",
     "src/server/ventures/snapshot-workspace-agent-scores.ts",
     "src/server/ventures/venture-score-shadow-runner.ts"
   ]
