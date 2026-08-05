@@ -1,8 +1,14 @@
 # Live apply runbook — migration 0008 (`governance_decisions`) on `Oria.hq`
 
-> **Procedure document only. Nothing here has been executed.** Applying 0008 to
-> live requires an explicit, freshly-stated CEO GO, e.g.
-> `GO APPLY 0008 LIVE SUR ORIA.HQ`.
+> ## ✅ EXECUTED — historical record
+>
+> **Applied to `Oria.hq` on 2026-08-05** on an explicit CEO GO
+> (`GO APPLY 0008 LIVE SUR ORIA.HQ`), recorded as
+> `20260805091426 0008_governance_decisions`. Verify passed on every expectation
+> (§4d). Governance decisions now persist.
+>
+> This document is kept as the decision record and for replay against another
+> environment. **Do not re-run §4a/§4c against `Oria.hq`.**
 
 Companion artifacts: [`0008_governance_decisions.sql`](../../db/migrations/0008_governance_decisions.sql) ·
 [`_verify.sql`](../../db/migrations/0008_governance_decisions_verify.sql) ·
@@ -36,15 +42,21 @@ loop**, not just a tidy-up.
   `.env.local` (not committed). **No secrets are stored in this repo.**
 - ⚠️ This machine's `.env.local` already points at the live DB.
 
-## 2. Preconditions (all must hold at apply time)
+## 2. Preconditions — status at the 2026-08-05 apply
 
-- [ ] Explicit CEO GO (`GO APPLY 0008 LIVE SUR ORIA.HQ`).
-- [ ] PR #352 (V7 Phase 0) merged, so the visible-failure behaviour is on `main`
-      before persistence changes underneath it.
-- [ ] Read-only confirmation that `governance_decisions` is absent (§4a).
-- [ ] Fresh backup / PITR window confirmed (§4b).
-- [ ] Conscious acceptance that local `npm run dev` will write governance
-      decisions to the live table from then on.
+- [x] Explicit CEO GO (`GO APPLY 0008 LIVE SUR ORIA.HQ`).
+- [x] Read-only confirmation that `governance_decisions` was absent (§4a) —
+      confirmed against the 22 live tables immediately before the apply.
+- [x] Conscious acceptance that local `npm run dev` writes governance decisions
+      to the live table from now on.
+- [ ] **PR #352 merged — NOT met.** The apply ran while #352 was still open. This
+      was a sequencing preference, not a safety gate: the reviewer-facing notice
+      it adds only fires on a persistence failure, which this apply removes.
+- [ ] **Backup / PITR — NOT taken.** The operator had no backup tooling in the
+      execution environment. Accepted for this migration specifically: the table
+      did not exist, the apply is additive (`create table if not exists`), no
+      existing row was read, modified, or dropped, and a tested revert exists.
+      **Do not treat this as precedent** for a migration that touches data.
 
 ## 3. Operational checklist
 
@@ -59,8 +71,12 @@ loop**, not just a tidy-up.
 ## 4. Exact commands (DO NOT run without the final GO)
 
 ### a) Confirm target — read-only, no writes
-Preferred via the Supabase MCP: `get_project_url` + `list_tables`
-(confirm `governance_decisions` is **not** present). No SQL is executed.
+Preferred via the Supabase MCP: `get_project_url` + `list_tables`. No SQL is
+executed.
+
+> **Pre-apply check, now inverted.** This step confirmed the table was *absent*.
+> On `Oria.hq` it is now **present**, so the same read-only command is today the
+> confirmation that the apply landed.
 
 ### b) Backup
 Dashboard → Database → Backups (PITR), or:
@@ -115,7 +131,25 @@ psql "$LIVE_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0008_governance_de
 - **Lower risk than 0024**: 0024 switched a rail that reaches n8n. This table is
   audit-only and touches no execution path.
 
-## 7. GO / NO-GO
+## 7. GO / NO-GO — resolved
+
+**Outcome: GO, applied 2026-08-05.** Verify matched every expectation:
+
+| Check | Expected | Observed |
+|---|---|---|
+| table present | true | ✅ true |
+| RLS enabled | true | ✅ true |
+| policies | 8, all RESTRICTIVE | ✅ 8 / 8 restrictive |
+| permissive (open) policies | 0 | ✅ 0 |
+| policies naming `service_role` | 0 | ✅ 0 |
+| CHECK constraints | outcome + 2 safety belts | ✅ 7 total, all 3 named ones present |
+| indexes | 4 + PK | ✅ 5 |
+| rowcount | 0 | ✅ 0 |
+
+Security advisors reported **no new finding** after the apply (only the
+pre-existing leaked-password-protection warning, an Auth dashboard setting).
+
+The criteria below are kept as the decision record and for replay elsewhere.
 
 **Technically READY**: schema mirrors the TypeScript contract, verify + revert
 in place (revert promoted to an executable script in V7 Phase 0), repository
@@ -129,6 +163,10 @@ permissive policy · `service_role` named in a policy · RLS not enabled · any
 CHECK constraint absent · backup not confirmed.
 
 ## 8. Out of scope of this document
-- Applying 0008 to live (or issuing any apply/SQL command).
+
+*Scope as written before the apply — kept for the record. The first item no
+longer holds: the apply happened.*
+
+- ~~Applying 0008 to live (or issuing any apply/SQL command).~~ **Done 2026-08-05.**
 - Any other Supabase change, enabling remote n8n, or any real external action.
 - Any product/code change, or storing secrets.
