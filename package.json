@@ -25,6 +25,7 @@
     "map:check": "node scripts/architecture/system-map.mjs --check",
     "check:layering": "node scripts/architecture/check-layering.mjs",
     "test": "node run-tests.mjs",
+    "test:gaps": "node run-tests.mjs --gaps",
     "test:mission-store-guard": "node --test src/server/missions/execution-attempt-store.test.mjs",
     "test:joris-intent": "node --test src/server/joris/detect-intent.test.mjs",
     "test:mission-draft": "node --test src/server/missions/mission-draft.test.mjs",

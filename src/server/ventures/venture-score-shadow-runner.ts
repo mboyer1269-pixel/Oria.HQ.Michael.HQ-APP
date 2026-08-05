@@ -25,6 +25,37 @@
 // Provider: the HTTP client (generateStructuredJson, Anthropic → OpenAI). The
 // local CLI provider is frozen pending redesign and was always an additive cost
 // optimisation, never a dependency of this step.
+//
+// ---------------------------------------------------------------------------
+// OPEN GAP — recordShadowOutcome has no caller yet
+// ---------------------------------------------------------------------------
+//
+// `recordShadowOutcome` is implemented and tested, and NOTHING IN THE REAL FLOW
+// CALLS IT. Neither does anything call `runShadowScorePass`. Both halves of
+// shadow mode are inert today.
+//
+// That is survivable only because they are inert *together*: nothing produces
+// proposals either, so no measurement is being lost right now. The moment the
+// step-4 trigger starts generating proposals without this hook in place,
+// proposals accumulate against owner decisions that were never recorded — and
+// the pairing cannot be reconstructed after the fact. Divergence is the entire
+// asset of shadow mode; unpaired proposals are worth nothing.
+//
+// Wiring it is NOT a small addition, which is why it is not done here:
+//
+//   1. The ledger read model (`listActionLedgerForWorkspace`) is a generic list.
+//      Retrieving the most recent proposal for one venture needs a dedicated
+//      read helper, not a caller-side filter over the whole workspace history.
+//   2. Rebuilding a VentureScoreProposal from ledger metadata is a LOSSY
+//      conversion — rationales are truncated to 240 chars on the way in — so it
+//      needs its own contract and tests rather than an inline cast.
+//   3. The hook belongs on `scoreVentureAction`, which is the owner's live
+//      scoring path. Adding it changes this module from "cannot do anything" to
+//      "runs on every score the owner records", and deserves review as the risk
+//      change it is.
+//
+// Tracked by `shadow-mode-wiring-gap.test.mjs`, which fails on purpose until a
+// real caller exists. Do not delete that test without wiring this.
 
 import "server-only";
 
