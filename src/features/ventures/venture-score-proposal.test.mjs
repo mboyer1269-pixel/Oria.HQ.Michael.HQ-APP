@@ -165,6 +165,36 @@ test("Venture score proposal — rejections (V7 Phase 1)", async (t) => {
     assert.equal(result.code, "missing_identity");
   });
 
+  await t.test("rejects a malformed source without throwing", () => {
+    // Input arrives as parsed LLM JSON, so a field the type calls a string may
+    // be absent at runtime. These must return the documented rejection, not
+    // throw past the caller.
+    const malformed = [
+      { kind: "internal" }, // no ref at all
+      { kind: "internal", ref: 42 },
+      { kind: "external" }, // no url at all
+      { kind: "external", url: 42 },
+      { kind: "invented" },
+      null,
+    ];
+
+    for (const source of malformed) {
+      const evidence = fullEvidence({ per: { risk: { source } } });
+      const result = buildVentureScoreProposal(baseInput(evidence));
+      assert.equal(result.status, "rejected", `source ${JSON.stringify(source)} must be rejected`);
+      assert.equal(result.code, "invalid_source");
+    }
+  });
+
+  await t.test("rejects an unparseable timestamp", () => {
+    const result = buildVentureScoreProposal({
+      ...baseInput(fullEvidence()),
+      proposedAt: "not-a-date",
+    });
+    assert.equal(result.status, "rejected");
+    assert.equal(result.code, "invalid_timestamp");
+  });
+
   await t.test("rejects rather than silently repairing", () => {
     // A partial proposal recorded as complete would corrupt the divergence
     // measurement, so there is no lenient path.
@@ -234,6 +264,56 @@ test("Venture score proposal — evidence gates (V7 Phase 1)", async (t) => {
     );
     assert.equal(gate.passed, false);
     assert.match(gate.missing, new RegExp(`1/${MIN_DISTINCT_EXTERNAL_SOURCES}`));
+  });
+
+  await t.test("cosmetic url variants count as one source", () => {
+    // The distinct-source gate exists to require three independent sources.
+    // Citing one page three ways must not satisfy it.
+    const variants = [
+      "https://example.com",
+      "https://example.com/",
+      "https://EXAMPLE.com/#top",
+    ];
+    const evidence = DIMENSIONS.map((dimension, index) => ({
+      dimension,
+      value: 6,
+      rationale: "ok",
+      source:
+        index < variants.length
+          ? { kind: "external", url: variants[index] }
+          : { kind: "none" },
+    }));
+
+    const gate = evaluateEvidenceGates(evidence).gates.find(
+      (g) => g.id === "min_external_sources",
+    );
+    assert.equal(gate.passed, false, "three variants of one page are one source");
+    assert.match(gate.missing, new RegExp(`1/${MIN_DISTINCT_EXTERNAL_SOURCES}`));
+  });
+
+  await t.test("genuinely distinct paths still count separately", () => {
+    const evidence = DIMENSIONS.map((dimension, index) => ({
+      dimension,
+      value: 6,
+      rationale: "ok",
+      source:
+        index < 3
+          ? { kind: "external", url: `https://example.com/page-${index}` }
+          : { kind: "none" },
+    }));
+
+    const gate = evaluateEvidenceGates(evidence).gates.find(
+      (g) => g.id === "min_external_sources",
+    );
+    assert.equal(gate.passed, true);
+  });
+
+  await t.test("gates tolerate a malformed rationale without throwing", () => {
+    const evidence = fullEvidence({ per: { risk: { rationale: undefined } } });
+    const gate = evaluateEvidenceGates(evidence).gates.find(
+      (g) => g.id === "every_dimension_reasoned",
+    );
+    assert.equal(gate.passed, false);
   });
 
   await t.test("gates report what is missing, not just that something is", () => {

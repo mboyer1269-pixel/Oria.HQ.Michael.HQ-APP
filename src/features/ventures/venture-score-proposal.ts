@@ -79,6 +79,7 @@ export type ProposalRejectionCode =
   | "invalid_value"
   | "missing_rationale"
   | "invalid_source"
+  | "invalid_timestamp"
   | "missing_identity";
 
 export type BuildProposalResult =
@@ -104,13 +105,43 @@ const EVIDENCE_CRITICAL_DIMENSIONS: readonly (keyof VentureSubScores)[] = [
 export const MIN_DISTINCT_EXTERNAL_SOURCES = 3;
 
 function isSourced(source: EvidenceSource): boolean {
-  return source.kind !== "none";
+  return isPlainSource(source) && source.kind !== "none";
+}
+
+function isPlainSource(source: unknown): source is EvidenceSource {
+  return typeof source === "object" && source !== null && "kind" in source;
+}
+
+/**
+ * Reduces a url to the page it identifies, so cosmetic variants collapse to one
+ * key: lowercased host, no fragment, no trailing slash.
+ *
+ * The distinct-source gate is only meaningful if `https://example.com`,
+ * `https://example.com/` and `https://example.com/#top` count once. Without
+ * this, citing a single page three ways would satisfy a gate whose purpose is
+ * to require three independent sources.
+ *
+ * The query string is preserved: `?id=1` and `?id=2` are genuinely different
+ * pages on many sites.
+ */
+export function canonicalizeSourceUrl(raw: string): string {
+  const fallback = raw.trim().toLowerCase();
+  try {
+    const parsed = new URL(raw);
+    const path = parsed.pathname.replace(/\/+$/, "");
+    return `${parsed.protocol}//${parsed.host.toLowerCase()}${path}${parsed.search}`;
+  } catch {
+    return fallback;
+  }
 }
 
 function externalUrls(evidence: readonly ScoreEvidence[]): Set<string> {
   const urls = new Set<string>();
   for (const item of evidence) {
-    if (item.source.kind === "external") urls.add(item.source.url.trim().toLowerCase());
+    const source = item.source;
+    if (isPlainSource(source) && source.kind === "external" && typeof source.url === "string") {
+      urls.add(canonicalizeSourceUrl(source.url));
+    }
   }
   return urls;
 }
@@ -125,7 +156,9 @@ function externalUrls(evidence: readonly ScoreEvidence[]): Set<string> {
 export function evaluateEvidenceGates(evidence: readonly ScoreEvidence[]): EvidenceGateResult {
   const gates: EvidenceGate[] = [];
 
-  const unreasoned = evidence.filter((item) => item.rationale.trim().length === 0);
+  const unreasoned = evidence.filter(
+    (item) => typeof item.rationale !== "string" || item.rationale.trim().length === 0,
+  );
   gates.push({
     id: "every_dimension_reasoned",
     label: "Chaque dimension porte une justification",
@@ -185,15 +218,36 @@ function isValidUrl(value: string): boolean {
   }
 }
 
+/**
+ * Validates a source without trusting its shape.
+ *
+ * Input reaches this module as parsed LLM JSON, so a field the type says is a
+ * string may be absent or another type at runtime. Every access is guarded so a
+ * malformed payload returns the documented `invalid_source` rejection instead of
+ * throwing past the caller.
+ */
 function validateSource(source: EvidenceSource): string | null {
+  if (!isPlainSource(source)) return "source must be an object with a kind";
   if (source.kind === "none") return null;
+
   if (source.kind === "internal") {
+    if (typeof source.ref !== "string") return "internal source ref must be a string";
     return source.ref.trim().length > 0 ? null : "internal source has an empty ref";
   }
+
   if (source.kind === "external") {
-    return isValidUrl(source.url) ? null : `external source is not a valid http(s) url: ${source.url}`;
+    if (typeof source.url !== "string") return "external source url must be a string";
+    return isValidUrl(source.url)
+      ? null
+      : `external source is not a valid http(s) url: ${source.url}`;
   }
+
   return "unknown source kind";
+}
+
+/** True for a string that parses as a real calendar instant. */
+function isIsoTimestamp(value: string): boolean {
+  return !Number.isNaN(Date.parse(value));
 }
 
 /**
@@ -220,6 +274,17 @@ export function buildVentureScoreProposal(input: {
     if (typeof value !== "string" || value.trim().length === 0) {
       return { status: "rejected", code: "missing_identity", detail: `${field} is required` };
     }
+  }
+
+  // Adjacent venture and agent contracts store timestamps as ISO strings; a
+  // proposal that carries an unparseable one would order incorrectly against
+  // them and corrupt the divergence history it feeds.
+  if (!isIsoTimestamp(input.proposedAt)) {
+    return {
+      status: "rejected",
+      code: "invalid_timestamp",
+      detail: `proposedAt is not a parseable timestamp: ${input.proposedAt}`,
+    };
   }
 
   if (input.evidence.length !== SCORE_DIMENSIONS.length) {
