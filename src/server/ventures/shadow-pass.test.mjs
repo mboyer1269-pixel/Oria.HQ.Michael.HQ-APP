@@ -54,7 +54,7 @@ function deps(overrides = {}) {
 test("Shadow pass — shared orchestration (V7)", async (t) => {
   await t.test("it proposes for every eligible candidate", async () => {
     const { deps: d, events } = deps();
-    const report = await runShadowPass(ctx, d);
+    const { report } = await runShadowPass(ctx, d);
 
     assert.equal(report.considered, 3);
     assert.equal(report.proposed, 3);
@@ -64,7 +64,7 @@ test("Shadow pass — shared orchestration (V7)", async (t) => {
 
   await t.test("the batch cap is enforced through the shared path", async () => {
     const { deps: d } = deps({ listVentures: async () => ventures(25) });
-    const report = await runShadowPass(ctx, d);
+    const { report } = await runShadowPass(ctx, d);
 
     assert.equal(report.proposed, 20);
     assert.equal(report.deferred, 5);
@@ -80,7 +80,7 @@ test("Shadow pass — shared orchestration (V7)", async (t) => {
       },
     });
 
-    const report = await runShadowPass(ctx, d);
+    const { report } = await runShadowPass(ctx, d);
 
     assert.equal(calls, 1, "only the un-proposed venture costs a call");
     assert.equal(report.deduped, 2);
@@ -96,7 +96,7 @@ test("Shadow pass — shared orchestration (V7)", async (t) => {
       },
     });
 
-    const report = await runShadowPass(ctx, d);
+    const { report } = await runShadowPass(ctx, d);
 
     assert.equal(report.proposed, 2);
     assert.equal(report.skipped, 1);
@@ -109,7 +109,7 @@ test("Shadow pass — shared orchestration (V7)", async (t) => {
       proposeForVenture: async () => ({ status: "skipped", reason: "evidence collection failed" }),
     });
 
-    const report = await runShadowPass(ctx, d);
+    const { report } = await runShadowPass(ctx, d);
     assert.deepEqual(report.skippedReasons, [
       { ventureId: "v1", reason: "evidence collection failed" },
     ]);
@@ -118,7 +118,7 @@ test("Shadow pass — shared orchestration (V7)", async (t) => {
   await t.test("the tick is emitted even when nothing was proposed", async () => {
     // "Ran and found no candidates" and "did not run" are different facts.
     const { deps: d, events } = deps({ listVentures: async () => [] });
-    const report = await runShadowPass(ctx, d);
+    const { report } = await runShadowPass(ctx, d);
 
     assert.equal(report.considered, 0);
     assert.equal(events.length, 1);
@@ -132,7 +132,7 @@ test("Shadow pass — shared orchestration (V7)", async (t) => {
       },
     });
 
-    const report = await runShadowPass(ctx, d);
+    const { report } = await runShadowPass(ctx, d);
     assert.equal(report.proposed, 3, "the work still happened and is reported");
   });
 
@@ -143,7 +143,7 @@ test("Shadow pass — shared orchestration (V7)", async (t) => {
       },
     });
 
-    const report = await runShadowPass(ctx, d);
+    const { report } = await runShadowPass(ctx, d);
     assert.equal(report.considered, 0);
     assert.equal(report.balanced, true);
   });
@@ -155,6 +155,72 @@ test("Shadow pass — shared orchestration (V7)", async (t) => {
 
     await runShadowPass(ctx, d);
     assert.equal(events[0].metadata.dedupDegraded, true);
+  });
+});
+
+test("Shadow pass — proposals are returned only when asked for (V7)", async (t) => {
+  const fakeProposal = (ventureId) => ({
+    proposalId: `prop-${ventureId}`,
+    ventureId,
+    score: { overallScore: 60, recommendation: "test_small" },
+    gates: { allPassed: true, gates: [] },
+    evidence: [{ dimension: "risk", value: 4, rationale: "long enough to matter", source: { kind: "none" } }],
+  });
+
+  await t.test("the cron path carries no proposals", async () => {
+    // Nobody reads a scheduled run's proposals from its return value — they are
+    // in the ledger — so carrying eleven rationales through every Inngest step
+    // would pay durable storage for output that is thrown away.
+    const { deps: d } = deps({
+      listVentures: async () => ventures(2),
+      proposeForVenture: async (_ctx, v) => ({ status: "proposed", proposal: fakeProposal(v.id) }),
+    });
+
+    const { report, proposals } = await runShadowPass(ctx, d);
+
+    assert.equal(report.proposed, 2, "the work still happened");
+    assert.deepEqual(proposals, [], "but the payload stays lean");
+  });
+
+  await t.test("the manual path returns them", async () => {
+    const { deps: d } = deps({
+      listVentures: async () => ventures(2),
+      proposeForVenture: async (_ctx, v) => ({ status: "proposed", proposal: fakeProposal(v.id) }),
+      collectProposals: true,
+    });
+
+    const { proposals } = await runShadowPass(ctx, d);
+
+    assert.equal(proposals.length, 2);
+    assert.deepEqual(proposals.map((p) => p.proposalId), ["prop-v1", "prop-v2"]);
+  });
+
+  await t.test("a skipped venture contributes no proposal", async () => {
+    const { deps: d } = deps({
+      listVentures: async () => ventures(2),
+      proposeForVenture: async (_ctx, v) =>
+        v.id === "v1"
+          ? { status: "proposed", proposal: fakeProposal(v.id) }
+          : { status: "skipped", reason: "llm failed" },
+      collectProposals: true,
+    });
+
+    const { report, proposals } = await runShadowPass(ctx, d);
+
+    assert.equal(proposals.length, 1);
+    assert.equal(report.skipped, 1);
+  });
+
+  await t.test("the route asks for them and serves full rationales", async () => {
+    // A judgement made on a clipped sentence is not a judgement of what the
+    // agent actually said, so the route must not reuse the ledger's 240-char cap.
+    const routeSource = await import("node:fs/promises").then((fs) =>
+      fs.readFile(path.join(projectRoot, "src/app/api/ventures/shadow-pass/route.ts"), "utf8"),
+    );
+
+    assert.match(routeSource, /collectProposals:\s*true/);
+    assert.match(routeSource, /rationale:\s*item\.rationale/);
+    assert.ok(!/slice\(0,\s*240\)/.test(routeSource), "rationales must not be truncated here");
   });
 });
 

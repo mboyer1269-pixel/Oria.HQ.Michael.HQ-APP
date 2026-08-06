@@ -33,11 +33,38 @@ export async function POST() {
   const ctx = getActiveWorkspaceContext();
 
   try {
-    const report = await runShadowPass(ctx, {
+    const { report, proposals } = await runShadowPass(ctx, {
       tickActionType: SHADOW_MANUAL_PASS_ACTION_TYPE,
+      // The counts say the pass ran. The rationales are what has to be judged,
+      // and reading them out of the ledger by hand would defeat the point of a
+      // trigger built to make that judgement quick.
+      collectProposals: true,
     });
 
-    return NextResponse.json({ trigger: "manual", workspaceId: ctx.workspace.id, ...report });
+    return NextResponse.json({
+      trigger: "manual",
+      workspaceId: ctx.workspace.id,
+      ...report,
+      proposals: proposals.map((proposal) => ({
+        proposalId: proposal.proposalId,
+        ventureId: proposal.ventureId,
+        overallScore: proposal.score.overallScore,
+        recommendation: proposal.score.recommendation,
+        gatesPassed: proposal.gates.allPassed,
+        failedGates: proposal.gates.gates
+          .filter((gate) => !gate.passed)
+          .map((gate) => ({ id: gate.id, missing: gate.missing })),
+        // Full, untruncated — the ledger caps rationales at 240 chars for its
+        // own sake, but a judgement made on a clipped sentence is not a
+        // judgement of what the agent actually said.
+        evidence: proposal.evidence.map((item) => ({
+          dimension: item.dimension,
+          value: item.value,
+          rationale: item.rationale,
+          source: item.source,
+        })),
+      })),
+    });
   } catch (error) {
     // runShadowPass absorbs per-venture failures itself, so reaching here means
     // something structural broke. Report it rather than returning a report that
