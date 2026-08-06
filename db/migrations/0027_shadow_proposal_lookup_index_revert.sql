@@ -1,6 +1,6 @@
--- 0026_shadow_proposal_lookup_index_revert.sql
+-- 0027_shadow_proposal_lookup_index_revert.sql
 --
--- Drops the index created by 0026_shadow_proposal_lookup_index.sql.
+-- Drops the index created by 0027_shadow_proposal_lookup_index.sql.
 --
 -- Low risk in both directions: an index carries no data, so dropping it loses
 -- nothing. The query it serves stays correct without it — the read model is
