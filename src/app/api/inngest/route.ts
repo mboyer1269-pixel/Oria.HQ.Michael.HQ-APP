@@ -1,6 +1,7 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/server/jobs/inngest-client";
 import { jorisExecuteJob } from "@/server/jobs/joris-execute-job";
+import { shadowScoreCron } from "@/server/jobs/shadow-score-cron";
 
 // ---------------------------------------------------------------------------
 // Inngest webhook handler — registers all background jobs with the Inngest
@@ -17,5 +18,5 @@ import { jorisExecuteJob } from "@/server/jobs/joris-execute-job";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [jorisExecuteJob],
+  functions: [jorisExecuteJob, shadowScoreCron],
 });

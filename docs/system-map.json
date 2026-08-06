@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 492,
-    "live": 430,
+    "sourceFiles": 504,
+    "live": 442,
     "testOnly": 9,
     "incubation": 53
   },
@@ -41,6 +41,7 @@
     "src/app/api/cron/ceo-brief/route.ts",
     "src/app/api/cron/market-scout/route.ts",
     "src/app/api/health/route.ts",
+    "src/app/api/health/shadow-cronbeat/route.ts",
     "src/app/api/health/staging-runtime/route.ts",
     "src/app/api/inngest/route.ts",
     "src/app/api/inventory/snapshot/route.ts",
@@ -66,6 +67,7 @@
     "src/app/api/sales/marketing/content-pack/route.ts",
     "src/app/api/sales/morning-queue/route.ts",
     "src/app/api/sales/outcome/route.ts",
+    "src/app/api/ventures/shadow-pass/route.ts",
     "src/app/api/workflows/board/route.ts",
     "src/app/contact/page.tsx",
     "src/app/dashboard/documents/page.tsx",
@@ -262,6 +264,7 @@
     "src/features/ventures/venture-promotion.ts",
     "src/features/ventures/venture-save-action.ts",
     "src/features/ventures/venture-save-types.ts",
+    "src/features/ventures/venture-score-proposal.ts",
     "src/features/ventures/venture-scoring.ts",
     "src/features/ventures/venture-suggestions.ts",
     "src/features/workflows/agent-quality-from-runs.ts",
@@ -361,6 +364,7 @@
     "src/server/inventory/vehicle-catalog-service.ts",
     "src/server/jobs/inngest-client.ts",
     "src/server/jobs/joris-execute-job.ts",
+    "src/server/jobs/shadow-score-cron.ts",
     "src/server/joris/brain.ts",
     "src/server/joris/daily-direction-generator.ts",
     "src/server/joris/detect-intent.ts",
@@ -451,11 +455,19 @@
     "src/server/ventures/loi96-target-store.ts",
     "src/server/ventures/prepared-action-repository.ts",
     "src/server/ventures/prepared-action-row-mapping.ts",
+    "src/server/ventures/shadow-cronbeat.ts",
+    "src/server/ventures/shadow-outcome-hook.ts",
+    "src/server/ventures/shadow-pass.ts",
+    "src/server/ventures/shadow-proposal-dedup.ts",
+    "src/server/ventures/shadow-proposal-read-model.ts",
+    "src/server/ventures/shadow-source-verifier.ts",
+    "src/server/ventures/shadow-tick-report.ts",
     "src/server/ventures/venture-asset-repository.ts",
     "src/server/ventures/venture-lifecycle-service.ts",
     "src/server/ventures/venture-repository.ts",
     "src/server/ventures/venture-row-mapping.ts",
-    "src/server/ventures/venture-save-service.ts"
+    "src/server/ventures/venture-save-service.ts",
+    "src/server/ventures/venture-score-shadow-runner.ts"
   ],
   "testOnly": [
     "src/server/ledger/hash-chain-audit.ts",

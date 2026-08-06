@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireOwnerApiSession } from "@/server/auth/owner";
+import { getAuthenticatedActorId, requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { recordLedgerEvent } from "@/server/actions/ledger-events";
 import {
@@ -38,6 +38,9 @@ export async function POST(
 
   const { intentId } = await params;
   const ctx = getActiveWorkspaceContext();
+
+  // Attribution comes from the authenticated session — see getAuthenticatedActorId.
+  const actorId = (await getAuthenticatedActorId()) ?? ctx.userId;
 
   // The load, guard, and transition all run inside this try so a repository
   // READ failure (e.g. missing table / transient DB error) surfaces the same
@@ -80,6 +83,9 @@ export async function POST(
       skillId: intent.skillId,
       agentId: intent.agentId,
       ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
+      // actorId only: a rejection is an act, but it authorizes nothing, so there
+      // is no approver to record.
+      actorId,
       effect: { kind: "runtime_result", operation: "plan", target: "agent_execution_intent" },
       metadata: {
         phase: "rejected",
