@@ -82,6 +82,8 @@ import { generateStructuredJson } from "@/server/ai/llm-json-provider";
 import { recordLedgerEvent } from "@/server/actions/ledger-events";
 import type { LedgerEventPayload } from "@/server/actions/ledger-events";
 import { listVenturesForWorkspace } from "./venture-repository";
+import { verifyEvidenceSources } from "./shadow-source-verifier";
+import type { VerificationReport } from "./shadow-source-verifier";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -331,6 +333,8 @@ export type ShadowRunnerDeps = {
   agentId?: string;
   /** Injectable so proposal identity is deterministic under test. */
   newProposalId?: () => string;
+  /** Injectable so source verification runs offline under test. */
+  verifySources?: typeof verifyEvidenceSources;
 };
 
 export type ShadowProposalOutcome =
@@ -375,7 +379,33 @@ export async function runShadowProposalForVenture(
     };
   }
 
-  const { evidence, unresolved } = parseShadowEvidence(generated.json);
+  const parsed = parseShadowEvidence(generated.json);
+  const { unresolved } = parsed;
+
+  // Cited URLs are checked before the proposal is built. On the first real run,
+  // two of three cited sources did not resolve — one named the French regulator
+  // as the source for a Quebec statute — and every gate passed anyway, because
+  // the gates only ever checked that a URL was well-formed and distinct.
+  //
+  // A proven-dead source is demoted to unsourced here, so the gates judge the
+  // dimension as what it is. A source that merely could not be checked is left
+  // alone: the network failing is not the model lying.
+  const verify = deps.verifySources ?? verifyEvidenceSources;
+  let evidence = parsed.evidence;
+  let sourceReport: VerificationReport = {
+    checked: 0,
+    reachable: 0,
+    demoted: [],
+    unverified: [],
+  };
+  try {
+    const verified = await verify(parsed.evidence, {});
+    evidence = verified.evidence as ScoreEvidence[];
+    sourceReport = verified.report;
+  } catch {
+    // Verification failing must not lose the proposal — it only means the
+    // sources go unchecked, which the report records as such.
+  }
 
   const built = buildVentureScoreProposal({
     // Minted here, before anything is persisted: the domain owns its identity,
@@ -414,7 +444,15 @@ export async function runShadowProposalForVenture(
       // A proposal plans; it changes no venture state. The only write is this
       // ledger row itself.
       effect: { kind: "db_write", operation: "plan", target: "venture_score_proposal" },
-      metadata: buildProposalLedgerMetadata(proposal, unresolved),
+      metadata: {
+        ...buildProposalLedgerMetadata(proposal, unresolved),
+        // Recorded so a later reader can tell a well-sourced proposal from one
+        // whose citations were demoted for not resolving.
+        sourcesChecked: sourceReport.checked,
+        sourcesReachable: sourceReport.reachable,
+        sourcesDemoted: sourceReport.demoted,
+        sourcesUnverified: sourceReport.unverified,
+      },
     });
   } catch {
     return {

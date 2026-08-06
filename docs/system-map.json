@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 500,
-    "live": 439,
+    "sourceFiles": 501,
+    "live": 440,
     "testOnly": 9,
     "incubation": 52
   },
@@ -457,6 +457,7 @@
     "src/server/ventures/shadow-outcome-hook.ts",
     "src/server/ventures/shadow-proposal-dedup.ts",
     "src/server/ventures/shadow-proposal-read-model.ts",
+    "src/server/ventures/shadow-source-verifier.ts",
     "src/server/ventures/shadow-tick-report.ts",
     "src/server/ventures/venture-asset-repository.ts",
     "src/server/ventures/venture-lifecycle-service.ts",
