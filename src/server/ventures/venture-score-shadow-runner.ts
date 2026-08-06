@@ -90,6 +90,20 @@ import { listVenturesForWorkspace } from "./venture-repository";
 export const SHADOW_PROPOSAL_ACTION_TYPE = "venture.score.shadow_proposal";
 export const SHADOW_OUTCOME_ACTION_TYPE = "venture.score.shadow_outcome";
 
+/**
+ * One row per cron tick, whatever the tick produced.
+ *
+ * Emitted by the step-4c trigger and read by the cronbeat probe. Declared here
+ * with its siblings so all shadow-mode action types have one home: the writer
+ * owns the contract, and a reader that invented its own string would watch for
+ * an event nobody emits.
+ *
+ * A tick is recorded even when it proposes nothing — "ran and found no
+ * candidates" and "did not run" are different facts, and only the ledger row
+ * distinguishes them.
+ */
+export const SHADOW_TICK_ACTION_TYPE = "venture.score.shadow_tick";
+
 /** A1 on the autonomy scale: prepare and propose, execute nothing. */
 const SHADOW_AUTONOMY_LEVEL = 1;
 

@@ -1,4 +1,4 @@
--- Migration 0026: lookup index for shadow score proposals.
+-- Migration 0027: lookup index for shadow score proposals.
 --
 -- Do NOT apply without an explicit CEO GO.
 --

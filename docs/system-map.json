@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 495,
-    "live": 434,
+    "sourceFiles": 500,
+    "live": 439,
     "testOnly": 9,
     "incubation": 52
   },
@@ -40,6 +40,7 @@
     "src/app/api/cron/ceo-brief/route.ts",
     "src/app/api/cron/market-scout/route.ts",
     "src/app/api/health/route.ts",
+    "src/app/api/health/shadow-cronbeat/route.ts",
     "src/app/api/health/staging-runtime/route.ts",
     "src/app/api/inngest/route.ts",
     "src/app/api/inventory/snapshot/route.ts",
@@ -361,6 +362,7 @@
     "src/server/inventory/vehicle-catalog-service.ts",
     "src/server/jobs/inngest-client.ts",
     "src/server/jobs/joris-execute-job.ts",
+    "src/server/jobs/shadow-score-cron.ts",
     "src/server/joris/brain.ts",
     "src/server/joris/daily-direction-generator.ts",
     "src/server/joris/detect-intent.ts",
@@ -451,8 +453,11 @@
     "src/server/ventures/loi96-target-store.ts",
     "src/server/ventures/prepared-action-repository.ts",
     "src/server/ventures/prepared-action-row-mapping.ts",
+    "src/server/ventures/shadow-cronbeat.ts",
     "src/server/ventures/shadow-outcome-hook.ts",
+    "src/server/ventures/shadow-proposal-dedup.ts",
     "src/server/ventures/shadow-proposal-read-model.ts",
+    "src/server/ventures/shadow-tick-report.ts",
     "src/server/ventures/venture-asset-repository.ts",
     "src/server/ventures/venture-lifecycle-service.ts",
     "src/server/ventures/venture-repository.ts",
