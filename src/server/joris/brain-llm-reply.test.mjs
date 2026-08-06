@@ -75,6 +75,7 @@ test("Joris brain — conversational LLM wiring", async (t) => {
       result.summary.includes("VERIFIED_MEMORY_LESSONS_FOR_JORIS"),
       "verified-lessons rail preserved verbatim",
     );
-    assert.equal(result.costMode, "economy");
+    // board.consult is premium-floor via cost ladder → routed mode is brute.
+    assert.equal(result.costMode, "brute");
   });
 });

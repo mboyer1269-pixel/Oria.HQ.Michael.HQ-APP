@@ -66,6 +66,10 @@ function formatLedgerLabel(status: ActionLedgerStatus) {
 function toUserError(error: unknown) {
   const message = error instanceof Error ? error.message : "Joris est temporairement indisponible.";
 
+  if (/Joris API 401/.test(message) || /\b401\b/.test(message)) {
+    return "Joris nécessite une session active (Supabase) pour répondre. Connecte-toi via /login, puis réessaie.";
+  }
+
   if (/Joris API \d+/.test(message)) {
     return "Joris ne répond pas pour le moment. Réessaie dans quelques instants.";
   }

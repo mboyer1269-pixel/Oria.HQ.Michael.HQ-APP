@@ -30,6 +30,8 @@ export type LlmJsonProviderInput = {
   providerPreference: LlmProvider | "auto";
   systemPrompt: string;
   userPrompt: string;
+  /** Optional model override passed through to the chosen provider client. */
+  modelId?: string;
   maxTokens?: number;
   temperature?: number;
   timeoutMs?: number;
@@ -101,6 +103,7 @@ export async function generateStructuredJson(
           {
             systemPrompt: input.systemPrompt,
             userPrompt: input.userPrompt,
+            modelId: input.modelId,
             maxTokens: input.maxTokens,
             temperature: input.temperature,
             timeoutMs: input.timeoutMs,
@@ -112,6 +115,7 @@ export async function generateStructuredJson(
           {
             systemPrompt: input.systemPrompt,
             userPrompt: input.userPrompt,
+            modelId: input.modelId,
             maxTokens: input.maxTokens,
             temperature: input.temperature,
             timeoutMs: input.timeoutMs,
