@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 501,
-    "live": 440,
+    "sourceFiles": 503,
+    "live": 442,
     "testOnly": 9,
     "incubation": 52
   },
@@ -66,6 +66,7 @@
     "src/app/api/sales/marketing/content-pack/route.ts",
     "src/app/api/sales/morning-queue/route.ts",
     "src/app/api/sales/outcome/route.ts",
+    "src/app/api/ventures/shadow-pass/route.ts",
     "src/app/api/workflows/board/route.ts",
     "src/app/contact/page.tsx",
     "src/app/dashboard/documents/page.tsx",
@@ -455,6 +456,7 @@
     "src/server/ventures/prepared-action-row-mapping.ts",
     "src/server/ventures/shadow-cronbeat.ts",
     "src/server/ventures/shadow-outcome-hook.ts",
+    "src/server/ventures/shadow-pass.ts",
     "src/server/ventures/shadow-proposal-dedup.ts",
     "src/server/ventures/shadow-proposal-read-model.ts",
     "src/server/ventures/shadow-source-verifier.ts",

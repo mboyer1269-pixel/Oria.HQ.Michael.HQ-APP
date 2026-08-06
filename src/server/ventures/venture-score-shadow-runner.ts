@@ -106,6 +106,16 @@ export const SHADOW_OUTCOME_ACTION_TYPE = "venture.score.shadow_outcome";
  */
 export const SHADOW_TICK_ACTION_TYPE = "venture.score.shadow_tick";
 
+/**
+ * A pass a human triggered, as opposed to one the schedule produced.
+ *
+ * Deliberately a DIFFERENT type from the cron tick. The cronbeat probe answers
+ * "is the schedule alive", and a manual run is not evidence of that — sharing
+ * the type would let someone keep the probe green by hand while the cron had
+ * been dead for a week.
+ */
+export const SHADOW_MANUAL_PASS_ACTION_TYPE = "venture.score.shadow_manual_pass";
+
 /** A1 on the autonomy scale: prepare and propose, execute nothing. */
 const SHADOW_AUTONOMY_LEVEL = 1;
 
