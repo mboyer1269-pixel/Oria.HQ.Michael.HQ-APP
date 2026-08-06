@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 495,
-    "live": 434,
+    "sourceFiles": 497,
+    "live": 436,
     "testOnly": 9,
     "incubation": 52
   },
@@ -40,6 +40,7 @@
     "src/app/api/cron/ceo-brief/route.ts",
     "src/app/api/cron/market-scout/route.ts",
     "src/app/api/health/route.ts",
+    "src/app/api/health/shadow-cronbeat/route.ts",
     "src/app/api/health/staging-runtime/route.ts",
     "src/app/api/inngest/route.ts",
     "src/app/api/inventory/snapshot/route.ts",
@@ -451,6 +452,7 @@
     "src/server/ventures/loi96-target-store.ts",
     "src/server/ventures/prepared-action-repository.ts",
     "src/server/ventures/prepared-action-row-mapping.ts",
+    "src/server/ventures/shadow-cronbeat.ts",
     "src/server/ventures/shadow-outcome-hook.ts",
     "src/server/ventures/shadow-proposal-read-model.ts",
     "src/server/ventures/venture-asset-repository.ts",
