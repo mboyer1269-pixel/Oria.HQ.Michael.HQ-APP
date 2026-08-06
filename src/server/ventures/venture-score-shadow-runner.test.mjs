@@ -423,7 +423,7 @@ test("Shadow runner — divergence outcome (V7 Phase 1 step 3)", async (t) => {
       proposalId: "prop_test",
       ventureId: "v1",
       workspaceId: ctx.workspace.id,
-      proposedBy: "venture_scorer",
+      proposedBy: "inventor",
       proposedAt: NOW,
       evidence: parsed.evidence,
     }).proposal;

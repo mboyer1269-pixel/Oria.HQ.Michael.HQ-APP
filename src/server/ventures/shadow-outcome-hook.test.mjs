@@ -54,7 +54,7 @@ function proposal(proposalId = "prop_1") {
     proposalId,
     ventureId: "venture_1",
     workspaceId: ctx.workspace.id,
-    proposedBy: "venture_scorer",
+    proposedBy: "inventor",
     proposedAt: NOW,
     evidence: parsed.evidence,
   }).proposal;

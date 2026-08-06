@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 503,
-    "live": 442,
+    "sourceFiles": 504,
+    "live": 443,
     "testOnly": 9,
     "incubation": 52
   },
@@ -230,6 +230,7 @@
     "src/features/ventures/components/agent-venture-workbench.tsx",
     "src/features/ventures/components/cash-action-review-client.tsx",
     "src/features/ventures/components/loi96-pipeline-board.tsx",
+    "src/features/ventures/components/shadow-pass-panel.tsx",
     "src/features/ventures/components/venture-asset-panel.tsx",
     "src/features/ventures/components/venture-card.tsx",
     "src/features/ventures/components/venture-command-center-client.tsx",

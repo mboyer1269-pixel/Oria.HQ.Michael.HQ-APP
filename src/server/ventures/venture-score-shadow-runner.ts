@@ -351,7 +351,7 @@ export type ShadowProposalOutcome =
   | { status: "proposed"; proposal: VentureScoreProposal; unresolved: (keyof VentureSubScores)[] }
   | { status: "skipped"; ventureId: string; reason: string };
 
-const DEFAULT_AGENT_ID = "venture_scorer";
+const DEFAULT_AGENT_ID = "inventor";
 
 /**
  * Produces and logs one shadow proposal.
