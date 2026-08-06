@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 503,
+    "sourceFiles": 504,
     "live": 442,
     "testOnly": 9,
-    "incubation": 52
+    "incubation": 53
   },
   "incubationByArea": {
     "server/agents": 12,
@@ -14,6 +14,7 @@
     "server/ventures": 4,
     "server/missions": 3,
     "server/arena": 2,
+    "core/workspaces": 1,
     "features/agents": 1,
     "features/hq": 1,
     "features/outbound": 1,
@@ -480,6 +481,7 @@
     "src/server/outbound/outbound-policy-engine.ts"
   ],
   "incubation": [
+    "src/core/workspaces/membership.ts",
     "src/features/agents/agent-approval-persistence-read-models.ts",
     "src/features/cockpit/components/agent-approval-preview-panel.tsx",
     "src/features/cockpit/components/cockpit-overview.tsx",
