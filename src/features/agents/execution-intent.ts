@@ -1,5 +1,4 @@
-// src/features/agents/execution-intent.ts
-//
+import type { ContextPartition } from "@/core/context-partition";
 // Pure model for an AGENT EXECUTION INTENT -- one executable action an agent
 // (Hermès / Relay) has prepared and queued for CEO approval. Unlike a
 // PreparedAction (the locked, manual-send-only cash-outreach proposal), an
@@ -55,6 +54,10 @@ export type AgentExecutionIntent = {
   failureCode?: string;
   createdAt: string;
   updatedAt: string;
+  /** Workspace mode active when the intent was created (migration 0028). */
+  modeId?: string;
+  /** Vie/Travail partition derived from modeId (migration 0028). */
+  contextPartition?: ContextPartition;
   // Governance lock -- an intent is a proposal until the CEO approves it.
   requiresCeoApproval: true;
 };

@@ -9,6 +9,7 @@ import {
   getAgentExecutionIntent,
   transitionAgentExecutionIntent,
 } from "@/server/agents/execution-intent-repository";
+import { createExecutionIntentApprovalProof } from "@/server/agents/execution-intent-approval-proof-repository";
 import { approveAndDispatchExecutionIntent } from "@/server/agents/execution-intent-approval-service";
 import { logger } from "@/lib/logger";
 
@@ -70,16 +71,25 @@ export async function POST(
   // than the session that passed the owner gate. Falls back to ctx.userId only
   // where no session exists (local/dev), which is the honest identity there.
   const actorId = (await getAuthenticatedActorId()) ?? ctx.userId;
+  const modeId = ctx.activeMode.id;
 
   try {
     const result = await approveAndDispatchExecutionIntent({
       evaluate: () => evaluateLiveExecution(sentinelleInput),
-      markExecuting: () =>
+      recordApprovalProof: async () =>
+        createExecutionIntentApprovalProof({
+          workspaceId: ctx.workspace.id,
+          approvedByUserId: actorId,
+          modeId,
+          intent,
+        }),
+      markExecuting: (approvalEventId) =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "executing",
           // Claim from `pending`: if a concurrent reject already moved it, this
           // raises a concurrency error (-> 409) and no dispatch happens.
           expectedFromStatus: "pending",
+          approvalEventId,
           updatedAt: new Date().toISOString(),
         }),
       recordAttempt: () =>
@@ -90,6 +100,7 @@ export async function POST(
           autonomyLevel: intent.autonomyLevel,
           requiresConfirmation: false,
           workspaceId: ctx.workspace.id,
+          modeId,
           skillId: intent.skillId,
           agentId: intent.agentId,
           ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
@@ -114,6 +125,7 @@ export async function POST(
           autonomyLevel: intent.autonomyLevel,
           requiresConfirmation: false,
           workspaceId: ctx.workspace.id,
+          modeId,
           skillId: intent.skillId,
           agentId: intent.agentId,
           ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),

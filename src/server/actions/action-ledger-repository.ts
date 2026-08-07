@@ -1,3 +1,4 @@
+import { resolveContextPartition } from "@/core/context-partition";
 import type { ActionLedgerStatus, CalendarStorageMode, ModelMode } from "@/core/types";
 import type { LedgerEventType } from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
@@ -16,6 +17,8 @@ export type ActionLedgerEntry = {
   modelId?: string;
   costMode?: ModelMode;
   workspaceId?: string;
+  modeId?: string;
+  contextPartition?: "personal" | "work";
   skillId?: string;
   agentId?: string;
   missionId?: string;
@@ -46,6 +49,8 @@ export type RecordActionInput = {
   modelId?: string;
   costMode?: ModelMode;
   workspaceId?: string;
+  modeId?: string;
+  contextPartition?: "personal" | "work";
   skillId?: string;
   agentId?: string;
   payload?: Json;
@@ -63,6 +68,7 @@ export type WorkspaceLedgerMetadataInput = {
   eventType?: LedgerEventType;
   workspaceId?: string;
   modeId?: string;
+  contextPartition?: "personal" | "work";
   skillId?: string;
   agentId?: string;
   assistantProfileId?: string;
@@ -130,6 +136,8 @@ function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): A
     modelId: row.model_id ?? undefined,
     costMode: row.cost_mode ? (row.cost_mode as ModelMode) : undefined,
     workspaceId: row.workspace_id ?? undefined,
+    modeId: row.mode_id ?? undefined,
+    contextPartition: row.context_partition ?? undefined,
     skillId: row.skill_id ?? undefined,
     agentId: row.agent_id ?? undefined,
     missionId: row.mission_id ?? undefined,
@@ -167,6 +175,10 @@ function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedge
   return {
     mode: "local",
     async record(input) {
+      const metadata = buildMetadata(input);
+      const modeId =
+        input.modeId ??
+        (isJsonRecord(metadata) && typeof metadata.modeId === "string" ? metadata.modeId : "hq");
       const entry: ActionLedgerEntry = {
         id: createLocalId(),
         userId: user.userId,
@@ -178,11 +190,13 @@ function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedge
         modelId: input.modelId,
         costMode: input.costMode,
         workspaceId: input.workspaceId,
+        modeId,
+        contextPartition: resolveContextPartition(modeId),
         skillId: input.skillId,
         agentId: input.agentId,
         missionId: input.missionId,
         payload: input.payload ?? {},
-        metadata: buildMetadata(input),
+        metadata,
         createdAt: new Date().toISOString(),
         storageMode: "local",
       };
@@ -204,6 +218,11 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
   return {
     mode: "supabase",
     async record(input) {
+      const metadata = buildMetadata(input);
+      const modeId =
+        input.modeId ??
+        (isJsonRecord(metadata) && typeof metadata.modeId === "string" ? metadata.modeId : "hq");
+
       const { data, error } = await supabase
         .from("action_ledger")
         .insert({
@@ -216,11 +235,13 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
           model_id: input.modelId ?? null,
           cost_mode: input.costMode ?? null,
           workspace_id: input.workspaceId ?? null,
+          mode_id: modeId,
+          context_partition: resolveContextPartition(modeId),
           skill_id: input.skillId ?? null,
           agent_id: input.agentId ?? null,
           mission_id: input.missionId ?? null,
           payload: input.payload ?? {},
-          metadata: buildMetadata(input),
+          metadata,
         })
         .select()
         .single();

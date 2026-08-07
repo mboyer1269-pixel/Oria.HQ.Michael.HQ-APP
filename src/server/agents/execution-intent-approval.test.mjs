@@ -44,6 +44,8 @@ const {
   transitionAgentExecutionIntent,
   __clearAgentExecutionIntentsForTests,
 } = repo;
+const { createExecutionIntentApprovalProof, __clearExecutionIntentApprovalProofsForTests } =
+  await jiti.import(path.join(__dirname, "execution-intent-approval-proof-repository.ts"));
 
 function decision(outcome) {
   return {
@@ -66,7 +68,11 @@ function spyDeps(order, { evalOutcome = "ALLOW", dispatchResult } = {}) {
       order.push("evaluate");
       return decision(evalOutcome);
     },
-    markExecuting: async () => void order.push("markExecuting"),
+    recordApprovalProof: async () => {
+      order.push("recordApprovalProof");
+      return { approvalEventId: "proof-1" };
+    },
+    markExecuting: async (approvalEventId) => void order.push(`markExecuting:${approvalEventId}`),
     recordAttempt: async () => void order.push("recordAttempt"),
     dispatch: async () => {
       order.push("dispatch");
@@ -91,7 +97,12 @@ describe("approveAndDispatchExecutionIntent (orchestration)", () => {
     const attemptIdx = order.indexOf("recordAttempt");
     const dispatchIdx = order.indexOf("dispatch");
     const resultIdx = order.indexOf("recordResult:success");
+    const proofIdx = order.indexOf("recordApprovalProof");
+    const executingIdx = order.indexOf("markExecuting:proof-1");
     assert.ok(attemptIdx >= 0 && dispatchIdx >= 0 && resultIdx >= 0);
+    assert.ok(proofIdx >= 0 && executingIdx >= 0);
+    assert.ok(proofIdx < executingIdx, "approval proof BEFORE markExecuting");
+    assert.ok(executingIdx < attemptIdx, "markExecuting BEFORE attempt ledger");
     assert.ok(attemptIdx < dispatchIdx, "attempt ledger BEFORE dispatch");
     assert.ok(resultIdx > dispatchIdx, "result ledger AFTER dispatch");
     assert.ok(order.includes("markExecuted:ref1"));
@@ -170,6 +181,7 @@ describe("approval wired to the real repo + real n8n tool (fetch mocked)", () =>
 
   test("end-to-end: pending -> executed, fetch called once, ledger ordered", async () => {
     __clearAgentExecutionIntentsForTests();
+    __clearExecutionIntentApprovalProofsForTests();
     process.env = {
       ...ORIGINAL_ENV,
       AGENT_WEBHOOK_SIGNING_SECRET: "k",
@@ -186,8 +198,19 @@ describe("approval wired to the real repo + real n8n tool (fetch mocked)", () =>
 
     const res = await approveAndDispatchExecutionIntent({
       evaluate: () => decision("ALLOW"),
-      markExecuting: () =>
-        transitionAgentExecutionIntent("ws1", "intent-1", { toStatus: "executing", updatedAt: "t1" }),
+      recordApprovalProof: () =>
+        createExecutionIntentApprovalProof({
+          workspaceId: "ws1",
+          approvedByUserId: "ceo-1",
+          modeId: "hq",
+          intent,
+        }).then((proof) => ({ approvalEventId: proof.approvalEventId })),
+      markExecuting: (approvalEventId) =>
+        transitionAgentExecutionIntent("ws1", "intent-1", {
+          toStatus: "executing",
+          updatedAt: "t1",
+          approvalEventId,
+        }),
       recordAttempt: async () => void ledger.push("attempt"),
       dispatch: () =>
         n8nWebhookTriggerTool.handler(intent.payload, {
@@ -221,10 +244,12 @@ describe("approval wired to the real repo + real n8n tool (fetch mocked)", () =>
 
     process.env = ORIGINAL_ENV;
     __clearAgentExecutionIntentsForTests();
+    __clearExecutionIntentApprovalProofsForTests();
   });
 
   test("end-to-end BLOCK: no fetch, intent ends failed", async () => {
     __clearAgentExecutionIntentsForTests();
+    __clearExecutionIntentApprovalProofsForTests();
     process.env = {
       ...ORIGINAL_ENV,
       AGENT_WEBHOOK_SIGNING_SECRET: "k",
@@ -269,5 +294,6 @@ describe("approval wired to the real repo + real n8n tool (fetch mocked)", () =>
 
     process.env = ORIGINAL_ENV;
     __clearAgentExecutionIntentsForTests();
+    __clearExecutionIntentApprovalProofsForTests();
   });
 });

@@ -23,6 +23,7 @@ import {
   AGENT_EXECUTION_INTENT_STATUSES,
   canTransitionExecutionIntent,
 } from "@/features/agents/execution-intent";
+import { resolveContextPartition } from "@/core/context-partition";
 import type { VenturePersistenceMode } from "@/features/ventures/venture-save-types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { AgentExecutionIntentInsert, AgentExecutionIntentRow } from "@/server/db/types";
@@ -112,6 +113,7 @@ function mapIntentToInsert(
   workspaceId: string,
   userId: string,
   intent: AgentExecutionIntent,
+  modeId: string,
 ): AgentExecutionIntentInsert {
   if (intent.requiresCeoApproval !== true) {
     throw new AgentExecutionIntentRepositoryError("create");
@@ -128,6 +130,9 @@ function mapIntentToInsert(
     payload: intent.payload as unknown as AgentExecutionIntentInsert["payload"],
     action_ref: intent.actionRef ?? null,
     failure_code: intent.failureCode ?? null,
+    mode_id: modeId,
+    context_partition: resolveContextPartition(modeId),
+    approval_event_id: null,
     requires_ceo_approval: true,
     updated_at: intent.updatedAt,
   };
@@ -149,6 +154,8 @@ function mapRowToIntent(row: AgentExecutionIntentRow): AgentExecutionIntent {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     requiresCeoApproval: true,
+    modeId: row.mode_id,
+    contextPartition: row.context_partition,
   };
   if (row.action_ref !== null && row.action_ref !== undefined) {
     intent.actionRef = row.action_ref;
@@ -168,8 +175,10 @@ export async function createAgentExecutionIntent(
   workspaceId: string,
   userId: string,
   intent: AgentExecutionIntent,
+  options?: { modeId?: string },
 ): Promise<AgentExecutionIntent> {
-  const insert = mapIntentToInsert(workspaceId, userId, intent);
+  const modeId = options?.modeId ?? "hq";
+  const insert = mapIntentToInsert(workspaceId, userId, intent, modeId);
   const db = getSupabaseClient();
 
   if (!db) {
@@ -250,6 +259,8 @@ export type ExecutionIntentTransitionPatch = {
   updatedAt: string;
   actionRef?: string;
   failureCode?: string;
+  /** Required when transitioning pending -> executing (migration 0029). */
+  approvalEventId?: string;
   // The status the CALLER validated its decision against. When set, the
   // transition only applies while the row is STILL in that exact status; a
   // mismatch (a concurrent writer advanced it) raises a concurrency error
@@ -293,6 +304,7 @@ export async function transitionAgentExecutionIntent(
     row.updated_at = patch.updatedAt;
     if (patch.actionRef !== undefined) row.action_ref = patch.actionRef;
     if (patch.failureCode !== undefined) row.failure_code = patch.failureCode;
+    if (patch.approvalEventId !== undefined) row.approval_event_id = patch.approvalEventId;
     return mapRowToIntent(cloneRow(row));
   }
 
@@ -313,6 +325,7 @@ export async function transitionAgentExecutionIntent(
     updated_at: patch.updatedAt,
     ...(patch.actionRef !== undefined ? { action_ref: patch.actionRef } : {}),
     ...(patch.failureCode !== undefined ? { failure_code: patch.failureCode } : {}),
+    ...(patch.approvalEventId !== undefined ? { approval_event_id: patch.approvalEventId } : {}),
   };
   // Atomic guard: the UPDATE only applies while the row is STILL in the expected
   // `from` status. This closes the read-then-update TOCTOU where a concurrent

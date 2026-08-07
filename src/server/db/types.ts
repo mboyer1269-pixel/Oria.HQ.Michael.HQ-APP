@@ -20,6 +20,8 @@ export type CalendarEventInsert = Omit<CalendarEventRow, "id" | "created_at" | "
   updated_at?: string;
 };
 
+export type ContextPartitionRow = "personal" | "work";
+
 export type ActionLedgerRow = {
   id: string;
   user_id: string;
@@ -31,6 +33,8 @@ export type ActionLedgerRow = {
   model_id: string | null;
   cost_mode: string | null;
   workspace_id: string | null;
+  mode_id: string | null;
+  context_partition: ContextPartitionRow | null;
   skill_id: string | null;
   agent_id: string | null;
   mission_id: string | null;
@@ -327,9 +331,57 @@ export type AgentExecutionIntentRow = {
   payload: Json;
   action_ref: string | null;
   failure_code: string | null;
+  mode_id: string;
+  context_partition: ContextPartitionRow;
+  approval_event_id: string | null;
   requires_ceo_approval: true;
   created_at: string;
   updated_at: string;
+};
+
+export type AgentExecutionIntentApprovalEventRow = {
+  id: string;
+  workspace_id: string;
+  intent_id: string;
+  mode_id: string;
+  context_partition: ContextPartitionRow;
+  approved_by_user_id: string;
+  intent_payload_hash: string;
+  approval_proof: string;
+  approved_at: string;
+  created_at: string;
+};
+
+export type AgentExecutionIntentApprovalEventInsert = Omit<
+  AgentExecutionIntentApprovalEventRow,
+  "id" | "created_at"
+> & {
+  id?: string;
+  created_at?: string;
+};
+
+export type AgentSemanticMemoryEmbeddingRow = {
+  id: string;
+  workspace_id: string;
+  mode_id: string;
+  context_partition: ContextPartitionRow;
+  memory_id: string;
+  content_hash: string;
+  content_preview: string;
+  embedding: number[];
+  dimensions: number;
+  trust_level: "verified" | "proposed" | "draft";
+  metadata: Json;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentSemanticMemoryEmbeddingInsert = Omit<
+  AgentSemanticMemoryEmbeddingRow,
+  "id" | "created_at"
+> & {
+  id?: string;
+  created_at?: string;
 };
 
 // The DB assigns id and created_at (defaults), so an insert omits them.
@@ -423,6 +475,18 @@ export type MichaelHqDatabase = {
         Row: AgentExecutionIntentRow;
         Insert: AgentExecutionIntentInsert;
         Update: Partial<AgentExecutionIntentInsert>;
+        Relationships: [];
+      };
+      agent_execution_intent_approval_events: {
+        Row: AgentExecutionIntentApprovalEventRow;
+        Insert: AgentExecutionIntentApprovalEventInsert;
+        Update: Partial<AgentExecutionIntentApprovalEventInsert>;
+        Relationships: [];
+      };
+      agent_semantic_memory_embeddings: {
+        Row: AgentSemanticMemoryEmbeddingRow;
+        Insert: AgentSemanticMemoryEmbeddingInsert;
+        Update: Partial<AgentSemanticMemoryEmbeddingInsert>;
         Relationships: [];
       };
     };

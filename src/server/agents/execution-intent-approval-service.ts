@@ -18,8 +18,10 @@ import type { McpToolResult } from "@/server/agents/tools";
 export type ExecutionIntentApprovalDeps = {
   /** Re-evaluate the Sentinelle policy at approval time (defense in depth). */
   evaluate: () => SentinelleDecision;
-  /** pending -> executing. */
-  markExecuting: () => Promise<unknown>;
+  /** Append-only cryptographic approval proof (migration 0029). */
+  recordApprovalProof: () => Promise<{ approvalEventId: string }>;
+  /** pending -> executing. Receives the approval_event_id to link on the intent row. */
+  markExecuting: (approvalEventId: string) => Promise<unknown>;
   /** Ledger entry recorded BEFORE the dispatch. */
   recordAttempt: () => Promise<unknown>;
   /** Invoke the MCP tool (the single n8n chokepoint). */
@@ -50,7 +52,8 @@ export async function approveAndDispatchExecutionIntent(
     return { ok: false, status: "blocked", error: sentinelle.reason, httpStatus: 403 };
   }
 
-  await deps.markExecuting();
+  const { approvalEventId } = await deps.recordApprovalProof();
+  await deps.markExecuting(approvalEventId);
   await deps.recordAttempt();
 
   const result = await deps.dispatch();

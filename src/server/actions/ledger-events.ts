@@ -311,6 +311,7 @@ export async function recordLedgerEvent(
   }
 
   const repository = createActionLedgerRepository(ctx);
+  const modeId = event.modeId ?? ctx.activeMode.id;
 
   return repository.record({
     actionType: event.actionType,
@@ -321,6 +322,7 @@ export async function recordLedgerEvent(
     modelId: event.modelId,
     costMode: event.costMode,
     workspaceId: event.workspaceId,
+    modeId,
     skillId: event.skillId,
     agentId: event.agentId,
     missionId: event.missionId,
@@ -328,7 +330,7 @@ export async function recordLedgerEvent(
     metadata: {
       eventType: event.eventType,
       workspaceId: event.workspaceId,
-      ...(event.modeId ? { modeId: event.modeId } : {}),
+      ...(event.modeId ? { modeId: event.modeId } : { modeId }),
       ...(event.skillId ? { skillId: event.skillId } : {}),
       ...(event.agentId ? { agentId: event.agentId } : {}),
       ...(event.missionId ? { missionId: event.missionId } : {}),
