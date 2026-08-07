@@ -35,6 +35,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Blocks on advisories in packages THIS repo declares. Transitive ones are
+      # printed, not gated: their only "fix" is usually a forced major upgrade of
+      # a parent, and a gate nobody can satisfy is a gate that gets disabled.
+      - name: Direct dependency audit
+        run: npm run audit:deps
+
       - name: Typecheck
         run: npm run typecheck
 

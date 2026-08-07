@@ -16,15 +16,18 @@
 import crypto from "node:crypto";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { isAllowed } from "@/lib/rate-limit";
+import { isAllowed, rateLimitKey, RATE_LIMIT_POLICIES } from "@/lib/rate-limit";
 import { findApprovedWebhookBinding } from "@/server/runtime/webhook-registry";
 import type { McpTool, McpToolContext, McpToolResult } from "./types";
 
 export const N8N_WEBHOOK_TRIGGER_TOOL_NAME = "n8n_webhook_trigger";
 
 // Internal rate limit: max dispatches per rolling window, per workspace+agent.
-export const N8N_DISPATCH_RATE_LIMIT = 30;
-export const N8N_DISPATCH_RATE_WINDOW_MS = 60_000;
+// Sourced from the policy registry so this dispatch can never inherit another
+// surface's numbers — nor lend it ours.
+const N8N_POLICY = RATE_LIMIT_POLICIES.n8n_dispatch;
+export const N8N_DISPATCH_RATE_LIMIT = N8N_POLICY.limit;
+export const N8N_DISPATCH_RATE_WINDOW_MS = N8N_POLICY.windowMs;
 
 /**
  * Strict payload Hermès (Relay) produces and stores in an execution intent.
@@ -87,8 +90,8 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   }
 
   // 3. Internal rate limit -- prevents a bug from bombing n8n.
-  const rlKey = `n8n:${ctx.workspaceId}:${input.agentId}`;
-  const allowed = await isAllowedImpl(rlKey, N8N_DISPATCH_RATE_LIMIT, N8N_DISPATCH_RATE_WINDOW_MS);
+  const rlKey = rateLimitKey(N8N_POLICY, `${ctx.workspaceId}:${input.agentId}`);
+  const allowed = await isAllowedImpl(rlKey, N8N_POLICY.limit, N8N_POLICY.windowMs);
   if (!allowed) {
     logger.warn("mcp.n8n_webhook_trigger.rate_limited", {
       workspaceId: ctx.workspaceId,

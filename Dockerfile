@@ -1,20 +1,26 @@
 # =============================================================
 # Oria HQ — Dockerfile
-# Next.js 16 standalone build — Node 20 Alpine
+# Next.js 16 standalone build — Node 22 Alpine
 # Build: docker build -t oria-local:latest .
 # Run:   docker run --rm -p 3000:3000 oria-local:latest
 # Health: curl http://localhost:3000/api/health
+#
+# Node 22 is the ONLY supported major, matching .github/workflows (node-version:
+# 22) and package.json engines. This image ran Node 20 while CI ran 22, so
+# production executed a major the test suite had never run on — and could not
+# have: run-tests.mjs uses fs.glob, which does not exist before Node 22.
+# Keep these three in step; a Docker/CI split is invisible until it is not.
 # =============================================================
 
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Stage 2: Builder
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -27,7 +33,7 @@ ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=stub
 RUN npm run build
 
 # Stage 3: Runner (production, minimal image)
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
