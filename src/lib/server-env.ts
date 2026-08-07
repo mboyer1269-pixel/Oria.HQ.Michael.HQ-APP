@@ -164,7 +164,10 @@ export const serverEnv = {
 /** A production configuration gap that degrades a subsystem without stopping the boot. */
 export type ProductionReadinessWarning = {
   /** Stable machine-readable id, safe to alert on. */
-  code: "inngest_keys_missing" | "n8n_signing_secret_missing";
+  code:
+    | "inngest_keys_missing"
+    | "n8n_static_secret_missing"
+    | "n8n_signing_secret_missing";
   /** The subsystem that is degraded. */
   subsystem: "scheduled_jobs" | "n8n_dispatch";
   message: string;
@@ -193,13 +196,26 @@ export function getProductionReadinessWarnings(): ProductionReadinessWarning[] {
         "INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY are unset — scheduled jobs cannot run in production.",
     });
   }
-  if (serverEnv.n8nWebhookUrl && !serverEnv.agentWebhookSigningSecret) {
-    warnings.push({
-      code: "n8n_signing_secret_missing",
-      subsystem: "n8n_dispatch",
-      message:
-        "N8N_WEBHOOK_URL is set but AGENT_WEBHOOK_SIGNING_SECRET is not — every signed dispatch will be refused.",
-    });
+  // A destination with an incomplete credential set is worse than no
+  // destination: it looks configured and refuses at dispatch time. The
+  // dispatcher requires BOTH secrets, so each absence degrades n8n_dispatch.
+  if (serverEnv.n8nWebhookUrl) {
+    if (!serverEnv.n8nSecret) {
+      warnings.push({
+        code: "n8n_static_secret_missing",
+        subsystem: "n8n_dispatch",
+        message:
+          "N8N_WEBHOOK_URL is set but N8N_SECRET is not — the dispatcher refuses before sending.",
+      });
+    }
+    if (!serverEnv.agentWebhookSigningSecret) {
+      warnings.push({
+        code: "n8n_signing_secret_missing",
+        subsystem: "n8n_dispatch",
+        message:
+          "N8N_WEBHOOK_URL is set but AGENT_WEBHOOK_SIGNING_SECRET is not — every signed dispatch will be refused.",
+      });
+    }
   }
   return warnings;
 }

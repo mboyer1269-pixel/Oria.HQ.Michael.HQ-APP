@@ -128,6 +128,34 @@ test("Production fail-fast — it covers what authentication actually needs", as
   });
 });
 
+/**
+ * Runs the real GET /api/health handler in a child process with a chosen
+ * environment, and returns the parsed body.
+ *
+ * A child process because server-env resolves its configuration once at import
+ * time — an in-process call would answer for whichever environment loaded first.
+ */
+function callHealthWith(env) {
+  const script = `
+    (async () => {
+      const { createJiti } = await import("jiti");
+      const jiti = createJiti(${JSON.stringify(path.join(projectRoot, "probe.mjs"))}, {
+        alias: {
+          "@": ${JSON.stringify(path.join(projectRoot, "src"))},
+          "server-only": ${JSON.stringify(path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs"))},
+        },
+      });
+      const route = await jiti.import(${JSON.stringify(path.join(projectRoot, "src/app/api/health/route.ts"))});
+      console.log(JSON.stringify(await (await route.GET()).json()));
+    })();
+  `;
+  const out = execFileSync(process.execPath, ["-e", script], {
+    env: { ...env, PATH: process.env.PATH, SystemRoot: process.env.SystemRoot },
+    encoding: "utf8",
+  });
+  return JSON.parse(out.trim().split("\n").pop());
+}
+
 test("Production readiness warnings reach an observable surface", async (t) => {
   await t.test("they are emitted at module load, not merely returned", async () => {
     const source = await read("src/lib/server-env.ts");
@@ -142,28 +170,10 @@ test("Production readiness warnings reach an observable surface", async (t) => {
     assert.match(route, /subsystem/);
   });
 
-  await t.test("a degraded production is reported by the endpoint", async () => {
-    // Behavioural: run the real route handler with a production environment
-    // that is complete except for the scheduled-jobs keys.
-    const script = `
-      (async () => {
-        const { createJiti } = await import("jiti");
-        const jiti = createJiti(${JSON.stringify(path.join(projectRoot, "probe.mjs"))}, {
-          alias: {
-            "@": ${JSON.stringify(path.join(projectRoot, "src"))},
-            "server-only": ${JSON.stringify(path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs"))},
-          },
-        });
-        const route = await jiti.import(${JSON.stringify(path.join(projectRoot, "src/app/api/health/route.ts"))});
-        const response = await route.GET();
-        console.log(JSON.stringify(await response.json()));
-      })();
-    `;
-    const out = execFileSync(process.execPath, ["-e", script], {
-      env: { ...PRODUCTION_BASE, PATH: process.env.PATH, SystemRoot: process.env.SystemRoot },
-      encoding: "utf8",
-    });
-    const body = JSON.parse(out.trim().split("\n").pop());
+  await t.test("a degraded production is reported by the endpoint", () => {
+    // Behavioural: the real route handler, with a production environment that
+    // is complete except for the scheduled-jobs keys.
+    const body = callHealthWith(PRODUCTION_BASE);
 
     assert.equal(body.ok, true, "the service is live — only `degraded` changes");
     assert.equal(body.degraded, true, "a production missing the Inngest keys must report degraded");
@@ -188,25 +198,72 @@ test("Production readiness warnings reach an observable surface", async (t) => {
     }
   });
 
-  await t.test("outside production the endpoint reports no degradation", () => {
-    const script = `
-      (async () => {
-        const { createJiti } = await import("jiti");
-        const jiti = createJiti(${JSON.stringify(path.join(projectRoot, "probe.mjs"))}, {
-          alias: {
-            "@": ${JSON.stringify(path.join(projectRoot, "src"))},
-            "server-only": ${JSON.stringify(path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs"))},
-          },
-        });
-        const route = await jiti.import(${JSON.stringify(path.join(projectRoot, "src/app/api/health/route.ts"))});
-        console.log(JSON.stringify(await (await route.GET()).json()));
-      })();
-    `;
-    const out = execFileSync(process.execPath, ["-e", script], {
-      env: { NODE_ENV: "development", PATH: process.env.PATH, SystemRoot: process.env.SystemRoot },
-      encoding: "utf8",
+  await t.test("each missing n8n secret degrades n8n_dispatch on its own", () => {
+    // A destination with an incomplete credential set looks configured and
+    // refuses at dispatch time. The dispatcher requires BOTH secrets, so each
+    // absence is its own degradation with its own code.
+    const withDestination = {
+      ...PRODUCTION_BASE,
+      INNGEST_EVENT_KEY: "e",
+      INNGEST_SIGNING_KEY: "s",
+      N8N_WEBHOOK_URL: "https://hooks.n8n.cloud/webhook/x",
+    };
+
+    const cases = [
+      {
+        label: "both secrets absent",
+        env: withDestination,
+        expect: ["n8n_static_secret_missing", "n8n_signing_secret_missing"],
+      },
+      {
+        label: "static secret absent",
+        env: { ...withDestination, AGENT_WEBHOOK_SIGNING_SECRET: "sign" },
+        expect: ["n8n_static_secret_missing"],
+      },
+      {
+        label: "signing secret absent",
+        env: { ...withDestination, N8N_SECRET: "static" },
+        expect: ["n8n_signing_secret_missing"],
+      },
+      {
+        label: "both present",
+        env: { ...withDestination, N8N_SECRET: "static", AGENT_WEBHOOK_SIGNING_SECRET: "sign" },
+        expect: [],
+      },
+    ];
+
+    for (const testCase of cases) {
+      const body = callHealthWith(testCase.env);
+      const codes = body.warnings
+        .filter((warning) => warning.subsystem === "n8n_dispatch")
+        .map((warning) => warning.code)
+        .sort();
+      assert.deepEqual(
+        codes,
+        [...testCase.expect].sort(),
+        `${testCase.label}: /api/health reported ${JSON.stringify(codes)}`,
+      );
+      assert.equal(
+        body.degraded,
+        testCase.expect.length > 0,
+        `${testCase.label}: degraded flag disagrees with the warning list`,
+      );
+    }
+  });
+
+  await t.test("no n8n warning is raised without a destination", () => {
+    // Secrets alone configure nothing; only a destination makes them required.
+    const body = callHealthWith({
+      ...PRODUCTION_BASE,
+      INNGEST_EVENT_KEY: "e",
+      INNGEST_SIGNING_KEY: "s",
     });
-    const body = JSON.parse(out.trim().split("\n").pop());
+    assert.deepEqual(body.warnings.filter((w) => w.subsystem === "n8n_dispatch"), []);
+    assert.equal(body.degraded, false);
+  });
+
+  await t.test("outside production the endpoint reports no degradation", () => {
+    const body = callHealthWith({ NODE_ENV: "development" });
     assert.equal(body.degraded, false);
     assert.deepEqual(body.warnings, []);
   });
@@ -233,7 +290,7 @@ test("Schema completeness — it is the full inventory of what the code reads", 
     // through a name constant (env[CONSTANT]), and destructuring. A regex tuned
     // to `process.env.NAME` misses the constant form entirely, which is how
     // three flags stayed out of the schema while this test passed.
-    const references = await collectEnvReferences();
+    const { references } = await collectEnvReferences();
     assert.ok(references.size > 0, "the scanner found nothing — it has stopped working");
 
     const undeclared = [...references.keys()].filter((name) => !declared.has(name)).sort();
@@ -250,7 +307,7 @@ test("Schema completeness — it is the full inventory of what the code reads", 
   await t.test("the scanner resolves a variable read through a name constant", async () => {
     // Pins the capability itself: if the AST walk regresses to literal property
     // access, these disappear and the guard above silently weakens.
-    const references = await collectEnvReferences();
+    const { references } = await collectEnvReferences();
     for (const [name, file] of [
       ["LEDGER_HASH_CHAIN_WRITE", "src/server/ledger/hash-chain-write-flag.ts"],
       ["MISSION_DURABLE_DRAFTS", "src/server/missions/mission-persistence-flag.ts"],
@@ -295,11 +352,13 @@ test("Configuration truth — .env.example does not promise inert wiring", async
   });
 
   await t.test("no production code reads them", async () => {
+    // The scanner walks src/ and excludes test files, so this cannot match
+    // itself the way a repo-wide grep did.
     // The scanner walks src/ and already excludes test files, so this cannot
     // match itself the way a repo-wide grep did: the previous form of this
     // assertion listed this very file, because the variable name appears in it,
     // and failed on every committed checkout.
-    const references = await collectEnvReferences();
+    const { references } = await collectEnvReferences();
     for (const name of [
       "AGENT_MARKETING_WEBHOOK_URL",
       "AGENT_INVENTOR_WEBHOOK_URL",
