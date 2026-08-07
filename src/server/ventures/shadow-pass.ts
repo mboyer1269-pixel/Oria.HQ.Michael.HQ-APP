@@ -28,6 +28,7 @@ import { listVenturesForWorkspace } from "./venture-repository";
 import { findVenturesProposedToday } from "./shadow-proposal-dedup";
 import { buildTickReport, formatTickSummary, selectShadowBatch } from "./shadow-tick-report";
 import type { ProposalTally, TickReport } from "./shadow-tick-report";
+import type { VentureScoreProposal } from "@/features/ventures/venture-score-proposal";
 import { runShadowProposalForVenture } from "./venture-score-shadow-runner";
 
 /**
@@ -63,6 +64,23 @@ export type ShadowPassDeps = {
   proposeForVenture?: typeof runShadowProposalForVenture;
   recordEvent?: typeof recordLedgerEvent;
   agentId?: string;
+  /**
+   * Return the proposals themselves, not just the counts.
+   *
+   * Off by default, and off for the cron: nobody reads a scheduled run's
+   * proposals from its return value — they are in the ledger — and carrying
+   * eleven rationales through every Inngest step would pay durable storage for
+   * output that is thrown away.
+   *
+   * On for the manual trigger, where the whole point is reading them.
+   */
+  collectProposals?: boolean;
+};
+
+export type ShadowPassResult = {
+  report: TickReport;
+  /** Populated only when collectProposals is set. */
+  proposals: VentureScoreProposal[];
 };
 
 /**
@@ -75,7 +93,7 @@ export type ShadowPassDeps = {
 export async function runShadowPass(
   ctx: WorkspaceContext,
   deps: ShadowPassDeps,
-): Promise<TickReport> {
+): Promise<ShadowPassResult> {
   const runStep = deps.runStep ?? inlineStep;
   const listVentures = deps.listVentures ?? listVenturesForWorkspace;
   const findProposedToday = deps.findProposedToday ?? findVenturesProposedToday;
@@ -113,26 +131,43 @@ export async function runShadowPass(
     (await listVentures(ctx.workspace.id).catch(() => [])).map((venture) => [venture.id, venture]),
   );
 
+  const proposals: VentureScoreProposal[] = [];
+
   for (const ventureId of plan.selectedIds) {
     const result = await runStep(`propose-${ventureId}`, async () => {
       const venture = byId.get(ventureId);
-      if (!venture) return { ok: false, reason: "venture disappeared mid-run" };
+      if (!venture) {
+        return { ok: false, reason: "venture disappeared mid-run", proposal: null };
+      }
 
       try {
         const outcome = await propose(ctx, venture);
-        return outcome.status === "proposed"
-          ? { ok: true, reason: "" }
-          : { ok: false, reason: outcome.reason };
+        if (outcome.status !== "proposed") {
+          return { ok: false, reason: outcome.reason, proposal: null };
+        }
+        return {
+          ok: true,
+          reason: "",
+          // A proposal is plain JSON — strings, numbers, arrays — so it crosses
+          // the step boundary unchanged. It is still omitted unless asked for,
+          // because the cron would be paying durable storage for it.
+          proposal: deps.collectProposals ? outcome.proposal : null,
+        };
       } catch (error) {
         return {
           ok: false,
           reason: error instanceof Error ? error.message.slice(0, 120) : "proposal threw",
+          proposal: null,
         };
       }
     });
 
-    if (result.ok) tally.proposed += 1;
-    else tally.skipped.push({ ventureId, reason: result.reason });
+    if (result.ok) {
+      tally.proposed += 1;
+      if (result.proposal) proposals.push(result.proposal as VentureScoreProposal);
+    } else {
+      tally.skipped.push({ ventureId, reason: result.reason });
+    }
   }
 
   // PHASE 3 — the account.
@@ -178,5 +213,5 @@ export async function runShadowPass(
     return report;
   });
 
-  return report;
+  return { report, proposals };
 }
