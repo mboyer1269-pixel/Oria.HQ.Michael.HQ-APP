@@ -72,26 +72,49 @@ test("Control chain — every claim carries proof that still holds", async (t) =
 
 test("Control chain — the specific rot that produced this module", async (t) => {
   await t.test("the ledger stage cannot claim to be future while it has writers", async () => {
-    // The original failure: a live table with a dozen callers, displayed as
-    // "à venir". Assert against the codebase, not against a comment.
+    // Assert against the codebase, not against a comment.
+    //
+    // It must match writes specifically. Most files touching action_ledger only
+    // read it (action-ledger-read, shadow-cronbeat, shadow-proposal-dedup), and
+    // this very posture file names the table in its evidence marker — a plain
+    // substring search counts all of them and would report "writers exist"
+    // with every writer deleted.
+    const WRITE = /\.from\(\s*["']action_ledger["']\s*\)\s*\.insert\s*\(/;
+
     const files = await sourceFiles();
     const writers = [];
 
     for (const file of files) {
       const source = await readFile(file, "utf8");
-      if (source.includes('.from("action_ledger")')) {
+      if (WRITE.test(source)) {
         writers.push(path.relative(projectRoot, file));
       }
     }
 
+    assert.ok(
+      !writers.includes("src/features/cockpit/control-chain-posture.ts"),
+      "the posture file must never count as its own evidence",
+    );
+
     const ledger = CONTROL_CHAIN_STAGES.find((stage) => stage.key === LEDGER_STAGE_KEY);
     assert.ok(ledger, "the ledger stage must exist — it is the spine of the chain");
+
+    // Both directions, and neither is allowed to be vacuous. A guard that
+    // only fires inside `if (writers.length > 0)` passes silently the day the
+    // detector stops matching anything — which is the failure it exists to catch.
+    if (ledger.state === "ready") {
+      assert.ok(
+        writers.length > 0,
+        "The ledger stage claims to be active, but no file inserts into action_ledger. " +
+          "Either the writers are gone and the stage must change, or the detector no longer matches them.",
+      );
+    }
 
     if (writers.length > 0) {
       assert.notEqual(
         ledger.state,
         "future",
-        `The ledger stage says "future", but ${writers.length} file(s) write to action_ledger: ` +
+        `The ledger stage says "future", but ${writers.length} file(s) insert into action_ledger: ` +
           `${writers.join(", ")}. The cockpit would be misreporting its own guarantee.`,
       );
     }
@@ -144,5 +167,19 @@ test("Control chain — the posture is structurally sound", async (t) => {
       !/state:\s*"(ready|future|locked)"/.test(component),
       "the component declares stage states again — the posture must have one source",
     );
+  });
+
+  await t.test("the header pill is sourced, not written by hand", async () => {
+    // The pill summarises the runtime stage. Hardcoding it puts the same claim
+    // in two places, and the copy that is not derived is the one that survives
+    // a transition — still reading "verrouillé" after execution ships.
+    const component = await read("src/features/cockpit/components/control-chain.tsx");
+    const code = component.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+
+    assert.ok(
+      !/Runtime verrouillé/.test(code),
+      "the pill hardcodes the runtime state instead of reading it from the posture",
+    );
+    assert.match(code, /runtimeStage/, "the pill must read the runtime stage");
   });
 });

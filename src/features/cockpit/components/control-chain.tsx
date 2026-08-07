@@ -41,6 +41,10 @@ const STATE_STYLE: Record<StageState, { ring: string; icon: string; dot: string 
 };
 
 export function ControlChain() {
+  const runtimeStage =
+    CONTROL_CHAIN_STAGES.find((stage) => stage.key === "runtime") ??
+    CONTROL_CHAIN_STAGES[CONTROL_CHAIN_STAGES.length - 1];
+
   return (
     <Card>
       <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
@@ -55,9 +59,13 @@ export function ControlChain() {
           detail="C'est la garantie d'Oria : chaque action conséquente est barrée, tracée et réversible. Une approbation n'est pas une exécution."
           align="right"
         >
+          {/* Sourced from the runtime stage, never written here: a hardcoded
+              pill would keep announcing "verrouillé" after execution shipped. */}
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[#98a1c4]">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-            Runtime verrouillé
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${STATE_STYLE[runtimeStage.state].dot}`}
+            />
+            {runtimeStage.label} · {runtimeStage.meta}
           </span>
         </Tooltip>
       </div>

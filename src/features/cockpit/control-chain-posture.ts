@@ -2,16 +2,15 @@
 //
 // The governance posture shown by the cockpit's control chain.
 //
-// This file exists because the posture used to live as a hardcoded array inside
-// the component, and it rotted: it still announced "Ledger Entry — à venir"
-// months after the ledger had gone live and acquired a dozen writers. Nothing
-// failed, because nothing was checking. A cockpit that misreports its own
-// guardrails is worse than one that shows nothing.
+// A cockpit that misreports its own guardrails is worse than one showing
+// nothing, so no stage may assert a state on its own authority: each carries
+// the evidence justifying it — a file and a marker that must be present for
+// the claim to hold. `control-chain-posture.test.mjs` reads the repository and
+// fails when a claim outlives its proof.
 //
-// So every stage now carries the evidence that justifies its state — a file and
-// a marker that must be present for the claim to hold. `control-chain-posture.test.mjs`
-// reads this repository and fails when a claim outlives its proof. The posture
-// can still be edited by hand; it just cannot silently drift from the code.
+// The posture is still edited by hand. It simply cannot drift from the code in
+// silence, which is what happens when these values live inline in the
+// component that renders them.
 //
 // Pure data. No imports, no I/O — the component renders it, the test verifies it.
 
@@ -76,7 +75,7 @@ export const CONTROL_CHAIN_STAGES: ControlChainStage[] = [
       path: "src/server/actions/action-ledger-repository.ts",
       mustContain: '.from("action_ledger")',
       because:
-        "The repository writes to the live table — this stage was 'à venir' long after that stopped being true.",
+        "The repository inserts into the live table. This stage is 'actif' only for as long as a writer exists — the test looks for the insert, not the mention.",
     },
   },
   {
