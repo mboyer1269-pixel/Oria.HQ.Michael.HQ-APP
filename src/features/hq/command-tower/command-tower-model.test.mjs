@@ -78,16 +78,73 @@ test("Command Tower v1 model contract", async (t) => {
     assert.deepEqual(ids, ["claude_code_cli", "codex_cli", "gemini_cli", "zapier_mcp"]);
   });
 
-  await t.test("every dispatch corridor requires approval; only n8n acts today", () => {
+  await t.test("the static corridor list never claims a live rail", () => {
+    // The n8n rail used to live here, hardcoded as "governed_live · Seul
+    // corridor actif · hermes/task.create", while the Sentinelle rejected every
+    // hermes/task.create request. A component sentence cannot know whether a
+    // corridor works, so the static list may only hold unbuilt capabilities.
     for (const corridor of DISPATCH_CORRIDORS) {
       assert.equal(corridor.requiresApproval, true, `${corridor.id} must require approval`);
+      assert.equal(
+        corridor.action,
+        null,
+        `${corridor.id} offers an action from the static list — liveness must be derived`,
+      );
+      assert.notEqual(
+        corridor.mode,
+        "governed_live",
+        `${corridor.id} claims to be live without consulting the corridor contract`,
+      );
     }
-    const actionable = DISPATCH_CORRIDORS.filter((c) => c.action !== null);
-    assert.equal(actionable.length, 1);
-    assert.equal(actionable[0].id, "n8n_execution_rail");
-    assert.equal(actionable[0].mode, "governed_live");
-    // The button prepares an intent — it must say so, not pretend to execute.
-    assert.match(actionable[0].action.label, /requires approval/);
+  });
+
+  await t.test("a failed corridor derivation renders unavailable, not an empty board", () => {
+    // An empty dispatch board reads as "no corridor exists", which is a
+    // different — and equally wrong — claim from "we could not tell".
+    const model = buildCommandTowerModel({ ...readyInputs, railCorridors: null });
+    const rail = model.dispatchBoard.corridors.filter((c) => c.mode === "unavailable");
+    assert.equal(rail.length, 1);
+    assert.equal(rail[0].action, null);
+    assert.equal(
+      model.dispatchBoard.corridors.filter((c) => c.action !== null).length,
+      0,
+      "nothing is actionable while the corridor status is unknown",
+    );
+  });
+
+  await t.test("only a governed_live corridor may carry an action button", () => {
+    // Defense in depth against the source: even if a mapper hands the model a
+    // blocked corridor with a button, the model strips it.
+    const model = buildCommandTowerModel({
+      ...readyInputs,
+      railCorridors: [
+        {
+          id: "n8n_rail:hermes/task.create",
+          label: "n8n · hermes/task.create",
+          mode: "blocked",
+          requiresApproval: true,
+          action: { label: "Préparer un intent (requires approval)", href: "/hq/agents" },
+          note: "Bloqué par la Sentinelle.",
+        },
+        {
+          id: "n8n_rail:marketing/content.generate",
+          label: "n8n · marketing/content.generate",
+          mode: "governed_live",
+          requiresApproval: true,
+          action: { label: "Préparer un intent (requires approval)", href: "/hq/agents" },
+          note: "L'intent reste une proposition.",
+        },
+      ],
+    });
+
+    const byId = Object.fromEntries(model.dispatchBoard.corridors.map((c) => [c.id, c]));
+    assert.equal(byId["n8n_rail:hermes/task.create"].action, null);
+    assert.ok(byId["n8n_rail:marketing/content.generate"].action);
+    assert.match(byId["n8n_rail:marketing/content.generate"].action.label, /requires approval/);
+
+    for (const corridor of model.dispatchBoard.corridors) {
+      assert.equal(corridor.requiresApproval, true, `${corridor.id} must require approval`);
+    }
   });
 
   await t.test("decision queue caps at MAX_QUEUE_ITEMS with an overflow count", () => {
@@ -244,12 +301,19 @@ test("Command Tower v1 model contract", async (t) => {
   });
 
   await t.test("probe alone never enables dispatch: corridors unchanged by a ready board", () => {
-    const withProbe = buildCommandTowerModel({ ...readyInputs, runtimeBoard: probedBoard });
-    const withoutProbe = buildCommandTowerModel(readyInputs);
+    const railCorridors = [
+      {
+        id: "n8n_rail:marketing/content.generate",
+        label: "n8n · marketing/content.generate",
+        mode: "governed_live",
+        requiresApproval: true,
+        action: { label: "Préparer un intent (requires approval)", href: "/hq/agents" },
+        note: "L'intent reste une proposition.",
+      },
+    ];
+    const withProbe = buildCommandTowerModel({ ...readyInputs, railCorridors, runtimeBoard: probedBoard });
+    const withoutProbe = buildCommandTowerModel({ ...readyInputs, railCorridors });
     assert.deepEqual(withProbe.dispatchBoard, withoutProbe.dispatchBoard);
-    const actionable = withProbe.dispatchBoard.corridors.filter((c) => c.action !== null);
-    assert.equal(actionable.length, 1);
-    assert.equal(actionable[0].id, "n8n_execution_rail");
     for (const corridor of withProbe.dispatchBoard.corridors) {
       assert.equal(corridor.requiresApproval, true, `${corridor.id} keeps requiresApproval`);
     }

@@ -24,6 +24,7 @@ import {
   type CommandTowerInputs,
   type CommandTowerModel,
 } from "@/features/hq/command-tower/command-tower-model";
+import { loadRailCorridors } from "@/features/hq/command-tower/dispatch-corridor-source";
 import { loadRuntimeStatusBoard } from "@/features/hq/command-tower/runtime-status-source";
 import { formatLedgerActivityTimestamp } from "@/features/hq/ledger-activity";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
@@ -81,7 +82,10 @@ async function loadCommandTowerInputs(workspaceId: string): Promise<CommandTower
     loadRuntimeStatusBoard().catch(() => null),
   ]);
 
-  return { pendingIntents, nextAction, evidence, runtimeBoard };
+  // Synchronous and fail-closed on its own — it reads registries and env, not I/O.
+  const railCorridors = loadRailCorridors();
+
+  return { pendingIntents, nextAction, evidence, runtimeBoard, railCorridors };
 }
 
 const STATE_BADGE_STYLES: Record<string, string> = {

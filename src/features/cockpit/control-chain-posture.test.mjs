@@ -27,8 +27,12 @@ const jiti = createJiti(import.meta.url, {
   },
 });
 
-const { CONTROL_CHAIN_STAGES, LEDGER_STAGE_KEY } = await jiti.import(
+const { CONTROL_CHAIN_STAGES, LEDGER_STAGE_KEY, RUNTIME_STAGE_KEY } = await jiti.import(
   path.join(__dirname, "control-chain-posture.ts"),
+);
+
+const { RUNTIME_CAPABILITIES, deriveRuntimePosture } = await jiti.import(
+  path.join(projectRoot, "src/core/runtime-capability-inventory.ts"),
 );
 
 const read = (relPath) => readFile(path.join(projectRoot, relPath), "utf8");
@@ -120,18 +124,72 @@ test("Control chain — the specific rot that produced this module", async (t) =
     }
   });
 
-  await t.test("runtime stays locked as long as nothing claims to execute", async () => {
-    // The inverse risk: leaving "verrouillé" on screen after execution ships
-    // would be the same lie in the other direction, and far more dangerous.
-    const runtime = CONTROL_CHAIN_STAGES.find((stage) => stage.key === "runtime");
-    assert.equal(runtime.state, "locked");
+  await t.test("the runtime stage is derived, never written by hand", async () => {
+    // The second rot, and the more dangerous one. This stage used to read
+    // "verrouillé" on the strength of one marker in shadow-pass.ts — a claim
+    // about a single agent, standing in for the whole runtime. It stayed true
+    // while an unrelated executor that calls a model API over the network
+    // shipped and became reachable. Watching one file cannot notice an
+    // executor added to another.
+    const runtime = CONTROL_CHAIN_STAGES.find((stage) => stage.key === RUNTIME_STAGE_KEY);
+    assert.ok(runtime, "the runtime stage must exist");
 
-    const shadowPass = await read(runtime.evidence.path);
-    assert.ok(
-      shadowPass.includes("it executes nothing"),
-      "The most autonomous agent no longer declares itself execution-free. " +
-        "Runtime may no longer be locked — verify before shipping this screen.",
+    const posture = deriveRuntimePosture(RUNTIME_CAPABILITIES);
+    assert.equal(
+      runtime.state,
+      posture.state,
+      "the runtime stage must carry the posture the inventory derives, unflattened",
     );
+    assert.equal(runtime.meta, posture.meta);
+
+    // Comments stripped: the header explains the rot by name, and the point is
+    // that no CODE reaches for that file or writes the state by hand.
+    const source = (await read("src/features/cockpit/control-chain-posture.ts"))
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+
+    assert.ok(
+      !/key:\s*"runtime"[\s\S]{0,400}?state:\s*"/.test(source),
+      "the runtime stage declares a literal state again — it must come from the inventory",
+    );
+    assert.ok(
+      !source.includes("shadow-pass"),
+      "the posture reaches for shadow-pass again: one agent's self-description " +
+        "is not the state of the runtime",
+    );
+  });
+
+  await t.test("an ungated live effect can never render as locked", async () => {
+    // The property that matters, asserted against the derivation rather than
+    // against today's inventory: as soon as one effectful executor sits outside
+    // the CEO approval rail, "verrouillé" is unavailable as an answer.
+    const withUngatedEffect = deriveRuntimePosture([
+      {
+        id: "probe",
+        label: "Probe",
+        executorKey: "probe",
+        effect: "external_call",
+        gate: "sentinelle_green_lane",
+        detail: "",
+        evidence: { path: "x", mustContain: "y", because: "z" },
+      },
+    ]);
+    assert.equal(withUngatedEffect.state, "bounded");
+
+    const allGated = deriveRuntimePosture([
+      {
+        id: "probe",
+        label: "Probe",
+        executorKey: "probe",
+        effect: "external_call",
+        gate: "ceo_approval",
+        detail: "",
+        evidence: { path: "x", mustContain: "y", because: "z" },
+      },
+    ]);
+    assert.equal(allGated.state, "gated");
+
+    assert.equal(deriveRuntimePosture([]).state, "locked");
   });
 });
 
@@ -146,7 +204,10 @@ test("Control chain — the posture is structurally sound", async (t) => {
 
   await t.test("every stage is fully specified", () => {
     for (const stage of CONTROL_CHAIN_STAGES) {
-      assert.ok(["ready", "future", "locked"].includes(stage.state), `${stage.key}: bad state`);
+      assert.ok(
+        ["ready", "future", "locked", "gated", "bounded"].includes(stage.state),
+        `${stage.key}: bad state`,
+      );
       for (const field of ["label", "detail", "meta"]) {
         assert.ok(stage[field]?.trim().length > 0, `${stage.key}: empty ${field}`);
       }
@@ -164,7 +225,7 @@ test("Control chain — the posture is structurally sound", async (t) => {
 
     assert.match(component, /CONTROL_CHAIN_STAGES/);
     assert.ok(
-      !/state:\s*"(ready|future|locked)"/.test(component),
+      !/state:\s*"(ready|future|locked|gated|bounded)"/.test(component),
       "the component declares stage states again — the posture must have one source",
     );
   });

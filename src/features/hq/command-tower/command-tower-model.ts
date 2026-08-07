@@ -95,6 +95,9 @@ export const RUNTIME_STATUS_BOARD: readonly RuntimeBoardEntry[] = [
 
 export type DispatchCorridorMode =
   | "governed_live"
+  | "not_configured"
+  | "blocked"
+  | "unavailable"
   | "blocked_until_dispatch_mandate"
   | "future_corridor";
 
@@ -110,19 +113,17 @@ export type DispatchCorridor = {
 };
 
 /**
- * The dispatch corridors the tower may show. Exactly one is live today: the
- * n8n execution-intent rail, where "dispatch" means preparing an intent that
- * stays a proposal until the CEO approves it.
+ * The corridors this board states WITHOUT consulting anything — each is a
+ * capability that has not been built, so there is nothing to derive.
+ *
+ * The n8n rail is deliberately absent. It used to sit at the top of this list,
+ * hardcoded as "governed_live · Seul corridor actif · n8n · hermes/task.create",
+ * while the Sentinelle rejected every hermes/task.create request because no
+ * such skill exists in the catalog. A corridor's liveness is a fact about the
+ * registries, not a sentence in a component, so rail corridors now arrive as an
+ * input built from the execution-corridor contract.
  */
 export const DISPATCH_CORRIDORS: readonly DispatchCorridor[] = [
-  {
-    id: "n8n_execution_rail",
-    label: "n8n · hermes/task.create",
-    mode: "governed_live",
-    requiresApproval: true,
-    action: { label: "Préparer un intent (requires approval)", href: "/hq/agents" },
-    note: "Seul corridor actif. L'intent reste une proposition tant que le CEO n'approuve pas.",
-  },
   {
     id: "claude_code_cli",
     label: "Claude Code CLI",
@@ -235,6 +236,12 @@ export type CommandTowerInputs = {
   } | null;
   /** Optional so older callers/tests keep working; absent = probe unavailable. */
   runtimeBoard?: RuntimeBoardInput | null;
+  /**
+   * Rail corridors derived from the execution-corridor contract. `null` (or
+   * absent) means the derivation FAILED — rendered as "unavailable", never as
+   * an empty board, which would read as "no corridor exists".
+   */
+  railCorridors?: readonly DispatchCorridor[] | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -326,6 +333,32 @@ function sanitizeProbedBoardEntries(
   });
 }
 
+/** Shown when the corridor derivation failed — an empty board would read as "none exists". */
+const RAIL_CORRIDORS_UNAVAILABLE: readonly DispatchCorridor[] = [
+  {
+    id: "n8n_execution_rail",
+    label: "n8n · rail d'intents",
+    mode: "unavailable",
+    requiresApproval: true,
+    action: null,
+    note: "Statut des corridors indisponible pour ce rendu — aucun corridor n'est présenté comme actif sans preuve.",
+  },
+];
+
+/**
+ * Rail corridors never claim to act without derivation. A failed read renders
+ * the unavailable placeholder, and any corridor arriving with an action button
+ * but a non-live mode loses the button: only "governed_live" may offer one.
+ */
+function resolveRailCorridors(
+  input: readonly DispatchCorridor[] | null | undefined,
+): readonly DispatchCorridor[] {
+  if (input == null) return RAIL_CORRIDORS_UNAVAILABLE;
+  return input.map((corridor) =>
+    corridor.mode === "governed_live" ? corridor : { ...corridor, action: null },
+  );
+}
+
 /**
  * Assembles the tower view-model. Deterministic: same inputs, same output.
  * Never throws on malformed availability — a missing source is a state.
@@ -365,7 +398,7 @@ export function buildCommandTowerModel(inputs: CommandTowerInputs): CommandTower
       overflowCount: intents === null ? 0 : Math.max(0, intents.length - MAX_QUEUE_ITEMS),
     },
     dispatchBoard: {
-      corridors: DISPATCH_CORRIDORS,
+      corridors: [...resolveRailCorridors(inputs.railCorridors), ...DISPATCH_CORRIDORS],
     },
     evidenceFeed: {
       state: evidence === null ? "unavailable" : evidence.items.length === 0 ? "empty" : "ready",

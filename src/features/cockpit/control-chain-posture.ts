@@ -12,9 +12,25 @@
 // silence, which is what happens when these values live inline in the
 // component that renders them.
 //
-// Pure data. No imports, no I/O — the component renders it, the test verifies it.
+// One exception, and it is deliberate: the runtime stage is DERIVED, not
+// written. It used to read "verrouillé" on the strength of a single marker in
+// shadow-pass.ts — a claim about one agent, standing in for the whole runtime.
+// It stayed true while an unrelated executor that calls a model API shipped and
+// became reachable. The stage now comes from the central capability inventory,
+// which knows every executor and the gate in front of each.
+//
+// The other three stages are pure data. No I/O anywhere — the component renders
+// this, the test verifies it.
 
-export type StageState = "ready" | "future" | "locked";
+import {
+  deriveRuntimePosture,
+  RUNTIME_CAPABILITIES,
+} from "@/core/runtime-capability-inventory";
+
+// "gated" and "bounded" exist because the runtime stage is derived: they are
+// the posture states the inventory can produce, carried through unchanged
+// rather than flattened into "locked", which is what made the old claim wrong.
+export type StageState = "ready" | "future" | "locked" | "gated" | "bounded";
 
 export type StageEvidence = {
   /** Repo-relative file that proves the claim. */
@@ -33,6 +49,38 @@ export type ControlChainStage = {
   meta: string;
   evidence: StageEvidence;
 };
+
+/** The ledger stage, whose staleness is the reason this module exists. */
+export const LEDGER_STAGE_KEY = "ledger";
+
+/** The runtime stage, the one derived from the capability inventory. */
+export const RUNTIME_STAGE_KEY = "runtime";
+
+/**
+ * The runtime stage, derived from the capability inventory rather than written.
+ *
+ * Its evidence deliberately points at the inventory itself: the proof that the
+ * claim is current is that the inventory is complete, and completeness is what
+ * runtime-capability-inventory.test.mjs enforces against the real executor
+ * registries.
+ */
+function buildRuntimeStage(): ControlChainStage {
+  const posture = deriveRuntimePosture(RUNTIME_CAPABILITIES);
+
+  return {
+    key: RUNTIME_STAGE_KEY,
+    label: "Runtime Execution",
+    state: posture.state,
+    detail: `Exécution bornée et réversible. ${posture.detail}`,
+    meta: posture.meta,
+    evidence: {
+      path: "src/core/runtime-capability-inventory.ts",
+      mustContain: "export const RUNTIME_CAPABILITIES",
+      because:
+        "The stage is derived from the central inventory of executors, not from any single agent's self-description. Its accuracy depends on the inventory staying complete, which the inventory test enforces against the real executor registries.",
+    },
+  };
+}
 
 /**
  * Approval Packet → Approval Event → Ledger Entry → Runtime Execution.
@@ -78,21 +126,5 @@ export const CONTROL_CHAIN_STAGES: ControlChainStage[] = [
         "The repository inserts into the live table. This stage is 'actif' only for as long as a writer exists — the test looks for the insert, not the mention.",
     },
   },
-  {
-    key: "runtime",
-    label: "Runtime Execution",
-    state: "locked",
-    detail:
-      "Exécution bornée et réversible. Verrouillée : aucune action conséquente ne part sans approbation explicite du CEO.",
-    meta: "Verrouillé",
-    evidence: {
-      path: "src/server/ventures/shadow-pass.ts",
-      mustContain: "it executes nothing",
-      because:
-        "The most autonomous agent on the system proposes and records; it does not act. If that changes, this stage is no longer locked.",
-    },
-  },
+  buildRuntimeStage(),
 ];
-
-/** The ledger stage, whose staleness is the reason this module exists. */
-export const LEDGER_STAGE_KEY = "ledger";

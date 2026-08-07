@@ -37,6 +37,19 @@ const STATE_STYLE: Record<StageState, { ring: string; icon: string; dot: string 
     icon: "text-rose-300",
     dot: "bg-rose-400",
   },
+  gated: {
+    ring: "border-rose-500/30 bg-rose-500/[0.06]",
+    icon: "text-rose-300",
+    dot: "bg-rose-400",
+  },
+  // Deliberately not rose: "bounded" means an effect can occur outside the
+  // approval rail. Showing it in the same colour as "locked" would restore, in
+  // pixels, the very claim the derived posture exists to correct.
+  bounded: {
+    ring: "border-amber-500/30 bg-amber-500/[0.06]",
+    icon: "text-amber-300",
+    dot: "bg-amber-400",
+  },
 };
 
 export function ControlChain() {
