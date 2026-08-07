@@ -1,78 +1,20 @@
 // src/features/cockpit/components/joris-presence.tsx
 //
-// Joris Presence — système de signal opérationnel visible.
+// Joris Presence — le voyant opérationnel du cockpit.
 //
-// Quatre états dérivés de données réelles uniquement :
-//   calm   → direction du jour générée, aucun problème détecté.
-//   pulse  → idées capturées mais pas encore de direction pour aujourd'hui.
-//   watch  → aucune activité récente (aucune idée ni direction depuis >48h).
-//   alert  → erreur de chargement ou état impossible à résoudre.
+// Purement présentationnel. Les quatre états et leur dérivation vivent dans
+// joris-presence-state.ts, où ils sont testés : un voyant qui annonce « calme »
+// alors que rien n'est en main est pire que pas de voyant, et une logique
+// scellée dans un .tsx ne se teste pas.
 //
 // Pas d'avatar, pas d'animation décorative, pas de fiction.
-// L'état doit refléter une condition réelle et vérifiable.
 
-import type { DailyDirectionProjection } from "@/features/cockpit/events/daily-direction-projection";
-import type { IdeaProjection } from "@/features/cockpit/events/idea-projection";
-
-// ---------------------------------------------------------------------------
-// State derivation
-// ---------------------------------------------------------------------------
-
-export type JorisPresenceState = "calm" | "pulse" | "watch" | "alert";
-
-const STALE_THRESHOLD_MS = 48 * 60 * 60 * 1000; // 48 hours
-
-function derivePresenceState(input: {
-  ideas: IdeaProjection[];
-  todayDirection: DailyDirectionProjection | null;
-  loadError: boolean;
-  todayIso: string;
-}): { state: JorisPresenceState; label: string; detail: string } {
-  if (input.loadError) {
-    return {
-      state: "alert",
-      label: "Alerte",
-      detail: "Lecture des events impossible. Vérifier la connexion Supabase.",
-    };
-  }
-
-  if (input.todayDirection) {
-    return {
-      state: "calm",
-      label: "Direction active",
-      detail: `Plan du jour généré · event ${input.todayDirection.eventId.slice(0, 8)}`,
-    };
-  }
-
-  if (input.ideas.length > 0) {
-    // Check if the most recent idea is older than 48h (stale without direction)
-    const mostRecentIdea = input.ideas.reduce((acc, idea) =>
-      idea.recordedAt > acc.recordedAt ? idea : acc,
-    );
-
-    const ageMs = Date.now() - new Date(mostRecentIdea.recordedAt).getTime();
-    if (ageMs > STALE_THRESHOLD_MS) {
-      return {
-        state: "watch",
-        label: "Attention",
-        detail: `${input.ideas.length} idée${input.ideas.length > 1 ? "s" : ""} non traitée${input.ideas.length > 1 ? "s" : ""} depuis plus de 48h.`,
-      };
-    }
-
-    return {
-      state: "pulse",
-      label: "Idées en attente",
-      detail: `${input.ideas.length} idée${input.ideas.length > 1 ? "s" : ""} capturée${input.ideas.length > 1 ? "s" : ""} — direction pas encore générée.`,
-    };
-  }
-
-  // Zero state — nothing captured, nothing generated.
-  return {
-    state: "watch",
-    label: "En attente",
-    detail: "Aucun event capturé. Démarre avec une première idée.",
-  };
-}
+import {
+  derivePresenceState,
+  type JorisPresenceState,
+  type PresenceDirection,
+  type PresenceIdea,
+} from "@/features/cockpit/joris-presence-state";
 
 // ---------------------------------------------------------------------------
 // Visual tokens per state
@@ -112,18 +54,20 @@ export function JorisPresence({
   ideas,
   todayDirection,
   loadError,
-  todayIso,
+  nowMs,
 }: {
-  ideas: IdeaProjection[];
-  todayDirection: DailyDirectionProjection | null;
+  ideas: readonly PresenceIdea[];
+  todayDirection: PresenceDirection | null;
   loadError: boolean;
-  todayIso: string;
+  /** Read by the caller, not here — a component must not read the clock while
+      rendering, and passing it keeps this whole path pure and testable. */
+  nowMs: number;
 }) {
   const { state, label, detail } = derivePresenceState({
     ideas,
     todayDirection,
     loadError,
-    todayIso,
+    nowMs,
   });
 
   const tokens = STATE_TOKENS[state];

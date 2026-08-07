@@ -2,6 +2,7 @@ import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { ControlChain } from "@/features/cockpit/components/control-chain";
 import { FounderZeroStateCockpit } from "@/features/cockpit/components/founder-zero-state";
+import { JorisPresence } from "@/features/cockpit/components/joris-presence";
 import { getCockpitLayout } from "@/features/cockpit/actions/cockpit-layout";
 import {
   getEventPersistenceMode,
@@ -27,7 +28,11 @@ export default async function CockpitPage() {
 
   const workspaceId = getDefaultWorkspace({ ownerUserId: access.user.id }).id;
   const userId = access.user.id;
-  const todayIso = new Date().toISOString().slice(0, 10);
+  // One clock read for the whole request. Two reads could straddle midnight
+  // and hand the page a date and an instant that disagree.
+  const now = new Date();
+  const todayIso = now.toISOString().slice(0, 10);
+  const nowMs = now.getTime();
   const storageMode = getEventPersistenceMode();
 
   const initialOrder = await getCockpitLayout();
@@ -50,9 +55,15 @@ export default async function CockpitPage() {
 
   return (
     <CockpitShell active="cockpit" crumb="Cockpit">
-      {/* The governance spine, above everything else: the cockpit states what
-          it will and will not do before it shows what it has done. */}
-      <div className="mb-4">
+      {/* Read in this order: what state the workspace is in, then what the
+          system is permitted to do about it — before anything it has done. */}
+      <div className="mb-4 flex flex-col gap-3">
+        <JorisPresence
+          ideas={ideas}
+          todayDirection={todayDirection}
+          loadError={loadError}
+          nowMs={nowMs}
+        />
         <ControlChain />
       </div>
       <FounderZeroStateCockpit
