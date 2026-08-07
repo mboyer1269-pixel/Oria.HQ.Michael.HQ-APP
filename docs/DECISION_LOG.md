@@ -4,6 +4,34 @@ Registre des décisions produit et architecturales. Chaque entrée est immuable 
 
 ---
 
+## 2026-08-07 — Brief HITL / souveraineté : philosophie ratifiée, stack FastAPI + ledger parallèle rejetés
+
+**Décision :** Le brief fondateur (HITL obligatoire, ledger append-only, isolation
+des contextes, télémétrie de coût, pas d'exécution sensible sans clic CEO) **reste
+la doctrine produit**. Il est déjà matérialisé dans le rail existant
+(`agent_execution_intents`, `prepared_actions`, `action_ledger`, execution-guard,
+Send Desk `ceo_single_send`).
+
+En revanche, les propositions d'implémentation suivantes sont **rejetées** tant
+qu'un override CEO écrit ne les force pas contre `ARCHITECTURE.md` :
+
+1. **Scission monorepo** Next.js + Python FastAPI / LangGraph / CrewAI
+   (`backend-agents/`) — le runtime canonique reste le monolithe Next.js 16.
+2. **Nouvelle table** `agent_ledger_events` en parallèle de `action_ledger` —
+   étendre les contrats existants (ledger + intents) au lieu d'un second event store.
+3. **Redesign UI « terminal cyber / arcade »** opportuniste — uniquement sur mandat
+   UI explicite ; le cockpit actuel n'est pas remplacé en passant.
+
+**Conséquence pour les agents :** toute session qui reçoit le même brief doit lire
+`docs/STAFF_ASSESSMENT_HITL_SOVEREIGNTY_MANDATE.md`, escalader Yellow Zone avant
+migrations/RLS/dispatch worker, et ne démarrer qu'un slice nommé (S1–S6) après GO.
+
+**Références :** `ARCHITECTURE.md`, `docs/EXECUTION_PHASE_STATUS.md`,
+`docs/STAFF_ASSESSMENT_HITL_SOVEREIGNTY_MANDATE.md`,
+`docs/roadmap/HQ_COMPLETION_ROADMAP_2026-06.md`
+
+---
+
 ## 2026-06-12 — Naming canonique : « Oria » (marque) vs « Orya » (namespace technique gelé)
 
 **Décision :** Le nom produit / affichage est **Oria HQ** — c'est le naming dominant du code
