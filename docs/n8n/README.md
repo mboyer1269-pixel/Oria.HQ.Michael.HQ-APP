@@ -175,26 +175,24 @@ and no migration**. The only real network call is to your n8n.
 
 ## Without the script — raw curl (when the HTTP routes are wired with auth + Supabase + migration applied)
 
-> The `hermes`/`task.create` call below returns **403 BLOCK** today — see the
-> warning at the top. It is kept verbatim because it is what the rail was
-> designed for. Substituting `marketing`/`content.generate` exercises the Oria
-> half (the intent is created, approved and dispatched), and then n8n answers
-> `400 validation_error` because its Code node does not accept that route. No
-> corridor completes both halves.
+> This walkthrough uses `marketing`/`content.generate`, which reaches every Oria
+> step. The deployed n8n receiver then rejects that route with
+> `400 validation_error`, so approval returns 502 and marks the intent failed.
+> No corridor completes both halves today.
 
 ```bash
 # 1. Prepare (creates a pending intent) — requires an owner Supabase session cookie
-curl -X POST http://localhost:3000/api/agents/hermes/execution-intents \
+curl -X POST http://localhost:3000/api/agents/marketing/execution-intents \
   -H "Content-Type: application/json" -H "Cookie: <owner-session>" \
-  -d '{"skillId":"task.create","client":"Acme Corp","email":"buyer@acme.test","actionType":"task.create","missionId":"mission-001","data":{}}'
-# -> 403 { "outcome": "BLOCK", "reason": "Skill task.create is not available to agent hermes." }
+  -d '{"skillId":"content.generate","client":"Acme Corp","email":"buyer@acme.test","actionType":"content.generate","missionId":"mission-001","data":{}}'
+# -> 201 { "intentId": "...", "status": "pending", ... }
 
 # 2. List pending
-curl http://localhost:3000/api/agents/hermes/execution-intents -H "Cookie: <owner-session>"
+curl http://localhost:3000/api/agents/marketing/execution-intents -H "Cookie: <owner-session>"
 
 # 3. Approve (the ONLY trigger that calls n8n)
 curl -X POST http://localhost:3000/api/agents/execution-intents/<intentId>/approve -H "Cookie: <owner-session>"
-# -> { "intentId": "...", "status": "executed", "actionRef": "n8n_...", "output": { ... } }
+# -> 502 { "intentId": "...", "status": "failed", "error": "Webhook returned 400." }
 ```
 
 ## Safety boundaries (unchanged)

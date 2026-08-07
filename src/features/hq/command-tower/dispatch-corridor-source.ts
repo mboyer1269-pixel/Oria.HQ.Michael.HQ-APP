@@ -48,27 +48,31 @@ const MODE_BY_STATUS: Record<CorridorStatus, DispatchCorridorMode> = {
 const PREPARATION_SURFACE = "POST /api/agents/:agentId/execution-intents";
 
 function noteFor(corridor: ExecutionCorridor, liveCount: number): string {
-  if (corridor.status === "blocked") {
-    // Verbatim from the guard.
-    return `Bloqué par la Sentinelle : ${corridor.guard.reason}`;
+  switch (corridor.status) {
+    case "blocked":
+      return `Bloqué par la Sentinelle : ${corridor.guard.reason}`;
+    case "receiver_rejects":
+      return (
+        `Autorisé côté Oria, refusé par le récepteur n8n : le workflow déployé n'accepte pas ` +
+        `la route ${corridor.id}. Un intent approuvé échouerait en validation_error.`
+      );
+    case "not_configured":
+      return `Accepté aux deux bouts, mais ${CONFIGURATION_NOTE[corridor.webhook.configuration]}.`;
+    case "eligible": {
+      const company =
+        liveCount === 1
+          ? "Seul corridor éligible aujourd'hui."
+          : `${liveCount} corridors éligibles aujourd'hui.`;
+      return (
+        `${company} Préparation via ${PREPARATION_SURFACE} ; l'intent reste une proposition ` +
+        `tant que le CEO n'approuve pas.`
+      );
+    }
+    default: {
+      const exhaustive: never = corridor.status;
+      throw new Error(`unmapped corridor status: ${String(exhaustive)}`);
+    }
   }
-  if (corridor.status === "receiver_rejects") {
-    return (
-      `Autorisé côté Oria, refusé par le récepteur n8n : le workflow déployé n'accepte pas ` +
-      `la route ${corridor.id}. Un intent approuvé échouerait en validation_error.`
-    );
-  }
-  if (corridor.status === "not_configured") {
-    return `Accepté aux deux bouts, mais ${CONFIGURATION_NOTE[corridor.webhook.configuration]}.`;
-  }
-  const company =
-    liveCount === 1
-      ? "Seul corridor éligible aujourd'hui."
-      : `${liveCount} corridors éligibles aujourd'hui.`;
-  return (
-    `${company} Préparation via ${PREPARATION_SURFACE} ; l'intent reste une proposition ` +
-    `tant que le CEO n'approuve pas.`
-  );
 }
 
 /** Pure mapping from contract corridors to dispatch-board corridors. */
@@ -102,6 +106,7 @@ export function loadRailCorridors(): DispatchCorridor[] | null {
     // means a real defect, and the operator only sees "indisponible".
     logger.error("hq.command-tower.rail-corridors.failed", {
       reason: error instanceof Error ? error.message : "unknown",
+      stack: error instanceof Error ? error.stack : undefined,
     });
     return null;
   }

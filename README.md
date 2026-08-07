@@ -224,6 +224,10 @@ npm run test:ledger-activity-read
 npm run smoke:revenue               # Venture operational-value check
 ```
 
+`overrides.sharp` is exact because Next.js installs Sharp as an optional native
+image dependency. Updating that native binary is a deliberate lockstep change,
+validated with `npm ci`, the build, smoke tests, and `npm run audit:deps`.
+
 All checks must pass before merge.
 
 CI runs the same gate on every pull request and push to `main`

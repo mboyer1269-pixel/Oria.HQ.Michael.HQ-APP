@@ -55,6 +55,8 @@ async function readDeclaredDependencies() {
   return new Set([
     ...Object.keys(pkg.dependencies ?? {}),
     ...Object.keys(pkg.devDependencies ?? {}),
+    ...Object.keys(pkg.optionalDependencies ?? {}),
+    ...Object.keys(pkg.peerDependencies ?? {}),
   ]);
 }
 
@@ -70,6 +72,7 @@ async function runAudit() {
     ({ stdout, stderr } = await execAsync(AUDIT_COMMAND, {
       cwd: ROOT,
       maxBuffer: 32 * 1024 * 1024,
+      timeout: 5 * 60 * 1000,
     }));
   } catch (error) {
     stdout = error.stdout;
@@ -140,7 +143,7 @@ async function main() {
 
     // npm's isDirect has been unreliable across versions for packages reached
     // both ways; package.json is the thing we control.
-    const isDeclared = entry.isDirect === true || declared.has(name);
+    const isDeclared = declared.has(name);
     const record = {
       name,
       severity: entry.severity,
@@ -194,7 +197,7 @@ async function main() {
         "version through `overrides`. Do NOT run `npm audit fix --force`: it takes\n" +
         "unattended semver-major upgrades to close an advisory.",
     );
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 
@@ -202,5 +205,5 @@ main().catch((err) => {
   const label = err instanceof AuditUnavailableError ? "could not run" : "crashed";
   console.error(`Dependency audit ${label}: ${err.message}`);
   console.error("Failing closed: an audit that did not run is not a clean audit.");
-  process.exit(1);
+  process.exitCode = 1;
 });

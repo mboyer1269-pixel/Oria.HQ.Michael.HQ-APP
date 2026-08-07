@@ -7,10 +7,9 @@ import { getProductionReadinessWarnings } from '@/lib/server-env'
  * No auth required — returns 200 OK with service metadata.
  * No external calls. No secrets. No DB query.
  *
- * Also surfaces production readiness warnings: configuration gaps that degrade a
- * subsystem without stopping the boot. They carry a code and the affected
- * subsystem, never a value, so this stays safe to expose unauthenticated.
- * `ok` stays true — the service is live; `degraded` is what changes.
+ * Also surfaces production readiness warnings without exposing configuration
+ * details to unauthenticated callers. `ok` stays true because this is a
+ * liveness endpoint; `status` and `degraded` carry readiness separately.
  */
 export async function GET() {
   const warnings = getProductionReadinessWarnings()
@@ -19,13 +18,9 @@ export async function GET() {
     {
       ok: true,
       service: 'oria',
-      status: 'healthy',
+      status: warnings.length > 0 ? 'degraded' : 'healthy',
       degraded: warnings.length > 0,
-      warnings: warnings.map((warning) => ({
-        code: warning.code,
-        subsystem: warning.subsystem,
-        message: warning.message,
-      })),
+      warnings: warnings.map((warning) => ({ code: warning.code })),
       ts: Date.now(),
     },
     { status: 200 }

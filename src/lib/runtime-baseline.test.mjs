@@ -2,19 +2,14 @@
 
 // src/lib/runtime-baseline.test.mjs
 //
-// Docker, CI and package.json must agree on which Node major this app runs on.
-//
-// They did not. The image ran node:20-alpine while every workflow ran
-// node-version: 22, so production executed a major the test suite had never run
-// on — and could not have: run-tests.mjs uses fs.glob, which does not exist
-// before Node 22. `npm test` inside that image would have failed on the first
-// line. Nothing compared the two files, so nothing said so.
+// Docker, CI and package.json must agree on one Node major. run-tests.mjs uses
+// fs.glob, which requires Node 22, so the declared runtime cannot be lower.
 //
 // Also pins that the dependency gate stays wired into CI. A security check that
 // exists but is not invoked is worse than none: it reads as coverage.
 
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -26,10 +21,22 @@ const read = (relPath) => readFile(path.join(projectRoot, relPath), "utf8");
 
 const REQUIRED_NODE_MAJOR = 22;
 
+async function workflowPaths() {
+  const directory = ".github/workflows";
+  const entries = await readdir(path.join(projectRoot, directory));
+  return entries
+    .filter((name) => /\.ya?ml$/.test(name))
+    .map((name) => `${directory}/${name}`)
+    .sort();
+}
+
 test("Runtime baseline — one Node major, everywhere", async (t) => {
   await t.test("every Dockerfile stage runs the supported major", async () => {
     const dockerfile = await read("Dockerfile");
-    const images = [...dockerfile.matchAll(/^FROM\s+node:(\d+)[^\s]*/gm)].map((m) => m[1]);
+    const imageRefs = [...dockerfile.matchAll(/^FROM\s+(node:[^\s]+)\s+AS\s+\w+/gm)].map(
+      (match) => match[1],
+    );
+    const images = imageRefs.map((image) => image.match(/^node:(\d+)/)?.[1]);
 
     assert.ok(images.length > 0, "no node base image found — update this detector");
     for (const major of images) {
@@ -40,13 +47,24 @@ test("Runtime baseline — one Node major, everywhere", async (t) => {
           "Production would execute a major the suite never ran on.",
       );
     }
+    assert.equal(
+      new Set(imageRefs).size,
+      1,
+      "every Dockerfile stage must use the same exact image reference",
+    );
+    assert.match(
+      imageRefs[0],
+      /^node:\d+\.\d+\.\d+-alpine\d+\.\d+@sha256:[0-9a-f]{64}$/,
+      "the Node Alpine base must pin both its patch tag and index digest",
+    );
   });
 
   await t.test("every workflow pins the same major", async () => {
-    for (const workflow of [".github/workflows/ci.yml", ".github/workflows/ledger-audit-nightly.yml"]) {
+    for (const workflow of await workflowPaths()) {
       const source = await read(workflow);
       const versions = [...source.matchAll(/node-version:\s*['"]?(\d+)/g)].map((m) => m[1]);
-      assert.ok(versions.length > 0, `${workflow}: no node-version found`);
+      const usesVersionFile = /node-version-file:\s*\S+/.test(source);
+      assert.ok(versions.length > 0 || usesVersionFile, `${workflow}: no Node version pin found`);
       for (const major of versions) {
         assert.equal(
           Number(major),
@@ -89,12 +107,21 @@ test("Runtime baseline — one Node major, everywhere", async (t) => {
     // fs.glob landed in Node 22. The test runner is built on it, so a lower
     // floor would advertise support for a version that cannot run the suite.
     const runner = await read("run-tests.mjs");
-    if (/from ['"]node:fs\/promises['"]/.test(runner) && /\bglob\b/.test(runner)) {
-      assert.ok(
-        REQUIRED_NODE_MAJOR >= 22,
-        "run-tests.mjs uses fs.glob, which requires Node 22 or later",
-      );
-    }
+    assert.ok(
+      /from ['"]node:fs\/promises['"]/.test(runner) && /\bglob\b/.test(runner),
+      "run-tests.mjs no longer uses fs.glob — re-derive the Node floor",
+    );
+    const pkg = JSON.parse(await read("package.json"));
+    const floor = Number(pkg.engines.node.match(/>=\s*(\d+)/)?.[1]);
+    assert.ok(
+      floor >= 22,
+      `engines.node floors at ${floor}; run-tests.mjs uses fs.glob, which requires Node 22`,
+    );
+    assert.match(
+      await read(".npmrc"),
+      /^engine-strict=true$/m,
+      "the Node 22-only engines contract must fail unsupported installs",
+    );
   });
 });
 
@@ -118,7 +145,7 @@ test("Runtime baseline — the dependency gate is actually invoked", async (t) =
   });
 
   await t.test("no CI step resolves advisories with a forced upgrade", async () => {
-    for (const workflow of [".github/workflows/ci.yml", ".github/workflows/ledger-audit-nightly.yml"]) {
+    for (const workflow of await workflowPaths()) {
       const source = await read(workflow);
       assert.ok(
         !/audit fix/.test(source),

@@ -48,7 +48,7 @@ const ROOT = path.resolve(__dirname, "..", "..");
 const SRC = path.join(ROOT, "src");
 
 const toPosix = (p) => p.split(path.sep).join("/");
-const isTest = (name) => /\.test\.(ts|tsx|mjs)$/.test(name);
+const isTest = (name) => /\.(?:test|spec)\.(?:[cm]?[jt]sx?)$/.test(name);
 
 /**
  * Names supplied by the runtime or the hosting platform, never set by an
@@ -96,7 +96,7 @@ async function collectSourceFiles(dir, acc = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) await collectSourceFiles(full, acc);
-    else if (/\.(ts|tsx)$/.test(entry.name) && !isTest(entry.name)) acc.push(full);
+    else if (/\.(?:[cm]?[jt]sx?)$/.test(entry.name) && !isTest(entry.name)) acc.push(full);
   }
   return acc;
 }
@@ -104,6 +104,13 @@ async function collectSourceFiles(dir, acc = []) {
 // ---------------------------------------------------------------------------
 // Scopes
 // ---------------------------------------------------------------------------
+
+function findScope(start, predicate) {
+  for (let scope = start; scope; scope = scope.parent) {
+    if (predicate(scope)) return scope;
+  }
+  return undefined;
+}
 
 class Scope {
   constructor(parent = null) {
@@ -116,16 +123,13 @@ class Scope {
     this.envBags = new Set();
   }
   lookupString(name) {
-    for (let s = this; s; s = s.parent) if (s.strings.has(name)) return s.strings.get(name);
-    return undefined;
+    return findScope(this, (scope) => scope.strings.has(name))?.strings.get(name);
   }
   lookupList(name) {
-    for (let s = this; s; s = s.parent) if (s.lists.has(name)) return s.lists.get(name);
-    return undefined;
+    return findScope(this, (scope) => scope.lists.has(name))?.lists.get(name);
   }
   isEnvBag(name) {
-    for (let s = this; s; s = s.parent) if (s.envBags.has(name)) return true;
-    return false;
+    return findScope(this, (scope) => scope.envBags.has(name)) !== undefined;
   }
 }
 
@@ -186,25 +190,25 @@ function literalStringArray(node) {
  * Module-level string constants a file EXPORTS, for cross-file resolution.
  * Only exported bindings are visible to importers.
  */
-function collectExportedStrings(sourceFile) {
-  const exported = new Map();
+function collectModuleStrings(sourceFile, exportedOnly = false) {
+  const strings = new Map();
   for (const statement of sourceFile.statements) {
     if (!ts.isVariableStatement(statement)) continue;
     const isExported = statement.modifiers?.some(
       (m) => m.kind === ts.SyntaxKind.ExportKeyword,
     );
-    if (!isExported) continue;
+    if (exportedOnly && !isExported) continue;
     for (const declaration of statement.declarationList.declarations) {
       if (
         ts.isIdentifier(declaration.name) &&
         declaration.initializer &&
         ts.isStringLiteral(declaration.initializer)
       ) {
-        exported.set(declaration.name.text, declaration.initializer.text);
+        strings.set(declaration.name.text, declaration.initializer.text);
       }
     }
   }
-  return exported;
+  return strings;
 }
 
 /** Resolves a relative import specifier or the `@/` alias to a repo file path. */
@@ -218,8 +222,16 @@ function resolveImport(fromFile, specifier, byPath, root, src) {
     base,
     `${base}.ts`,
     `${base}.tsx`,
+    `${base}.js`,
+    `${base}.jsx`,
+    `${base}.mjs`,
+    `${base}.cjs`,
     path.join(base, "index.ts"),
     path.join(base, "index.tsx"),
+    path.join(base, "index.js"),
+    path.join(base, "index.jsx"),
+    path.join(base, "index.mjs"),
+    path.join(base, "index.cjs"),
   ]) {
     const rel = toPosix(path.relative(root, candidate));
     if (byPath.has(rel)) return rel;
@@ -267,8 +279,6 @@ function analyseFile({ sourceFile, filePath, root, imports, exportedByFile, reco
   // so a `key: "SOME_STRING"` elsewhere is never mistaken for a variable.
   let readsEnvBag = false;
   const descriptorCandidates = [];
-  /** Function body node -> parameter names that are env bags. */
-  const parameterBags = new Map();
   /** Callback node -> {name, list} bound by an iterating array method. */
   const callbackBags = new Map();
 
@@ -298,16 +308,11 @@ function analyseFile({ sourceFile, filePath, root, imports, exportedByFile, reco
         isProcessEnvType(node.type) ||
         (node.initializer && isEnvBag(current, node.initializer))
       ) {
-        // The binding belongs to the function's own scope, not the parameter's
-        // enclosing one, and the body block creates that scope on the way down.
+        // `current` is the function's own scope; its body inherits this binding
+        // through the parent chain.
         current.envBags.add(node.name.text);
-        const body = node.parent?.body;
-        if (body) parameterBags.set(body, [...(parameterBags.get(body) ?? []), node.name.text]);
       }
     }
-
-    // A function body inherits the env bags bound by its own parameters.
-    for (const name of parameterBags.get(node) ?? []) current.envBags.add(name);
 
     // LIST.find(k => … env[k] …) — bind the callback parameter to every
     // literal. The array-method form is as common as for…of for iterating a
@@ -408,7 +413,11 @@ function analyseFile({ sourceFile, filePath, root, imports, exportedByFile, reco
     ts.forEachChild(node, (child) => visit(child, current));
   };
 
-  visit(sourceFile, new Scope(null));
+  // Module constants are collected before traversal so a subscript is not
+  // classified as dynamic merely because its declaration appears later.
+  const rootScope = new Scope(null);
+  rootScope.strings = collectModuleStrings(sourceFile);
+  visit(sourceFile, rootScope);
 
   if (readsEnvBag) {
     for (const name of descriptorCandidates) record(name, rel);
@@ -448,7 +457,10 @@ export async function collectEnvReferences(options = {}) {
   // Exported string constants per file, for cross-file identifier resolution.
   const exportedByFile = new Map();
   for (const { file, sourceFile } of parsed) {
-    exportedByFile.set(toPosix(path.relative(root, file)), collectExportedStrings(sourceFile));
+    exportedByFile.set(
+      toPosix(path.relative(root, file)),
+      collectModuleStrings(sourceFile, true),
+    );
   }
 
   const references = new Map();
@@ -481,7 +493,7 @@ export async function collectEnvReferences(options = {}) {
   };
 }
 
-if (process.argv[1]?.endsWith("collect-env-references.mjs")) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { references, dynamicReads } = await collectEnvReferences();
   if (process.argv.includes("--json")) {
     console.log(

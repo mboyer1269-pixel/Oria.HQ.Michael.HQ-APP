@@ -178,12 +178,24 @@ test("Dispatch board — every declared corridor reaches the cockpit", async (t)
   });
 
   await t.test("the tower renders the real corridors, including the refused ones", () => {
-    const model = buildCommandTowerModel({
-      pendingIntents: [],
-      nextAction: null,
-      evidence: null,
-      railCorridors: loadRailCorridors(),
-    });
+    const previous = Object.fromEntries(
+      Object.keys(CONFIGURED_ENV).map((key) => [key, process.env[key]]),
+    );
+    Object.assign(process.env, CONFIGURED_ENV);
+    let model;
+    try {
+      model = buildCommandTowerModel({
+        pendingIntents: [],
+        nextAction: null,
+        evidence: null,
+        railCorridors: loadRailCorridors(),
+      });
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
 
     const rail = model.dispatchBoard.corridors.filter((c) => c.id.startsWith("n8n_rail:"));
     assert.ok(rail.length > 0, "the board must show the rail corridors");

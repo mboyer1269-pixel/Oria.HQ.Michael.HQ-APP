@@ -28,6 +28,20 @@ const { collectEnvReferences } = await import(
   pathToFileURL(path.join(projectRoot, "scripts/audit/collect-env-references.mjs")).href
 );
 
+function runChildProbe(script, env) {
+  try {
+    return execFileSync(process.execPath, ["-e", script], {
+      env: { ...env, PATH: process.env.PATH, SystemRoot: process.env.SystemRoot },
+      encoding: "utf8",
+      timeout: 60_000,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    const stderr = error?.stderr?.toString().trim();
+    throw new Error(`child probe failed${stderr ? `: ${stderr}` : ""}`, { cause: error });
+  }
+}
+
 /**
  * Loads server-env in a CHILD process with a chosen environment.
  *
@@ -52,10 +66,7 @@ function loadServerEnvWith(env) {
       }
     })();
   `;
-  const out = execFileSync(process.execPath, ["-e", script], {
-    env: { ...env, PATH: process.env.PATH, SystemRoot: process.env.SystemRoot },
-    encoding: "utf8",
-  });
+  const out = runChildProbe(script, env);
   return JSON.parse(out.trim().split("\n").pop());
 }
 
@@ -112,9 +123,14 @@ test("Production fail-fast — it covers what authentication actually needs", as
     assert.equal(result.ok, true);
 
     const source = await read("src/lib/server-env.ts");
+    const criticalStart = source.indexOf("const criticalMissing");
+    const publicObjectStart = source.indexOf("Public serverEnv object");
+    assert.ok(criticalStart >= 0, "criticalMissing marker disappeared");
+    assert.ok(publicObjectStart >= 0, "Public serverEnv object marker disappeared");
+    assert.ok(criticalStart < publicObjectStart, "server-env sections are out of order");
     const criticalBlock = source.slice(
-      source.indexOf("const criticalMissing"),
-      source.indexOf("Public serverEnv object"),
+      criticalStart,
+      publicObjectStart,
     );
     assert.ok(
       !criticalBlock.includes("INNGEST"),
@@ -149,10 +165,7 @@ function callHealthWith(env) {
       console.log(JSON.stringify(await (await route.GET()).json()));
     })();
   `;
-  const out = execFileSync(process.execPath, ["-e", script], {
-    env: { ...env, PATH: process.env.PATH, SystemRoot: process.env.SystemRoot },
-    encoding: "utf8",
-  });
+  const out = runChildProbe(script, env);
   return JSON.parse(out.trim().split("\n").pop());
 }
 
@@ -163,11 +176,12 @@ test("Production readiness warnings reach an observable surface", async (t) => {
     assert.match(source, /console\.warn/);
   });
 
-  await t.test("the health endpoint exposes them with a code and a subsystem", async () => {
+  await t.test("the health endpoint exposes only stable warning codes", async () => {
     const route = await read("src/app/api/health/route.ts");
     assert.match(route, /getProductionReadinessWarnings/);
     assert.match(route, /degraded/);
-    assert.match(route, /subsystem/);
+    assert.match(route, /warning\.code/);
+    assert.ok(!/warning\.subsystem|warning\.message/.test(route));
   });
 
   await t.test("a degraded production is reported by the endpoint", () => {
@@ -177,24 +191,17 @@ test("Production readiness warnings reach an observable surface", async (t) => {
 
     assert.equal(body.ok, true, "the service is live — only `degraded` changes");
     assert.equal(body.degraded, true, "a production missing the Inngest keys must report degraded");
+    assert.equal(body.status, "degraded");
     assert.ok(
       body.warnings.some((w) => w.code === "inngest_keys_missing"),
       `expected inngest_keys_missing, got ${JSON.stringify(body.warnings)}`,
     );
-    // The endpoint is unauthenticated: a warning may name variables, never
-    // values. NODE_ENV is excluded — it is the deployment mode, and the
-    // messages name it on purpose.
-    const configuredValues = Object.entries(PRODUCTION_BASE)
-      .filter(([key]) => key !== "NODE_ENV")
-      .map(([, value]) => value);
     for (const warning of body.warnings) {
-      assert.ok(warning.subsystem, "each warning must name the degraded subsystem");
-      for (const value of configuredValues) {
-        assert.ok(
-          !warning.message.includes(value),
-          `a warning leaked a configured value onto an unauthenticated endpoint: ${value}`,
-        );
-      }
+      assert.deepEqual(
+        Object.keys(warning),
+        ["code"],
+        "the unauthenticated endpoint exposed readiness details beyond the stable code",
+      );
     }
   });
 
@@ -235,8 +242,8 @@ test("Production readiness warnings reach an observable surface", async (t) => {
     for (const testCase of cases) {
       const body = callHealthWith(testCase.env);
       const codes = body.warnings
-        .filter((warning) => warning.subsystem === "n8n_dispatch")
         .map((warning) => warning.code)
+        .filter((code) => code.startsWith("n8n_"))
         .sort();
       assert.deepEqual(
         codes,
@@ -258,13 +265,14 @@ test("Production readiness warnings reach an observable surface", async (t) => {
       INNGEST_EVENT_KEY: "e",
       INNGEST_SIGNING_KEY: "s",
     });
-    assert.deepEqual(body.warnings.filter((w) => w.subsystem === "n8n_dispatch"), []);
+    assert.deepEqual(body.warnings.filter((w) => w.code.startsWith("n8n_")), []);
     assert.equal(body.degraded, false);
   });
 
   await t.test("outside production the endpoint reports no degradation", () => {
     const body = callHealthWith({ NODE_ENV: "development" });
     assert.equal(body.degraded, false);
+    assert.equal(body.status, "healthy");
     assert.deepEqual(body.warnings, []);
   });
 });
@@ -272,12 +280,17 @@ test("Production readiness warnings reach an observable surface", async (t) => {
 test("Schema completeness — it is the full inventory of what the code reads", async (t) => {
   const schemaSource = await read("src/lib/server-env.ts");
 
+  const schemaStart = schemaSource.indexOf("const serverEnvSchema");
+  const schemaEnd = schemaSource.indexOf("type ParsedEnv");
+  assert.ok(schemaStart >= 0, "serverEnvSchema marker disappeared");
+  assert.ok(schemaEnd >= 0, "ParsedEnv marker disappeared");
+  assert.ok(schemaStart < schemaEnd, "server-env schema markers are out of order");
   const schemaBlock = schemaSource.slice(
-    schemaSource.indexOf("const serverEnvSchema"),
-    schemaSource.indexOf("type ParsedEnv"),
+    schemaStart,
+    schemaEnd,
   );
   const declared = new Set(
-    [...schemaBlock.matchAll(/^\s{2}([A-Z][A-Z0-9_]+):/gm)].map((match) => match[1]),
+    [...schemaBlock.matchAll(/^\s+([A-Z][A-Z0-9_]+):\s*z\./gm)].map((match) => match[1]),
   );
 
   await t.test("the schema block parses", () => {
@@ -343,9 +356,14 @@ test("Schema completeness — it is the full inventory of what the code reads", 
 test("Configuration truth — .env.example does not promise inert wiring", async (t) => {
   await t.test("the per-agent webhook URLs are marked as read by nothing", async () => {
     const example = await read(".env.example");
-    const block = example.slice(Math.max(0, example.indexOf("AGENT_MARKETING_WEBHOOK_URL") - 600));
+    const sectionStart = example.indexOf("Agent Webhook Bridge");
+    const sectionEnd = example.indexOf("n8n Execution Bridge", sectionStart);
+    assert.ok(sectionStart >= 0, "Agent Webhook Bridge section disappeared");
+    assert.ok(sectionEnd > sectionStart, "Agent Webhook Bridge section has no boundary");
+    const block = example.slice(sectionStart, sectionEnd);
+    assert.match(block, /AGENT_MARKETING_WEBHOOK_URL=/);
     assert.match(
-      block.slice(0, 900),
+      block,
       /INERT|read by NO code path/,
       ".env.example describes the per-agent webhook URLs as functional again",
     );

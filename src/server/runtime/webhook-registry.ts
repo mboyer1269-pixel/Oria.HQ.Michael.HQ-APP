@@ -161,13 +161,14 @@ export function resolveWebhookConfigurationState(
     return "destination_url_invalid";
   }
 
+  const isLoopback = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLoopback)) {
+    return "destination_url_invalid";
+  }
   if (!binding.allowedHostnames.includes(parsed.hostname)) {
     return "destination_hostname_not_allowed";
   }
-  if (
-    process.env.NODE_ENV === "production" &&
-    (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
-  ) {
+  if (process.env.NODE_ENV === "production" && isLoopback) {
     return "destination_localhost_in_production";
   }
 

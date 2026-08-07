@@ -95,10 +95,10 @@ describe("Webhook Registry — destination resolution", () => {
   });
 });
 
-describe("Webhook Registry — one destination, named by both sides", () => {
-  test("every binding declares the constant the dispatcher imports", () => {
-    // Value comparison, not source scanning: the dispatcher can read the
-    // variable however it likes as long as both sides name the same constant.
+describe("Webhook Registry — one canonical destination", () => {
+  test("every binding declares the registry's destination constant", () => {
+    // Value comparison, not source scanning: the dispatcher delegates its
+    // configuration resolution to this registry.
     assert.equal(typeof N8N_DESTINATION_ENV_KEY, "string");
     assert.ok(N8N_DESTINATION_ENV_KEY.length > 0);
 
@@ -108,7 +108,7 @@ describe("Webhook Registry — one destination, named by both sides", () => {
       assert.equal(
         binding.destinationEnvKey,
         N8N_DESTINATION_ENV_KEY,
-        `${binding.agentId}/${binding.skillId} names a destination the dispatcher does not read`,
+        `${binding.agentId}/${binding.skillId} names a non-canonical destination`,
       );
     }
   });
@@ -164,6 +164,20 @@ describe("Webhook Registry — readiness is every value the dispatcher requires"
         [N8N_DESTINATION_ENV_KEY]: "https://evil.example/x",
       }),
       "destination_hostname_not_allowed",
+    );
+    assert.equal(
+      resolveWebhookConfigurationState(binding(), {
+        ...CONFIGURED,
+        [N8N_DESTINATION_ENV_KEY]: "http://hooks.n8n.cloud/webhook/x",
+      }),
+      "destination_url_invalid",
+    );
+    assert.equal(
+      resolveWebhookConfigurationState(binding(), {
+        ...CONFIGURED,
+        [N8N_DESTINATION_ENV_KEY]: "file://hooks.n8n.cloud/webhook/x",
+      }),
+      "destination_url_invalid",
     );
 
     const noStatic = { ...CONFIGURED };

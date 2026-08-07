@@ -143,6 +143,7 @@ test("Control chain — the lanes are separated by their gates", async (t) => {
     const green = CONTROL_LANES.find((l) => l.key === "green_lane");
     for (const id of green.capabilityIds) {
       const capability = RUNTIME_CAPABILITIES.find((c) => c.id === id);
+      assert.ok(capability, `${id} is on the green lane but absent from the inventory`);
       assert.equal(
         capability.gate,
         "sentinelle_green_lane",

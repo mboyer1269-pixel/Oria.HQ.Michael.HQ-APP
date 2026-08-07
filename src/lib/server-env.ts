@@ -19,14 +19,8 @@ const serverEnvSchema = z.object({
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1).optional(),
   ELEVENLABS_API_KEY: z.string().min(1).optional(),
   OPENROUTER_API_KEY: z.string().min(1).optional(),
-  // Supabase.
-  //
-  // The anon key was missing from this schema entirely while being required by
-  // createServerSupabaseClient(), which every authenticated route reaches
-  // through requireOwnerApiSession(). Production could therefore boot "clean"
-  // with the URL and the service-role key set, and answer 401 to the owner on
-  // every request: the client constructor throws, getCurrentAuthUser() maps
-  // that to "no user", and the gate refuses. The fail-fast below now covers it.
+  // Supabase. createServerSupabaseClient() requires the public anon key, so the
+  // production fail-fast validates it alongside the URL and service-role key.
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
@@ -75,6 +69,9 @@ const serverEnvSchema = z.object({
   LEDGER_HASH_CHAIN_WRITE: z.string().min(1).optional(),
   MISSION_DURABLE_DRAFTS: z.string().min(1).optional(),
   ENABLE_STAGING_RUNTIME_DIAGNOSTIC: z.string().min(1).optional(),
+  // Explicit opt-in for the manual Joris booking smoke to retain configured
+  // Supabase credentials and exercise its write path.
+  SMOKE_WRITE: z.enum(["0", "1"]).optional(),
 });
 
 type ParsedEnv = z.infer<typeof serverEnvSchema>;
@@ -116,10 +113,8 @@ if (process.env.NODE_ENV === "production" && !isNextBuild) {
   if (!_parsed.MICHAEL_HQ_OWNER_ID) criticalMissing.push("MICHAEL_HQ_OWNER_ID");
   if (!_parsed.MICHAEL_HQ_OWNER_EMAIL) criticalMissing.push("MICHAEL_HQ_OWNER_EMAIL");
 
-  // Supabase is required for production persistence AND for auth. The anon key
-  // is not optional in practice: without it createServerSupabaseClient() throws,
-  // getCurrentAuthUser() returns null, and requireOwnerApiSession() answers 401
-  // to the owner on every request — an app that boots and serves nothing.
+  // Supabase is required for production persistence and auth.
+  // createServerSupabaseClient() requires both public values.
   if (!_parsed.NEXT_PUBLIC_SUPABASE_URL) criticalMissing.push("NEXT_PUBLIC_SUPABASE_URL");
   if (!_parsed.NEXT_PUBLIC_SUPABASE_ANON_KEY) criticalMissing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!_parsed.SUPABASE_SERVICE_ROLE_KEY) criticalMissing.push("SUPABASE_SERVICE_ROLE_KEY");

@@ -36,6 +36,30 @@ function runGate(extraEnv = {}) {
   };
 }
 
+function runGateWithAuditBody(body) {
+  const auditOutput = typeof body === "string" ? body : JSON.stringify(body);
+  const probe = `
+    const { promisify } = require("node:util");
+    const child = require("node:child_process");
+    const body = ${JSON.stringify(auditOutput)};
+    child.exec = (cmd, opts, cb) => {
+      const done = typeof opts === "function" ? opts : cb;
+      done(null, body, "");
+    };
+    child.exec[promisify.custom] = async () => ({ stdout: body, stderr: "" });
+    import(${JSON.stringify(pathToFileUrl(SCRIPT))}).catch(() => {});
+  `;
+  const result = spawnSync(process.execPath, ["-e", probe], {
+    cwd: projectRoot,
+    encoding: "utf8",
+  });
+  return {
+    status: result.status,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
+}
+
 test("Dependency gate — an audit that did not run is never a clean audit", async (t) => {
   await t.test("an unreachable registry exits non-zero", () => {
     // Port 9 (discard) refuses immediately, so this stays fast and offline.
@@ -98,21 +122,7 @@ test("Dependency gate — an audit that did not run is never a clean audit", asy
     ];
 
     for (const testCase of cases) {
-      const probe = `
-        const { promisify } = require("node:util");
-        const child = require("node:child_process");
-        const body = ${JSON.stringify(testCase.body)};
-        child.exec = (cmd, opts, cb) => {
-          const done = typeof opts === "function" ? opts : cb;
-          done(null, body, "");
-        };
-        child.exec[promisify.custom] = async () => ({ stdout: body, stderr: "" });
-        import(${JSON.stringify(pathToFileUrl(SCRIPT))}).catch(() => {});
-      `;
-      const result = spawnSync(process.execPath, ["-e", probe], {
-        cwd: projectRoot,
-        encoding: "utf8",
-      });
+      const result = runGateWithAuditBody(testCase.body);
       assert.notEqual(
         result.status,
         0,
@@ -150,8 +160,33 @@ test("Dependency gate — it never resolves advisories itself", async (t) => {
   });
 
   await t.test("it blocks on declared packages and reports transitive ones", async () => {
-    const source = await readFile(SCRIPT, "utf8");
-    assert.match(source, /BLOCKING_SEVERITIES = new Set\(\["high", "critical"\]\)/);
-    assert.match(source, /reported, not blocking/);
+    const result = runGateWithAuditBody({
+      vulnerabilities: {
+        next: {
+          severity: "high",
+          isDirect: false,
+          range: "<99.0.0",
+          via: [{ title: "declared fixture advisory" }],
+          fixAvailable: false,
+        },
+        "fixture-transitive": {
+          severity: "high",
+          isDirect: true,
+          range: "*",
+          via: [{ title: "transitive fixture advisory" }],
+          fixAvailable: false,
+        },
+      },
+      metadata: { vulnerabilities: { critical: 0, high: 2, moderate: 0, low: 0 } },
+    });
+
+    assert.equal(result.status, 1, "a high advisory in declared package next must block");
+    assert.match(result.stderr, /next \[high\]/);
+    assert.match(result.stdout, /fixture-transitive \[high\]/);
+    assert.match(result.stdout, /reported, not blocking/);
+    assert.ok(
+      !result.stderr.includes("fixture-transitive"),
+      "npm's isDirect flag must not turn an undeclared package into a blocker",
+    );
   });
 });

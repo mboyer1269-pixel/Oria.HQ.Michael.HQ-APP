@@ -16,9 +16,7 @@ function toApiError(error: unknown) {
   return NextResponse.json(mapped.body, { status: mapped.status });
 }
 
-// 5 requests per hour per IP. The numbers live in the policy registry, not
-// here: two literals at a call site cannot be isolated from another surface's
-// literals, and that is exactly how this form once inherited 30-per-minute.
+// The shared registry supplies this surface's limit and window.
 const CONTACT_POLICY = RATE_LIMIT_POLICIES.contact_form;
 
 export async function POST(request: Request) {

@@ -66,6 +66,14 @@ test("Env scanner — every form it claims to resolve", async (t) => {
     assert.ok(names.has("FIXTURE_LOCAL_CONST"));
   });
 
+  await t.test("subscript through a module constant declared later", async () => {
+    const { names, dynamicReads } = await scanWithFixtures({
+      "a.ts": `export const v = process.env[KEY];\nconst KEY = "FIXTURE_LATER_CONST";`,
+    });
+    assert.ok(names.has("FIXTURE_LATER_CONST"));
+    assert.deepEqual(dynamicReads, []);
+  });
+
   await t.test("subscript through a constant imported from another module", async () => {
     const { names } = await scanWithFixtures({
       "names.ts": `export const REMOTE_KEY = "FIXTURE_CROSS_MODULE";`,
@@ -210,12 +218,29 @@ test("Env scanner — unresolvable subscripts are reported, never dropped", asyn
     //   check-supabase-config enumerates process.env rather than depending on names;
     //   webhook-registry subscripts a binding field whose value is a declared constant.
     const { dynamicReads } = await collectEnvReferences();
-    const files = [...new Set(dynamicReads.map((entry) => entry.file))].sort();
+    const counts = new Map();
+    for (const { file, expression } of dynamicReads) {
+      const key = JSON.stringify([file, expression]);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const actual = [...counts]
+      .map(([key, count]) => {
+        const [file, expression] = JSON.parse(key);
+        return { file, expression, count };
+      })
+      .sort((a, b) => `${a.file}:${a.expression}`.localeCompare(`${b.file}:${b.expression}`));
     assert.deepEqual(
-      files,
-      ["src/scripts/check-supabase-config.ts", "src/server/runtime/webhook-registry.ts"],
+      actual,
+      [
+        { file: "src/scripts/check-supabase-config.ts", expression: "key", count: 1 },
+        {
+          file: "src/server/runtime/webhook-registry.ts",
+          expression: "binding.destinationEnvKey",
+          count: 2,
+        },
+      ],
       "a new unresolvable environment subscript appeared. Resolve it in the scanner, or " +
-        "acknowledge it here with the reason it cannot be a static dependency.",
+        "acknowledge its exact file, expression, and count here.",
     );
   });
 });

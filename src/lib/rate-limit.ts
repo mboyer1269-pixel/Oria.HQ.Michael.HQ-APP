@@ -11,22 +11,8 @@
 // The public API is identical in both modes. Callers never need to know which
 // backend is active.
 //
-// ISOLATION BY POLICY
-// -------------------
-// The Upstash limiter used to be a single cached instance built from whichever
-// call site ran FIRST in the process, silently ignoring the limit and window of
-// every later caller:
-//
-//   contact form first  -> the n8n dispatch inherited 5 per HOUR (over-throttled)
-//   n8n dispatch first  -> the PUBLIC contact form inherited 30 per MINUTE
-//
-// The second ordering is the dangerous one: a public form protected at 5/hour
-// silently became 6x more permissive per minute, decided by request order after
-// a cold start. Nothing in the type system or the call sites could reveal it.
-//
-// So policies are now declared data, subjects are namespaced by policy, and the
-// limiter cache is keyed by the policy's own signature. A limiter built for one
-// policy can no longer be handed to another.
+// Each policy owns its limit and window. rateLimitKey() namespaces subjects by
+// policy id, and the Upstash cache and prefix include that same id.
 //
 // Required env vars for the Upstash backend:
 //   UPSTASH_REDIS_REST_URL    — from https://console.upstash.com
@@ -109,16 +95,15 @@ type RateLimitGlobals = typeof globalThis & {
 };
 
 /**
- * One limiter per configuration, never one per process.
- *
- * The cache key is the policy's signature, so a limiter built for 5-per-hour
- * can never be returned to a caller asking for 30-per-minute. The Redis prefix
- * carries the same signature, so counters cannot mix across configurations
- * either.
+ * One limiter per policy and configuration, never one per process.
  */
 const upstashLimiters = new Map<string, RatelimitLike>();
 
-function buildUpstashLimiter(limit: number, windowMs: number): RatelimitLike {
+function buildUpstashLimiter(
+  scope: string,
+  limit: number,
+  windowMs: number,
+): RatelimitLike {
   const globals = globalThis as RateLimitGlobals;
   if (globals.__rateLimitLimiterFactoryForTests) {
     return globals.__rateLimitLimiterFactoryForTests(limit, windowMs);
@@ -127,26 +112,27 @@ function buildUpstashLimiter(limit: number, windowMs: number): RatelimitLike {
     redis: Redis.fromEnv(),
     limiter: Ratelimit.slidingWindow(limit, `${windowMs} ms`),
     analytics: false,
-    prefix: `oria:rl:${policySignature(limit, windowMs)}`,
+    prefix: `oria:rl:${scope}:${policySignature(limit, windowMs)}`,
   });
 }
 
-function getUpstashLimiter(limit: number, windowMs: number): RatelimitLike {
-  const signature = policySignature(limit, windowMs);
+function getUpstashLimiter(scope: string, limit: number, windowMs: number): RatelimitLike {
+  const signature = `${scope}:${policySignature(limit, windowMs)}`;
   let limiter = upstashLimiters.get(signature);
   if (!limiter) {
-    limiter = buildUpstashLimiter(limit, windowMs);
+    limiter = buildUpstashLimiter(scope, limit, windowMs);
     upstashLimiters.set(signature, limiter);
   }
   return limiter;
 }
 
 async function isAllowedUpstash(
+  scope: string,
   key: string,
   limit: number,
   windowMs: number,
 ): Promise<boolean> {
-  const { success } = await getUpstashLimiter(limit, windowMs).limit(key);
+  const { success } = await getUpstashLimiter(scope, limit, windowMs).limit(key);
   return success;
 }
 
@@ -242,16 +228,25 @@ function warnOnInsecureProductionFallback(): void {
  * @param limit    Maximum number of requests permitted within the window
  * @param windowMs Rolling window duration in milliseconds
  */
-export async function isAllowed(
+async function isAllowedInScope(
+  scope: string,
   key: string,
   limit: number,
   windowMs: number,
 ): Promise<boolean> {
   if (hasUpstashConfig()) {
-    return isAllowedUpstash(key, limit, windowMs);
+    return isAllowedUpstash(scope, key, limit, windowMs);
   }
   warnOnInsecureProductionFallback();
   return isAllowedInMemory(key, limit, windowMs);
+}
+
+export async function isAllowed(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<boolean> {
+  return isAllowedInScope("adhoc", key, limit, windowMs);
 }
 
 /**
@@ -264,5 +259,10 @@ export async function isAllowedForPolicy(
   policy: RateLimitPolicy,
   subject: string,
 ): Promise<boolean> {
-  return isAllowed(rateLimitKey(policy, subject), policy.limit, policy.windowMs);
+  return isAllowedInScope(
+    policy.id,
+    rateLimitKey(policy, subject),
+    policy.limit,
+    policy.windowMs,
+  );
 }
