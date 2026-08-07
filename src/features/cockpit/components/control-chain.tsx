@@ -10,9 +10,8 @@ import { CONTROL_CHAIN_STAGES, type StageState } from "@/features/cockpit/contro
 //
 // Presentational only: it renders the posture, performs no action and decides
 // nothing. The states live in control-chain-posture.ts, where each is tied to
-// the evidence that justifies it. This component used to own that array, and
-// it rotted — it announced a ledger as "à venir" months after that ledger had
-// gone live with a dozen writers.
+// the evidence justifying it and verified by test. They are not declared here,
+// so the screen and the guarantee cannot diverge.
 // ---------------------------------------------------------------------------
 
 const ICONS: Record<string, typeof FileCheck2> = {
@@ -41,9 +40,9 @@ const STATE_STYLE: Record<StageState, { ring: string; icon: string; dot: string 
 };
 
 export function ControlChain() {
-  const runtimeStage =
-    CONTROL_CHAIN_STAGES.find((stage) => stage.key === "runtime") ??
-    CONTROL_CHAIN_STAGES[CONTROL_CHAIN_STAGES.length - 1];
+  // No fallback: a substitute stage would put a confident, wrong claim in the
+  // pill. Absent means absent, and the pill is omitted.
+  const runtimeStage = CONTROL_CHAIN_STAGES.find((stage) => stage.key === "runtime");
 
   return (
     <Card>
@@ -54,20 +53,21 @@ export function ControlChain() {
             Rien ne s&apos;exécute sans franchir chaque garde-fou
           </h3>
         </div>
-        <Tooltip
-          title="Pourquoi c'est là"
-          detail="C'est la garantie d'Oria : chaque action conséquente est barrée, tracée et réversible. Une approbation n'est pas une exécution."
-          align="right"
-        >
-          {/* Sourced from the runtime stage, never written here: a hardcoded
-              pill would keep announcing "verrouillé" after execution shipped. */}
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[#98a1c4]">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${STATE_STYLE[runtimeStage.state].dot}`}
-            />
-            {runtimeStage.label} · {runtimeStage.meta}
-          </span>
-        </Tooltip>
+        {runtimeStage ? (
+          <Tooltip
+            title="Pourquoi c'est là"
+            detail="C'est la garantie d'Oria : chaque action conséquente est barrée, tracée et réversible. Une approbation n'est pas une exécution."
+            align="right"
+          >
+            {/* Reads the runtime stage from CONTROL_CHAIN_STAGES. */}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[#98a1c4]">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${STATE_STYLE[runtimeStage.state].dot}`}
+              />
+              {runtimeStage.label} · {runtimeStage.meta}
+            </span>
+          </Tooltip>
+        ) : null}
       </div>
 
       <div className="mt-4 flex flex-wrap items-stretch gap-2">

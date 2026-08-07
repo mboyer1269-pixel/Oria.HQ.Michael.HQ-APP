@@ -3,11 +3,10 @@
 // Joris Presence — le voyant opérationnel du cockpit.
 //
 // Purement présentationnel. Les quatre états et leur dérivation vivent dans
-// joris-presence-state.ts, où ils sont testés : un voyant qui annonce « calme »
-// alors que rien n'est en main est pire que pas de voyant, et une logique
-// scellée dans un .tsx ne se teste pas.
+// joris-presence-state.ts, où ils sont couverts par des tests.
 //
-// Pas d'avatar, pas d'animation décorative, pas de fiction.
+// Pas d'avatar, pas d'animation décorative : chaque état reflète une condition
+// réelle et vérifiable.
 
 import {
   derivePresenceState,

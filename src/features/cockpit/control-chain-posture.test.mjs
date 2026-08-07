@@ -99,23 +99,23 @@ test("Control chain — the specific rot that produced this module", async (t) =
     const ledger = CONTROL_CHAIN_STAGES.find((stage) => stage.key === LEDGER_STAGE_KEY);
     assert.ok(ledger, "the ledger stage must exist — it is the spine of the chain");
 
-    // Both directions, and neither is allowed to be vacuous. A guard that
-    // only fires inside `if (writers.length > 0)` passes silently the day the
-    // detector stops matching anything — which is the failure it exists to catch.
-    if (ledger.state === "ready") {
-      assert.ok(
-        writers.length > 0,
-        "The ledger stage claims to be active, but no file inserts into action_ledger. " +
-          "Either the writers are gone and the stage must change, or the detector no longer matches them.",
-      );
-    }
-
+    // Asserted in both directions, and never conditionally: a guard that only
+    // fires inside `if (writers.length > 0)` passes in silence the day the
+    // detector stops matching anything, and one that only names "future"
+    // ignores every other wrong state the stage could hold.
     if (writers.length > 0) {
+      assert.equal(
+        ledger.state,
+        "ready",
+        `${writers.length} file(s) insert into action_ledger (${writers.join(", ")}), ` +
+          `so the ledger stage must read "ready". It reads "${ledger.state}".`,
+      );
+    } else {
       assert.notEqual(
         ledger.state,
-        "future",
-        `The ledger stage says "future", but ${writers.length} file(s) insert into action_ledger: ` +
-          `${writers.join(", ")}. The cockpit would be misreporting its own guarantee.`,
+        "ready",
+        "The ledger stage claims to be active, but no file inserts into action_ledger. " +
+          "Either the writers are gone and the stage must change, or the detector no longer matches them.",
       );
     }
   });
