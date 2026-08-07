@@ -10,6 +10,7 @@
 
 | Doc | Rôle |
 |-----|------|
+| `STAFF_BRIEF_RECONCILIATION_2026-08.md` | Brief HITL ↔ état repo : doctrine acceptée, stack greenfield rejetée, slices A–E mandate-gated |
 | `HQ_COHERENCE_AUDIT.md` | Audit de cohérence vocab/contrats, priorisé (P1→P6) |
 | `HQ_CAPABILITY_STATUS.md` | Statut réel des capacités (live / shadow / display_only / contract_only / planned) |
 | `HQ_RUN_GLOSSARY.md` | Les 3 couches « run » + la phase canonique de cycle de vie |

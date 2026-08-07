@@ -4,6 +4,26 @@ Registre des décisions produit et architecturales. Chaque entrée est immuable 
 
 ---
 
+## 2026-08-07 — Staff brief HITL : doctrine acceptée, stack greenfield rejetée sans ADR
+
+**Décision :** Le brief Staff Engineer « Oria HQ / Michael HQ » (HITL, ledger append-only,
+souveraineté, isolation Vie/Travail, télémetrie des coûts) est traité comme **doctrine produit
+alignée** sur l’existant — pas comme un ordre de rebuild.
+
+Conséquences opérationnelles jusqu’à mandat de slice explicite :
+
+1. **Pas** de monorepo `web/` + `backend-agents/` Python/FastAPI/LangGraph — le cerveau reste le
+   monolithe Next.js (`ARCHITECTURE.md`) ; un runtime Python, s’il est un jour voulu, doit être un
+   adaptateur derrière le rail d’intentions existant, jamais une seconde autorité d’approbation.
+2. **Pas** de table greenfield `agent_ledger_events` — le découpage live est
+   `agent_execution_intents` (file HITL) + `action_ledger` (audit immuable).
+3. Les slices A–E (rail go-live, cost telemetry, théâtre SSE, hash-chain write, reskin UI) restent
+   **mandate-gated** ; pgvector / Phase 1 restent verrouillés.
+
+**Références :** `docs/STAFF_BRIEF_RECONCILIATION_2026-08.md`, `ARCHITECTURE.md`, `AGENTS.md`
+
+---
+
 ## 2026-06-12 — Naming canonique : « Oria » (marque) vs « Orya » (namespace technique gelé)
 
 **Décision :** Le nom produit / affichage est **Oria HQ** — c'est le naming dominant du code
