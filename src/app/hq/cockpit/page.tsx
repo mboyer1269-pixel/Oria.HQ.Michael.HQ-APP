@@ -1,5 +1,6 @@
 import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
+import { ControlChain } from "@/features/cockpit/components/control-chain";
 import { FounderZeroStateCockpit } from "@/features/cockpit/components/founder-zero-state";
 import { getCockpitLayout } from "@/features/cockpit/actions/cockpit-layout";
 import {
@@ -49,6 +50,11 @@ export default async function CockpitPage() {
 
   return (
     <CockpitShell active="cockpit" crumb="Cockpit">
+      {/* The governance spine, above everything else: the cockpit states what
+          it will and will not do before it shows what it has done. */}
+      <div className="mb-4">
+        <ControlChain />
+      </div>
       <FounderZeroStateCockpit
         ideas={ideas}
         loadError={loadError}

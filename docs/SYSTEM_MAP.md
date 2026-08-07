@@ -14,17 +14,17 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 443 |
+| LIVE | 445 |
 | TEST_ONLY | 9 |
-| INCUBATION | 52 |
-| **Total source** | **504** |
+| INCUBATION | 51 |
+| **Total source** | **505** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
 | server/agents | 12 |
-| features/cockpit | 9 |
+| features/cockpit | 8 |
 | features/memory | 7 |
 | features/ventures | 6 |
 | server/ventures | 4 |
@@ -48,7 +48,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/cockpit/components/agent-approval-preview-panel.tsx`
 - `src/features/cockpit/components/cockpit-overview.tsx`
 - `src/features/cockpit/components/cockpit-review-queue.tsx`
-- `src/features/cockpit/components/control-chain.tsx`
 - `src/features/cockpit/components/joris-dock.tsx`
 - `src/features/cockpit/components/joris-presence.tsx`
 - `src/features/cockpit/components/morning-readiness-panel.tsx`

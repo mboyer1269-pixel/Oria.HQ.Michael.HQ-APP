@@ -1,5 +1,6 @@
 import { ChevronRight, FileCheck2, Gavel, Lock, ScrollText } from "lucide-react";
 import { Card, Eyebrow, Tooltip } from "./ui";
+import { CONTROL_CHAIN_STAGES, type StageState } from "@/features/cockpit/control-chain-posture";
 
 // ---------------------------------------------------------------------------
 // Control chain — the always-visible spine of the cockpit.
@@ -7,57 +8,19 @@ import { Card, Eyebrow, Tooltip } from "./ui";
 // Shows that nothing executes without passing every gate:
 //   Approval Packet → Approval Event → Ledger Entry → Runtime Execution
 //
-// State is honest: the packet and event contracts exist today (pure/local);
-// the ledger write and runtime execution are future and remain LOCKED. This
-// component is presentational — it reflects the current governance posture,
-// it does not perform any action.
+// Presentational only: it renders the posture, performs no action and decides
+// nothing. The states live in control-chain-posture.ts, where each is tied to
+// the evidence that justifies it. This component used to own that array, and
+// it rotted — it announced a ledger as "à venir" months after that ledger had
+// gone live with a dozen writers.
 // ---------------------------------------------------------------------------
 
-type StageState = "ready" | "future" | "locked";
-
-interface Stage {
-  key: string;
-  label: string;
-  icon: typeof FileCheck2;
-  state: StageState;
-  detail: string;
-  meta: string;
-}
-
-const STAGES: Stage[] = [
-  {
-    key: "packet",
-    label: "Approval Packet",
-    icon: FileCheck2,
-    state: "ready",
-    detail: "Prépare une décision humaine. N'approuve rien, n'exécute rien.",
-    meta: "Contrat en place",
-  },
-  {
-    key: "event",
-    label: "Approval Event",
-    icon: Gavel,
-    state: "ready",
-    detail: "Décision humaine explicite. Même approuvée, n'autorise pas l'exécution.",
-    meta: "Contrat en place",
-  },
-  {
-    key: "ledger",
-    label: "Ledger Entry",
-    icon: ScrollText,
-    state: "future",
-    detail: "Enregistrement immuable et auditable. Pré-condition obligatoire avant toute exécution.",
-    meta: "À venir",
-  },
-  {
-    key: "runtime",
-    label: "Runtime Execution",
-    icon: Lock,
-    state: "locked",
-    detail: "Exécution bornée et réversible. Verrouillée tant qu'une action n'est pas approuvée et ledgerée.",
-    meta: "Verrouillé",
-  },
-];
+const ICONS: Record<string, typeof FileCheck2> = {
+  packet: FileCheck2,
+  event: Gavel,
+  ledger: ScrollText,
+  runtime: Lock,
+};
 
 const STATE_STYLE: Record<StageState, { ring: string; icon: string; dot: string }> = {
   ready: {
@@ -100,16 +63,16 @@ export function ControlChain() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-stretch gap-2">
-        {STAGES.map((stage, index) => {
+        {CONTROL_CHAIN_STAGES.map((stage, index) => {
           const style = STATE_STYLE[stage.state];
-          const Icon = stage.icon;
+          const Icon = ICONS[stage.key] ?? FileCheck2;
           return (
             <div key={stage.key} className="flex flex-1 items-center gap-2">
               <Tooltip
                 title={stage.label}
                 detail={stage.detail}
                 meta={<span className="font-semibold text-[#98a1c4]">{stage.meta}</span>}
-                align={index === 0 ? "left" : index === STAGES.length - 1 ? "right" : "center"}
+                align={index === 0 ? "left" : index === CONTROL_CHAIN_STAGES.length - 1 ? "right" : "center"}
                 className="min-w-0 flex-1"
               >
                 <div
@@ -129,7 +92,7 @@ export function ControlChain() {
                   </span>
                 </div>
               </Tooltip>
-              {index < STAGES.length - 1 ? (
+              {index < CONTROL_CHAIN_STAGES.length - 1 ? (
                 <ChevronRight className="hidden h-4 w-4 shrink-0 text-[#646c8e] sm:block" aria-hidden="true" />
               ) : null}
             </div>
