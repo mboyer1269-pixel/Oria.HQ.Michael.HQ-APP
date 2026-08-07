@@ -82,8 +82,8 @@ export function mapExecutionCorridorsToBoard(
     label: `n8n · ${corridor.id}`,
     mode: MODE_BY_STATUS[corridor.status],
     requiresApproval: true as const,
-    // No action: no screen prepares an intent. A button that navigates to a
-    // page which cannot do what the label says is worse than no button.
+    // No screen prepares an intent, so no corridor offers an action control.
+    // The note names the API surface that does.
     action: null,
     note: noteFor(corridor, liveCount),
   }));

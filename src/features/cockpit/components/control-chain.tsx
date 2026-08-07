@@ -11,14 +11,27 @@ import {
 // ---------------------------------------------------------------------------
 // Control chain — the always-visible spine of the cockpit.
 //
-// Renders both lanes that reach execution: the approval rail, and the green
-// lane that executes after a Sentinelle verdict with no approval packet. Each
-// lane states only what it guarantees.
+// Renders every lane that reaches execution. Each states only what it
+// guarantees, and the count in the header is read from CONTROL_LANES so adding
+// or removing a lane cannot leave a stale number on screen.
 //
 // Presentational only: it performs no action and decides nothing. States live
 // in control-chain-posture.ts, tied to the evidence justifying them, so the
 // screen and the guarantee cannot diverge.
 // ---------------------------------------------------------------------------
+
+/** Cardinal in French for the small counts this header can produce. */
+const LANE_COUNT_WORD: Record<number, string> = {
+  1: "Une voie mène",
+  2: "Deux voies mènent",
+  3: "Trois voies mènent",
+  4: "Quatre voies mènent",
+};
+
+function laneCountHeadline(count: number): string {
+  const lead = LANE_COUNT_WORD[count] ?? `${count} voies mènent`;
+  return `${lead} à l'exécution, avec des garanties différentes`;
+}
 
 const ICONS: Record<string, typeof FileCheck2> = {
   packet: FileCheck2,
@@ -142,7 +155,7 @@ export function ControlChain() {
         <div>
           <Eyebrow>Chaîne de contrôle</Eyebrow>
           <h3 className="mt-1.5 text-[15px] font-bold text-[#eff1fb]">
-            Deux voies mènent à l&apos;exécution, avec des garanties différentes
+            {laneCountHeadline(CONTROL_LANES.length)}
           </h3>
         </div>
         <Tooltip
