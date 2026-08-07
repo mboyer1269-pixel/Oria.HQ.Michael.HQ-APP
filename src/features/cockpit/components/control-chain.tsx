@@ -1,5 +1,6 @@
 import { ChevronRight, FileCheck2, Gavel, Lock, ScrollText } from "lucide-react";
 import { Card, Eyebrow, Tooltip } from "./ui";
+import { CONTROL_CHAIN_STAGES, type StageState } from "@/features/cockpit/control-chain-posture";
 
 // ---------------------------------------------------------------------------
 // Control chain — the always-visible spine of the cockpit.
@@ -7,57 +8,18 @@ import { Card, Eyebrow, Tooltip } from "./ui";
 // Shows that nothing executes without passing every gate:
 //   Approval Packet → Approval Event → Ledger Entry → Runtime Execution
 //
-// State is honest: the packet and event contracts exist today (pure/local);
-// the ledger write and runtime execution are future and remain LOCKED. This
-// component is presentational — it reflects the current governance posture,
-// it does not perform any action.
+// Presentational only: it renders the posture, performs no action and decides
+// nothing. The states live in control-chain-posture.ts, where each is tied to
+// the evidence justifying it and verified by test. They are not declared here,
+// so the screen and the guarantee cannot diverge.
 // ---------------------------------------------------------------------------
 
-type StageState = "ready" | "future" | "locked";
-
-interface Stage {
-  key: string;
-  label: string;
-  icon: typeof FileCheck2;
-  state: StageState;
-  detail: string;
-  meta: string;
-}
-
-const STAGES: Stage[] = [
-  {
-    key: "packet",
-    label: "Approval Packet",
-    icon: FileCheck2,
-    state: "ready",
-    detail: "Prépare une décision humaine. N'approuve rien, n'exécute rien.",
-    meta: "Contrat en place",
-  },
-  {
-    key: "event",
-    label: "Approval Event",
-    icon: Gavel,
-    state: "ready",
-    detail: "Décision humaine explicite. Même approuvée, n'autorise pas l'exécution.",
-    meta: "Contrat en place",
-  },
-  {
-    key: "ledger",
-    label: "Ledger Entry",
-    icon: ScrollText,
-    state: "future",
-    detail: "Enregistrement immuable et auditable. Pré-condition obligatoire avant toute exécution.",
-    meta: "À venir",
-  },
-  {
-    key: "runtime",
-    label: "Runtime Execution",
-    icon: Lock,
-    state: "locked",
-    detail: "Exécution bornée et réversible. Verrouillée tant qu'une action n'est pas approuvée et ledgerée.",
-    meta: "Verrouillé",
-  },
-];
+const ICONS: Record<string, typeof FileCheck2> = {
+  packet: FileCheck2,
+  event: Gavel,
+  ledger: ScrollText,
+  runtime: Lock,
+};
 
 const STATE_STYLE: Record<StageState, { ring: string; icon: string; dot: string }> = {
   ready: {
@@ -78,6 +40,10 @@ const STATE_STYLE: Record<StageState, { ring: string; icon: string; dot: string 
 };
 
 export function ControlChain() {
+  // No fallback: a substitute stage would put a confident, wrong claim in the
+  // pill. Absent means absent, and the pill is omitted.
+  const runtimeStage = CONTROL_CHAIN_STAGES.find((stage) => stage.key === "runtime");
+
   return (
     <Card>
       <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
@@ -87,29 +53,34 @@ export function ControlChain() {
             Rien ne s&apos;exécute sans franchir chaque garde-fou
           </h3>
         </div>
-        <Tooltip
-          title="Pourquoi c'est là"
-          detail="C'est la garantie d'Oria : chaque action conséquente est barrée, tracée et réversible. Une approbation n'est pas une exécution."
-          align="right"
-        >
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[#98a1c4]">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-            Runtime verrouillé
-          </span>
-        </Tooltip>
+        {runtimeStage ? (
+          <Tooltip
+            title="Pourquoi c'est là"
+            detail="C'est la garantie d'Oria : chaque action conséquente est barrée, tracée et réversible. Une approbation n'est pas une exécution."
+            align="right"
+          >
+            {/* Reads the runtime stage from CONTROL_CHAIN_STAGES. */}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[#98a1c4]">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${STATE_STYLE[runtimeStage.state].dot}`}
+              />
+              {runtimeStage.label} · {runtimeStage.meta}
+            </span>
+          </Tooltip>
+        ) : null}
       </div>
 
       <div className="mt-4 flex flex-wrap items-stretch gap-2">
-        {STAGES.map((stage, index) => {
+        {CONTROL_CHAIN_STAGES.map((stage, index) => {
           const style = STATE_STYLE[stage.state];
-          const Icon = stage.icon;
+          const Icon = ICONS[stage.key] ?? FileCheck2;
           return (
             <div key={stage.key} className="flex flex-1 items-center gap-2">
               <Tooltip
                 title={stage.label}
                 detail={stage.detail}
                 meta={<span className="font-semibold text-[#98a1c4]">{stage.meta}</span>}
-                align={index === 0 ? "left" : index === STAGES.length - 1 ? "right" : "center"}
+                align={index === 0 ? "left" : index === CONTROL_CHAIN_STAGES.length - 1 ? "right" : "center"}
                 className="min-w-0 flex-1"
               >
                 <div
@@ -129,7 +100,7 @@ export function ControlChain() {
                   </span>
                 </div>
               </Tooltip>
-              {index < STAGES.length - 1 ? (
+              {index < CONTROL_CHAIN_STAGES.length - 1 ? (
                 <ChevronRight className="hidden h-4 w-4 shrink-0 text-[#646c8e] sm:block" aria-hidden="true" />
               ) : null}
             </div>

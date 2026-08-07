@@ -14,20 +14,19 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 443 |
+| LIVE | 455 |
 | TEST_ONLY | 9 |
-| INCUBATION | 52 |
-| **Total source** | **504** |
+| INCUBATION | 44 |
+| **Total source** | **508** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
 | server/agents | 12 |
-| features/cockpit | 9 |
+| features/cockpit | 7 |
 | features/memory | 7 |
-| features/ventures | 6 |
-| server/ventures | 4 |
+| features/ventures | 3 |
 | server/missions | 3 |
 | server/arena | 2 |
 | features/agents | 1 |
@@ -39,6 +38,7 @@
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
 | server/ai | 1 |
+| server/ventures | 1 |
 
 ## Incubation files (full list)
 
@@ -48,9 +48,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/cockpit/components/agent-approval-preview-panel.tsx`
 - `src/features/cockpit/components/cockpit-overview.tsx`
 - `src/features/cockpit/components/cockpit-review-queue.tsx`
-- `src/features/cockpit/components/control-chain.tsx`
 - `src/features/cockpit/components/joris-dock.tsx`
-- `src/features/cockpit/components/joris-presence.tsx`
 - `src/features/cockpit/components/morning-readiness-panel.tsx`
 - `src/features/cockpit/components/venture-suggestions.tsx`
 - `src/features/cockpit/widgets/widget-manifest.ts`
@@ -64,9 +62,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/memory/types.ts`
 - `src/features/outbound/components/outbound-batch-panel.tsx`
 - `src/features/skills/skill-governance.ts`
-- `src/features/ventures/agent-operator-score-from-signals.ts`
-- `src/features/ventures/agent-score-snapshot.ts`
-- `src/features/ventures/auto-agent-operator-score.ts`
 - `src/features/ventures/executive-selection-index.ts`
 - `src/features/ventures/hermes-prep-plan.ts`
 - `src/features/ventures/venture-cash-score.ts`
@@ -92,7 +87,4 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/missions/approval-record-repository.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
-- `src/server/ventures/agent-score-snapshot-repository.ts`
-- `src/server/ventures/agent-score-snapshot-row-mapping.ts`
 - `src/server/ventures/hermes-prep-tick.ts`
-- `src/server/ventures/snapshot-workspace-agent-scores.ts`
