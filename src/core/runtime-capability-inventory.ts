@@ -26,7 +26,7 @@ export const INVENTORY_SCOPE = {
   covers:
     "les effets qui sortent du processus, et les effets qu'un agent ou une planification peut provoquer",
   excludes:
-    "la persistance applicative pilotée par le propriétaire depuis les écrans (mise en page, notes, ventures, arène, missions) et le journal d'audit lui-même",
+    "la persistance applicative pilotée par le propriétaire depuis les écrans (mise en page, notes, ventures, arène, missions), le journal d'audit lui-même et les utilitaires de développement ou de smoke lancés manuellement",
 } as const;
 
 /** What actually happens when a capability runs. */
@@ -145,6 +145,29 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
 ];
 
 /**
+ * Calls that leave the process but are not part of the deployed runtime.
+ *
+ * These exact files are still scanned. The inverse assertion fails if an
+ * exclusion disappears or stops containing the effect it was written for, so
+ * this list cannot become a filename-shaped blind spot.
+ */
+export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
+  reason: string;
+  paths: readonly string[];
+}[] = [
+  {
+    reason:
+      "Utilitaire développeur lancé explicitement en ligne de commande pour traiter un document et déléguer à Task Master ; aucune route ni aucun agent ne l'appelle.",
+    paths: ["src/scripts/process-document.ts"],
+  },
+  {
+    reason:
+      "Smoke n8n manuel : il vérifie une URL fournie par l'opérateur et ne fait pas partie du runtime servi par Next.js.",
+    paths: ["src/scripts/smoke/n8n-execution-slice.mjs"],
+  },
+];
+
+/**
  * Every executor reachable in this runtime today, ordered by decreasing
  * consequence.
  */
@@ -197,6 +220,118 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
     covers: ["src/server/agents/execution-intent-repository.ts"],
   },
   {
+    id: "joris_memex_context_lookup",
+    label: "Joris · contexte Memex local",
+    executorKey: "enrichJorisMemoryContextWithMemex",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Quand le pont local est explicitement activé, chaque message Joris peut démarrer le serveur MCP Memex en stdio et y lire du contexte. Le transport reste local et lecture seule.",
+    evidence: {
+      path: "src/server/mcp/memex-stdio-transport.ts",
+      mustContain: "client.callTool(",
+      because:
+        "The Joris brain reaches this MCP client through memex-context-source. The official stdio transport spawns a local process and calls a read-only Memex tool.",
+    },
+    covers: [
+      "src/server/joris/brain.ts",
+      "src/server/joris/memex-context-source.ts",
+      "src/server/mcp/memex-readonly-client.ts",
+    ],
+  },
+  {
+    id: "joris_public_inventory_sync",
+    label: "Joris / Sales · synchronisation d'inventaire public",
+    executorKey: "syncPublicInventory",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Télécharge les pages d'inventaire Buckingham allowlistées. Joris peut le déclencher depuis le chat, tout comme la route propriétaire du Sales Desk.",
+    evidence: {
+      path: "src/server/inventory/public-inventory-sync.ts",
+      mustContain: "fetchImpl(url,",
+      because:
+        "The sync service performs the injected-or-global fetch. Its callers are owner-authenticated routes and Joris intents behind the owner chat session.",
+    },
+    covers: [
+      "src/app/api/inventory/sync/route.ts",
+      "src/server/joris/inventory-market-intent.ts",
+      "src/server/joris/marketplace-listing-intent.ts",
+      "src/server/joris/sales-marketing-intent.ts",
+    ],
+  },
+  {
+    id: "joris_market_advantage_brief",
+    label: "Joris / Sales · comparables AutoTrader",
+    executorKey: "fetchMarketAdvantageBrief",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Télécharge une recherche AutoTrader allowlistée pour produire un brief marché. Un message Joris ciblé ou la route propriétaire peut lancer cet appel.",
+    evidence: {
+      path: "src/server/market/fetch-market-comps.ts",
+      mustContain: "fetchImpl(url,",
+      because:
+        "The market brief service performs the injected-or-global fetch and is called directly by the owner route and by Joris inventory-market intents.",
+    },
+    covers: [
+      "src/app/api/sales/market-brief/route.ts",
+      "src/server/joris/inventory-market-intent.ts",
+    ],
+  },
+  {
+    id: "joris_marketplace_vdp_enrichment",
+    label: "Joris / Marketplace · enrichissement photo VDP",
+    executorKey: "prepareMarketplaceListing",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "La préparation d'une fiche Marketplace télécharge par défaut la VDP allowlistée pour compléter ses photos. Joris peut déclencher cette préparation depuis le chat.",
+    evidence: {
+      path: "src/server/inventory/vdp-photo-enrich.ts",
+      mustContain: "fetchImpl(check.normalizedUrl,",
+      because:
+        "prepareMarketplaceListing calls this injected-or-global fetch by default. Both the API route and the Joris listing intent require the owner session.",
+    },
+    covers: [
+      "src/app/api/marketplace/listings/route.ts",
+      "src/server/joris/marketplace-listing-intent.ts",
+      "src/server/marketplace-listings/prepare-listing.ts",
+    ],
+  },
+  {
+    id: "marketplace_photo_pack_download",
+    label: "Marketplace · téléchargement du pack photo",
+    executorKey: "/api/marketplace/listings/photo-pack",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Télécharge jusqu'à 20 images allowlistées et construit un ZIP pour publication manuelle. La route exige la session propriétaire.",
+    evidence: {
+      path: "src/server/marketplace-listings/build-photo-pack.ts",
+      mustContain: "fetchImpl(check.normalizedUrl,",
+      because:
+        "The photo-pack builder performs one injected-or-global fetch per image and is reached only through the owner-authenticated photo-pack route.",
+    },
+    covers: ["src/app/api/marketplace/listings/photo-pack/route.ts"],
+  },
+  {
+    id: "local_runtime_status_probe",
+    label: "Command Tower · sondes CLI locales",
+    executorKey: "probeLocalRuntimes",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Sur une machine locale autorisée, le rendu Command Tower exécute des commandes de version et de statut d'authentification strictement allowlistées.",
+    evidence: {
+      path: "src/server/agents/runtimes/local-runtime-probe.ts",
+      mustContain: "execFile(",
+      because:
+        "The owner-only Command Tower source calls probeLocalRuntimes, whose frozen runner invokes these local CLI subprocesses through execFile.",
+    },
+    covers: ["src/features/hq/command-tower/runtime-status-source.ts"],
+  },
+  {
     id: "green_lane_content_generate",
     label: "Voie verte · content.generate",
     executorKey: "content.generate",
@@ -206,9 +341,9 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
       "Handler in-process appelant une API de modèle (Anthropic/OpenAI). Passe par la Sentinelle et le ledger, pas par le rail d'approbation.",
     evidence: {
       path: "src/server/runtime/skill-dispatcher.ts",
-      mustContain: '"content.generate": handleContentGenerate',
+      mustContain: 'fetch("https://api.anthropic.com/v1/messages"',
       because:
-        "The built-in handler map is what makes this skill execute instead of previewing.",
+        "The registered content.generate handler reaches this direct model-provider fetch instead of returning the inert dry-run preview.",
     },
   },
   {

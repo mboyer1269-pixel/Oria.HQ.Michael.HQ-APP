@@ -31,6 +31,7 @@ const {
   RUNTIME_GATES,
   APPROVAL_RAIL_GATES,
   INVENTORY_SCOPE,
+  OUT_OF_SCOPE_EFFECT_SURFACES,
   OUT_OF_SCOPE_SURFACES,
   deriveRuntimePosture,
   isApprovalRailGate,
@@ -57,14 +58,205 @@ const capabilityFiles = new Set(
 );
 
 const outOfScopeFiles = new Set(OUT_OF_SCOPE_SURFACES.flatMap((group) => group.paths));
+const outOfScopeEffectFiles = new Set(
+  OUT_OF_SCOPE_EFFECT_SURFACES.flatMap((group) => group.paths),
+);
+
+const SUPABASE_MUTATION =
+  /\.from\(\s*["'`][a-z_]+["'`]\s*\)[\s\S]{0,300}?\.(insert|upsert|update|delete)\(/;
+const SERVER_ACTION = /^\s*["']use server["']/m;
+
+function mutationKinds(source) {
+  const kinds = [];
+  if (SUPABASE_MUTATION.test(source)) kinds.push("Supabase mutation");
+  if (SERVER_ACTION.test(source)) kinds.push("server action");
+  return kinds;
+}
+
+// Calls that cross a process or network boundary. Browser calls to this app's
+// own /api routes are transport to a server-side effect and are counted at the
+// server implementation, not a second time in the client component.
+const EFFECT_SINKS = [
+  {
+    name: "direct external fetch",
+    pattern: /\bfetch\s*\(\s*(?!["'`]\/api(?:\/|["'`]))/,
+    marker: /\bfetch\s*\(/,
+  },
+  {
+    name: "injected external fetch",
+    pattern: /\b(?:fetchImpl|fetchFn)\s*\(/,
+    marker: /\b(?:fetchImpl|fetchFn)\s*\(/,
+  },
+  {
+    name: "child process",
+    pattern: /\b(?:execFile|execFileSync|spawn|spawnSync)\s*\(/,
+    marker: /\b(?:execFile|execFileSync|spawn|spawnSync)\s*\(/,
+  },
+  {
+    name: "MCP stdio client",
+    pattern: /(?:new\s+StdioClientTransport|client\.(?:connect|callTool)\s*\()/,
+    marker: /(?:StdioClientTransport|client\.(?:connect|callTool)\s*\()/,
+  },
+  { name: "Resend email send", pattern: /\.emails\.send\(/, marker: /\.emails\.send/ },
+  { name: "outbound channel send", pattern: /channelSend\.send\(/, marker: /channelSend\.send/ },
+  {
+    name: "calendar event persist",
+    pattern: /calendarRepository\.create\(/,
+    marker: /calendarRepository\.create/,
+  },
+  {
+    name: "model provider call",
+    pattern: /\bgenerateStructuredJson\b\s*\(/,
+    marker: /\bgenerateStructuredJson\b/,
+  },
+];
+
+function detectedEffectSinks(rel, source) {
+  return EFFECT_SINKS.filter((sink) => {
+    if (
+      sink.name === "direct external fetch" &&
+      /\.tsx$/.test(rel) &&
+      !SERVER_ACTION.test(source)
+    ) {
+      return false;
+    }
+    if (
+      sink.name === "model provider call" &&
+      /export\s+(async\s+)?function\s+generateStructuredJson\b/.test(source)
+    ) {
+      return false;
+    }
+    return sink.pattern.test(source);
+  });
+}
+
+// Shared transports are implementations of the caller capabilities, not
+// additional executors. Keep the attribution sink-specific so a file gaining a
+// different outbound call still fails the scan.
+const ATTRIBUTED_ELSEWHERE = {
+  "src/server/ai/anthropic-json-client.ts": [
+    {
+      sink: "injected external fetch",
+      capabilities: [
+        "shadow_pass_scoring",
+        "joris_reply_generation",
+        "daily_direction_generation",
+        "cash_action_packet_generation",
+      ],
+    },
+  ],
+  "src/server/ai/openai-json-client.ts": [
+    {
+      sink: "injected external fetch",
+      capabilities: [
+        "shadow_pass_scoring",
+        "joris_reply_generation",
+        "daily_direction_generation",
+        "cash_action_packet_generation",
+      ],
+    },
+  ],
+  "src/server/agents/tools/n8n-webhook-trigger.ts": [
+    { sink: "injected external fetch", capabilities: ["n8n_webhook_dispatch"] },
+  ],
+  "src/server/outbound/resend-email-adapter.ts": [
+    { sink: "Resend email send", capabilities: ["outbound_send_email"] },
+  ],
+  "src/server/ventures/shadow-source-verifier.ts": [
+    { sink: "injected external fetch", capabilities: ["shadow_pass_scoring"] },
+  ],
+};
 
 async function sourceFiles(dir = path.join(projectRoot, "src"), acc = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) await sourceFiles(full, acc);
-    else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) acc.push(full);
+    else if (
+      /\.(?:[cm]?[jt]sx?)$/.test(entry.name) &&
+      !/\.(?:test|spec)\.(?:[cm]?[jt]sx?)$/.test(entry.name)
+    ) {
+      acc.push(full);
+    }
   }
   return acc;
+}
+
+function capabilitiesCoveringEffect(rel, sink, coveredByEvidence) {
+  const ids = new Set();
+  for (const capability of RUNTIME_CAPABILITIES) {
+    if (
+      capability.evidence.path === rel &&
+      coveredByEvidence.get(rel)?.has(sink.name)
+    ) {
+      ids.add(capability.id);
+    }
+  }
+  for (const attribution of ATTRIBUTED_ELSEWHERE[rel] ?? []) {
+    if (attribution.sink !== sink.name) continue;
+    for (const id of attribution.capabilities) ids.add(id);
+  }
+  return [...ids];
+}
+
+function buildCoveredByEvidence() {
+  const coveredByEvidence = new Map();
+  for (const capability of RUNTIME_CAPABILITIES) {
+    const matching = EFFECT_SINKS.filter((sink) =>
+      sink.marker.test(capability.evidence.mustContain),
+    );
+    if (matching.length === 0) continue;
+    const covered = coveredByEvidence.get(capability.evidence.path) ?? new Set();
+    for (const sink of matching) covered.add(sink.name);
+    coveredByEvidence.set(capability.evidence.path, covered);
+  }
+  return coveredByEvidence;
+}
+
+function importedSourceSpecifiers(source) {
+  return [
+    ...source.matchAll(/(?:from\s+|import\s*\()\s*["']([^"']+)["']/g),
+  ].map((match) => match[1]);
+}
+
+function resolveSourceSpecifier(fromRel, specifier, knownFiles) {
+  let base;
+  if (specifier.startsWith("@/")) {
+    base = `src/${specifier.slice(2)}`;
+  } else if (specifier.startsWith(".")) {
+    base = toPosix(path.normalize(path.join(path.dirname(fromRel), specifier)));
+  } else {
+    return null;
+  }
+
+  const candidates = [
+    base,
+    ...["ts", "tsx", "js", "jsx", "mts", "cts", "mjs", "cjs"].map(
+      (extension) => `${base}.${extension}`,
+    ),
+    ...["ts", "tsx", "js", "jsx", "mts", "cts", "mjs", "cjs"].map(
+      (extension) => `${base}/index.${extension}`,
+    ),
+  ];
+  return candidates.find((candidate) => knownFiles.has(candidate)) ?? null;
+}
+
+async function reachableSourceFiles(entry, files) {
+  const knownFiles = new Set(
+    files.map((file) => toPosix(path.relative(projectRoot, file))),
+  );
+  const reached = new Set();
+  const queue = [entry];
+  while (queue.length > 0) {
+    const rel = queue.shift();
+    if (!rel || reached.has(rel) || !knownFiles.has(rel)) continue;
+    reached.add(rel);
+    const source = await read(rel);
+    for (const specifier of importedSourceSpecifiers(source)) {
+      const resolved = resolveSourceSpecifier(rel, specifier, knownFiles);
+      if (resolved && !reached.has(resolved)) queue.push(resolved);
+    }
+  }
+  return reached;
 }
 
 test("Capability inventory — every claim carries proof that still holds", async (t) => {
@@ -89,6 +281,26 @@ test("Capability inventory — every claim carries proof that still holds", asyn
 });
 
 test("Capability inventory — no live executor escapes it", async (t) => {
+  await t.test("the effect detector sees direct, injected, process, and external-client calls", () => {
+    const detected = (source) =>
+      new Set(detectedEffectSinks("src/server/probe.ts", source).map((sink) => sink.name));
+
+    assert.ok(detected('await fetch("https://example.com")').has("direct external fetch"));
+    assert.ok(detected("await fetch(url)").has("direct external fetch"));
+    assert.ok(detected("await fetchImpl(url)").has("injected external fetch"));
+    assert.ok(detected("await fetchFn(url)").has("injected external fetch"));
+    assert.ok(detected("execFile(binary, args, callback)").has("child process"));
+    assert.ok(detected("spawn(binary, args)").has("child process"));
+    assert.ok(detected("await client.callTool(input)").has("MCP stdio client"));
+    assert.ok(detected("await resend.emails.send(input)").has("Resend email send"));
+    assert.ok(detected("await generateStructuredJson(input)").has("model provider call"));
+    assert.equal(
+      detected('await fetch("/api/internal")').has("direct external fetch"),
+      false,
+      "the browser-to-own-route transport is counted at its server effect",
+    );
+  });
+
   await t.test("every built-in skill handler is inventoried", async () => {
     const source = await read("src/server/runtime/skill-dispatcher.ts");
     const start = source.indexOf("const BUILTIN_HANDLERS");
@@ -119,65 +331,25 @@ test("Capability inventory — no live executor escapes it", async (t) => {
   });
 
   await t.test("every effect sink outside those registries is accounted for", async () => {
-    // The two registries are not the whole runtime. Routes reach adapters that
-    // send mail and repositories that persist, and none of that appears in a
-    // handler map. Each sink below is a call that leaves the process or writes,
-    // and must be attributable to a declared capability.
-    // `pattern` finds the call in source; `marker` recognises the same sink in
-    // a capability's evidence string, which names the call without its
-    // parentheses.
-    const SINKS = [
-      { name: "Resend email send", pattern: /\.emails\.send\(/, marker: /\.emails\.send/ },
-      { name: "outbound channel send", pattern: /channelSend\.send\(/, marker: /channelSend\.send/ },
-      {
-        name: "calendar event persist",
-        pattern: /calendarRepository\.create\(/,
-        marker: /calendarRepository\.create/,
-      },
-      {
-        name: "model provider call",
-        pattern: /\bgenerateStructuredJson\b\s*\(/,
-        marker: /\bgenerateStructuredJson\b/,
-      },
-    ];
-
-    // A sink implementation that a declared capability accounts for through a
-    // different file. Scoped to the sink it covers, not the whole file, so a
-    // file gaining a DIFFERENT sink later is still reported.
-    const ATTRIBUTED_ELSEWHERE = {
-      "src/server/outbound/resend-email-adapter.ts": {
-        sink: "Resend email send",
-        capability: "outbound_send_email",
-      },
-      "src/server/ventures/venture-score-shadow-runner.ts": {
-        sink: "model provider call",
-        capability: "shadow_pass_scoring",
-      },
-    };
-    for (const { capability, sink } of Object.values(ATTRIBUTED_ELSEWHERE)) {
-      assert.ok(
-        RUNTIME_CAPABILITIES.some((c) => c.id === capability),
-        `attribution points at "${capability}", which is not a declared capability`,
-      );
-      assert.ok(
-        SINKS.some((s) => s.name === sink),
-        `attribution names sink "${sink}", which is not in the detector`,
-      );
-    }
-
-    // An evidence path covers only the sink its own marker describes. Without
-    // this, a file listed as evidence for one capability would hide any other
-    // sink it gains later.
-    const coveredByEvidence = new Map();
-    for (const capability of RUNTIME_CAPABILITIES) {
-      const matching = SINKS.filter((sink) => sink.marker.test(capability.evidence.mustContain));
-      if (matching.length > 0) {
-        coveredByEvidence.set(
-          capability.evidence.path,
-          new Set(matching.map((sink) => sink.name)),
+    for (const attributions of Object.values(ATTRIBUTED_ELSEWHERE)) {
+      for (const { capabilities, sink } of attributions) {
+        assert.ok(
+          EFFECT_SINKS.some((candidate) => candidate.name === sink),
+          `attribution names sink "${sink}", which is not in the detector`,
         );
+        for (const capability of capabilities) {
+          assert.ok(
+            RUNTIME_CAPABILITIES.some((candidate) => candidate.id === capability),
+            `attribution points at "${capability}", which is not a declared capability`,
+          );
+        }
       }
     }
+
+    // Multiple capabilities may cite one implementation with different sinks.
+    // The helper merges those sets so the last declaration cannot erase prior
+    // evidence.
+    const coveredByEvidence = buildCoveredByEvidence();
 
     // The inventory itself names every sink marker as evidence; scanning it
     // would report each capability as its own undeclared executor.
@@ -188,13 +360,12 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       const rel = toPosix(path.relative(projectRoot, file));
       if (rel === INVENTORY_MODULE) continue;
       const source = await readFile(file, "utf8");
-      // A module that DEFINES a sink is the transport, not a call site.
-      const definesSink = /export\s+(async\s+)?function\s+generateStructuredJson\b/.test(source);
-      for (const sink of SINKS) {
-        if (!sink.pattern.test(source)) continue;
-        if (definesSink && sink.name === "model provider call") continue;
+      for (const sink of detectedEffectSinks(rel, source)) {
         if (coveredByEvidence.get(rel)?.has(sink.name)) continue;
-        if (ATTRIBUTED_ELSEWHERE[rel]?.sink === sink.name) continue;
+        if ((ATTRIBUTED_ELSEWHERE[rel] ?? []).some((entry) => entry.sink === sink.name)) {
+          continue;
+        }
+        if (outOfScopeEffectFiles.has(rel)) continue;
         undeclared.push(`${rel} — ${sink.name}`);
       }
     }
@@ -209,15 +380,70 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     );
   });
 
+  await t.test("the named inventory and marketplace network surfaces are classified exactly", () => {
+    const required = [
+      ["syncPublicInventory", "src/server/inventory/public-inventory-sync.ts"],
+      ["fetchMarketAdvantageBrief", "src/server/market/fetch-market-comps.ts"],
+      ["vdp-photo-enrich", "src/server/inventory/vdp-photo-enrich.ts"],
+      ["build-photo-pack", "src/server/marketplace-listings/build-photo-pack.ts"],
+    ];
+    for (const [name, rel] of required) {
+      assert.ok(
+        capabilityFiles.has(rel) || outOfScopeEffectFiles.has(rel),
+        `${name} (${rel}) is neither inventoried nor explicitly excluded`,
+      );
+    }
+  });
+
+  await t.test("every process or network boundary reachable from Joris has an owner-controlled gate", async () => {
+    const files = await sourceFiles();
+    const reached = await reachableSourceFiles("src/app/api/joris/chat/route.ts", files);
+    const coveredByEvidence = buildCoveredByEvidence();
+    const expectedJorisEffects = [
+      "src/server/inventory/public-inventory-sync.ts",
+      "src/server/inventory/vdp-photo-enrich.ts",
+      "src/server/market/fetch-market-comps.ts",
+      "src/server/mcp/memex-stdio-transport.ts",
+    ];
+    for (const rel of expectedJorisEffects) {
+      assert.ok(reached.has(rel), `${rel} is no longer reachable from Joris — re-audit its gate`);
+    }
+
+    const misclassified = [];
+    const ownerControlledGates = new Set(["owner_session", "owner_confirmed"]);
+    for (const rel of reached) {
+      const source = await read(rel);
+      for (const sink of detectedEffectSinks(rel, source)) {
+        assert.ok(
+          !outOfScopeEffectFiles.has(rel),
+          `${rel} is reachable from Joris but excluded as a manual-only effect`,
+        );
+        const ids = capabilitiesCoveringEffect(rel, sink, coveredByEvidence);
+        const capabilities = ids.map((id) =>
+          RUNTIME_CAPABILITIES.find((capability) => capability.id === id),
+        );
+        if (
+          capabilities.length === 0 ||
+          !capabilities.some((capability) => ownerControlledGates.has(capability?.gate))
+        ) {
+          misclassified.push(`${rel} — ${sink.name} (${ids.join(", ") || "unclassified"})`);
+        }
+      }
+    }
+    assert.deepEqual(
+      misclassified,
+      [],
+      "These effects are reachable from the owner-authenticated Joris route but no " +
+        "inventory entry classifies them with an owner-controlled gate:\n" +
+        misclassified.map((entry) => `  - ${entry}`).join("\n"),
+    );
+  });
+
   await t.test("every persistence and server-action surface is classified", async () => {
     // The mandate the inventory has to keep: a mutation surface is either
     // covered by a capability or listed as out of scope with a reason. Neither
     // is a failure — being neither is, because that is a surface nobody decided
     // about. Includes saveCockpitLayout's upsert and every other Supabase write.
-    const SUPABASE_MUTATION =
-      /\.from\(\s*["'`][a-z_]+["'`]\s*\)[\s\S]{0,300}?\.(insert|upsert|update|delete)\(/;
-    const SERVER_ACTION = /^\s*["']use server["']/m;
-
     const unclassified = [];
     const surfaces = [];
 
@@ -225,9 +451,7 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       const rel = toPosix(path.relative(projectRoot, file));
       const source = await readFile(file, "utf8");
 
-      const kinds = [];
-      if (SUPABASE_MUTATION.test(source)) kinds.push("Supabase mutation");
-      if (SERVER_ACTION.test(source)) kinds.push("server action");
+      const kinds = mutationKinds(source);
       if (kinds.length === 0) continue;
 
       surfaces.push(rel);
@@ -263,20 +487,49 @@ test("Capability inventory — no live executor escapes it", async (t) => {
         } catch {
           assert.fail(`OUT_OF_SCOPE_SURFACES lists ${rel}, which no longer exists`);
         }
-        const mutates =
-          /\.from\(\s*["'`][a-z_]+["'`]\s*\)[\s\S]{0,300}?\.(insert|upsert|update|delete)\(/.test(
-            source,
-          ) || /^\s*["']use server["']/m.test(source);
-        assert.ok(mutates, `OUT_OF_SCOPE_SURFACES lists ${rel}, which no longer mutates anything`);
+        assert.ok(
+          mutationKinds(source).length > 0,
+          `OUT_OF_SCOPE_SURFACES lists ${rel}, which no longer mutates anything`,
+        );
       }
     }
   });
+
+  await t.test(
+    "the out-of-scope effect list names only files that still exist and still cross a boundary",
+    async () => {
+      for (const group of OUT_OF_SCOPE_EFFECT_SURFACES) {
+        assert.ok(
+          group.reason.trim().length > 40,
+          `an out-of-scope effect group must explain itself: "${group.reason}"`,
+        );
+        for (const rel of group.paths) {
+          let source;
+          try {
+            source = await read(rel);
+          } catch {
+            assert.fail(`OUT_OF_SCOPE_EFFECT_SURFACES lists ${rel}, which no longer exists`);
+          }
+          assert.ok(
+            detectedEffectSinks(rel, source).length > 0,
+            `OUT_OF_SCOPE_EFFECT_SURFACES lists ${rel}, which no longer crosses a boundary`,
+          );
+        }
+      }
+    },
+  );
 
   await t.test("no file is both covered by a capability and excluded", () => {
     for (const rel of outOfScopeFiles) {
       assert.ok(
         !capabilityFiles.has(rel),
         `${rel} is both covered by a capability and listed as out of scope`,
+      );
+    }
+    for (const rel of outOfScopeEffectFiles) {
+      assert.ok(
+        !capabilityFiles.has(rel),
+        `${rel} is both covered by a capability and excluded as a manual utility`,
       );
     }
   });
