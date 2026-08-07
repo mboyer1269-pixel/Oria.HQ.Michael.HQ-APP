@@ -57,7 +57,10 @@ test("Runtime baseline — one Node major, everywhere", async (t) => {
     }
   });
 
-  await t.test("package.json declares the floor, and it matches", async () => {
+  await t.test("package.json bounds Node to the supported major, not just a floor", async () => {
+    // An open ">=22" range silently adopts the next major on the host that
+    // resolves it, which is a runtime change nobody chose. Vercel warns about
+    // exactly this. The contract is Node 22, so the range is closed.
     const pkg = JSON.parse(await read("package.json"));
     assert.ok(pkg.engines?.node, "package.json must declare engines.node");
 
@@ -67,6 +70,18 @@ test("Runtime baseline — one Node major, everywhere", async (t) => {
       Number(floor[1]),
       REQUIRED_NODE_MAJOR,
       "engines.node disagrees with Docker and CI",
+    );
+
+    const ceiling = pkg.engines.node.match(/<\s*(\d+)/);
+    assert.ok(
+      ceiling,
+      `engines.node "${pkg.engines.node}" is an open range — it would adopt Node ` +
+        `${REQUIRED_NODE_MAJOR + 1} without anyone choosing it`,
+    );
+    assert.equal(
+      Number(ceiling[1]),
+      REQUIRED_NODE_MAJOR + 1,
+      "the ceiling must be the next major after the supported one",
     );
   });
 
@@ -94,25 +109,12 @@ test("Runtime baseline — the dependency gate is actually invoked", async (t) =
   });
 
   await t.test("the audit script is declared and present", async () => {
+    // The gate's own behaviour is covered by dependency-audit-gate.test.mjs;
+    // this only pins that CI can reach it.
     const pkg = JSON.parse(await read("package.json"));
     assert.ok(pkg.scripts["audit:deps"], "package.json must declare the audit:deps script");
-
-    const script = await read("scripts/audit/direct-dependency-audit.mjs");
-    assert.match(script, /high|critical/, "the gate must target high/critical severities");
-
-    // Asserts what the script RUNS, not what it mentions — it names
-    // `npm audit fix --force` in prose precisely to warn against it. The single
-    // npm invocation is a constant, so this is checkable.
-    const commands = [...script.matchAll(/AUDIT_COMMAND\s*=\s*"([^"]+)"/g)].map((m) => m[1]);
-    assert.deepEqual(
-      commands,
-      ["npm audit --json"],
-      "the gate runs an npm command other than a read-only audit",
-    );
-    assert.ok(
-      !/exec[A-Za-z]*\((?!AUDIT_COMMAND)/.test(script.replace(/promisify\(exec\)/g, "")),
-      "the gate spawns something other than its one declared command",
-    );
+    assert.match(pkg.scripts["audit:deps"], /direct-dependency-audit\.mjs/);
+    await read("scripts/audit/direct-dependency-audit.mjs");
   });
 
   await t.test("no CI step resolves advisories with a forced upgrade", async () => {

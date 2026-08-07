@@ -3,26 +3,26 @@
 /**
  * Direct-dependency vulnerability gate.
  *
- * Fails when a package THIS repo declares in package.json carries a high or
+ * Fails when a package this repo declares in package.json carries a high or
  * critical advisory. Transitive advisories are reported and do not fail.
  *
- * Why the split, rather than gating on `npm audit` wholesale:
+ * Why the split, rather than gating on `npm audit` wholesale: several current
+ * high advisories sit in packages nothing declares, pulled by tooling, and the
+ * only fix npm offers is a forced major upgrade of the parent. A gate that can
+ * only be satisfied by `npm audit fix --force` gets disabled, and then it
+ * protects nothing. A gate on what we chose to install is always actionable:
+ * bump it, replace it, or pin an override.
  *
- *   A blanket gate is unactionable here. Four of the current high advisories
- *   sit in packages nothing declares — opentelemetry pulled by inngest,
- *   brace-expansion and js-yaml pulled by tooling — and the only "fix" npm
- *   offers is a forced major upgrade of the parent. A gate that can only be
- *   satisfied by `npm audit fix --force` gets disabled the first week, and then
- *   it protects nothing. A gate on what we chose to install is one a human can
- *   always act on: bump it, replace it, or pin an override.
+ * FAIL-CLOSED. "The audit did not run" must never read the same as "nothing
+ * found", so the gate exits non-zero on every one of:
+ *   - npm exiting non-zero for a reason other than "advisories exist"
+ *   - stdout that is not JSON
+ *   - a JSON body carrying an `error` (registry 403, offline, rate limited)
+ *   - a body missing the fields a real audit always produces
+ *   - a declared package with a high or critical advisory
  *
- * Transitive high/critical advisories still print, with their path, so they are
- * visible rather than suppressed. They become failures the day a direct
- * dependency is added that carries them.
- *
- * Never run `npm audit fix --force` to satisfy this. It resolves advisories by
- * installing semver-major upgrades unattended, which is a much larger change
- * than the advisory it closes.
+ * Never run `npm audit fix --force` to satisfy this: it resolves advisories by
+ * installing semver-major upgrades unattended.
  *
  * Usage:
  *   node scripts/audit/direct-dependency-audit.mjs
@@ -36,17 +36,19 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
-
-/**
- * The ONLY npm invocation in this file, as a constant. `exec` runs it through a
- * shell — required on Windows, where npm is a .cmd — and there is nothing to
- * escape because no part of this string is derived from input.
- */
-const AUDIT_COMMAND = "npm audit --json";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..", "..");
 
+/**
+ * The ONLY npm invocation in this file, as a constant. `exec` runs it through a
+ * shell — required on Windows, where npm is a .cmd — and nothing in this string
+ * comes from input.
+ */
+const AUDIT_COMMAND = "npm audit --json";
+
 const BLOCKING_SEVERITIES = new Set(["high", "critical"]);
+
+class AuditUnavailableError extends Error {}
 
 async function readDeclaredDependencies() {
   const pkg = JSON.parse(await readFile(path.join(ROOT, "package.json"), "utf8"));
@@ -58,28 +60,64 @@ async function readDeclaredDependencies() {
 
 /**
  * `npm audit --json` exits non-zero whenever advisories exist, so a non-zero
- * status is expected and its stdout is the payload. Only an unparseable body is
- * a real failure — and it fails CLOSED, because "the audit did not run" must
- * never read the same as "nothing found".
+ * status alone is not an error. It is an error when the body is not a real
+ * audit result — which is exactly what a 403 or an offline registry produces.
  */
 async function runAudit() {
   let stdout;
+  let stderr;
   try {
-    ({ stdout } = await execAsync(AUDIT_COMMAND, {
+    ({ stdout, stderr } = await execAsync(AUDIT_COMMAND, {
       cwd: ROOT,
       maxBuffer: 32 * 1024 * 1024,
     }));
   } catch (error) {
     stdout = error.stdout;
-    if (!stdout) {
-      throw new Error(`npm audit produced no output: ${error.message}`);
+    stderr = error.stderr;
+    if (!stdout || stdout.trim() === "") {
+      throw new AuditUnavailableError(
+        `npm audit produced no output (exit ${error.code ?? "?"}): ` +
+          `${(stderr || error.message || "").trim().slice(0, 400)}`,
+      );
     }
   }
+
+  let body;
   try {
-    return JSON.parse(stdout);
+    body = JSON.parse(stdout);
   } catch {
-    throw new Error("npm audit output was not JSON — cannot verify dependencies.");
+    throw new AuditUnavailableError(
+      "npm audit output was not JSON — the audit did not run:\n" + stdout.trim().slice(0, 400),
+    );
   }
+
+  // npm reports registry failures as a JSON body with an `error` object and
+  // no advisory data. Accepting it silently reports "no vulnerabilities".
+  if (body && typeof body === "object" && body.error) {
+    const { code, summary, detail } = body.error;
+    throw new AuditUnavailableError(
+      `npm audit returned an error payload (${code ?? "no code"}): ` +
+        `${summary ?? detail ?? JSON.stringify(body.error).slice(0, 300)}`,
+    );
+  }
+
+  // A real result always carries both of these, even with zero advisories.
+  const hasVulnerabilities =
+    body && typeof body === "object" && typeof body.vulnerabilities === "object" &&
+    body.vulnerabilities !== null;
+  const hasMetadata =
+    body && typeof body === "object" && body.metadata &&
+    typeof body.metadata.vulnerabilities === "object";
+
+  if (!hasVulnerabilities || !hasMetadata) {
+    throw new AuditUnavailableError(
+      "npm audit output is missing the fields a real audit produces " +
+        `(vulnerabilities: ${hasVulnerabilities}, metadata: ${hasMetadata}). ` +
+        "Treating an incomplete result as clean would hide every advisory.",
+    );
+  }
+
+  return body;
 }
 
 function describeVia(via) {
@@ -97,12 +135,11 @@ async function main() {
   const blocking = [];
   const transitive = [];
 
-  for (const [name, entry] of Object.entries(audit.vulnerabilities ?? {})) {
+  for (const [name, entry] of Object.entries(audit.vulnerabilities)) {
     if (!BLOCKING_SEVERITIES.has(entry.severity)) continue;
 
-    // `isDirect` is npm's own answer, but it has been wrong across versions for
-    // packages reached both directly and transitively. Cross-check against
-    // package.json, which is the thing we actually control.
+    // npm's isDirect has been unreliable across versions for packages reached
+    // both ways; package.json is the thing we control.
     const isDeclared = entry.isDirect === true || declared.has(name);
     const record = {
       name,
@@ -117,7 +154,7 @@ async function main() {
   if (asJson) {
     console.log(JSON.stringify({ blocking, transitive }, null, 2));
   } else {
-    const counts = audit.metadata?.vulnerabilities ?? {};
+    const counts = audit.metadata.vulnerabilities;
     console.log(
       `Dependency audit — ${counts.critical ?? 0} critical, ${counts.high ?? 0} high, ` +
         `${counts.moderate ?? 0} moderate, ${counts.low ?? 0} low (all depths).`,
@@ -162,6 +199,8 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`Dependency audit could not run: ${err.message}`);
+  const label = err instanceof AuditUnavailableError ? "could not run" : "crashed";
+  console.error(`Dependency audit ${label}: ${err.message}`);
+  console.error("Failing closed: an audit that did not run is not a clean audit.");
   process.exit(1);
 });

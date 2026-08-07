@@ -70,6 +70,11 @@ const serverEnvSchema = z.object({
   // Durable archive directory for the document-processing CLI. Fails closed in
   // that script; never required to boot the app.
   MCL_ARCHIVE_DIR: z.string().min(1).optional(),
+  // Flags read through a name constant (env[CONSTANT]) rather than a literal
+  // property access. Each parses as truthy on "1"/"true"/"yes"/"on".
+  LEDGER_HASH_CHAIN_WRITE: z.string().min(1).optional(),
+  MISSION_DURABLE_DRAFTS: z.string().min(1).optional(),
+  ENABLE_STAGING_RUNTIME_DIAGNOSTIC: z.string().min(1).optional(),
 });
 
 type ParsedEnv = z.infer<typeof serverEnvSchema>;
@@ -156,29 +161,53 @@ export const serverEnv = {
   mclArchiveDir: _parsed.MCL_ARCHIVE_DIR,
 };
 
+/** A production configuration gap that degrades a subsystem without stopping the boot. */
+export type ProductionReadinessWarning = {
+  /** Stable machine-readable id, safe to alert on. */
+  code: "inngest_keys_missing" | "n8n_signing_secret_missing";
+  /** The subsystem that is degraded. */
+  subsystem: "scheduled_jobs" | "n8n_dispatch";
+  message: string;
+};
+
 /**
  * Production-relevant variables that are absent but must NOT stop the boot.
  *
- * Kept separate from criticalMissing on purpose: a missing scheduled-jobs key
- * degrades one subsystem, and turning that into a boot failure would take the
- * whole app down to protect a rail that is currently frozen. Reported so the
- * degradation is visible; never thrown.
+ * Kept separate from criticalMissing: a missing scheduled-jobs key degrades one
+ * subsystem, and turning that into a boot failure would take the whole app down
+ * to protect a rail that is currently frozen.
+ *
+ * Reported rather than thrown — and reporting means reaching a surface. These
+ * are logged once at module load (below) and exposed by GET /api/health, so the
+ * degradation is observable rather than merely returnable.
  */
-export function getProductionReadinessWarnings(): string[] {
+export function getProductionReadinessWarnings(): ProductionReadinessWarning[] {
   if (process.env.NODE_ENV !== "production") return [];
 
-  const warnings: string[] = [];
+  const warnings: ProductionReadinessWarning[] = [];
   if (!serverEnv.inngestEventKey || !serverEnv.inngestSigningKey) {
-    warnings.push(
-      "INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY are unset — scheduled jobs cannot run in production.",
-    );
+    warnings.push({
+      code: "inngest_keys_missing",
+      subsystem: "scheduled_jobs",
+      message:
+        "INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY are unset — scheduled jobs cannot run in production.",
+    });
   }
   if (serverEnv.n8nWebhookUrl && !serverEnv.agentWebhookSigningSecret) {
-    warnings.push(
-      "N8N_WEBHOOK_URL is set but AGENT_WEBHOOK_SIGNING_SECRET is not — every signed dispatch will be refused.",
-    );
+    warnings.push({
+      code: "n8n_signing_secret_missing",
+      subsystem: "n8n_dispatch",
+      message:
+        "N8N_WEBHOOK_URL is set but AGENT_WEBHOOK_SIGNING_SECRET is not — every signed dispatch will be refused.",
+    });
   }
   return warnings;
+}
+
+// Emitted once at module load so a degraded production is visible in the boot
+// log without waiting for anyone to query the health endpoint.
+for (const warning of getProductionReadinessWarnings()) {
+  console.warn(`[server-env] ${warning.code}: ${warning.message}`);
 }
 
 export function isLocalPersistenceFallbackAllowed() {
