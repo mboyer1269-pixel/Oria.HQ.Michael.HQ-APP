@@ -2,6 +2,7 @@ import { ChevronRight, FileCheck2, Gavel, Lock, ScrollText, ShieldCheck } from "
 import { Card, Eyebrow, Tooltip } from "./ui";
 import {
   CONTROL_LANES,
+  RUNTIME_STAGE_KEY,
   type ControlChainStage,
   type ControlLane,
   type StageState,
@@ -23,8 +24,9 @@ const ICONS: Record<string, typeof FileCheck2> = {
   packet: FileCheck2,
   event: Gavel,
   sentinelle: ShieldCheck,
+  own_gate: ShieldCheck,
   ledger: ScrollText,
-  runtime: Lock,
+  [RUNTIME_STAGE_KEY]: Lock,
 };
 
 const STATE_STYLE: Record<StageState, { ring: string; icon: string; dot: string }> = {
@@ -107,7 +109,7 @@ function LaneStages({ stages }: { stages: readonly ControlChainStage[] }) {
 function Lane({ lane }: { lane: ControlLane }) {
   // No fallback: a substitute stage would put a confident, wrong claim in the
   // pill. Absent means absent, and the pill is omitted.
-  const runtimeStage = lane.stages.find((stage) => stage.key === "runtime");
+  const runtimeStage = lane.stages.find((stage) => stage.key === RUNTIME_STAGE_KEY);
 
   return (
     <section className="mt-4 first:mt-0">

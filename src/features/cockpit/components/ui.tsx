@@ -30,11 +30,16 @@ export function Tooltip({
   className?: string;
 }) {
   return (
-    <span className={`group/tip relative inline-flex ${className}`}>
+    // tabIndex + focus-within: the panel is the only place `detail` is
+    // rendered, so a hover-only trigger hides it from keyboard and touch users.
+    <span
+      className={`group/tip relative inline-flex focus-within:z-50 ${className}`}
+      tabIndex={0}
+    >
       {children}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute top-[calc(100%+10px)] z-50 w-60 translate-y-1 rounded-xl border border-violet-500/40 bg-[#171b32]/95 p-3 text-left opacity-0 shadow-[0_24px_60px_-16px_rgba(0,0,0,.85)] backdrop-blur-md transition duration-150 group-hover/tip:translate-y-0 group-hover/tip:opacity-100 ${ALIGN[align]}`}
+        className={`pointer-events-none absolute top-[calc(100%+10px)] z-50 w-60 translate-y-1 rounded-xl border border-violet-500/40 bg-[#171b32]/95 p-3 text-left opacity-0 shadow-[0_24px_60px_-16px_rgba(0,0,0,.85)] backdrop-blur-md transition duration-150 group-hover/tip:translate-y-0 group-hover/tip:opacity-100 group-focus-within/tip:translate-y-0 group-focus-within/tip:opacity-100 ${ALIGN[align]}`}
       >
         <span className="block text-[9.5px] font-bold uppercase tracking-[0.16em] text-violet-300">
           {title}

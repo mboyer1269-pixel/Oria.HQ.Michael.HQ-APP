@@ -28,12 +28,14 @@ const jiti = createJiti(import.meta.url, {
 const {
   CONTROL_CHAIN_STAGES,
   GREEN_LANE_STAGES,
+  DIRECT_PATH_STAGES,
   CONTROL_LANES,
+  LANE_BY_GATE,
   LEDGER_STAGE_KEY,
   RUNTIME_STAGE_KEY,
 } = await jiti.import("@/features/cockpit/control-chain-posture");
 
-const { RUNTIME_CAPABILITIES, deriveRuntimePosture, isApprovalRailGate } = await jiti.import(
+const { RUNTIME_CAPABILITIES, RUNTIME_GATES, deriveRuntimePosture } = await jiti.import(
   "@/core/runtime-capability-inventory",
 );
 
@@ -114,11 +116,77 @@ test("Control chain — the ledger stage tracks its writers", async (t) => {
   });
 });
 
-test("Control chain — the two lanes are separated by their gates", async (t) => {
-  await t.test("both lanes are declared, approval rail first", () => {
+test("Control chain — the lanes are separated by their gates", async (t) => {
+  await t.test("every lane is declared, in order of decreasing guarantee", () => {
     assert.deepEqual(
       CONTROL_LANES.map((lane) => lane.key),
-      ["approval_rail", "green_lane"],
+      ["approval_rail", "green_lane", "direct_path"],
+    );
+  });
+
+  await t.test("every gate is routed to a lane explicitly", () => {
+    // Declared per gate rather than by negation: a binary split put the public
+    // contact form and the scheduled shadow pass behind a Sentinelle stage
+    // neither traverses.
+    for (const gate of RUNTIME_GATES) {
+      const lane = LANE_BY_GATE[gate];
+      assert.ok(
+        CONTROL_LANES.some((l) => l.key === lane),
+        `gate "${gate}" routes to "${lane}", which is not a declared lane`,
+      );
+    }
+  });
+
+  await t.test("only the Sentinelle-gated capabilities travel the green lane", async () => {
+    // The green lane opens with a Sentinelle stage, so nothing may appear on it
+    // that never reaches evaluateLiveExecution.
+    const green = CONTROL_LANES.find((l) => l.key === "green_lane");
+    for (const id of green.capabilityIds) {
+      const capability = RUNTIME_CAPABILITIES.find((c) => c.id === id);
+      assert.equal(
+        capability.gate,
+        "sentinelle_green_lane",
+        `${id} is on the green lane with gate "${capability.gate}", which never reaches the guard`,
+      );
+    }
+
+    // The guard is reached from the agent routes only; anything else on that
+    // lane would be describing a verdict that never happens.
+    const routesCallingGuard = [
+      "src/app/api/agents/[agentId]/execute/route.ts",
+      "src/app/api/agents/[agentId]/execution-intents/route.ts",
+      "src/app/api/agents/execution-intents/[intentId]/approve/route.ts",
+    ];
+    for (const route of routesCallingGuard) {
+      assert.match(await read(route), /evaluateLiveExecution\(/, `${route} must call the guard`);
+    }
+    assert.ok(
+      !/evaluateLiveExecution/.test(await read("src/app/api/contact/route.ts")),
+      "the contact route now reaches the guard — revisit its lane",
+    );
+  });
+
+  await t.test("the direct-path lane claims no shared guard", () => {
+    const keys = DIRECT_PATH_STAGES.map((stage) => stage.key);
+    assert.ok(!keys.includes("sentinelle"), "a direct path must not claim a Sentinelle verdict");
+    assert.ok(!keys.includes("packet"), "a direct path must not claim an approval packet");
+    assert.deepEqual(keys, ["own_gate", RUNTIME_STAGE_KEY]);
+
+    const direct = CONTROL_LANES.find((l) => l.key === "direct_path");
+    assert.ok(
+      direct.capabilityIds.length > 0,
+      "if nothing travels a direct path any more, that is a real change — update this test",
+    );
+    // The headline may name the Sentinelle, but only to deny it. What it must
+    // never do is assert a verdict this lane does not receive.
+    assert.ok(
+      !/après verdict|verdict de la Sentinelle/i.test(direct.headline),
+      `the direct-path headline claims a verdict it never receives: "${direct.headline}"`,
+    );
+    assert.match(
+      direct.headline,
+      /Ni Sentinelle ni approbation/i,
+      "the direct-path headline must state what it does NOT have",
     );
   });
 
@@ -140,20 +208,18 @@ test("Control chain — the two lanes are separated by their gates", async (t) =
   });
 
   await t.test("every capability travels exactly one lane, by its gate", () => {
-    const railIds = CONTROL_LANES.find((l) => l.key === "approval_rail").capabilityIds;
-    const greenIds = CONTROL_LANES.find((l) => l.key === "green_lane").capabilityIds;
-
+    let total = 0;
     for (const capability of RUNTIME_CAPABILITIES) {
-      const onRail = railIds.includes(capability.id);
-      const onGreen = greenIds.includes(capability.id);
-      assert.ok(onRail !== onGreen, `${capability.id} must appear on exactly one lane`);
+      const lanes = CONTROL_LANES.filter((lane) => lane.capabilityIds.includes(capability.id));
+      assert.equal(lanes.length, 1, `${capability.id} must appear on exactly one lane`);
       assert.equal(
-        onRail,
-        isApprovalRailGate(capability.gate),
+        lanes[0].key,
+        LANE_BY_GATE[capability.gate],
         `${capability.id} is on the wrong lane for gate "${capability.gate}"`,
       );
     }
-    assert.equal(railIds.length + greenIds.length, RUNTIME_CAPABILITIES.length);
+    for (const lane of CONTROL_LANES) total += lane.capabilityIds.length;
+    assert.equal(total, RUNTIME_CAPABILITIES.length, "no capability may be dropped");
   });
 
   await t.test("each lane's runtime stage reflects only its own capabilities", () => {
@@ -169,21 +235,25 @@ test("Control chain — the two lanes are separated by their gates", async (t) =
     }
   });
 
-  await t.test("the approval rail is gated and the green lane is not", () => {
+  await t.test("the approval rail is gated and the other lanes are not", () => {
     // Stated as today's fact so a change forces a deliberate update rather than
     // silently flipping a guarantee on screen.
     const rail = CONTROL_CHAIN_STAGES.find((s) => s.key === RUNTIME_STAGE_KEY);
     const green = GREEN_LANE_STAGES.find((s) => s.key === RUNTIME_STAGE_KEY);
+    const direct = DIRECT_PATH_STAGES.find((s) => s.key === RUNTIME_STAGE_KEY);
     assert.equal(rail.state, "gated", "every approval-rail executor must wait for a CEO approval");
     assert.equal(green.state, "bounded", "the green lane executes without an approval packet");
+    assert.equal(direct.state, "bounded", "a direct path executes with no shared guard at all");
   });
 
-  await t.test("no lane headline claims total coverage for the whole system", () => {
-    const green = CONTROL_LANES.find((l) => l.key === "green_lane");
-    assert.ok(
-      !/chaque garde-fou|tous les garde-fous/i.test(green.headline),
-      "the green lane must not borrow the approval rail's guarantee",
-    );
+  await t.test("only the approval rail claims total coverage", () => {
+    for (const lane of CONTROL_LANES) {
+      if (lane.key === "approval_rail") continue;
+      assert.ok(
+        !/chaque garde-fou|tous les garde-fous/i.test(lane.headline),
+        `${lane.key} borrows the approval rail's guarantee`,
+      );
+    }
   });
 });
 
@@ -205,10 +275,8 @@ test("Control chain — the posture is structurally sound", async (t) => {
   });
 
   await t.test("no runtime stage state is written by hand in the module", async () => {
-    // The previous form of this guard keyed on `key: "runtime"`, which
-    // buildRuntimeStage never writes, so it could not fire. This one asserts on
-    // the module: outside the StageState union, no literal state string may
-    // appear anywhere a runtime stage is built.
+    // Outside the StageState union, no literal runtime-state string may appear
+    // anywhere in this module: the runtime stage must come from the inventory.
     const source = (await read("src/features/cockpit/control-chain-posture.ts"))
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
@@ -216,6 +284,14 @@ test("Control chain — the posture is structurally sound", async (t) => {
     const unionAt = source.indexOf("export type StageState");
     assert.notEqual(unionAt, -1, "the StageState union must still be declared");
     const unionEnd = source.indexOf(";", unionAt);
+    // A type alias needs no trailing semicolon. Without this, unionEnd is -1,
+    // slice(-1) keeps one character, and the scan silently covers only the text
+    // before the union.
+    assert.notEqual(
+      unionEnd,
+      -1,
+      "the StageState declaration has no terminating semicolon — this scan would cover almost nothing",
+    );
     const withoutUnion = source.slice(0, unionAt) + source.slice(unionEnd);
 
     const runtimeStates = [...withoutUnion.matchAll(/state:\s*"(locked|gated|bounded)"/g)];
