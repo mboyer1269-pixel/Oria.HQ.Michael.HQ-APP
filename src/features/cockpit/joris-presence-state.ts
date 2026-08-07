@@ -11,11 +11,10 @@
 //            staleness threshold.
 //   alert  → the events could not be read at all.
 //
-// This lives apart from the component for one reason: a signal that reports
-// "calm" when it should report "watch" is worse than no signal, and logic
-// sealed inside a .tsx cannot be tested. The clock is injected for the same
-// reason — a 48-hour threshold tested against the real Date.now() is a test
-// that passes for two days and then starts lying.
+// The derivation is separated from the component so it can be unit-tested: a
+// signal reporting "calm" when it should report "watch" is worse than no
+// signal. The clock is injected so the 48-hour threshold is always evaluated
+// against a fixed, chosen instant rather than the wall clock.
 //
 // Types are structural so this module stays independent of the events layer:
 // IdeaProjection and DailyDirectionProjection satisfy them without being
