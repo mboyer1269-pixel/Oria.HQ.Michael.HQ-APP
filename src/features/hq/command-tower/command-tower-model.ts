@@ -96,6 +96,7 @@ export const RUNTIME_STATUS_BOARD: readonly RuntimeBoardEntry[] = [
 export type DispatchCorridorMode =
   | "governed_live"
   | "not_configured"
+  | "receiver_rejects"
   | "blocked"
   | "unavailable"
   | "blocked_until_dispatch_mandate"
@@ -116,12 +117,9 @@ export type DispatchCorridor = {
  * The corridors this board states WITHOUT consulting anything — each is a
  * capability that has not been built, so there is nothing to derive.
  *
- * The n8n rail is deliberately absent. It used to sit at the top of this list,
- * hardcoded as "governed_live · Seul corridor actif · n8n · hermes/task.create",
- * while the Sentinelle rejected every hermes/task.create request because no
- * such skill exists in the catalog. A corridor's liveness is a fact about the
- * registries, not a sentence in a component, so rail corridors now arrive as an
- * input built from the execution-corridor contract.
+ * The n8n rail is deliberately absent: a corridor's liveness is a fact about
+ * the registries and the deployed receiver, not a sentence in a component. Rail
+ * corridors arrive as an input built from the execution-corridor contract.
  */
 export const DISPATCH_CORRIDORS: readonly DispatchCorridor[] = [
   {

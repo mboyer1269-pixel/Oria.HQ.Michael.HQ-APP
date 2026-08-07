@@ -3,18 +3,21 @@
 // src/features/hq/command-tower/dispatch-corridor-source.test.mjs
 //
 // The bridge between what the system can dispatch and what the cockpit says it
-// can dispatch. The board used to be a hardcoded sentence — "n8n ·
-// hermes/task.create · governed_live · Seul corridor actif" — for a corridor
-// the Sentinelle rejected on every request. These tests pin that the board is a
-// projection of the contract, and that every declared corridor reaches it.
+// can dispatch. These tests assert the board is a projection of the contract:
+// no corridor reads as live unless policy, receiver and configuration all
+// agree, every declared corridor reaches the screen, and no control offers an
+// action the app cannot perform.
 
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..", "..");
+
+process.env.NODE_ENV = "test";
 
 const { createJiti } = await import("jiti");
 const jiti = createJiti(import.meta.url, {
@@ -25,14 +28,20 @@ const jiti = createJiti(import.meta.url, {
 });
 
 const { mapExecutionCorridorsToBoard, loadRailCorridors } = await jiti.import(
-  path.join(__dirname, "dispatch-corridor-source.ts"),
+  "@/features/hq/command-tower/dispatch-corridor-source",
 );
-const { listExecutionCorridors } = await jiti.import(
-  path.join(projectRoot, "src/server/runtime/execution-corridors.ts"),
-);
+const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 const { buildCommandTowerModel } = await jiti.import(
-  path.join(__dirname, "command-tower-model.ts"),
+  "@/features/hq/command-tower/command-tower-model",
 );
+
+const read = (relPath) => readFile(path.join(projectRoot, relPath), "utf8");
+
+const CONFIGURED_ENV = {
+  N8N_WEBHOOK_URL: "https://hooks.n8n.cloud/webhook/x",
+  N8N_SECRET: "static",
+  AGENT_WEBHOOK_SIGNING_SECRET: "signing",
+};
 
 function corridor(overrides) {
   return {
@@ -42,6 +51,7 @@ function corridor(overrides) {
     actionId: "b",
     status: "eligible",
     guard: { outcome: "ALLOW", reason: "eligible", reasonCode: "allowed_by_policy" },
+    receiverAccepts: true,
     licence: { label: "L", suspended: false, zone: "green", hardBlocked: false },
     webhook: {
       toolName: "n8n_webhook_trigger",
@@ -70,20 +80,50 @@ test("Dispatch board — the mapping never invents a status", async (t) => {
       }),
     ]);
     assert.equal(entry.mode, "blocked");
-    assert.equal(entry.action, null);
     assert.match(entry.note, /Skill task\.create is not available to agent hermes\./);
   });
 
-  await t.test("an unconfigured destination names the variable to set", () => {
+  await t.test("a route the receiver rejects says so, and never reads as live", () => {
+    const [entry] = mapExecutionCorridorsToBoard([
+      corridor({ status: "receiver_rejects", receiverAccepts: false }),
+    ]);
+    assert.equal(entry.mode, "receiver_rejects");
+    assert.notEqual(entry.mode, "governed_live");
+    assert.match(entry.note, /récepteur n8n/);
+    assert.match(entry.note, /validation_error/);
+  });
+
+  await t.test("every configuration state has a translation", () => {
+    // An untranslated state would put a raw identifier in front of the operator.
+    const states = [
+      "destination_env_missing",
+      "destination_url_invalid",
+      "destination_hostname_not_allowed",
+      "destination_localhost_in_production",
+      "static_secret_missing",
+      "signing_secret_missing",
+    ];
+    for (const configuration of states) {
+      const [entry] = mapExecutionCorridorsToBoard([
+        corridor({ status: "not_configured", webhook: { ...corridor().webhook, configuration } }),
+      ]);
+      assert.equal(entry.mode, "not_configured");
+      assert.ok(
+        !entry.note.includes(configuration),
+        `${configuration} reaches the screen as a raw identifier`,
+      );
+      assert.ok(entry.note.trim().length > 0);
+    }
+  });
+
+  await t.test("a missing secret is reported as a readiness gap, not as ready", () => {
     const [entry] = mapExecutionCorridorsToBoard([
       corridor({
         status: "not_configured",
-        webhook: { ...corridor().webhook, configuration: "destination_env_missing" },
+        webhook: { ...corridor().webhook, configuration: "signing_secret_missing" },
       }),
     ]);
-    assert.equal(entry.mode, "not_configured");
-    assert.equal(entry.action, null);
-    assert.match(entry.note, /N8N_WEBHOOK_URL/);
+    assert.match(entry.note, /AGENT_WEBHOOK_SIGNING_SECRET/);
   });
 
   await t.test("'seul corridor' is counted, never asserted", () => {
@@ -96,11 +136,28 @@ test("Dispatch board — the mapping never invents a status", async (t) => {
       assert.ok(!/Seul corridor/.test(entry.note));
     }
   });
+});
 
-  await t.test("a live corridor still says the intent is only a proposal", () => {
+test("Dispatch board — no control promises what the app cannot do", async (t) => {
+  await t.test("no corridor offers an action button", async () => {
+    // /hq/agents lists and approves existing intents and is bound to a single
+    // agent; it cannot prepare one. A button labelled "prepare an intent" that
+    // navigates there does nothing the label claims.
+    for (const status of ["eligible", "blocked", "receiver_rejects", "not_configured"]) {
+      const [entry] = mapExecutionCorridorsToBoard([corridor({ status })]);
+      assert.equal(entry.action, null, `${status} must not offer an action`);
+    }
+
+    const agentsPage = await read("src/app/hq/agents/page.tsx");
+    assert.ok(
+      !/ExecutionIntentCreate|createExecutionIntent|IntentComposer/.test(agentsPage),
+      "an intent-creation surface now exists — the board may offer a CTA that points at it",
+    );
+  });
+
+  await t.test("an eligible corridor names the surface that does prepare an intent", () => {
     const [entry] = mapExecutionCorridorsToBoard([corridor()]);
-    assert.equal(entry.mode, "governed_live");
-    assert.match(entry.action.label, /requires approval/);
+    assert.match(entry.note, /\/api\/agents\/:agentId\/execution-intents/);
     assert.match(entry.note, /proposition tant que le CEO n'approuve pas/);
     assert.equal(entry.requiresApproval, true);
   });
@@ -108,9 +165,7 @@ test("Dispatch board — the mapping never invents a status", async (t) => {
 
 test("Dispatch board — every declared corridor reaches the cockpit", async (t) => {
   await t.test("no corridor is dropped between the contract and the board", () => {
-    // A corridor that exists but is not displayed is the same failure as one
-    // displayed but not existing: the operator cannot see what the system has.
-    const contract = listExecutionCorridors({ N8N_WEBHOOK_URL: "https://hooks.n8n.cloud/webhook/x" });
+    const contract = listExecutionCorridors(CONFIGURED_ENV);
     const board = mapExecutionCorridorsToBoard(contract);
 
     assert.equal(board.length, contract.length);
@@ -122,7 +177,7 @@ test("Dispatch board — every declared corridor reaches the cockpit", async (t)
     }
   });
 
-  await t.test("the tower renders the real corridors, including the blocked one", () => {
+  await t.test("the tower renders the real corridors, including the refused ones", () => {
     const model = buildCommandTowerModel({
       pendingIntents: [],
       nextAction: null,
@@ -142,15 +197,23 @@ test("Dispatch board — every declared corridor reaches the cockpit", async (t)
     }
   });
 
-  await t.test("hermes/task.create is never shown as live", () => {
-    // With a fully configured destination — so the only thing that could make
-    // it live is a policy change, which is a decision, not a wiring fix.
-    const board = mapExecutionCorridorsToBoard(
-      listExecutionCorridors({ N8N_WEBHOOK_URL: "https://hooks.n8n.cloud/webhook/x" }),
+  await t.test("no corridor is shown as live while the two ends disagree", () => {
+    // With a fully configured destination, so the only thing that could make a
+    // corridor live is both ends accepting the same route.
+    const board = mapExecutionCorridorsToBoard(listExecutionCorridors(CONFIGURED_ENV));
+
+    const live = board.filter((entry) => entry.mode === "governed_live");
+    assert.deepEqual(
+      live.map((entry) => entry.id),
+      [],
+      "a corridor is advertised as live. Verify BOTH ends accept the route before " +
+        "updating this assertion:\n" +
+        board.map((entry) => `  ${entry.id}: ${entry.mode}`).join("\n"),
     );
-    const card = board.find((entry) => entry.id === "n8n_rail:hermes/task.create");
-    assert.ok(card);
-    assert.equal(card.mode, "blocked");
-    assert.equal(card.action, null);
+
+    const byId = Object.fromEntries(board.map((entry) => [entry.id, entry]));
+    assert.equal(byId["n8n_rail:hermes/task.create"].mode, "blocked");
+    assert.equal(byId["n8n_rail:marketing/content.generate"].mode, "receiver_rejects");
+    assert.equal(byId["n8n_rail:inventor/concept.generate"].mode, "receiver_rejects");
   });
 });

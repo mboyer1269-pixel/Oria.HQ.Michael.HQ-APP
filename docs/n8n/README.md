@@ -9,44 +9,64 @@ to n8n, n8n confirms (dry-run) and dedups, and Oria records a traceable result.
 > Re-run the proof against your own n8n before relying on it. The Oria side is
 > unit-tested; the n8n side ships as an importable workflow + a proof script.
 
-## ⚠️ `hermes/task.create` is declared but BLOCKED
+## ⚠️ No corridor completes end to end today
 
-The corridor this document was written around does **not** work through the HTTP
-API, and never has. `POST /api/agents/hermes/execution-intents` with
-`skillId: "task.create"` returns **403 BLOCK**:
+The two ends of this rail accept **different** routes, so no agent/skill pair
+gets through both.
 
-```
+| Corridor | Oria (Sentinelle) | n8n receiver | Result |
+|---|---|---|---|
+| `hermes/task.create` | ❌ blocked | ✅ accepted | 403 before any dispatch |
+| `marketing/content.generate` | ✅ accepted | ❌ rejected | `400 validation_error` at n8n |
+| `inventor/concept.generate` | ✅ accepted | ❌ rejected | `400 validation_error` at n8n |
+
+### Why `hermes/task.create` is blocked
+
+`POST /api/agents/hermes/execution-intents` with `skillId: "task.create"`
+returns **403 BLOCK**:
+
+```text
 Skill task.create is not available to agent hermes.
 ```
 
-Three registries disagree, and nothing used to check them against each other:
+Four sources disagree, and nothing used to check them against each other:
 
 | Source | Says |
 |---|---|
 | `src/server/runtime/webhook-registry.ts` | `hermes` + `task.create` is an approved binding |
 | `src/server/agents/agent-execution-license.ts` | `task.create` is a green action for `hermes` |
 | `src/features/skills/seed.ts` | **there is no `task.create` skill** |
-| `src/features/agents/seed.ts` | Relay's skills are `sop.draft`, `workflow.map` |
+| `src/features/agents/seed.ts` | the skills of `hermes` (display name Relay) are `sop.draft`, `workflow.map` |
 
 The Sentinelle resolves the skill from the catalog and checks it is assigned to
 the agent, so it refuses the request regardless of the licence and the binding.
 
-**This is displayed, not hidden.** `src/server/runtime/execution-corridors.ts`
-reports the corridor as `blocked` with the guard's own sentence, and the Command
-Tower dispatch board shows it that way. `src/server/agents/execution-intent-rail-api.test.mjs`
-pins the 403 at the API boundary.
+### Why the other two are rejected downstream
 
-**Making it work is a decision, not a wiring fix.** It requires declaring a
-`task.create` skill and assigning it to Relay — an extension of what that agent
-may do, which needs an explicit CEO mandate. Until then the proof script below,
-which calls the dispatch tool directly and never crosses the Sentinelle, is the
-only path on which `hermes/task.create` runs.
+The shipped workflow's Code node accepts one route only:
 
-Corridors that the Sentinelle currently accepts (they still require CEO approval
-to dispatch): `marketing/content.generate`, `inventor/concept.generate`. Note
-that the shipped n8n workflow's Code node enforces `hermes` + `task.create`
-only, so those corridors would be refused **by n8n** with `validation_error`
-until the workflow route is widened.
+```js
+if (body.agentId !== 'hermes' || body.skillId !== 'task.create') { /* validation_error */ }
+```
+
+`src/server/runtime/webhook-registry.ts` declares that accepted set as
+`N8N_RECEIVER_ACCEPTED_ROUTES`, and
+`src/server/runtime/execution-corridor-contract.test.mjs` reads the workflow
+JSON and fails if the two drift.
+
+### What the cockpit shows
+
+`src/server/runtime/execution-corridors.ts` reports each corridor as `blocked`,
+`receiver_rejects` or `not_configured` — never `governed_live` — and the Command
+Tower dispatch board renders exactly that. A corridor reads as live only when
+policy, receiver **and** dispatch configuration all agree.
+
+**Closing the gap is a decision, not a wiring fix.** Either declare a
+`task.create` skill and assign it to `hermes` (an extension of what that agent
+may do), or widen the workflow's accepted routes. Both need an explicit CEO
+mandate. Until then the proof script below, which calls the dispatch tool
+directly and never crosses the Sentinelle, is the only path on which
+`hermes/task.create` runs.
 
 ## Files
 
@@ -100,6 +120,9 @@ until the workflow route is widened.
 3. Copy the production webhook URL (e.g. `https://n8n.michaelhq.com/webhook/oria-execute`).
    The host **must** be in the Oria binding allowlist (`src/server/runtime/webhook-registry.ts`):
    `hooks.n8n.cloud`, `n8n.michaelhq.com`, `localhost`, `127.0.0.1`.
+4. Set **all three** Oria variables. A corridor whose `N8N_SECRET` or
+   `AGENT_WEBHOOK_SIGNING_SECRET` is missing is reported as `not_configured`,
+   because the dispatcher refuses before sending.
 
 ## Reproducible end-to-end proof
 
@@ -154,9 +177,10 @@ and no migration**. The only real network call is to your n8n.
 
 > The `hermes`/`task.create` call below returns **403 BLOCK** today — see the
 > warning at the top. It is kept verbatim because it is what the rail was
-> designed for; substitute an eligible corridor (`marketing`/`content.generate`)
-> to exercise the HTTP path, and expect n8n itself to answer `validation_error`
-> until its Code node accepts that route.
+> designed for. Substituting `marketing`/`content.generate` exercises the Oria
+> half (the intent is created, approved and dispatched), and then n8n answers
+> `400 validation_error` because its Code node does not accept that route. No
+> corridor completes both halves.
 
 ```bash
 # 1. Prepare (creates a pending intent) — requires an owner Supabase session cookie
@@ -180,6 +204,11 @@ curl -X POST http://localhost:3000/api/agents/execution-intents/<intentId>/appro
   Oria side that pair is blocked by the Sentinelle (see the warning at the top),
   so the two ends of this rail do not currently meet over HTTP.
 - No secrets in code or in this repo — secrets live in Oria env and n8n env.
-- Migration `db/migrations/0024_agent_execution_intents.sql` is gated behind an
-  explicit CEO GO; its live-apply state is not inferable from this repo (see
-  `ARCHITECTURE.md`). The proof above runs entirely on the in-memory store.
+- Migration `db/migrations/0024_agent_execution_intents.sql` is **applied and
+  verified on the live `Oria.hq` project**: applied 2026-06-19 (version
+  `20260619022503`), formally verified 2026-08-04 on explicit CEO GO — every
+  check of `0024_agent_execution_intents_verify.sql` matches Expected (see
+  `docs/runbooks/0024-live-verification-2026-08-04.md` and `ARCHITECTURE.md`).
+  The table holds 0 rows: durable persistence is ready, and the rail has never
+  dispatched live. The proof script above still runs entirely on the in-memory
+  store, so it needs neither Supabase nor that migration.

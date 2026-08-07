@@ -1,15 +1,16 @@
 // src/server/runtime/execution-corridors.ts
 //
-// Binds the pure corridor contract to the real registries: the approved webhook
-// bindings, the agent execution licences, the live Sentinelle gate, and the
-// process environment. This is the only place those four meet.
+// Binds the corridor contract to the real registries: the approved webhook
+// bindings, the agent execution licences, the Sentinelle gate, the deployed
+// receiver's accepted routes, and the process environment.
 //
-// Every consumer — the cockpit, the tests, the docs check — reads corridors
-// from here. Nobody restates a corridor's status by hand.
+// Every consumer reads corridors from here rather than restating a status.
 
 import { evaluateLiveExecution } from "@/server/runtime/execution-guard";
 import { getAgentLicense } from "@/server/agents/agent-execution-license";
 import {
+  findApprovedWebhookBinding,
+  isReceiverAcceptedRoute,
   listApprovedWebhookBindings,
   resolveWebhookConfigurationState,
 } from "@/server/runtime/webhook-registry";
@@ -28,8 +29,8 @@ export type {
 
 /**
  * Licence facts read for the ACTION, not the skill — which is why the binding
- * carries actionId separately. A licence that zones `spec.draft.create` says
- * nothing about a skill called `spec.draft`.
+ * carries actionId separately. A licence zoning `spec.draft.create` says nothing
+ * about a skill named `spec.draft`.
  */
 function licenceFacts(agentId: string, actionId: string): CorridorLicenceFacts | null {
   const licence = getAgentLicense(agentId);
@@ -63,15 +64,16 @@ function depsFor(binding: CorridorBindingInput, env: NodeJS.ProcessEnv): Resolve
       };
     },
     licenceOf: (agentId) => licenceFacts(agentId, binding.actionId),
+    receiverAccepts: isReceiverAcceptedRoute,
     webhookConfigurationOf: (candidate) => resolveWebhookConfigurationState(candidate, env),
   };
 }
 
 /**
- * Every declared corridor with its real, current status.
+ * Every declared corridor with its current status.
  *
- * Reads the environment for destination configuration, so it is request-time
- * data: never cache the result across an env change.
+ * Reads the environment for dispatch configuration, so it is request-time data:
+ * never cache the result across an environment change.
  */
 export function listExecutionCorridors(
   env: NodeJS.ProcessEnv = process.env,
@@ -87,9 +89,7 @@ export function getExecutionCorridor(
   skillId: string,
   env: NodeJS.ProcessEnv = process.env,
 ): ExecutionCorridor | null {
-  const binding = listApprovedWebhookBindings().find(
-    (b) => b.agentId === agentId && b.skillId === skillId,
-  );
+  const binding = findApprovedWebhookBinding(agentId, skillId);
   if (!binding) return null;
   return resolveExecutionCorridor(binding, depsFor(binding, env));
 }

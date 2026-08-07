@@ -2,18 +2,14 @@
 
 // src/core/runtime-capability-inventory.test.mjs
 //
-// The inventory is what the cockpit reads to say what this runtime can do.
-// A hand-authored list of that kind rots the moment someone ships an executor
-// and forgets it — which is exactly what happened before it existed: the green
-// lane gained a handler that calls a model API over the network while the
-// screen kept saying "In-process mock execution only" and "Runtime verrouillé".
-//
-// So the list is not trusted. These tests walk the REAL executor registries —
-// the built-in skill handlers and the MCP tool registry — and fail when one of
-// them has no entry here. Adding an executor without declaring it breaks CI.
+// The inventory is what the cockpit reads to state what this runtime can do.
+// These tests walk the real executor surfaces — the built-in handler map, the
+// MCP tool registry, and the effect sinks reachable from API routes — and fail
+// when one of them has no entry. Adding an executor without declaring it breaks
+// CI before the cockpit can understate the runtime.
 
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -29,17 +25,37 @@ const jiti = createJiti(import.meta.url, {
   },
 });
 
-const { RUNTIME_CAPABILITIES, deriveRuntimePosture } = await jiti.import(
-  path.join(__dirname, "runtime-capability-inventory.ts"),
-);
+const {
+  RUNTIME_CAPABILITIES,
+  RUNTIME_EFFECTS,
+  RUNTIME_GATES,
+  APPROVAL_RAIL_GATES,
+  deriveRuntimePosture,
+  isApprovalRailGate,
+} = await jiti.import("@/core/runtime-capability-inventory");
 
-const { mcpToolRegistry } = await jiti.import(
-  path.join(projectRoot, "src/server/agents/tools/registry.ts"),
-);
+const { mcpToolRegistry } = await jiti.import("@/server/agents/tools/registry");
 
 const read = (relPath) => readFile(path.join(projectRoot, relPath), "utf8");
+const toPosix = (p) => p.split(path.sep).join("/");
 
-const inventoriedKeys = new Set(RUNTIME_CAPABILITIES.map((capability) => capability.executorKey));
+/** Concrete executor keys. `null` covers no single registry key. */
+const inventoriedKeys = new Set(
+  RUNTIME_CAPABILITIES.map((capability) => capability.executorKey).filter(
+    (key) => typeof key === "string",
+  ),
+);
+
+const evidencePaths = new Set(RUNTIME_CAPABILITIES.map((c) => c.evidence.path));
+
+async function sourceFiles(dir = path.join(projectRoot, "src"), acc = []) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) await sourceFiles(full, acc);
+    else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) acc.push(full);
+  }
+  return acc;
+}
 
 test("Capability inventory — every claim carries proof that still holds", async (t) => {
   for (const capability of RUNTIME_CAPABILITIES) {
@@ -50,7 +66,7 @@ test("Capability inventory — every claim carries proof that still holds", asyn
       } catch {
         assert.fail(
           `${capability.id} cites ${capability.evidence.path}, which no longer exists. ` +
-            "Re-evaluate the capability — do not just repoint the path.",
+            "Re-evaluate the capability rather than repointing the path.",
         );
       }
       assert.ok(
@@ -64,53 +80,106 @@ test("Capability inventory — every claim carries proof that still holds", asyn
 
 test("Capability inventory — no live executor escapes it", async (t) => {
   await t.test("every built-in skill handler is inventoried", async () => {
-    // The green lane executes a skill in-process when BUILTIN_HANDLERS holds a
-    // key for it; everything else previews. Each key is therefore a real
-    // executor, and content.generate proves they are not all inert: it calls a
-    // model API over the network.
     const source = await read("src/server/runtime/skill-dispatcher.ts");
     const start = source.indexOf("const BUILTIN_HANDLERS");
     assert.notEqual(start, -1, "BUILTIN_HANDLERS no longer exists — update this detector");
-
-    // Bounded to the object literal, and matching ANY value form. Keying on
-    // `": handle"` would have missed an inline arrow, and a detector that
-    // silently stops matching is the failure this whole file exists to prevent.
     const end = source.indexOf("};", start);
-    assert.notEqual(end, -1, "the handler map is not a closed object literal — update this detector");
-    const block = source.slice(start, end);
+    assert.notEqual(end, -1, "the handler map is not a closed object literal");
 
-    const keys = [...block.matchAll(/["']([^"']+)["']\s*:/g)].map((match) => match[1]);
-    assert.ok(keys.length > 0, "the handler map parsed as empty — the detector has stopped working");
+    const keys = [...source.slice(start, end).matchAll(/["']([^"']+)["']\s*:/g)].map((m) => m[1]);
+    assert.ok(keys.length > 0, "the handler map parsed as empty — the detector stopped working");
 
     for (const key of keys) {
       assert.ok(
         inventoriedKeys.has(key),
-        `Built-in handler "${key}" runs in the green lane but has no entry in ` +
-          "RUNTIME_CAPABILITIES. The cockpit would describe a runtime that no longer exists. " +
-          "Add it with its effect, its gate, and the evidence that proves both.",
+        `Built-in handler "${key}" runs in the green lane with no entry in RUNTIME_CAPABILITIES.`,
       );
     }
   });
 
   await t.test("every registered MCP tool is inventoried", () => {
-    // A registered tool is reachable by the approve route via its name. One
-    // that nothing declares is an undocumented way out of the process.
     const registered = mcpToolRegistry.list().map((tool) => tool.name);
-    assert.ok(registered.length > 0, "the MCP registry parsed as empty");
-
+    assert.ok(registered.length > 0, "the MCP registry is empty — the detector stopped working");
     for (const name of registered) {
       assert.ok(
         inventoriedKeys.has(name),
-        `MCP tool "${name}" is registered and dispatchable but has no entry in ` +
-          "RUNTIME_CAPABILITIES. Declare its effect and its gate.",
+        `MCP tool "${name}" is registered and dispatchable with no entry in RUNTIME_CAPABILITIES.`,
       );
     }
   });
 
-  await t.test("no entry describes an executor that has been removed", () => {
-    // The inverse rot: an inventory that keeps naming a deleted executor
-    // overstates the runtime just as badly as one that misses a new one.
-    // The evidence check above catches it; this pins the intent explicitly.
+  await t.test("every effect sink outside those registries is accounted for", async () => {
+    // The two registries are not the whole runtime. Routes reach adapters that
+    // send mail and repositories that persist, and none of that appears in a
+    // handler map. Each sink below is a call that leaves the process or writes,
+    // and must be attributable to a declared capability.
+    const SINKS = [
+      { name: "Resend email send", pattern: /\.emails\.send\(/ },
+      { name: "outbound channel send", pattern: /channelSend\.send\(/ },
+      { name: "calendar event persist", pattern: /calendarRepository\.create\(/ },
+      { name: "model provider call", pattern: /\bgenerateStructuredJson\b\s*\(/ },
+    ];
+
+    // A sink implementation that a declared capability accounts for through a
+    // different file. Each value must name a real capability id.
+    const ATTRIBUTED_ELSEWHERE = {
+      "src/server/outbound/resend-email-adapter.ts": "outbound_send_email",
+      "src/server/ventures/venture-score-shadow-runner.ts": "shadow_pass_scoring",
+    };
+    for (const capabilityId of Object.values(ATTRIBUTED_ELSEWHERE)) {
+      assert.ok(
+        RUNTIME_CAPABILITIES.some((c) => c.id === capabilityId),
+        `attribution points at "${capabilityId}", which is not a declared capability`,
+      );
+    }
+
+    // The inventory itself names every sink marker as evidence; scanning it
+    // would report each capability as its own undeclared executor.
+    const INVENTORY_MODULE = "src/core/runtime-capability-inventory.ts";
+
+    const undeclared = [];
+    for (const file of await sourceFiles()) {
+      const rel = toPosix(path.relative(projectRoot, file));
+      if (rel === INVENTORY_MODULE) continue;
+      const source = await readFile(file, "utf8");
+      // A module that DEFINES a sink is the transport, not a call site.
+      const definesSink = /export\s+(async\s+)?function\s+generateStructuredJson\b/.test(source);
+      for (const sink of SINKS) {
+        if (!sink.pattern.test(source)) continue;
+        if (definesSink && sink.name === "model provider call") continue;
+        if (evidencePaths.has(rel)) continue;
+        if (ATTRIBUTED_ELSEWHERE[rel]) continue;
+        undeclared.push(`${rel} — ${sink.name}`);
+      }
+    }
+
+    assert.deepEqual(
+      undeclared,
+      [],
+      "These files perform a live effect that no capability accounts for:\n" +
+        undeclared.map((u) => `  - ${u}`).join("\n") +
+        "\nDeclare the capability with its effect, its gate, and its evidence, or " +
+        "attribute the file to an existing capability.",
+    );
+  });
+
+  await t.test("a wildcard key can never satisfy a real executor", () => {
+    // The dry-run preview covers no single registry key, so it declares null
+    // rather than a string that a future handler could accidentally match.
+    for (const capability of RUNTIME_CAPABILITIES) {
+      assert.notEqual(
+        capability.executorKey,
+        "*",
+        `${capability.id} uses a wildcard executorKey; use null for "no single key"`,
+      );
+    }
+    assert.ok(
+      RUNTIME_CAPABILITIES.some((c) => c.executorKey === null),
+      "the dry-run preview must still be declared with a null executorKey",
+    );
+  });
+
+  await t.test("every entry cites a file in this repository and explains itself", () => {
     for (const capability of RUNTIME_CAPABILITIES) {
       assert.ok(
         capability.evidence.path.startsWith("src/"),
@@ -124,56 +193,97 @@ test("Capability inventory — no live executor escapes it", async (t) => {
   });
 });
 
+test("Capability inventory — the vocabulary is derived, never restated", async (t) => {
+  await t.test("gates and effects come from the module's own arrays", () => {
+    // Restating the unions here would let a new member ship uncovered.
+    assert.ok(RUNTIME_EFFECTS.length > 0 && RUNTIME_GATES.length > 0);
+    for (const capability of RUNTIME_CAPABILITIES) {
+      assert.ok(
+        RUNTIME_GATES.includes(capability.gate),
+        `${capability.id}: unknown gate "${capability.gate}"`,
+      );
+      assert.ok(
+        RUNTIME_EFFECTS.includes(capability.effect),
+        `${capability.id}: unknown effect "${capability.effect}"`,
+      );
+    }
+  });
+
+  await t.test("approval-rail membership is a declared property of the gate", () => {
+    for (const gate of RUNTIME_GATES) {
+      assert.equal(isApprovalRailGate(gate), APPROVAL_RAIL_GATES.includes(gate));
+    }
+    assert.equal(isApprovalRailGate("ceo_approval"), true);
+    assert.equal(isApprovalRailGate("public_unauthenticated"), false);
+  });
+});
+
 test("Capability inventory — the cockpit reads it rather than restating it", async (t) => {
-  await t.test("the control chain derives its runtime stage from the inventory", async () => {
+  await t.test("the control chain derives both lanes from the inventory", async () => {
     const posture = await read("src/features/cockpit/control-chain-posture.ts");
     assert.match(posture, /deriveRuntimePosture/);
     assert.match(posture, /runtime-capability-inventory/);
+    assert.match(posture, /isApprovalRailGate/);
   });
 
-  await t.test("the factory status card is derived, not hand-written", async () => {
-    // Two of its cards used to read "In-process mock execution only" and
-    // "VPS execution and writes suspended". Both were false and nothing failed.
-    const source = await read("src/features/hq/components/agentic-factory-status.tsx");
-    assert.match(source, /RUNTIME_CAPABILITIES/);
-
-    // Comments stripped: the header names both false claims so a reader knows
-    // what went wrong. What must not come back is either one as rendered copy.
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  await t.test("the factory status card renders every declared capability", async () => {
+    // Behavioural rather than textual: the component must iterate the inventory,
+    // so a new entry appears without touching the component.
+    const card = await read("src/features/hq/components/agentic-factory-status.tsx");
+    assert.match(card, /RUNTIME_CAPABILITIES\.map\(/);
+    assert.match(card, /deriveRuntimePosture/);
     assert.ok(
-      !/mock execution only/i.test(code),
-      "the card claims mock-only execution again — the green lane calls a model API",
-    );
-    assert.ok(
-      !/writes suspended/i.test(code),
-      "the card claims writes are suspended again — the ledger has writers",
+      !/statusItems\s*=\s*\[[\s\S]{0,2000}?"In-process/.test(card),
+      "the card restates execution copy instead of deriving it",
     );
   });
 });
 
-test("Capability inventory — the derived posture cannot understate the runtime", async (t) => {
-  await t.test("today's inventory holds at least one ungated live effect", () => {
-    // Stated as the current fact, so that the day it changes, someone reads
-    // this test and confirms the runtime really did close rather than the
-    // detector silently stopping.
-    const posture = deriveRuntimePosture(RUNTIME_CAPABILITIES);
-    assert.equal(posture.state, "bounded");
-    assert.ok(
-      posture.ungatedEffects.length > 0,
-      "If every effect is now behind CEO approval, this suite should read 'gated' — " +
-        "update this assertion deliberately, with the change that closed the gap.",
-    );
+test("Capability inventory — the derived posture reports the runtime honestly", async (t) => {
+  await t.test("an ungated live effect can never render as locked or gated", () => {
+    const bounded = deriveRuntimePosture([
+      {
+        id: "probe",
+        label: "Probe",
+        executorKey: "probe",
+        effect: "external_call",
+        gate: "sentinelle_green_lane",
+        detail: "",
+        evidence: { path: "x", mustContain: "y", because: "z" },
+      },
+    ]);
+    assert.equal(bounded.state, "bounded");
+
+    const gated = deriveRuntimePosture([
+      {
+        id: "probe",
+        label: "Probe",
+        executorKey: "probe",
+        effect: "external_call",
+        gate: "ceo_approval",
+        detail: "",
+        evidence: { path: "x", mustContain: "y", because: "z" },
+      },
+    ]);
+    assert.equal(gated.state, "gated");
+
+    assert.equal(deriveRuntimePosture([]).state, "locked");
   });
 
-  await t.test("a capability with an effect can never be gate-free in the model", () => {
-    for (const capability of RUNTIME_CAPABILITIES) {
+  await t.test("today's runtime is bounded, and names what is reachable without a session", () => {
+    const posture = deriveRuntimePosture(RUNTIME_CAPABILITIES);
+    assert.equal(posture.state, "bounded");
+
+    const publicEffects = posture.effectful.filter((c) => c.gate === "public_unauthenticated");
+    assert.ok(
+      publicEffects.length > 0,
+      "If no effectful executor is reachable without a session any more, that is a real " +
+        "change — update this assertion with the change that produced it.",
+    );
+    for (const capability of publicEffects) {
       assert.ok(
-        ["ceo_approval", "sentinelle_green_lane", "scheduled_pass"].includes(capability.gate),
-        `${capability.id}: unknown gate "${capability.gate}"`,
-      );
-      assert.ok(
-        ["none", "internal_write", "external_call"].includes(capability.effect),
-        `${capability.id}: unknown effect "${capability.effect}"`,
+        posture.ungatedEffects.includes(capability),
+        `${capability.id} is publicly reachable but not counted as an ungated effect`,
       );
     }
   });
