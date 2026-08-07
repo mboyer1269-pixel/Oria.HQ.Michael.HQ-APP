@@ -24,6 +24,7 @@ import {
   type CommandTowerInputs,
   type CommandTowerModel,
 } from "@/features/hq/command-tower/command-tower-model";
+import { loadRailCorridors } from "@/features/hq/command-tower/dispatch-corridor-source";
 import { loadRuntimeStatusBoard } from "@/features/hq/command-tower/runtime-status-source";
 import { formatLedgerActivityTimestamp } from "@/features/hq/ledger-activity";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
@@ -81,7 +82,10 @@ async function loadCommandTowerInputs(workspaceId: string): Promise<CommandTower
     loadRuntimeStatusBoard().catch(() => null),
   ]);
 
-  return { pendingIntents, nextAction, evidence, runtimeBoard };
+  // Synchronous and fail-closed on its own — it reads registries and env, not I/O.
+  const railCorridors = loadRailCorridors();
+
+  return { pendingIntents, nextAction, evidence, runtimeBoard, railCorridors };
 }
 
 const STATE_BADGE_STYLES: Record<string, string> = {
@@ -95,6 +99,7 @@ const STATE_BADGE_STYLES: Record<string, string> = {
   future_candidate: "border-neutral-700 bg-neutral-900 text-neutral-500",
   future_tool_corridor: "border-neutral-700 bg-neutral-900 text-neutral-500",
   governed_live: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+  receiver_rejects: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   blocked_until_dispatch_mandate: "border-red-500/20 bg-red-500/10 text-red-300",
   future_corridor: "border-neutral-700 bg-neutral-900 text-neutral-500",
   probe_v1: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",

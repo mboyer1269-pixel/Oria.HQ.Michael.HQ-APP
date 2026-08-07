@@ -19,8 +19,10 @@ const serverEnvSchema = z.object({
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1).optional(),
   ELEVENLABS_API_KEY: z.string().min(1).optional(),
   OPENROUTER_API_KEY: z.string().min(1).optional(),
-  // Supabase
+  // Supabase. createServerSupabaseClient() requires the public anon key, so the
+  // production fail-fast validates it alongside the URL and service-role key.
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   // Owner identity — required in production
   MICHAEL_HQ_OWNER_ID: z.string().min(1).optional(),
@@ -32,14 +34,44 @@ const serverEnvSchema = z.object({
   // Rate limiting — Upstash Redis (optional — falls back to in-memory)
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
-  // Agent webhooks (optional — fall back to built-in handlers)
+  // Per-agent webhooks — INERT. No code path reads these; the only dispatcher
+  // resolves N8N_WEBHOOK_URL. Kept declared so an existing deployment that sets
+  // them still validates. See .env.example.
   AGENT_MARKETING_WEBHOOK_URL: z.string().url().optional(),
   AGENT_INVENTOR_WEBHOOK_URL: z.string().url().optional(),
   AGENT_HERMES_WEBHOOK_URL: z.string().url().optional(),
   // n8n execution bridge (optional — CEO-approval-gated dispatch via the
-  // n8n_webhook_trigger MCP tool). N8N_SECRET secures the transfer (x-webhook-secret).
+  // n8n_webhook_trigger MCP tool). N8N_SECRET secures the transfer
+  // (x-webhook-secret); AGENT_WEBHOOK_SIGNING_SECRET signs the body (HMAC).
+  // Declared, not required: the tool fails closed without them.
   N8N_WEBHOOK_URL: z.string().url().optional(),
   N8N_SECRET: z.string().min(1).optional(),
+  AGENT_WEBHOOK_SIGNING_SECRET: z.string().min(1).optional(),
+  // Background jobs (Inngest). Production-relevant but NOT boot-critical: the
+  // SDK degrades to the dev server, and the scheduled rail is frozen. Reported
+  // by getProductionReadinessWarnings() instead of throwing — a missing cron key
+  // must not take the whole app down.
+  INNGEST_EVENT_KEY: z.string().min(1).optional(),
+  INNGEST_SIGNING_KEY: z.string().min(1).optional(),
+  // Opt-in feature flags. Each gates a capability that is OFF unless the flag
+  // is exactly "1"; they are declared here so the schema is the full inventory
+  // of what the environment can change, not a partial one.
+  ORIA_ENABLE_MEMEX_READONLY: z.enum(["0", "1"]).optional(),
+  MEMEX_CORE_ROOT: z.string().min(1).optional(),
+  ORIA_ENABLE_LOCAL_RUNTIME_PROBE: z.enum(["0", "1"]).optional(),
+  ORIA_ALLOW_DEV_USER_FALLBACK: z.enum(["true", "false"]).optional(),
+  ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD: z.enum(["true", "false"]).optional(),
+  // Durable archive directory for the document-processing CLI. Fails closed in
+  // that script; never required to boot the app.
+  MCL_ARCHIVE_DIR: z.string().min(1).optional(),
+  // Flags read through a name constant (env[CONSTANT]) rather than a literal
+  // property access. Each parses as truthy on "1"/"true"/"yes"/"on".
+  LEDGER_HASH_CHAIN_WRITE: z.string().min(1).optional(),
+  MISSION_DURABLE_DRAFTS: z.string().min(1).optional(),
+  ENABLE_STAGING_RUNTIME_DIAGNOSTIC: z.string().min(1).optional(),
+  // Explicit opt-in for the manual Joris booking smoke to retain configured
+  // Supabase credentials and exercise its write path.
+  SMOKE_WRITE: z.enum(["0", "1"]).optional(),
 });
 
 type ParsedEnv = z.infer<typeof serverEnvSchema>;
@@ -81,8 +113,10 @@ if (process.env.NODE_ENV === "production" && !isNextBuild) {
   if (!_parsed.MICHAEL_HQ_OWNER_ID) criticalMissing.push("MICHAEL_HQ_OWNER_ID");
   if (!_parsed.MICHAEL_HQ_OWNER_EMAIL) criticalMissing.push("MICHAEL_HQ_OWNER_EMAIL");
 
-  // Supabase is required for production persistence.
+  // Supabase is required for production persistence and auth.
+  // createServerSupabaseClient() requires both public values.
   if (!_parsed.NEXT_PUBLIC_SUPABASE_URL) criticalMissing.push("NEXT_PUBLIC_SUPABASE_URL");
+  if (!_parsed.NEXT_PUBLIC_SUPABASE_ANON_KEY) criticalMissing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!_parsed.SUPABASE_SERVICE_ROLE_KEY) criticalMissing.push("SUPABASE_SERVICE_ROLE_KEY");
 
   if (criticalMissing.length > 0) {
@@ -103,6 +137,7 @@ export const serverEnv = {
   elevenLabsApiKey: _parsed.ELEVENLABS_API_KEY,
   openRouterApiKey: _parsed.OPENROUTER_API_KEY,
   supabaseUrl: _parsed.NEXT_PUBLIC_SUPABASE_URL,
+  supabaseAnonKey: _parsed.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   supabaseServiceRoleKey: _parsed.SUPABASE_SERVICE_ROLE_KEY,
   michaelHqOwnerId: _parsed.MICHAEL_HQ_OWNER_ID,
   michaelHqOwnerEmail: _parsed.MICHAEL_HQ_OWNER_EMAIL?.trim().toLowerCase(),
@@ -114,7 +149,77 @@ export const serverEnv = {
   agentHermesWebhookUrl: _parsed.AGENT_HERMES_WEBHOOK_URL,
   n8nWebhookUrl: _parsed.N8N_WEBHOOK_URL,
   n8nSecret: _parsed.N8N_SECRET,
+  agentWebhookSigningSecret: _parsed.AGENT_WEBHOOK_SIGNING_SECRET,
+  inngestEventKey: _parsed.INNGEST_EVENT_KEY,
+  inngestSigningKey: _parsed.INNGEST_SIGNING_KEY,
+  memexCoreRoot: _parsed.MEMEX_CORE_ROOT,
+  mclArchiveDir: _parsed.MCL_ARCHIVE_DIR,
 };
+
+/** A production configuration gap that degrades a subsystem without stopping the boot. */
+export type ProductionReadinessWarning = {
+  /** Stable machine-readable id, safe to alert on. */
+  code:
+    | "inngest_keys_missing"
+    | "n8n_static_secret_missing"
+    | "n8n_signing_secret_missing";
+  /** The subsystem that is degraded. */
+  subsystem: "scheduled_jobs" | "n8n_dispatch";
+  message: string;
+};
+
+/**
+ * Production-relevant variables that are absent but must NOT stop the boot.
+ *
+ * Kept separate from criticalMissing: a missing scheduled-jobs key degrades one
+ * subsystem, and turning that into a boot failure would take the whole app down
+ * to protect a rail that is currently frozen.
+ *
+ * Reported rather than thrown — and reporting means reaching a surface. These
+ * are logged once at module load (below) and exposed by GET /api/health, so the
+ * degradation is observable rather than merely returnable.
+ */
+export function getProductionReadinessWarnings(): ProductionReadinessWarning[] {
+  if (process.env.NODE_ENV !== "production") return [];
+
+  const warnings: ProductionReadinessWarning[] = [];
+  if (!serverEnv.inngestEventKey || !serverEnv.inngestSigningKey) {
+    warnings.push({
+      code: "inngest_keys_missing",
+      subsystem: "scheduled_jobs",
+      message:
+        "INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY are unset — scheduled jobs cannot run in production.",
+    });
+  }
+  // A destination with an incomplete credential set is worse than no
+  // destination: it looks configured and refuses at dispatch time. The
+  // dispatcher requires BOTH secrets, so each absence degrades n8n_dispatch.
+  if (serverEnv.n8nWebhookUrl) {
+    if (!serverEnv.n8nSecret) {
+      warnings.push({
+        code: "n8n_static_secret_missing",
+        subsystem: "n8n_dispatch",
+        message:
+          "N8N_WEBHOOK_URL is set but N8N_SECRET is not — the dispatcher refuses before sending.",
+      });
+    }
+    if (!serverEnv.agentWebhookSigningSecret) {
+      warnings.push({
+        code: "n8n_signing_secret_missing",
+        subsystem: "n8n_dispatch",
+        message:
+          "N8N_WEBHOOK_URL is set but AGENT_WEBHOOK_SIGNING_SECRET is not — every signed dispatch will be refused.",
+      });
+    }
+  }
+  return warnings;
+}
+
+// Emitted once at module load so a degraded production is visible in the boot
+// log without waiting for anyone to query the health endpoint.
+for (const warning of getProductionReadinessWarnings()) {
+  console.warn(`[server-env] ${warning.code}: ${warning.message}`);
+}
 
 export function isLocalPersistenceFallbackAllowed() {
   return process.env.NODE_ENV !== "production";
