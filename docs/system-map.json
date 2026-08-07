@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 508,
-    "live": 455,
+    "sourceFiles": 513,
+    "live": 460,
     "testOnly": 9,
     "incubation": 44
   },
@@ -92,6 +92,7 @@
     "src/app/page.tsx",
     "src/config/ventures/loi96-profile.ts",
     "src/config/workspaces/michael-hq.config.ts",
+    "src/core/runtime-capability-inventory.ts",
     "src/core/types.ts",
     "src/core/ventures/build-outreach-email.ts",
     "src/core/ventures/venture-market-profile.ts",
@@ -138,6 +139,7 @@
     "src/features/cockpit/components/idea-intake-form.tsx",
     "src/features/cockpit/components/joris-presence.tsx",
     "src/features/cockpit/components/system-popover.tsx",
+    "src/features/cockpit/components/tooltip.tsx",
     "src/features/cockpit/components/ui.tsx",
     "src/features/cockpit/control-chain-posture.ts",
     "src/features/cockpit/events/daily-direction-projection.ts",
@@ -150,6 +152,7 @@
     "src/features/contact/components/contact-lead-form.tsx",
     "src/features/contact/types.ts",
     "src/features/hq/command-tower/command-tower-model.ts",
+    "src/features/hq/command-tower/dispatch-corridor-source.ts",
     "src/features/hq/command-tower/runtime-status-source.ts",
     "src/features/hq/components/agenda-panel.tsx",
     "src/features/hq/components/agentic-factory-status.tsx",
@@ -445,6 +448,8 @@
     "src/server/outbound/resend-email-adapter-env.ts",
     "src/server/outbound/resend-email-adapter.ts",
     "src/server/permissions/permissions.ts",
+    "src/server/runtime/execution-corridor-contract.ts",
+    "src/server/runtime/execution-corridors.ts",
     "src/server/runtime/execution-guard.ts",
     "src/server/runtime/green-lane-execution-service.ts",
     "src/server/runtime/green-lane-ledger.ts",
