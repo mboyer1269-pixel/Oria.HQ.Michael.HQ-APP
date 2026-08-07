@@ -317,6 +317,53 @@ test("Control chain — the posture is structurally sound", async (t) => {
     );
   });
 
+  await t.test("the header counts the lanes instead of naming a number", async () => {
+    // A written count goes stale the moment a lane is added: the header read
+    // "Deux voies" while CONTROL_LANES held three.
+    const component = await read("src/features/cockpit/components/control-chain.tsx");
+    const code = component.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+    const headingBlock = code.slice(code.indexOf("<h3"), code.indexOf("</h3>"));
+    assert.ok(headingBlock.length > 0, "the header heading no longer exists");
+    assert.match(
+      headingBlock,
+      /laneCountHeadline\(CONTROL_LANES\.length\)/,
+      "the header must derive its count from CONTROL_LANES",
+    );
+
+    // The cardinal words may exist in the lookup table, but never as the
+    // rendered heading, and never in a count that contradicts the lane list.
+    const wrongCardinals = ["Une voie", "Deux voies", "Trois voies", "Quatre voies"]
+      .filter((_, index) => index + 1 !== CONTROL_LANES.length)
+      .filter((word) => headingBlock.includes(word));
+    assert.deepEqual(
+      wrongCardinals,
+      [],
+      `the heading names ${wrongCardinals.join(", ")} while CONTROL_LANES holds ${CONTROL_LANES.length}`,
+    );
+  });
+
+  await t.test("the derived headline matches the real lane count", async () => {
+    // Behavioural: run the component's own helper the way the header does.
+    const component = await read("src/features/cockpit/components/control-chain.tsx");
+    const table = component.slice(
+      component.indexOf("const LANE_COUNT_WORD"),
+      component.indexOf("function laneCountHeadline"),
+    );
+    const words = Object.fromEntries(
+      [...table.matchAll(/(\d+):\s*"([^"]+)"/g)].map((m) => [Number(m[1]), m[2]]),
+    );
+    assert.ok(
+      words[CONTROL_LANES.length],
+      `no cardinal declared for ${CONTROL_LANES.length} lanes — the header would fall back to digits`,
+    );
+    assert.match(
+      words[CONTROL_LANES.length],
+      /voies? mènent?/,
+      "the cardinal must read as a sentence about lanes",
+    );
+  });
+
   await t.test("the lane pill is sourced, not written by hand", async () => {
     const component = await read("src/features/cockpit/components/control-chain.tsx");
     const code = component.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");

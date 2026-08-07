@@ -1,14 +1,33 @@
 // src/core/runtime-capability-inventory.ts
 //
-// The single hand-authored inventory of executors reachable in this runtime,
-// the effect each produces, and the gate standing in front of it. The cockpit
-// renders it; runtime-capability-inventory.test.mjs enforces its completeness
-// against the real executor registries and route surfaces.
+// The hand-authored inventory of executors inside a DECLARED SCOPE, the effect
+// each produces, and the gate standing in front of it.
+//
+// The scope is narrow on purpose, and stated so a count from this module can be
+// read correctly: it is not "everything this runtime does". Persistence that an
+// owner drives through the application's own screens is out, and listed as such
+// in OUT_OF_SCOPE_SURFACES rather than left undetected.
 //
 // An entry claims nothing on its own authority: each carries a file and a
-// marker that must be present for the claim to hold.
+// marker that must be present for the claim to hold. Completeness is enforced
+// by runtime-capability-inventory.test.mjs, which enumerates every outbound
+// call and every persistence write in src/ and requires each to be either
+// covered by a capability or explicitly out of scope.
 //
 // Pure data. No imports, no I/O.
+
+/**
+ * What this inventory covers, and what it does not.
+ *
+ * Rendered next to any count derived from it, because a number without its
+ * boundary reads as a total.
+ */
+export const INVENTORY_SCOPE = {
+  covers:
+    "les effets qui sortent du processus, et les effets qu'un agent ou une planification peut provoquer",
+  excludes:
+    "la persistance applicative pilotée par le propriétaire depuis les écrans (mise en page, notes, ventures, arène, missions) et le journal d'audit lui-même",
+} as const;
 
 /** What actually happens when a capability runs. */
 export const RUNTIME_EFFECTS = ["none", "internal_write", "external_call"] as const;
@@ -63,7 +82,67 @@ export type RuntimeCapability = {
   gate: RuntimeGate;
   detail: string;
   evidence: RuntimeCapabilityEvidence;
+  /**
+   * Additional files this capability accounts for — the implementation it
+   * reaches. Without them the completeness check would report a capability's
+   * own repository as an undeclared surface.
+   */
+  covers?: readonly string[];
 };
+
+/**
+ * Persistence and mutation surfaces deliberately outside the inventory.
+ *
+ * Detected by the completeness check and classified here, so "not shown" is a
+ * decision on record rather than a gap. A new mutation surface belongs to a
+ * capability or to one of these groups; anything else fails CI.
+ */
+export const OUT_OF_SCOPE_SURFACES: readonly {
+  reason: string;
+  paths: readonly string[];
+}[] = [
+  {
+    reason:
+      "Le journal d'audit lui-même. Chaque capacité écrit à travers lui ; le compter comme un exécuteur le ferait apparaître une fois par capacité.",
+    paths: ["src/server/actions/action-ledger-repository.ts"],
+  },
+  {
+    reason:
+      "Persistance applicative pilotée par le propriétaire depuis un écran : la requête est une action humaine directe, pas un effet qu'un agent peut provoquer.",
+    paths: [
+      "src/app/login/actions.ts",
+      "src/features/cockpit/actions/cockpit-layout.ts",
+      "src/features/cockpit/events/event-client.ts",
+      "src/features/cockpit/events/idea-capture-action.ts",
+      "src/features/notes/note-action.ts",
+      "src/features/ventures/cash-signal-intake-action.ts",
+      "src/features/ventures/loi96-pipeline-action.ts",
+      "src/features/ventures/venture-asset-action.ts",
+      "src/features/ventures/venture-lifecycle-action.ts",
+      "src/features/ventures/venture-save-action.ts",
+      "src/server/auth/actions.ts",
+      "src/server/arena/arena-verdict-repository.ts",
+      "src/server/joris/governance-decision-repository.ts",
+      "src/server/missions/approval-record-repository.ts",
+      "src/server/missions/mission-draft-durable-repository.ts",
+      "src/server/ventures/cash-signal-intake-repository.ts",
+      "src/server/ventures/venture-repository.ts",
+    ],
+  },
+  {
+    reason:
+      "Comptabilité de résultat d'une capacité déjà inventoriée : la ligne est écrite après coup et ne déclenche rien.",
+    paths: [
+      "src/server/ventures/agent-outcome-repository.ts",
+      "src/server/ventures/agent-score-snapshot-repository.ts",
+    ],
+  },
+  {
+    reason:
+      "Proposition en ajout seul : la ligne enregistre une intention et n'exécute jamais.",
+    paths: ["src/server/ventures/prepared-action-repository.ts"],
+  },
+];
 
 /**
  * Every executor reachable in this runtime today, ordered by decreasing
@@ -77,13 +156,14 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
     effect: "external_call",
     gate: "public_unauthenticated",
     detail:
-      "Une soumission publique déclenche un envoi Resend réel. Aucune session requise ; seule une limite par IP la borne.",
+      "Une soumission publique déclenche un envoi Resend réel et insère une ligne contact_leads. Aucune session requise ; seule une limite par IP la borne.",
     evidence: {
       path: "src/server/contact/contact-notification-service.ts",
       mustContain: "resend.emails.send",
       because:
         "The notification service sends through Resend. The contact route is unauthenticated, so this is the only executor a stranger can reach.",
     },
+    covers: ["src/server/contact/contact-lead-repository.ts"],
   },
   {
     id: "outbound_send_email",
@@ -114,6 +194,7 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
       because:
         "The approve route is the only caller of the dispatch tool. Another caller would mean this gate is no longer ceo_approval.",
     },
+    covers: ["src/server/agents/execution-intent-repository.ts"],
   },
   {
     id: "green_lane_content_generate",
@@ -144,6 +225,7 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
       because:
         "The pass calls a model provider on every run, then fetches the cited URLs. Its writes are internal; its calls are not.",
     },
+    covers: ["src/server/ventures/venture-score-shadow-runner.ts"],
   },
   {
     id: "calendar_event_write",
@@ -159,6 +241,7 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
       because:
         "The service persists the event through the repository. The write is internal, and its precondition is a confirmed owner request.",
     },
+    covers: ["src/server/calendar/calendar-repository.ts"],
   },
   {
     id: "joris_reply_generation",
@@ -189,6 +272,7 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
       because:
         "The generator calls a model provider; the server action gates on an owner session and nothing further.",
     },
+    covers: ["src/features/cockpit/events/generate-daily-direction-action.ts"],
   },
   {
     id: "cash_action_packet_generation",

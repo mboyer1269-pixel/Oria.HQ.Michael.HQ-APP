@@ -30,6 +30,8 @@ const {
   RUNTIME_EFFECTS,
   RUNTIME_GATES,
   APPROVAL_RAIL_GATES,
+  INVENTORY_SCOPE,
+  OUT_OF_SCOPE_SURFACES,
   deriveRuntimePosture,
   isApprovalRailGate,
 } = await jiti.import("@/core/runtime-capability-inventory");
@@ -45,6 +47,16 @@ const inventoriedKeys = new Set(
     (key) => typeof key === "string",
   ),
 );
+
+/** Files a capability accounts for: its evidence path plus anything it covers. */
+const capabilityFiles = new Set(
+  RUNTIME_CAPABILITIES.flatMap((capability) => [
+    capability.evidence.path,
+    ...(capability.covers ?? []),
+  ]),
+);
+
+const outOfScopeFiles = new Set(OUT_OF_SCOPE_SURFACES.flatMap((group) => group.paths));
 
 async function sourceFiles(dir = path.join(projectRoot, "src"), acc = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -197,6 +209,78 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     );
   });
 
+  await t.test("every persistence and server-action surface is classified", async () => {
+    // The mandate the inventory has to keep: a mutation surface is either
+    // covered by a capability or listed as out of scope with a reason. Neither
+    // is a failure — being neither is, because that is a surface nobody decided
+    // about. Includes saveCockpitLayout's upsert and every other Supabase write.
+    const SUPABASE_MUTATION =
+      /\.from\(\s*["'`][a-z_]+["'`]\s*\)[\s\S]{0,300}?\.(insert|upsert|update|delete)\(/;
+    const SERVER_ACTION = /^\s*["']use server["']/m;
+
+    const unclassified = [];
+    const surfaces = [];
+
+    for (const file of await sourceFiles()) {
+      const rel = toPosix(path.relative(projectRoot, file));
+      const source = await readFile(file, "utf8");
+
+      const kinds = [];
+      if (SUPABASE_MUTATION.test(source)) kinds.push("Supabase mutation");
+      if (SERVER_ACTION.test(source)) kinds.push("server action");
+      if (kinds.length === 0) continue;
+
+      surfaces.push(rel);
+      if (capabilityFiles.has(rel) || outOfScopeFiles.has(rel)) continue;
+      unclassified.push(`${rel} — ${kinds.join(" + ")}`);
+    }
+
+    assert.ok(surfaces.length > 0, "no mutation surface found — the detector has stopped working");
+
+    assert.deepEqual(
+      unclassified,
+      [],
+      "These surfaces mutate state and are neither covered by a capability nor listed " +
+        "in OUT_OF_SCOPE_SURFACES:\n" +
+        unclassified.map((u) => `  - ${u}`).join("\n") +
+        "\nDeclare the capability, or add the file to OUT_OF_SCOPE_SURFACES with the " +
+        "reason it is not presented as a runtime capability.",
+    );
+  });
+
+  await t.test("the out-of-scope list names only files that still exist and still mutate", async () => {
+    // The inverse rot: an exclusion for a deleted or now-inert file quietly
+    // widens the list and could later shadow a real surface at the same path.
+    for (const group of OUT_OF_SCOPE_SURFACES) {
+      assert.ok(
+        group.reason.trim().length > 40,
+        `an out-of-scope group must explain itself: "${group.reason}"`,
+      );
+      for (const rel of group.paths) {
+        let source;
+        try {
+          source = await read(rel);
+        } catch {
+          assert.fail(`OUT_OF_SCOPE_SURFACES lists ${rel}, which no longer exists`);
+        }
+        const mutates =
+          /\.from\(\s*["'`][a-z_]+["'`]\s*\)[\s\S]{0,300}?\.(insert|upsert|update|delete)\(/.test(
+            source,
+          ) || /^\s*["']use server["']/m.test(source);
+        assert.ok(mutates, `OUT_OF_SCOPE_SURFACES lists ${rel}, which no longer mutates anything`);
+      }
+    }
+  });
+
+  await t.test("no file is both covered by a capability and excluded", () => {
+    for (const rel of outOfScopeFiles) {
+      assert.ok(
+        !capabilityFiles.has(rel),
+        `${rel} is both covered by a capability and listed as out of scope`,
+      );
+    }
+  });
+
   await t.test("a wildcard key can never satisfy a real executor", () => {
     // The dry-run preview covers no single registry key, so it declares null
     // rather than a string that a future handler could accidentally match.
@@ -268,9 +352,41 @@ test("Capability inventory — the cockpit reads it rather than restating it", a
     const card = await read("src/features/hq/components/agentic-factory-status.tsx");
     assert.match(card, /RUNTIME_CAPABILITIES\.map\(/);
     assert.match(card, /deriveRuntimePosture/);
+  });
+
+  await t.test("no status card asserts a state without a counted source", async () => {
+    // A card whose pill is a fixed word states something no registry backs.
+    // Every `state` must be an expression, and every card must name its source.
+    const card = await read("src/features/hq/components/agentic-factory-status.tsx");
+    const block = card.slice(card.indexOf("const statusItems"), card.indexOf("return ("));
+    assert.ok(block.length > 0, "statusItems no longer exists — update this detector");
+
+    const literalStates = [...block.matchAll(/^\s*state:\s*"([^"]*)"/gm)].map((m) => m[1]);
+    assert.deepEqual(
+      literalStates,
+      [],
+      "these cards assert a hardcoded state with no registry behind it: " +
+        literalStates.map((s) => `"${s}"`).join(", "),
+    );
+
+    const cardCount = [...block.matchAll(/^\s{6}label:/gm)].length;
+    const sourceCount = [...block.matchAll(/^\s{6}source:/gm)].length;
+    assert.ok(cardCount > 0, "no card parsed — update this detector");
+    assert.equal(sourceCount, cardCount, "every card must name the registry it counts");
+  });
+
+  await t.test("counts are presented with the scope they belong to", async () => {
+    // A number without its boundary reads as a total. The panel states the
+    // scope, and the scope itself says what it leaves out.
+    assert.ok(INVENTORY_SCOPE.covers.trim().length > 20);
+    assert.ok(INVENTORY_SCOPE.excludes.trim().length > 20);
+
+    const card = await read("src/features/hq/components/agentic-factory-status.tsx");
+    assert.match(card, /INVENTORY_SCOPE\.covers/);
+    assert.match(card, /INVENTORY_SCOPE\.excludes/);
     assert.ok(
-      !/statusItems\s*=\s*\[[\s\S]{0,2000}?"In-process/.test(card),
-      "the card restates execution copy instead of deriving it",
+      !/l'ensemble du runtime\b(?![\s\S]{0,80}pas)/.test(card),
+      "the panel claims to cover the whole runtime",
     );
   });
 });

@@ -57,9 +57,9 @@ JSON and fails if the two drift.
 ### What the cockpit shows
 
 `src/server/runtime/execution-corridors.ts` reports each corridor as `blocked`,
-`receiver_rejects` or `not_configured` — never `governed_live` — and the Command
-Tower dispatch board renders exactly that. A corridor reads as live only when
-policy, receiver **and** dispatch configuration all agree.
+`receiver_rejects` or `not_configured` — never `eligible`, the only status that
+means all three ends agree — and the Command Tower dispatch board renders
+exactly that.
 
 **Closing the gap is a decision, not a wiring fix.** Either declare a
 `task.create` skill and assign it to `hermes` (an extension of what that agent
