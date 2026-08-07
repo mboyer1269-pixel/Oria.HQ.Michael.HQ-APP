@@ -46,8 +46,6 @@ const inventoriedKeys = new Set(
   ),
 );
 
-const evidencePaths = new Set(RUNTIME_CAPABILITIES.map((c) => c.evidence.path));
-
 async function sourceFiles(dir = path.join(projectRoot, "src"), acc = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -113,24 +111,60 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     // send mail and repositories that persist, and none of that appears in a
     // handler map. Each sink below is a call that leaves the process or writes,
     // and must be attributable to a declared capability.
+    // `pattern` finds the call in source; `marker` recognises the same sink in
+    // a capability's evidence string, which names the call without its
+    // parentheses.
     const SINKS = [
-      { name: "Resend email send", pattern: /\.emails\.send\(/ },
-      { name: "outbound channel send", pattern: /channelSend\.send\(/ },
-      { name: "calendar event persist", pattern: /calendarRepository\.create\(/ },
-      { name: "model provider call", pattern: /\bgenerateStructuredJson\b\s*\(/ },
+      { name: "Resend email send", pattern: /\.emails\.send\(/, marker: /\.emails\.send/ },
+      { name: "outbound channel send", pattern: /channelSend\.send\(/, marker: /channelSend\.send/ },
+      {
+        name: "calendar event persist",
+        pattern: /calendarRepository\.create\(/,
+        marker: /calendarRepository\.create/,
+      },
+      {
+        name: "model provider call",
+        pattern: /\bgenerateStructuredJson\b\s*\(/,
+        marker: /\bgenerateStructuredJson\b/,
+      },
     ];
 
     // A sink implementation that a declared capability accounts for through a
-    // different file. Each value must name a real capability id.
+    // different file. Scoped to the sink it covers, not the whole file, so a
+    // file gaining a DIFFERENT sink later is still reported.
     const ATTRIBUTED_ELSEWHERE = {
-      "src/server/outbound/resend-email-adapter.ts": "outbound_send_email",
-      "src/server/ventures/venture-score-shadow-runner.ts": "shadow_pass_scoring",
+      "src/server/outbound/resend-email-adapter.ts": {
+        sink: "Resend email send",
+        capability: "outbound_send_email",
+      },
+      "src/server/ventures/venture-score-shadow-runner.ts": {
+        sink: "model provider call",
+        capability: "shadow_pass_scoring",
+      },
     };
-    for (const capabilityId of Object.values(ATTRIBUTED_ELSEWHERE)) {
+    for (const { capability, sink } of Object.values(ATTRIBUTED_ELSEWHERE)) {
       assert.ok(
-        RUNTIME_CAPABILITIES.some((c) => c.id === capabilityId),
-        `attribution points at "${capabilityId}", which is not a declared capability`,
+        RUNTIME_CAPABILITIES.some((c) => c.id === capability),
+        `attribution points at "${capability}", which is not a declared capability`,
       );
+      assert.ok(
+        SINKS.some((s) => s.name === sink),
+        `attribution names sink "${sink}", which is not in the detector`,
+      );
+    }
+
+    // An evidence path covers only the sink its own marker describes. Without
+    // this, a file listed as evidence for one capability would hide any other
+    // sink it gains later.
+    const coveredByEvidence = new Map();
+    for (const capability of RUNTIME_CAPABILITIES) {
+      const matching = SINKS.filter((sink) => sink.marker.test(capability.evidence.mustContain));
+      if (matching.length > 0) {
+        coveredByEvidence.set(
+          capability.evidence.path,
+          new Set(matching.map((sink) => sink.name)),
+        );
+      }
     }
 
     // The inventory itself names every sink marker as evidence; scanning it
@@ -147,8 +181,8 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       for (const sink of SINKS) {
         if (!sink.pattern.test(source)) continue;
         if (definesSink && sink.name === "model provider call") continue;
-        if (evidencePaths.has(rel)) continue;
-        if (ATTRIBUTED_ELSEWHERE[rel]) continue;
+        if (coveredByEvidence.get(rel)?.has(sink.name)) continue;
+        if (ATTRIBUTED_ELSEWHERE[rel]?.sink === sink.name) continue;
         undeclared.push(`${rel} — ${sink.name}`);
       }
     }
@@ -219,11 +253,13 @@ test("Capability inventory — the vocabulary is derived, never restated", async
 });
 
 test("Capability inventory — the cockpit reads it rather than restating it", async (t) => {
-  await t.test("the control chain derives both lanes from the inventory", async () => {
+  await t.test("the control chain derives its lanes from the inventory", async () => {
     const posture = await read("src/features/cockpit/control-chain-posture.ts");
     assert.match(posture, /deriveRuntimePosture/);
     assert.match(posture, /runtime-capability-inventory/);
-    assert.match(posture, /isApprovalRailGate/);
+    // Lane membership is declared per gate, so a new gate must be routed
+    // deliberately rather than joining a lane by negation.
+    assert.match(posture, /LANE_BY_GATE/);
   });
 
   await t.test("the factory status card renders every declared capability", async () => {

@@ -114,8 +114,8 @@ describe("Webhook Registry — one destination, named by both sides", () => {
   });
 
   test("every binding names a tool that is actually registered", () => {
-    // The previous assertion only checked that the registry file contained some
-    // register( call, which passes with this binding's tool absent.
+    // Membership in the registry, not the presence of a registration call: the
+    // approve route resolves the binding's toolName and cannot dispatch without it.
     for (const binding of listApprovedWebhookBindings()) {
       assert.equal(
         tools.mcpToolRegistry.has(binding.toolName),
