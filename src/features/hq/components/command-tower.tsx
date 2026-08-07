@@ -99,6 +99,7 @@ const STATE_BADGE_STYLES: Record<string, string> = {
   future_candidate: "border-neutral-700 bg-neutral-900 text-neutral-500",
   future_tool_corridor: "border-neutral-700 bg-neutral-900 text-neutral-500",
   governed_live: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+  receiver_rejects: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   blocked_until_dispatch_mandate: "border-red-500/20 bg-red-500/10 text-red-300",
   future_corridor: "border-neutral-700 bg-neutral-900 text-neutral-500",
   probe_v1: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",

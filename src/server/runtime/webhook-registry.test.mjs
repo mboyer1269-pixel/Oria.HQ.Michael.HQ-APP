@@ -1,12 +1,14 @@
 // src/server/runtime/webhook-registry.test.mjs
 //
-// The registry is the webhook half of the single execution-corridor contract.
-// These tests pin the two things that make it auditable: a binding names the
-// destination variable the DISPATCHER actually reads, and an unusable
-// destination is reported as a named state rather than a silent null.
+// The registry is the webhook half of the execution-corridor contract. These
+// tests assert what makes it auditable: registry and dispatcher resolve one
+// destination variable, readiness covers every value the dispatcher requires,
+// and the deployment-mode guard cannot be removed by an injected environment.
+//
+// Assertions compare exported values rather than scanning source text, so a
+// refactor of the dispatcher does not silently satisfy them.
 
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test, { describe, beforeEach, afterEach } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -18,21 +20,37 @@ const { createJiti } = await import("jiti");
 const jiti = createJiti(import.meta.url, {
   alias: {
     "@": path.join(projectRoot, "src"),
+    "server-only": path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs"),
   },
 });
 
+const registry = await jiti.import("@/server/runtime/webhook-registry");
 const {
   findApprovedWebhookBinding,
   listApprovedWebhookBindings,
   resolveApprovedWebhook,
   resolveWebhookConfigurationState,
-} = await jiti.import(path.join(projectRoot, "src/server/runtime/webhook-registry.ts"));
+  N8N_DESTINATION_ENV_KEY,
+  N8N_STATIC_SECRET_ENV_KEY,
+  AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY,
+} = registry;
 
-describe("Webhook Registry", () => {
+const tools = await jiti.import("@/server/agents/tools/registry");
+const n8nTool = await jiti.import("@/server/agents/tools/n8n-webhook-trigger");
+
+/** Full dispatch configuration for a signed binding. */
+const CONFIGURED = {
+  [N8N_DESTINATION_ENV_KEY]: "https://hooks.n8n.cloud/webhook/1234",
+  [N8N_STATIC_SECRET_ENV_KEY]: "static",
+  [AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY]: "signing",
+};
+
+describe("Webhook Registry — destination resolution", () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
-    process.env = { ...ORIGINAL_ENV };
+    process.env = { ...ORIGINAL_ENV, ...CONFIGURED };
+    process.env.NODE_ENV = "test";
   });
 
   afterEach(() => {
@@ -40,89 +58,80 @@ describe("Webhook Registry", () => {
   });
 
   test("returns null if agentId and skillId have no binding", () => {
-    const result = resolveApprovedWebhook("unknown-agent", "unknown-skill");
-    assert.equal(result, null);
+    assert.equal(resolveApprovedWebhook("unknown-agent", "unknown-skill"), null);
   });
 
-  test("returns null if the environment variable is missing", () => {
-    delete process.env.N8N_WEBHOOK_URL;
-    const result = resolveApprovedWebhook("hermes", "task.create");
-    assert.equal(result, null);
+  test("returns null if the destination variable is missing", () => {
+    delete process.env[N8N_DESTINATION_ENV_KEY];
+    assert.equal(resolveApprovedWebhook("hermes", "task.create"), null);
   });
 
   test("returns null if the URL is invalid", () => {
-    process.env.N8N_WEBHOOK_URL = "not-a-valid-url";
-    const result = resolveApprovedWebhook("hermes", "task.create");
-    assert.equal(result, null);
+    process.env[N8N_DESTINATION_ENV_KEY] = "not-a-valid-url";
+    assert.equal(resolveApprovedWebhook("hermes", "task.create"), null);
   });
 
   test("returns null if the hostname is not in the allowlist", () => {
-    process.env.N8N_WEBHOOK_URL = "https://evil-hacker.com/webhook";
-    const result = resolveApprovedWebhook("hermes", "task.create");
-    assert.equal(result, null);
+    process.env[N8N_DESTINATION_ENV_KEY] = "https://evil-hacker.com/webhook";
+    assert.equal(resolveApprovedWebhook("hermes", "task.create"), null);
   });
 
-  test("returns the resolved webhook if the URL is valid and allowed", () => {
-    process.env.N8N_WEBHOOK_URL = "https://hooks.n8n.cloud/webhook/1234";
+  test("returns null if a required secret is missing", () => {
+    delete process.env[N8N_STATIC_SECRET_ENV_KEY];
+    assert.equal(
+      resolveApprovedWebhook("hermes", "task.create"),
+      null,
+      "a destination without the transfer secret cannot dispatch",
+    );
+  });
+
+  test("returns the resolved webhook when the configuration is complete", () => {
     const result = resolveApprovedWebhook("hermes", "task.create");
     assert.ok(result);
-    assert.equal(result.url, "https://hooks.n8n.cloud/webhook/1234");
+    assert.equal(result.url, CONFIGURED[N8N_DESTINATION_ENV_KEY]);
     assert.equal(result.binding.agentId, "hermes");
     assert.equal(result.binding.skillId, "task.create");
     assert.equal(result.binding.requiresSignature, true);
   });
 });
 
-describe("Webhook Registry — the binding names the destination the dispatcher reads", () => {
-  test("every binding declares the same env key the n8n tool resolves", async () => {
-    // The bindings used to carry a per-agent key (AGENT_HERMES_WEBHOOK_URL)
-    // that no code path ever read: the dispatcher resolves N8N_WEBHOOK_URL.
-    // A registry naming a different variable than the code cannot be audited —
-    // an operator setting the documented variable would change nothing.
-    const tool = await readFile(
-      path.join(projectRoot, "src/server/agents/tools/n8n-webhook-trigger.ts"),
-      "utf8",
-    );
+describe("Webhook Registry — one destination, named by both sides", () => {
+  test("every binding declares the constant the dispatcher imports", () => {
+    // Value comparison, not source scanning: the dispatcher can read the
+    // variable however it likes as long as both sides name the same constant.
+    assert.equal(typeof N8N_DESTINATION_ENV_KEY, "string");
+    assert.ok(N8N_DESTINATION_ENV_KEY.length > 0);
 
     const bindings = listApprovedWebhookBindings();
     assert.ok(bindings.length > 0, "the registry must declare at least one binding");
-
     for (const binding of bindings) {
-      assert.ok(
-        tool.includes(`process.env.${binding.destinationEnvKey}`),
-        `${binding.agentId}/${binding.skillId} declares ${binding.destinationEnvKey}, ` +
-          "which the dispatcher never reads. Registry and dispatcher must name one variable.",
+      assert.equal(
+        binding.destinationEnvKey,
+        N8N_DESTINATION_ENV_KEY,
+        `${binding.agentId}/${binding.skillId} names a destination the dispatcher does not read`,
       );
     }
   });
 
-  test("every binding names the tool that actually dispatches it", async () => {
-    const registry = await readFile(
-      path.join(projectRoot, "src/server/agents/tools/registry.ts"),
-      "utf8",
-    );
-    const toolSource = await readFile(
-      path.join(projectRoot, "src/server/agents/tools/n8n-webhook-trigger.ts"),
-      "utf8",
-    );
-
+  test("every binding names a tool that is actually registered", () => {
+    // The previous assertion only checked that the registry file contained some
+    // register( call, which passes with this binding's tool absent.
     for (const binding of listApprovedWebhookBindings()) {
-      assert.ok(
-        toolSource.includes(`"${binding.toolName}"`),
-        `${binding.toolName} is not the name the n8n tool declares`,
-      );
-      assert.match(
-        registry,
-        /mcpToolRegistry\.register\(/,
-        "the tool must be registered for the approve route to find it",
+      assert.equal(
+        tools.mcpToolRegistry.has(binding.toolName),
+        true,
+        `${binding.toolName} is not registered — the approve route could not dispatch this binding`,
       );
     }
+    assert.equal(n8nTool.N8N_WEBHOOK_TRIGGER_TOOL_NAME, "n8n_webhook_trigger");
+    assert.ok(
+      listApprovedWebhookBindings().every(
+        (b) => b.toolName === n8nTool.N8N_WEBHOOK_TRIGGER_TOOL_NAME,
+      ),
+    );
   });
 
   test("actionId is carried explicitly, never assumed equal to skillId", () => {
-    // The licence zones ACTIONS; the catalog declares SKILLS. They coincide for
-    // every binding today, and this asserts the field exists so a future
-    // divergence is representable instead of silently collapsing.
     for (const binding of listApprovedWebhookBindings()) {
       assert.equal(typeof binding.actionId, "string");
       assert.ok(binding.actionId.length > 0, `${binding.agentId} has an empty actionId`);
@@ -130,11 +139,12 @@ describe("Webhook Registry — the binding names the destination the dispatcher 
   });
 });
 
-describe("Webhook Registry — configuration state is named, not null", () => {
+describe("Webhook Registry — readiness is every value the dispatcher requires", () => {
   const ORIGINAL_ENV = process.env;
 
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
+    process.env.NODE_ENV = "test";
   });
 
   afterEach(() => {
@@ -143,31 +153,55 @@ describe("Webhook Registry — configuration state is named, not null", () => {
 
   const binding = () => findApprovedWebhookBinding("hermes", "task.create");
 
-  test("missing env is distinguishable from a bad hostname", () => {
+  test("each missing value produces its own named state", () => {
+    assert.equal(resolveWebhookConfigurationState(binding(), {}), "destination_env_missing");
     assert.equal(
-      resolveWebhookConfigurationState(binding(), {}),
-      "destination_env_missing",
-    );
-    assert.equal(
-      resolveWebhookConfigurationState(binding(), { N8N_WEBHOOK_URL: "https://evil.example/x" }),
-      "destination_hostname_not_allowed",
-    );
-    assert.equal(
-      resolveWebhookConfigurationState(binding(), { N8N_WEBHOOK_URL: "nope" }),
+      resolveWebhookConfigurationState(binding(), { [N8N_DESTINATION_ENV_KEY]: "nope" }),
       "destination_url_invalid",
-    );
-  });
-
-  test("localhost is configured locally and refused in production", () => {
-    assert.equal(
-      resolveWebhookConfigurationState(binding(), { N8N_WEBHOOK_URL: "http://localhost:5678/x" }),
-      "configured",
     );
     assert.equal(
       resolveWebhookConfigurationState(binding(), {
-        N8N_WEBHOOK_URL: "http://localhost:5678/x",
-        NODE_ENV: "production",
+        [N8N_DESTINATION_ENV_KEY]: "https://evil.example/x",
       }),
+      "destination_hostname_not_allowed",
+    );
+
+    const noStatic = { ...CONFIGURED };
+    delete noStatic[N8N_STATIC_SECRET_ENV_KEY];
+    assert.equal(resolveWebhookConfigurationState(binding(), noStatic), "static_secret_missing");
+
+    const noSigning = { ...CONFIGURED };
+    delete noSigning[AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY];
+    assert.equal(resolveWebhookConfigurationState(binding(), noSigning), "signing_secret_missing");
+
+    assert.equal(resolveWebhookConfigurationState(binding(), CONFIGURED), "configured");
+  });
+
+  test("an unsigned binding does not require the signing secret", () => {
+    const unsigned = { ...binding(), requiresSignature: false };
+    const noSigning = { ...CONFIGURED };
+    delete noSigning[AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY];
+    assert.equal(resolveWebhookConfigurationState(unsigned, noSigning), "configured");
+  });
+
+  test("the production guard reads the process, not the injected object", () => {
+    // The injected env supplies configuration values under test. Reading the
+    // deployment mode from it too would let a caller passing a partial object
+    // remove the localhost guard while the process runs in production.
+    const localhost = { ...CONFIGURED, [N8N_DESTINATION_ENV_KEY]: "http://localhost:5678/x" };
+
+    process.env.NODE_ENV = "test";
+    assert.equal(resolveWebhookConfigurationState(binding(), localhost), "configured");
+
+    process.env.NODE_ENV = "production";
+    assert.equal(
+      resolveWebhookConfigurationState(binding(), localhost),
+      "destination_localhost_in_production",
+      "a partial injected env removed the production localhost guard",
+    );
+    // Even when the injected object claims a non-production mode.
+    assert.equal(
+      resolveWebhookConfigurationState(binding(), { ...localhost, NODE_ENV: "development" }),
       "destination_localhost_in_production",
     );
   });

@@ -12,16 +12,19 @@
 // verdict comes from the real evaluateLiveExecution, reached through the real
 // route; the intent is stored in the real repository; the ledger entries are
 // written by the real recorder; the dispatch goes through the real MCP tool.
-// The existing approval test injects `evaluate: () => decision("ALLOW")`, which
-// proves the orchestration but says nothing about whether the gate would ever
-// have said ALLOW — and for the corridor that suite uses, it would not.
+// No verdict is injected anywhere.
 //
 // Injected: the owner session (documented test hook), and `fetch`. Nothing
 // leaves the process, and every secret here is a local placeholder.
 //
-// The corridor under test is DERIVED from the execution-corridor contract, not
-// named here. If the set of reachable corridors changes, this test changes with
-// it or fails loudly — it can never quietly move to a different rail.
+// SCOPE: this exercises the ORIA side of the rail — what the API does when the
+// Sentinelle accepts a request. It is deliberately not evidence that a corridor
+// completes end to end: the deployed n8n receiver accepts a different route than
+// the Sentinelle does, so no corridor is `eligible` in the contract today. The
+// suite asserts that too, so a passing rail here can never be mistaken for a
+// live corridor in the cockpit.
+//
+// The corridor under test is DERIVED from the contract, not named here.
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -39,6 +42,11 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 delete process.env.MICHAEL_HQ_OWNER_ID;
 delete process.env.UPSTASH_REDIS_REST_URL;
 delete process.env.UPSTASH_REDIS_REST_TOKEN;
+
+// Pinned: a production-like NODE_ENV makes the loopback destination below
+// resolve to destination_localhost_in_production, which would empty the
+// dispatchable set and report a test-environment condition as a policy finding.
+process.env.NODE_ENV = "test";
 
 // Placeholder credentials for the signing path. Never real, never sent: fetch
 // is replaced before any dispatch runs.
@@ -60,11 +68,10 @@ const createRoute = await jiti.import(
 const approveRoute = await jiti.import(
   path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"),
 );
-// Specifier form matters: jiti caches by resolved id, and importing a module by
-// absolute path yields a DIFFERENT instance from the one the routes reach via
+// Specifier form matters: jiti caches by resolved id, so importing a module by
+// absolute path yields a different instance from the one the routes reach via
 // "@/...". Any module holding state the routes mutate — the intent store, the
-// local ledger — must be imported in the same form the routes use, or this test
-// would read an empty parallel universe and pass by accident.
+// local ledger — must be imported in the same form the routes use.
 const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 const { evaluateLiveExecution } = await jiti.import("@/server/runtime/execution-guard");
 const { __clearAgentExecutionIntentsForTests, listPendingAgentExecutionIntents } =
@@ -89,8 +96,16 @@ const WORKSPACE_ID = "michael-hq";
 // ---------------------------------------------------------------------------
 
 const corridors = listExecutionCorridors(process.env);
-const eligible = corridors.filter((corridor) => corridor.status === "eligible");
 const blocked = corridors.filter((corridor) => corridor.status === "blocked");
+
+// The Oria side is dispatchable when the Sentinelle does not refuse and every
+// value the dispatcher needs is present. That is a strictly weaker condition
+// than the contract's `eligible`, which also requires the deployed receiver to
+// accept the route — and none currently does.
+const oriaDispatchable = corridors.filter(
+  (corridor) =>
+    corridor.guard.outcome !== "BLOCK" && corridor.webhook.configuration === "configured",
+);
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -156,25 +171,45 @@ function payloadFor(corridor) {
 }
 
 // ---------------------------------------------------------------------------
-// The rail is exercised on a corridor the contract reports as reachable
+// The Oria half of the rail, on a corridor the contract itself selects
 // ---------------------------------------------------------------------------
 
 test("Execution rail (API) — create → Sentinelle → storage → approve → dispatch", async (t) => {
   assert.ok(
-    eligible.length > 0,
-    "No corridor is reachable, so the rail cannot be exercised end-to-end.\n" +
+    oriaDispatchable.length > 0,
+    "The Sentinelle refuses every declared corridor, so the Oria rail cannot be exercised.\n" +
       corridors.map((c) => `  ${c.id}: ${c.status} — ${c.guard.reason}`).join("\n") +
       "\nThis is a real finding, not a test-setup problem: fix the corridor, not this test.",
   );
 
-  const corridor = eligible[0];
+  const corridor = oriaDispatchable[0];
 
   await t.test(`the corridor under test (${corridor.id}) is chosen by the contract`, () => {
     // Guards the one substitution this test must never make silently: quietly
     // switching rails when the intended corridor stops working.
-    assert.equal(corridor.status, "eligible");
+    assert.notEqual(corridor.guard.outcome, "BLOCK");
     assert.equal(corridor.requiresCeoApproval, true);
     assert.equal(corridor.webhook.configuration, "configured");
+  });
+
+  await t.test("a dispatchable Oria rail is NOT a live corridor", () => {
+    // The distinction this whole suite depends on. The API accepts and
+    // dispatches this route because the Sentinelle does; the deployed receiver
+    // does not accept it, so the contract does not call it eligible and the
+    // cockpit must not present it as live.
+    assert.equal(
+      corridor.status,
+      "receiver_rejects",
+      "The corridor the API rail runs on is now reported as " +
+        `"${corridor.status}". If both ends genuinely accept the same route, that is a ` +
+        "real change — update this assertion with the change that produced it.",
+    );
+    assert.equal(corridor.receiverAccepts, false);
+    assert.equal(
+      corridors.filter((c) => c.status === "eligible").length,
+      0,
+      "a corridor became eligible; verify both ends before treating the rail as live",
+    );
   });
 
   await t.test("the ALLOW comes from the real guard, not from this test", async () => {
@@ -296,17 +331,16 @@ test("Execution rail (API) — create → Sentinelle → storage → approve →
 
 test("Execution rail (API) — a blocked corridor is refused at creation", async (t) => {
   await t.test("hermes/task.create is blocked, and the API says so", async () => {
-    // The corridor the rail was documented around. It is declared in the
-    // webhook registry and green-listed by the licence, but `task.create` is
-    // not a skill in the catalog, so the Sentinelle refuses it. The cockpit
-    // called it "the only active corridor" for months; this pins the truth at
-    // the API boundary so the claim cannot be restored without failing here.
+    // Declared in the webhook registry and green-listed by the licence, but
+    // `task.create` is not a skill in the catalog, so the Sentinelle refuses it.
+    // Pinned at the API boundary: a cockpit claiming this corridor is active
+    // fails here first.
     const target = blocked.find((corridor) => corridor.id === "hermes/task.create");
     assert.ok(
       target,
-      "hermes/task.create is no longer blocked. If it was deliberately declared as " +
-        "a skill and assigned to Relay, that is an autonomy change — update this test " +
-        "with the mandate that authorized it.",
+      "hermes/task.create is no longer blocked. If a task.create skill was declared " +
+        "and assigned to hermes, that is an autonomy change — update this test with " +
+        "the mandate that authorized it.",
     );
 
     __clearAgentExecutionIntentsForTests();

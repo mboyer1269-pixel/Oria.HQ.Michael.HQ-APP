@@ -79,10 +79,9 @@ test("Command Tower v1 model contract", async (t) => {
   });
 
   await t.test("the static corridor list never claims a live rail", () => {
-    // The n8n rail used to live here, hardcoded as "governed_live · Seul
-    // corridor actif · hermes/task.create", while the Sentinelle rejected every
-    // hermes/task.create request. A component sentence cannot know whether a
-    // corridor works, so the static list may only hold unbuilt capabilities.
+    // A static entry cannot know whether a corridor works, so this list may
+    // only hold capabilities that have not been built. Liveness is derived from
+    // the corridor contract and arrives as an input.
     for (const corridor of DISPATCH_CORRIDORS) {
       assert.equal(corridor.requiresApproval, true, `${corridor.id} must require approval`);
       assert.equal(

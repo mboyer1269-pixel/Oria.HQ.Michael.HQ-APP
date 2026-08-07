@@ -2,34 +2,31 @@
 //
 // The governance posture shown by the cockpit's control chain.
 //
-// A cockpit that misreports its own guardrails is worse than one showing
-// nothing, so no stage may assert a state on its own authority: each carries
-// the evidence justifying it — a file and a marker that must be present for
-// the claim to hold. `control-chain-posture.test.mjs` reads the repository and
-// fails when a claim outlives its proof.
+// Two lanes reach execution, and they do not carry the same guarantees:
 //
-// The posture is still edited by hand. It simply cannot drift from the code in
-// silence, which is what happens when these values live inline in the
-// component that renders them.
+//   approval_rail — Approval Packet → Approval Event → Ledger Entry → Runtime.
+//                   Every stage is traversed; the runtime step waits for an
+//                   explicit CEO approval.
+//   green_lane    — Sentinelle → Ledger Entry → Runtime. No approval packet,
+//                   no approval event. An owner-authenticated request the
+//                   Sentinelle zones green executes directly.
 //
-// One exception, and it is deliberate: the runtime stage is DERIVED, not
-// written. It used to read "verrouillé" on the strength of a single marker in
-// shadow-pass.ts — a claim about one agent, standing in for the whole runtime.
-// It stayed true while an unrelated executor that calls a model API shipped and
-// became reachable. The stage now comes from the central capability inventory,
-// which knows every executor and the gate in front of each.
+// Rendering only the approval rail states that nothing executes without every
+// gate, which the green lane contradicts. Both lanes are declared here so the
+// screen can show which capabilities travel which path.
 //
-// The other three stages are pure data. No I/O anywhere — the component renders
-// this, the test verifies it.
+// Stage states are evidence-bearing: each carries a file and a marker that must
+// be present for the claim to hold, checked by control-chain-posture.test.mjs.
+// The runtime stage of each lane is DERIVED from the capability inventory
+// rather than written, so it cannot claim a posture the executors contradict.
 
 import {
   deriveRuntimePosture,
+  isApprovalRailGate,
   RUNTIME_CAPABILITIES,
+  type RuntimeCapability,
 } from "@/core/runtime-capability-inventory";
 
-// "gated" and "bounded" exist because the runtime stage is derived: they are
-// the posture states the inventory can produce, carried through unchanged
-// rather than flattened into "locked", which is what made the old claim wrong.
 export type StageState = "ready" | "future" | "locked" | "gated" | "bounded";
 
 export type StageEvidence = {
@@ -50,42 +47,44 @@ export type ControlChainStage = {
   evidence: StageEvidence;
 };
 
-/** The ledger stage, whose staleness is the reason this module exists. */
+/** The ledger stage of the approval rail. */
 export const LEDGER_STAGE_KEY = "ledger";
-
-/** The runtime stage, the one derived from the capability inventory. */
+/** The runtime stage of each lane — the derived one. */
 export const RUNTIME_STAGE_KEY = "runtime";
 
-/**
- * The runtime stage, derived from the capability inventory rather than written.
- *
- * Its evidence deliberately points at the inventory itself: the proof that the
- * claim is current is that the inventory is complete, and completeness is what
- * runtime-capability-inventory.test.mjs enforces against the real executor
- * registries.
- */
-function buildRuntimeStage(): ControlChainStage {
-  const posture = deriveRuntimePosture(RUNTIME_CAPABILITIES);
+const INVENTORY_EVIDENCE: StageEvidence = {
+  path: "src/core/runtime-capability-inventory.ts",
+  mustContain: "export const RUNTIME_CAPABILITIES",
+  because:
+    "The stage is derived from the central inventory of executors. Its accuracy depends on the inventory staying complete, which the inventory test enforces against the real executor registries and route surfaces.",
+};
 
+function capabilitiesOnApprovalRail(): RuntimeCapability[] {
+  return RUNTIME_CAPABILITIES.filter((capability) => isApprovalRailGate(capability.gate));
+}
+
+function capabilitiesOnGreenLane(): RuntimeCapability[] {
+  return RUNTIME_CAPABILITIES.filter((capability) => !isApprovalRailGate(capability.gate));
+}
+
+/** Runtime stage for a lane, derived from the capabilities that travel it. */
+function buildRuntimeStage(capabilities: readonly RuntimeCapability[]): ControlChainStage {
+  const posture = deriveRuntimePosture(capabilities);
   return {
     key: RUNTIME_STAGE_KEY,
     label: "Runtime Execution",
     state: posture.state,
-    detail: `Exécution bornée et réversible. ${posture.detail}`,
+    detail: posture.detail,
     meta: posture.meta,
-    evidence: {
-      path: "src/core/runtime-capability-inventory.ts",
-      mustContain: "export const RUNTIME_CAPABILITIES",
-      because:
-        "The stage is derived from the central inventory of executors, not from any single agent's self-description. Its accuracy depends on the inventory staying complete, which the inventory test enforces against the real executor registries.",
-    },
+    evidence: INVENTORY_EVIDENCE,
   };
 }
 
 /**
  * Approval Packet → Approval Event → Ledger Entry → Runtime Execution.
  *
- * The order is the guarantee: nothing executes without traversing all four.
+ * The order is the guarantee FOR THIS LANE only. Capabilities on the green lane
+ * never enter it.
  */
 export const CONTROL_CHAIN_STAGES: ControlChainStage[] = [
   {
@@ -113,7 +112,7 @@ export const CONTROL_CHAIN_STAGES: ControlChainStage[] = [
     },
   },
   {
-    key: "ledger",
+    key: LEDGER_STAGE_KEY,
     label: "Ledger Entry",
     state: "ready",
     detail:
@@ -123,8 +122,74 @@ export const CONTROL_CHAIN_STAGES: ControlChainStage[] = [
       path: "src/server/actions/action-ledger-repository.ts",
       mustContain: '.from("action_ledger")',
       because:
-        "The repository inserts into the live table. This stage is 'actif' only for as long as a writer exists — the test looks for the insert, not the mention.",
+        "The repository inserts into the live table. This stage is 'actif' only while a writer exists — the test looks for the insert, not the mention.",
     },
   },
-  buildRuntimeStage(),
+  buildRuntimeStage(capabilitiesOnApprovalRail()),
+];
+
+/**
+ * Sentinelle → Ledger Entry → Runtime Execution.
+ *
+ * The path taken by everything the approval rail does not cover. It has real
+ * guardrails — a policy verdict and a ledger record — and it has no approval
+ * packet and no approval event.
+ */
+export const GREEN_LANE_STAGES: ControlChainStage[] = [
+  {
+    key: "sentinelle",
+    label: "Sentinelle",
+    state: "ready",
+    detail:
+      "Verdict de politique avant tout effet. ALLOW autorise l'exécution directe : aucun paquet d'approbation n'est produit.",
+    meta: "En place",
+    evidence: {
+      path: "src/server/runtime/execution-guard.ts",
+      mustContain: "export function evaluateLiveExecution",
+      because:
+        "The guard is the only gate on this lane. An ALLOW here reaches the executor with no further human step.",
+    },
+  },
+  {
+    key: LEDGER_STAGE_KEY,
+    label: "Ledger Entry",
+    state: "ready",
+    detail: "L'action est journalisée avant et après l'exécution. Traçable, non approuvée.",
+    meta: "Actif",
+    evidence: {
+      path: "src/server/runtime/green-lane-execution-service.ts",
+      mustContain: "recordPendingDispatch",
+      because:
+        "The green-lane service records the attempt before dispatching, which is what makes this lane auditable despite having no approval.",
+    },
+  },
+  buildRuntimeStage(capabilitiesOnGreenLane()),
+];
+
+export type ControlLane = {
+  key: "approval_rail" | "green_lane";
+  label: string;
+  /** What this lane actually guarantees, stated without overreach. */
+  headline: string;
+  stages: ControlChainStage[];
+  /** Ids of the capabilities that travel this lane. */
+  capabilityIds: string[];
+};
+
+/** Both lanes, in order of decreasing guarantee. */
+export const CONTROL_LANES: ControlLane[] = [
+  {
+    key: "approval_rail",
+    label: "Voie approuvée",
+    headline: "Rien ne s'exécute sans franchir chaque garde-fou",
+    stages: CONTROL_CHAIN_STAGES,
+    capabilityIds: capabilitiesOnApprovalRail().map((capability) => capability.id),
+  },
+  {
+    key: "green_lane",
+    label: "Voie verte",
+    headline: "Exécution directe après verdict — sans paquet d'approbation",
+    stages: GREEN_LANE_STAGES,
+    capabilityIds: capabilitiesOnGreenLane().map((capability) => capability.id),
+  },
 ];

@@ -1,44 +1,74 @@
 // src/features/hq/command-tower/dispatch-corridor-source.ts
 //
-// Bridges the execution-corridor contract (src/server/runtime/
-// execution-corridors.ts) to the Command Tower dispatch board. Two parts:
-//   - mapExecutionCorridorsToBoard: PURE mapping, exported for tests.
-//   - loadRailCorridors: reads the real registries + environment, fail-closed —
-//     any error returns null and the model renders "unavailable".
+// Projects the execution-corridor contract onto the Command Tower dispatch
+// board. Two parts:
+//   - mapExecutionCorridorsToBoard: pure mapping, exported for tests.
+//   - loadRailCorridors: reads the real registries and environment; any error
+//     is logged and returns null, which the model renders as "unavailable".
 //
-// The mapping never invents a status. A corridor is shown as live only when the
-// contract says the Sentinelle would accept an intent on it AND the destination
-// is configured; otherwise the guard's own sentence is what the operator reads.
+// The mapping never invents a status. A corridor reads as live only when the
+// contract reports that all three ends agree — policy, receiver, configuration.
 
-import type { ExecutionCorridor } from "@/server/runtime/execution-corridor-contract";
+import { logger } from "@/lib/logger";
+import type {
+  CorridorStatus,
+  ExecutionCorridor,
+} from "@/server/runtime/execution-corridor-contract";
 import { listExecutionCorridors } from "@/server/runtime/execution-corridors";
-import type { DispatchCorridor } from "./command-tower-model";
+import type { WebhookConfigurationState } from "@/server/runtime/webhook-registry";
+import type { DispatchCorridor, DispatchCorridorMode } from "./command-tower-model";
 
-/** Why a declared destination is unusable, in the operator's words. */
-const CONFIGURATION_NOTE: Record<string, string> = {
+/**
+ * Why a declared destination is unusable, in the operator's words. Exhaustive
+ * over the state union: a new state forces a translation here rather than
+ * falling through to a raw identifier on screen.
+ */
+const CONFIGURATION_NOTE: Record<WebhookConfigurationState, string> = {
+  configured: "destination configurée",
   destination_env_missing: "destination non configurée (variable d'environnement absente)",
   destination_url_invalid: "destination configurée mais l'URL est invalide",
   destination_hostname_not_allowed: "destination hors de la liste d'hôtes autorisés",
   destination_localhost_in_production: "destination localhost refusée en production",
+  static_secret_missing: "secret de transfert absent (N8N_SECRET)",
+  signing_secret_missing: "secret de signature absent (AGENT_WEBHOOK_SIGNING_SECRET)",
 };
+
+const MODE_BY_STATUS: Record<CorridorStatus, DispatchCorridorMode> = {
+  eligible: "governed_live",
+  blocked: "blocked",
+  receiver_rejects: "receiver_rejects",
+  not_configured: "not_configured",
+};
+
+/**
+ * How an intent is prepared today. There is no UI for it: /hq/agents lists and
+ * approves existing intents and is bound to a single agent, so a button
+ * claiming to prepare one would not.
+ */
+const PREPARATION_SURFACE = "POST /api/agents/:agentId/execution-intents";
 
 function noteFor(corridor: ExecutionCorridor, liveCount: number): string {
   if (corridor.status === "blocked") {
-    // Verbatim from the guard. Paraphrasing is how "unsupported skill" became
-    // "seul corridor actif" in the first place.
+    // Verbatim from the guard.
     return `Bloqué par la Sentinelle : ${corridor.guard.reason}`;
   }
-  if (corridor.status === "not_configured") {
-    const why =
-      CONFIGURATION_NOTE[corridor.webhook.configuration] ?? corridor.webhook.configuration;
-    return `Éligible côté politique, mais ${why} (${corridor.webhook.destinationEnvKey}).`;
+  if (corridor.status === "receiver_rejects") {
+    return (
+      `Autorisé côté Oria, refusé par le récepteur n8n : le workflow déployé n'accepte pas ` +
+      `la route ${corridor.id}. Un intent approuvé échouerait en validation_error.`
+    );
   }
-  const others = liveCount - 1;
+  if (corridor.status === "not_configured") {
+    return `Accepté aux deux bouts, mais ${CONFIGURATION_NOTE[corridor.webhook.configuration]}.`;
+  }
   const company =
-    others === 0
+    liveCount === 1
       ? "Seul corridor éligible aujourd'hui."
       : `${liveCount} corridors éligibles aujourd'hui.`;
-  return `${company} L'intent reste une proposition tant que le CEO n'approuve pas.`;
+  return (
+    `${company} Préparation via ${PREPARATION_SURFACE} ; l'intent reste une proposition ` +
+    `tant que le CEO n'approuve pas.`
+  );
 }
 
 /** Pure mapping from contract corridors to dispatch-board corridors. */
@@ -50,30 +80,29 @@ export function mapExecutionCorridorsToBoard(
   return corridors.map((corridor) => ({
     id: `n8n_rail:${corridor.id}`,
     label: `n8n · ${corridor.id}`,
-    mode:
-      corridor.status === "eligible"
-        ? ("governed_live" as const)
-        : corridor.status === "not_configured"
-          ? ("not_configured" as const)
-          : ("blocked" as const),
+    mode: MODE_BY_STATUS[corridor.status],
     requiresApproval: true as const,
-    action:
-      corridor.status === "eligible"
-        ? { label: "Préparer un intent (requires approval)", href: "/hq/agents" }
-        : null,
+    // No action: no screen prepares an intent. A button that navigates to a
+    // page which cannot do what the label says is worse than no button.
+    action: null,
     note: noteFor(corridor, liveCount),
   }));
 }
 
 /**
- * Loads the rail corridors for this render. Fail-closed: any error yields null
- * so the tower renders its honest "unavailable" placeholder rather than an
+ * Loads the rail corridors for this render. Fail-closed: any error is logged and
+ * yields null, so the tower renders its "unavailable" placeholder rather than an
  * empty board, which an operator would read as "no corridor exists".
  */
 export function loadRailCorridors(): DispatchCorridor[] | null {
   try {
     return mapExecutionCorridorsToBoard(listExecutionCorridors());
-  } catch {
+  } catch (error) {
+    // listExecutionCorridors reads registries, licences and the guard; a throw
+    // means a real defect, and the operator only sees "indisponible".
+    logger.error("hq.command-tower.rail-corridors.failed", {
+      reason: error instanceof Error ? error.message : "unknown",
+    });
     return null;
   }
 }

@@ -7,15 +7,9 @@ import {
 
 // Agentic Factory Status — what this runtime can actually do.
 //
-// Two of these cards used to be written by hand: "In-process mock execution
-// only" and "VPS execution and writes suspended". Both were false. The green
-// lane runs a real handler that calls a model API over the network, and the
-// ledger has had writers for months. Nothing failed, because nothing was
-// reading the code — the copy was a memory of an older system.
-//
-// The execution cards now come from the central capability inventory, so they
-// change when the executors change. The two remaining hand-written cards say
-// only things a reader can check on this page.
+// The execution cards derive from the central capability inventory, so they
+// change when the executors change. Every pill states the value it is derived
+// from rather than a fixed label.
 
 const EFFECT_LABEL: Record<RuntimeCapability["effect"], string> = {
   none: "aucun effet",
@@ -25,52 +19,64 @@ const EFFECT_LABEL: Record<RuntimeCapability["effect"], string> = {
 
 const GATE_LABEL: Record<RuntimeCapability["gate"], string> = {
   ceo_approval: "approbation CEO",
+  owner_confirmed: "session propriétaire + confirmation",
+  owner_session: "session propriétaire seule",
   sentinelle_green_lane: "Sentinelle · zone verte",
   scheduled_pass: "passe planifiée",
+  public_unauthenticated: "public, sans session",
 };
+
+const NEUTRAL_BADGE = "border-neutral-700 bg-neutral-900 text-neutral-400";
+const OK_BADGE = "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
+const WARN_BADGE = "border-amber-500/20 bg-amber-500/10 text-amber-300";
 
 export function AgenticFactoryStatus() {
   const posture = deriveRuntimePosture(RUNTIME_CAPABILITIES);
-
-  const postureBadge =
-    posture.state === "bounded"
-      ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
-      : "border-emerald-500/20 bg-emerald-500/10 text-emerald-300";
+  const gatedCount = posture.effectful.length - posture.ungatedEffects.length;
+  const publicEffects = posture.effectful.filter(
+    (capability) => capability.gate === "public_unauthenticated",
+  );
 
   const statusItems = [
     {
       label: "Factory configured",
       description: "Delivery loop logic in place",
       icon: <CheckCircle2 className="h-5 w-5 text-emerald-400" />,
-      badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+      badge: OK_BADGE,
       state: "Active",
     },
     {
       label: "Skills available",
       description: "Agents equipped with specialized SKILL.md",
       icon: <Sparkles className="h-5 w-5 text-amber-400" />,
-      badge: "border-amber-500/20 bg-amber-500/10 text-amber-300",
+      badge: WARN_BADGE,
       state: "Active",
     },
     {
       label: "Human approval required",
-      description: `${posture.effectful.length - posture.ungatedEffects.length}/${posture.effectful.length} exécuteur(s) à effet derrière une approbation CEO`,
+      description: `${gatedCount}/${posture.effectful.length} exécuteur(s) à effet derrière une approbation CEO`,
       icon: <ShieldAlert className="h-5 w-5 text-violet-400" />,
-      badge: "border-violet-500/20 bg-violet-500/10 text-violet-300",
-      state: "Active",
+      // The pill reports the ratio it displays: full coverage only when no
+      // effectful executor runs outside the approval rail.
+      badge: posture.ungatedEffects.length === 0 ? OK_BADGE : WARN_BADGE,
+      state: posture.ungatedEffects.length === 0 ? "Complète" : "Partielle",
     },
     {
       label: "Runtime posture",
       description: posture.detail,
       icon: <LockKeyhole className="h-5 w-5 text-blue-400" />,
-      badge: postureBadge,
+      badge: posture.state === "bounded" ? WARN_BADGE : OK_BADGE,
       state: posture.meta,
     },
     {
       label: "Executors inventoried",
-      description: `${RUNTIME_CAPABILITIES.length} exécuteur(s) déclaré(s), dont ${posture.effectful.length} à effet réel`,
+      description:
+        `${RUNTIME_CAPABILITIES.length} exécuteur(s) déclaré(s), dont ${posture.effectful.length} à effet réel` +
+        (publicEffects.length > 0
+          ? ` · ${publicEffects.length} atteignable(s) sans session`
+          : ""),
       icon: <Zap className="h-5 w-5 text-sky-400" />,
-      badge: "border-sky-500/20 bg-sky-500/10 text-sky-300",
+      badge: publicEffects.length > 0 ? WARN_BADGE : NEUTRAL_BADGE,
       state: "Inventorié",
     },
   ];
