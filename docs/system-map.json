@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 512,
-    "live": 459,
+    "sourceFiles": 513,
+    "live": 460,
     "testOnly": 9,
     "incubation": 44
   },
@@ -139,6 +139,7 @@
     "src/features/cockpit/components/idea-intake-form.tsx",
     "src/features/cockpit/components/joris-presence.tsx",
     "src/features/cockpit/components/system-popover.tsx",
+    "src/features/cockpit/components/tooltip.tsx",
     "src/features/cockpit/components/ui.tsx",
     "src/features/cockpit/control-chain-posture.ts",
     "src/features/cockpit/events/daily-direction-projection.ts",
