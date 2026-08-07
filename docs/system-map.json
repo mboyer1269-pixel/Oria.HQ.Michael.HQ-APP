@@ -1,17 +1,16 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 506,
-    "live": 447,
+    "sourceFiles": 508,
+    "live": 455,
     "testOnly": 9,
-    "incubation": 50
+    "incubation": 44
   },
   "incubationByArea": {
     "server/agents": 12,
     "features/cockpit": 7,
     "features/memory": 7,
-    "features/ventures": 6,
-    "server/ventures": 4,
+    "features/ventures": 3,
     "server/missions": 3,
     "server/arena": 2,
     "features/agents": 1,
@@ -22,7 +21,8 @@
     "scripts/check-supabase-config.ts": 1,
     "scripts/mcl-archive-dir.ts": 1,
     "scripts/process-document.ts": 1,
-    "server/ai": 1
+    "server/ai": 1,
+    "server/ventures": 1
   },
   "live": [
     "src/app/api/agents/[agentId]/execute/route.ts",
@@ -66,6 +66,7 @@
     "src/app/api/sales/marketing/content-pack/route.ts",
     "src/app/api/sales/morning-queue/route.ts",
     "src/app/api/sales/outcome/route.ts",
+    "src/app/api/ventures/agent-scores/snapshot/route.ts",
     "src/app/api/ventures/shadow-pass/route.ts",
     "src/app/api/workflows/board/route.ts",
     "src/app/contact/page.tsx",
@@ -209,16 +210,19 @@
     "src/features/skills/seed.ts",
     "src/features/skills/types.ts",
     "src/features/ventures/agent-customer-discovery-target-list.ts",
+    "src/features/ventures/agent-operator-score-from-signals.ts",
     "src/features/ventures/agent-opportunity-brief.ts",
     "src/features/ventures/agent-outcome.ts",
     "src/features/ventures/agent-revenue-outcome.ts",
     "src/features/ventures/agent-revenue-validation-sprint.ts",
     "src/features/ventures/agent-revenue-validation-work-queue.ts",
+    "src/features/ventures/agent-score-snapshot.ts",
     "src/features/ventures/agent-venture-offer.ts",
     "src/features/ventures/agent-venture-prioritization.ts",
     "src/features/ventures/agent-venture-profitability.ts",
     "src/features/ventures/agent-venture-workbench-data.ts",
     "src/features/ventures/agent-venture-workstream.ts",
+    "src/features/ventures/auto-agent-operator-score.ts",
     "src/features/ventures/autonomy.ts",
     "src/features/ventures/cash-action-packet-generator.ts",
     "src/features/ventures/cash-action-packet.ts",
@@ -229,6 +233,7 @@
     "src/features/ventures/cash-signal-intake.ts",
     "src/features/ventures/cash-signal-outcome-adapter.ts",
     "src/features/ventures/components/agent-opportunity-brief-form.tsx",
+    "src/features/ventures/components/agent-score-snapshot-panel.tsx",
     "src/features/ventures/components/agent-venture-profitability-panel.tsx",
     "src/features/ventures/components/agent-venture-workbench-with-form.tsx",
     "src/features/ventures/components/agent-venture-workbench.tsx",
@@ -453,6 +458,8 @@
     "src/server/supabase/admin.ts",
     "src/server/ventures/active-venture-contexts.ts",
     "src/server/ventures/agent-outcome-repository.ts",
+    "src/server/ventures/agent-score-snapshot-repository.ts",
+    "src/server/ventures/agent-score-snapshot-row-mapping.ts",
     "src/server/ventures/cash-signal-intake-repository.ts",
     "src/server/ventures/cash-signal-intake-row-mapping.ts",
     "src/server/ventures/loi96-audit-email.ts",
@@ -466,6 +473,7 @@
     "src/server/ventures/shadow-proposal-read-model.ts",
     "src/server/ventures/shadow-source-verifier.ts",
     "src/server/ventures/shadow-tick-report.ts",
+    "src/server/ventures/snapshot-workspace-agent-scores.ts",
     "src/server/ventures/venture-asset-repository.ts",
     "src/server/ventures/venture-lifecycle-service.ts",
     "src/server/ventures/venture-repository.ts",
@@ -503,9 +511,6 @@
     "src/features/memory/types.ts",
     "src/features/outbound/components/outbound-batch-panel.tsx",
     "src/features/skills/skill-governance.ts",
-    "src/features/ventures/agent-operator-score-from-signals.ts",
-    "src/features/ventures/agent-score-snapshot.ts",
-    "src/features/ventures/auto-agent-operator-score.ts",
     "src/features/ventures/executive-selection-index.ts",
     "src/features/ventures/hermes-prep-plan.ts",
     "src/features/ventures/venture-cash-score.ts",
@@ -531,9 +536,6 @@
     "src/server/missions/approval-record-repository.ts",
     "src/server/missions/draft-to-queued-contract.ts",
     "src/server/missions/mission-persistence-mode.ts",
-    "src/server/ventures/agent-score-snapshot-repository.ts",
-    "src/server/ventures/agent-score-snapshot-row-mapping.ts",
-    "src/server/ventures/hermes-prep-tick.ts",
-    "src/server/ventures/snapshot-workspace-agent-scores.ts"
+    "src/server/ventures/hermes-prep-tick.ts"
   ]
 }

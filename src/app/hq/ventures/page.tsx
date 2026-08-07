@@ -5,6 +5,7 @@ import { getDefaultWorkspace } from "@/core/workspaces/registry";
 import { AgentVentureWorkbenchWithForm } from "@/features/ventures/components/agent-venture-workbench-with-form";
 import { VentureCommandCenterClient } from "@/features/ventures/components/venture-command-center-client";
 import { ShadowPassPanel } from "@/features/ventures/components/shadow-pass-panel";
+import { AgentScoreSnapshotPanel } from "@/features/ventures/components/agent-score-snapshot-panel";
 import {
   getDefaultActiveValidationSlotLimit,
   getDefaultVisibleCandidateLimit,
@@ -119,6 +120,10 @@ export default async function VenturesPage() {
 
       <HqWidget title="Mode ombre" eyebrow="Proposition d'agent, jugement CEO" icon={Eye}>
         <ShadowPassPanel />
+      </HqWidget>
+
+      <HqWidget title="Performance des agents" eyebrow="Score sur preuve capturée" icon={Banknote}>
+        <AgentScoreSnapshotPanel />
       </HqWidget>
 
       <HqWidget title="Garde-fous appliqués par défaut" eyebrow="Doctrine Venture Engine" icon={ShieldCheck}>
