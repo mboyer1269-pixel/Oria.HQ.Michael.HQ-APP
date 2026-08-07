@@ -24,6 +24,11 @@ test("Tooltip keeps the accessible trigger-panel contract in one component", () 
   assert.match(source, /focus-visible:outline-2/, "keyboard triggers need a visible focus ring");
   assert.match(
     source,
+    /return \(\s*<div className=\{`relative inline-flex/,
+    "the wrapper must accept both inline and block-level triggers",
+  );
+  assert.match(
+    source,
     /tabIndex: isInteractive \? children\.props\.tabIndex : 0/,
     "only visual triggers receive a tab stop, together with focus and Escape handlers",
   );

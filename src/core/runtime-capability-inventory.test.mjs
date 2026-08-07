@@ -214,7 +214,7 @@ function buildCoveredByEvidence() {
 
 function importedSourceSpecifiers(source) {
   return [
-    ...source.matchAll(/(?:from\s+|import\s*\()\s*["']([^"']+)["']/g),
+    ...source.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)["']([^"']+)["']/g),
   ].map((match) => match[1]);
 }
 
@@ -281,6 +281,17 @@ test("Capability inventory — every claim carries proof that still holds", asyn
 });
 
 test("Capability inventory — no live executor escapes it", async (t) => {
+  await t.test("the reachability detector includes every import form", () => {
+    assert.deepEqual(
+      importedSourceSpecifiers(`
+        import "@/side-effect";
+        import { helper } from "@/static";
+        const lazy = import("@/dynamic");
+      `),
+      ["@/side-effect", "@/static", "@/dynamic"],
+    );
+  });
+
   await t.test("the effect detector sees direct, injected, process, and external-client calls", () => {
     const detected = (source) =>
       new Set(detectedEffectSinks("src/server/probe.ts", source).map((sink) => sink.name));

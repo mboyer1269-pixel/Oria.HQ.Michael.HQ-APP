@@ -168,6 +168,8 @@ export function resolveWebhookConfigurationState(
   if (!binding.allowedHostnames.includes(parsed.hostname)) {
     return "destination_hostname_not_allowed";
   }
+  // Deployment mode deliberately stays ambient: an injected configuration
+  // bag must not be able to downgrade production and admit a loopback target.
   if (process.env.NODE_ENV === "production" && isLoopback) {
     return "destination_localhost_in_production";
   }

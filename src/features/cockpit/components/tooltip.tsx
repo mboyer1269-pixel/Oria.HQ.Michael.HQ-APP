@@ -131,7 +131,7 @@ export function Tooltip({
   });
 
   return (
-    <span className={`relative inline-flex ${isOpen ? "z-50" : ""} ${className}`}>
+    <div className={`relative inline-flex ${isOpen ? "z-50" : ""} ${className}`}>
       {trigger}
       <span
         id={tooltipId}
@@ -150,6 +150,6 @@ export function Tooltip({
           </span>
         ) : null}
       </span>
-    </span>
+    </div>
   );
 }
