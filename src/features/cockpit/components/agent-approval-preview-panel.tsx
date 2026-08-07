@@ -1,3 +1,16 @@
+// ⚠️ SUPERSEDED — not rendered anywhere, and not a candidate for wiring as-is.
+//
+// Written 2026-06-01/05, before the current cockpit landed on 2026-06-06
+// (founder-zero-state.tsx + cockpit-interactive.tsx). Kept for reference on an
+// explicit CEO decision, not because it is pending work.
+//
+// Its governance-chain view is now served by control-chain.tsx, which derives
+// its states from evidence instead of holding them inline.
+//
+// Before reviving any of this: what it displays was written against a system
+// that has since moved. Check every claim against reality first — a panel that
+// misreports the system is worse than a missing one.
+
 import { FileCheck2, Gavel, Lock, ScrollText, ShieldOff } from "lucide-react";
 import type { CockpitApprovalPreview } from "@/features/agents/agent-review-cockpit";
 import { Card, Eyebrow, Tag } from "./ui";

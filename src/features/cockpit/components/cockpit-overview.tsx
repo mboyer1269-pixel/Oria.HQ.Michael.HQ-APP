@@ -1,3 +1,15 @@
+// ⚠️ SUPERSEDED — not rendered anywhere, and not a candidate for wiring as-is.
+//
+// Written 2026-06-01/05, before the current cockpit landed on 2026-06-06
+// (founder-zero-state.tsx + cockpit-interactive.tsx). Kept for reference on an
+// explicit CEO decision, not because it is pending work.
+//
+// Its top-strip role is now served by founder-zero-state.tsx.
+//
+// Before reviving any of this: what it displays was written against a system
+// that has since moved. Check every claim against reality first — a panel that
+// misreports the system is worse than a missing one.
+
 import { AlertTriangle, Bot, Lock, ShieldAlert } from "lucide-react";
 import type { CockpitReviewAttention } from "@/features/agents/agent-review-cockpit";
 import { Tooltip } from "./ui";
