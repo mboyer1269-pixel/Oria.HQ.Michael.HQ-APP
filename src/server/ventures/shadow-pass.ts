@@ -99,7 +99,7 @@ export async function runShadowPass(
   const findProposedToday = deps.findProposedToday ?? findVenturesProposedToday;
   const propose = deps.proposeForVenture ?? runShadowProposalForVenture;
   const record = deps.recordEvent ?? recordLedgerEvent;
-  const agentId = deps.agentId ?? "venture_scorer";
+  const agentId = deps.agentId ?? "inventor";
 
   // PHASE 1 — selection. One read of each kind for the whole batch: twenty
   // dedup reads to guard twenty ventures would cost more than the duplicates

@@ -67,7 +67,7 @@ function proposalFor(ventureId, proposalId) {
     proposalId,
     ventureId,
     workspaceId: ctx.workspace.id,
-    proposedBy: "venture_scorer",
+    proposedBy: "inventor",
     proposedAt: NOW.toISOString(),
     evidence: parsed.evidence,
   }).proposal;
