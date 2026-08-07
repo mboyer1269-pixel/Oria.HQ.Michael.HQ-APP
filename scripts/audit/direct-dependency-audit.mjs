@@ -50,6 +50,10 @@ const BLOCKING_SEVERITIES = new Set(["high", "critical"]);
 
 class AuditUnavailableError extends Error {}
 
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 async function readDeclaredDependencies() {
   const pkg = JSON.parse(await readFile(path.join(ROOT, "package.json"), "utf8"));
   return new Set([
@@ -96,7 +100,7 @@ async function runAudit() {
 
   // npm reports registry failures as a JSON body with an `error` object and
   // no advisory data. Accepting it silently reports "no vulnerabilities".
-  if (body && typeof body === "object" && body.error) {
+  if (isRecord(body) && body.error) {
     const { code, summary, detail } = body.error;
     throw new AuditUnavailableError(
       `npm audit returned an error payload (${code ?? "no code"}): ` +
@@ -105,12 +109,9 @@ async function runAudit() {
   }
 
   // A real result always carries both of these, even with zero advisories.
-  const hasVulnerabilities =
-    body && typeof body === "object" && typeof body.vulnerabilities === "object" &&
-    body.vulnerabilities !== null;
+  const hasVulnerabilities = isRecord(body) && isRecord(body.vulnerabilities);
   const hasMetadata =
-    body && typeof body === "object" && body.metadata &&
-    typeof body.metadata.vulnerabilities === "object";
+    isRecord(body) && isRecord(body.metadata) && isRecord(body.metadata.vulnerabilities);
 
   if (!hasVulnerabilities || !hasMetadata) {
     throw new AuditUnavailableError(

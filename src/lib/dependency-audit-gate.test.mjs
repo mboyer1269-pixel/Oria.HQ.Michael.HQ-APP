@@ -119,6 +119,11 @@ test("Dependency gate — an audit that did not run is never a clean audit", asy
         body: '{"vulnerabilities":null,"metadata":{"vulnerabilities":{}}}',
         reason: /missing the fields/,
       },
+      {
+        label: "array-shaped fields",
+        body: '{"vulnerabilities":[],"metadata":{"vulnerabilities":[]}}',
+        reason: /missing the fields/,
+      },
     ];
 
     for (const testCase of cases) {
