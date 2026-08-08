@@ -34,8 +34,7 @@ describe("0029 execution intent approval proofs migration", () => {
   });
 
   it("declares 8 restrictive block policies", () => {
-    const count = (executableSql.match(/create policy "agent_execution_intent_approval_events_block_/g) || [])
-      .length;
+    const count = (executableSql.match(/create policy "aei_approval_events_block_/g) || []).length;
     assert.equal(count, 8);
   });
 });

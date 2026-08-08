@@ -18,14 +18,29 @@ where schemaname = 'public'
   and tablename = 'agent_execution_intent_approval_events'
   and permissive = 'RESTRICTIVE';
 
--- 4) approval_event_id column on intents
+-- 4) Partition uniqueness is NOT on intent alone (retries need multiple proofs)
+-- Expected: no unique constraint named ...unique_per_intent
+select conname
+from pg_constraint
+where conrelid = 'public.agent_execution_intent_approval_events'::regclass
+  and contype = 'u'
+  and conname like '%unique_per_intent%';
+
+-- 5) Lookup index on (workspace_id, intent_id) still present
+select indexname
+from pg_indexes
+where schemaname = 'public'
+  and tablename = 'agent_execution_intent_approval_events'
+  and indexname = 'agent_execution_intent_approval_events_workspace_intent_idx';
+
+-- 6) approval_event_id column on intents
 select column_name, is_nullable
 from information_schema.columns
 where table_schema = 'public'
   and table_name = 'agent_execution_intents'
   and column_name = 'approval_event_id';
 
--- 5) pending -> executing guard trigger
+-- 7) pending -> executing guard trigger
 select tgname
 from pg_trigger t
 join pg_class c on c.oid = t.tgrelid

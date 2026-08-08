@@ -54,48 +54,48 @@ create index if not exists agent_semantic_memory_embeddings_workspace_partition_
 create index if not exists agent_semantic_memory_embeddings_workspace_mode_idx
   on public.agent_semantic_memory_embeddings(workspace_id, mode_id);
 
--- IVFFlat index for cosine similarity (requires rows to exist before optimal lists;
--- safe to create empty — Postgres builds on first use after ANALYZE).
+-- HNSW cosine index: works on empty/small tables (unlike IVFFlat which needs
+-- training data for useful recall). Prefer HNSW for the foundation RAG path.
 create index if not exists agent_semantic_memory_embeddings_embedding_cosine_idx
   on public.agent_semantic_memory_embeddings
-  using ivfflat (embedding vector_cosine_ops)
-  with (lists = 100);
+  using hnsw (embedding vector_cosine_ops);
 
 -- RESTRICTIVE block-all (service-role only).
-create policy "agent_semantic_memory_embeddings_block_anon_select"
+-- Short policy names stay under PG's 63-char identifier limit (no truncation).
+create policy "semantic_mem_block_anon_select"
   on public.agent_semantic_memory_embeddings as restrictive for select to anon using (false);
-create policy "agent_semantic_memory_embeddings_block_authenticated_select"
+create policy "semantic_mem_block_auth_select"
   on public.agent_semantic_memory_embeddings as restrictive for select to authenticated using (false);
-create policy "agent_semantic_memory_embeddings_block_anon_insert"
+create policy "semantic_mem_block_anon_insert"
   on public.agent_semantic_memory_embeddings as restrictive for insert to anon with check (false);
-create policy "agent_semantic_memory_embeddings_block_authenticated_insert"
+create policy "semantic_mem_block_auth_insert"
   on public.agent_semantic_memory_embeddings as restrictive for insert to authenticated with check (false);
-create policy "agent_semantic_memory_embeddings_block_anon_update"
+create policy "semantic_mem_block_anon_update"
   on public.agent_semantic_memory_embeddings as restrictive for update to anon using (false) with check (false);
-create policy "agent_semantic_memory_embeddings_block_authenticated_update"
+create policy "semantic_mem_block_auth_update"
   on public.agent_semantic_memory_embeddings as restrictive for update to authenticated using (false) with check (false);
-create policy "agent_semantic_memory_embeddings_block_anon_delete"
+create policy "semantic_mem_block_anon_delete"
   on public.agent_semantic_memory_embeddings as restrictive for delete to anon using (false);
-create policy "agent_semantic_memory_embeddings_block_authenticated_delete"
+create policy "semantic_mem_block_auth_delete"
   on public.agent_semantic_memory_embeddings as restrictive for delete to authenticated using (false);
 
-drop trigger if exists agent_semantic_memory_embeddings_sync_context_partition
+drop trigger if exists semantic_mem_sync_partition
   on public.agent_semantic_memory_embeddings;
-create trigger agent_semantic_memory_embeddings_sync_context_partition
+create trigger semantic_mem_sync_partition
   before insert or update of mode_id, context_partition on public.agent_semantic_memory_embeddings
   for each row
   execute function public.sync_context_partition_from_mode();
 
-drop trigger if exists agent_semantic_memory_embeddings_enforce_workspace_scope
+drop trigger if exists semantic_mem_enforce_workspace
   on public.agent_semantic_memory_embeddings;
-create trigger agent_semantic_memory_embeddings_enforce_workspace_scope
+create trigger semantic_mem_enforce_workspace
   before insert or update of workspace_id on public.agent_semantic_memory_embeddings
   for each row
   execute function public.enforce_workspace_scope();
 
-drop trigger if exists agent_semantic_memory_embeddings_enforce_context_partition_scope
+drop trigger if exists semantic_mem_enforce_partition
   on public.agent_semantic_memory_embeddings;
-create trigger agent_semantic_memory_embeddings_enforce_context_partition_scope
+create trigger semantic_mem_enforce_partition
   before insert or update of context_partition on public.agent_semantic_memory_embeddings
   for each row
   execute function public.enforce_context_partition_scope();
@@ -118,9 +118,9 @@ begin
 end;
 $$;
 
-drop trigger if exists agent_semantic_memory_embeddings_validate_partition
+drop trigger if exists semantic_mem_validate_partition
   on public.agent_semantic_memory_embeddings;
-create trigger agent_semantic_memory_embeddings_validate_partition
+create trigger semantic_mem_validate_partition
   before insert or update on public.agent_semantic_memory_embeddings
   for each row
   execute function public.agent_semantic_memory_embeddings_validate_partition();

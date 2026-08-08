@@ -30,7 +30,12 @@ describe("0030 pgvector semantic memory migration", () => {
   });
 
   it("declares 8 restrictive block policies", () => {
-    const count = (executableSql.match(/agent_semantic_memory_embeddings_block_/g) || []).length;
+    const count = (executableSql.match(/create policy "semantic_mem_block_/g) || []).length;
     assert.equal(count, 8);
+  });
+
+  it("uses HNSW (not IVFFlat) for empty-table-safe vector index", () => {
+    assert.match(executableSql, /using\s+hnsw\s*\(\s*embedding\s+vector_cosine_ops\s*\)/i);
+    assert.ok(!/using\s+ivfflat/i.test(executableSql), "IVFFlat must not be used in foundation migration");
   });
 });

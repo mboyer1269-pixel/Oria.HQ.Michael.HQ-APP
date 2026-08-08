@@ -35,11 +35,13 @@ create table if not exists public.agent_execution_intent_approval_events (
     constraint agent_execution_intent_approval_events_proof_check
       check (approval_proof ~ '^[0-9a-f]{64}$'),
   approved_at timestamptz not null,
-  created_at timestamptz not null default now(),
-
-  constraint agent_execution_intent_approval_events_unique_per_intent
-    unique (workspace_id, intent_id)
+  created_at timestamptz not null default now()
 );
+
+-- Append-only audit: an intent may receive MULTIPLE approval events across
+-- retries (e.g. rate-limit revert pending -> CEO re-approves). The intent row
+-- points at the specific approval_event_id used for the pending->executing hop.
+-- Do NOT unique (workspace_id, intent_id) — that would block legitimate re-approval.
 
 alter table public.agent_execution_intent_approval_events enable row level security;
 
@@ -51,21 +53,22 @@ create index if not exists agent_execution_intent_approval_events_workspace_part
   on public.agent_execution_intent_approval_events(workspace_id, context_partition, approved_at desc);
 
 -- RESTRICTIVE block-all (service-role only, mirrors 0024).
-create policy "agent_execution_intent_approval_events_block_anon_select"
+-- Short policy names stay under PG's 63-char identifier limit (no truncation).
+create policy "aei_approval_events_block_anon_select"
   on public.agent_execution_intent_approval_events as restrictive for select to anon using (false);
-create policy "agent_execution_intent_approval_events_block_authenticated_select"
+create policy "aei_approval_events_block_auth_select"
   on public.agent_execution_intent_approval_events as restrictive for select to authenticated using (false);
-create policy "agent_execution_intent_approval_events_block_anon_insert"
+create policy "aei_approval_events_block_anon_insert"
   on public.agent_execution_intent_approval_events as restrictive for insert to anon with check (false);
-create policy "agent_execution_intent_approval_events_block_authenticated_insert"
+create policy "aei_approval_events_block_auth_insert"
   on public.agent_execution_intent_approval_events as restrictive for insert to authenticated with check (false);
-create policy "agent_execution_intent_approval_events_block_anon_update"
+create policy "aei_approval_events_block_anon_update"
   on public.agent_execution_intent_approval_events as restrictive for update to anon using (false) with check (false);
-create policy "agent_execution_intent_approval_events_block_authenticated_update"
+create policy "aei_approval_events_block_auth_update"
   on public.agent_execution_intent_approval_events as restrictive for update to authenticated using (false) with check (false);
-create policy "agent_execution_intent_approval_events_block_anon_delete"
+create policy "aei_approval_events_block_anon_delete"
   on public.agent_execution_intent_approval_events as restrictive for delete to anon using (false);
-create policy "agent_execution_intent_approval_events_block_authenticated_delete"
+create policy "aei_approval_events_block_auth_delete"
   on public.agent_execution_intent_approval_events as restrictive for delete to authenticated using (false);
 
 -- Append-only: no updates or deletes.
