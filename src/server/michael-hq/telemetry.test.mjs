@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { buildEstimatedCost, estimateTokensFromText } = await import(
-  "../telemetry.ts"
-);
-const { applyTelemetryToIntent } = await import("../intent-telemetry.ts");
-const { extractEstimatedCostFromIntentData } = await import("../telemetry-extract.ts");
+const { buildEstimatedCost, estimateTokensFromText } = await import("./telemetry.ts");
+const { applyTelemetryToIntent } = await import("./intent-telemetry.ts");
+const { extractEstimatedCostFromIntentData } = await import("./telemetry-extract.ts");
 
 test("buildEstimatedCost computes token-based USD", () => {
   const cost = buildEstimatedCost({
@@ -31,7 +29,9 @@ test("applyTelemetryToIntent injects estimated_cost into payload.data", () => {
     tokenUsage: { modelId: "claude-sonnet-4-6", inputTokens: 500, outputTokens: 1200 },
   });
   assert.equal(telemetry.estimated_cost.totalUsd, payload.data.estimated_cost.totalUsd);
-  const extracted = extractEstimatedCostFromIntentData(payload.data as Record<string, unknown>);
+  const extracted = extractEstimatedCostFromIntentData(
+    /** @type {Record<string, unknown>} */ (payload.data),
+  );
   assert.ok(extracted);
   assert.equal(extracted.totalCents, telemetry.estimated_cost.totalCents);
 });
