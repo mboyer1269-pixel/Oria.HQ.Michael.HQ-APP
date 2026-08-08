@@ -66,6 +66,7 @@ const ITEMS: PaletteItem[] = [
   { group: "Sur cette page", label: "File d'approbation", icon: CheckCheck, href: "#mission-draft-pending", anchor: true },
   { group: "Sur cette page", label: "Agenda du jour", icon: CalendarCheck, href: "#agenda-panel", anchor: true },
   { group: "Sur cette page", label: "Décisions · Ledger", icon: ScrollText, href: "#ledger-activity", anchor: true },
+  { group: "Sur cette page", label: "Intégrité · Hash-chain", icon: ShieldCheck, href: "#ledger-integrity", anchor: true },
   { group: "Sur cette page", label: "CEO Brief", icon: Sparkles, href: "#ceo-brief", anchor: true },
   { group: "Sur cette page", label: "Aperçu opérateur", icon: ShieldCheck, href: "#operator-snapshot", anchor: true },
 ];

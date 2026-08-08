@@ -1,12 +1,11 @@
 // src/server/ledger/hash-chain-write-flag.ts
 //
-// Feature flag for the FUTURE live hash-chain write path. OFF by default.
+// Feature flag for the live hash-chain write path. OFF by default.
 //
-// While this returns false (the default), the live action_ledger write path is
-// completely unchanged: nothing calls the seal planner and no chain columns are
-// written. Flipping it ON is a future, mandate-gated step that ALSO requires the
-// Phase 1 migration (chain columns) to be applied and LEDGER_HMAC_KEY to be
-// provisioned in the environment.
+// While this returns false (the default), action_ledger inserts skip sealing and
+// write no chain columns. Flipping it ON (production GO) requires Phase 1
+// columns applied and LEDGER_HMAC_KEY provisioned — see
+// docs/security/action-ledger-hash-chain-migration-runbook.md.
 //
 // This module reads only a NON-SECRET toggle. It never reads the HMAC key — the
 // key is passed explicitly to the seal path (see hash-chain-write-plan.ts),

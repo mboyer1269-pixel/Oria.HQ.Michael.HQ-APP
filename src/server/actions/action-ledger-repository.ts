@@ -1,8 +1,12 @@
+import { randomUUID } from "node:crypto";
 import type { ActionLedgerStatus, CalendarStorageMode, ModelMode } from "@/core/types";
 import type { LedgerEventType } from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { ServerUserContext } from "@/server/auth/user-context";
 import type { ActionLedgerRow, Json } from "@/server/db/types";
+import type { CanonicalJson } from "@/server/ledger/hash-chain-canonicalizer";
+import { resolveChainColumns, type ChainTip } from "@/server/ledger/hash-chain-live-append";
+import type { ChainWriteColumns } from "@/server/ledger/hash-chain-write-plan";
 import { createOptionalSupabaseAdminClient, hasSupabaseAdminConfig } from "@/server/supabase/admin";
 
 export type ActionLedgerEntry = {
@@ -23,6 +27,11 @@ export type ActionLedgerEntry = {
   metadata: Json;
   createdAt: string;
   storageMode: CalendarStorageMode;
+  /** Hash-chain seal fields — set when LEDGER_HASH_CHAIN_WRITE seals the row. */
+  prevHash?: string | null;
+  entryHash?: string;
+  hmac?: string | null;
+  canonicalVersion?: number;
 };
 
 /**
@@ -137,6 +146,10 @@ function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): A
     metadata: row.metadata,
     createdAt: row.created_at,
     storageMode,
+    prevHash: row.prev_hash ?? undefined,
+    entryHash: row.entry_hash ?? undefined,
+    hmac: row.hmac ?? undefined,
+    canonicalVersion: row.canonical_version ?? undefined,
   };
 }
 
@@ -163,35 +176,123 @@ function buildMetadata(input: RecordActionInput): Json {
   });
 }
 
+function asCanonicalJson(value: Json): CanonicalJson {
+  return value as CanonicalJson;
+}
+
+function applySealFields(
+  entry: ActionLedgerEntry,
+  chain: ChainWriteColumns | null,
+): ActionLedgerEntry {
+  if (!chain) return entry;
+  return {
+    ...entry,
+    prevHash: chain.prev_hash,
+    entryHash: chain.entry_hash,
+    hmac: chain.hmac,
+    canonicalVersion: chain.canonical_version,
+  };
+}
+
+function resolveLocalTip(workspaceId: string | undefined): ChainTip {
+  const scoped = localEntries.filter((entry) =>
+    workspaceId ? entry.workspaceId === workspaceId : entry.workspaceId == null,
+  );
+  for (let i = scoped.length - 1; i >= 0; i--) {
+    const tip = scoped[i];
+    if (typeof tip?.entryHash === "string" && tip.entryHash.length > 0) {
+      return { entry_hash: tip.entryHash };
+    }
+  }
+  return null;
+}
+
 function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedgerRepository {
   return {
     mode: "local",
     async record(input) {
-      const entry: ActionLedgerEntry = {
-        id: createLocalId(),
-        userId: user.userId,
-        actionType: input.actionType,
-        eventType: input.eventType,
-        summary: input.summary,
-        autonomyLevel: input.autonomyLevel,
-        requiresConfirmation: input.requiresConfirmation,
-        modelId: input.modelId,
-        costMode: input.costMode,
-        workspaceId: input.workspaceId,
-        skillId: input.skillId,
-        agentId: input.agentId,
-        missionId: input.missionId,
-        payload: input.payload ?? {},
-        metadata: buildMetadata(input),
-        createdAt: new Date().toISOString(),
-        storageMode: "local",
-      };
+      const id = createLocalId();
+      const createdAt = new Date().toISOString();
+      const metadata = buildMetadata(input);
+      const payload = input.payload ?? {};
+
+      let chain: ChainWriteColumns | null = null;
+      try {
+        chain = resolveChainColumns(
+          {
+            id,
+            workspaceId: input.workspaceId,
+            userId: user.userId,
+            agentId: input.agentId,
+            skillId: input.skillId,
+            missionId: input.missionId,
+            actionType: input.actionType,
+            eventType: input.eventType,
+            summary: input.summary,
+            autonomyLevel: input.autonomyLevel,
+            requiresConfirmation: input.requiresConfirmation,
+            payload: asCanonicalJson(payload),
+            metadata: asCanonicalJson(metadata),
+            createdAt,
+          },
+          resolveLocalTip(input.workspaceId),
+        );
+      } catch (error) {
+        throw new ActionLedgerRepositoryError(
+          error instanceof Error ? error.message : "Hash-chain seal failed.",
+        );
+      }
+
+      const entry = applySealFields(
+        {
+          id,
+          userId: user.userId,
+          actionType: input.actionType,
+          eventType: input.eventType,
+          summary: input.summary,
+          autonomyLevel: input.autonomyLevel,
+          requiresConfirmation: input.requiresConfirmation,
+          modelId: input.modelId,
+          costMode: input.costMode,
+          workspaceId: input.workspaceId,
+          skillId: input.skillId,
+          agentId: input.agentId,
+          missionId: input.missionId,
+          payload,
+          metadata,
+          createdAt,
+          storageMode: "local",
+        },
+        chain,
+      );
 
       localEntries.push(entry);
 
       return entry;
     },
   };
+}
+
+async function resolveSupabaseTip(
+  supabase: NonNullable<ReturnType<typeof createOptionalSupabaseAdminClient>>,
+  workspaceId: string | null,
+): Promise<ChainTip> {
+  let query = supabase
+    .from("action_ledger")
+    .select("entry_hash")
+    .not("entry_hash", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  query = workspaceId ? query.eq("workspace_id", workspaceId) : query.is("workspace_id", null);
+
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    throw new ActionLedgerRepositoryError(`Failed to resolve ledger chain tip: ${error.message}`);
+  }
+
+  const entryHash = data && typeof data.entry_hash === "string" ? data.entry_hash : null;
+  return entryHash && entryHash.length > 0 ? { entry_hash: entryHash } : null;
 }
 
 function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLedgerRepository {
@@ -204,26 +305,69 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
   return {
     mode: "supabase",
     async record(input) {
-      const { data, error } = await supabase
-        .from("action_ledger")
-        .insert({
-          user_id: user.userId,
-          action_type: input.actionType,
-          event_type: input.eventType ?? null,
-          summary: input.summary,
-          autonomy_level: input.autonomyLevel,
-          requires_confirmation: input.requiresConfirmation,
-          model_id: input.modelId ?? null,
-          cost_mode: input.costMode ?? null,
-          workspace_id: input.workspaceId ?? null,
-          skill_id: input.skillId ?? null,
-          agent_id: input.agentId ?? null,
-          mission_id: input.missionId ?? null,
-          payload: input.payload ?? {},
-          metadata: buildMetadata(input),
-        })
-        .select()
-        .single();
+      const id = randomUUID();
+      const createdAt = new Date().toISOString();
+      const metadata = buildMetadata(input);
+      const payload = input.payload ?? {};
+      const workspaceId = input.workspaceId ?? null;
+
+      let chain: ChainWriteColumns | null = null;
+      try {
+        const tip = await resolveSupabaseTip(supabase, workspaceId);
+        chain = resolveChainColumns(
+          {
+            id,
+            workspaceId: input.workspaceId,
+            userId: user.userId,
+            agentId: input.agentId,
+            skillId: input.skillId,
+            missionId: input.missionId,
+            actionType: input.actionType,
+            eventType: input.eventType,
+            summary: input.summary,
+            autonomyLevel: input.autonomyLevel,
+            requiresConfirmation: input.requiresConfirmation,
+            payload: asCanonicalJson(payload),
+            metadata: asCanonicalJson(metadata),
+            createdAt,
+          },
+          tip,
+        );
+      } catch (error) {
+        throw new ActionLedgerRepositoryError(
+          error instanceof Error ? error.message : "Hash-chain seal failed.",
+        );
+      }
+
+      const insertRow: Record<string, unknown> = {
+        id,
+        user_id: user.userId,
+        action_type: input.actionType,
+        event_type: input.eventType ?? null,
+        summary: input.summary,
+        autonomy_level: input.autonomyLevel,
+        requires_confirmation: input.requiresConfirmation,
+        model_id: input.modelId ?? null,
+        cost_mode: input.costMode ?? null,
+        workspace_id: workspaceId,
+        skill_id: input.skillId ?? null,
+        agent_id: input.agentId ?? null,
+        mission_id: input.missionId ?? null,
+        payload,
+        metadata,
+        created_at: createdAt,
+      };
+
+      // Only attach chain columns when sealing is active — older DBs without
+      // Phase 1 columns must keep working while the flag is OFF.
+      if (chain) {
+        insertRow.prev_hash = chain.prev_hash;
+        insertRow.entry_hash = chain.entry_hash;
+        insertRow.hmac = chain.hmac;
+        insertRow.canonical_version = chain.canonical_version;
+      }
+
+      const { data, error } = await supabase.from("action_ledger").insert(insertRow).select().single();
 
       if (error) {
         throw new ActionLedgerRepositoryError(error.message);
