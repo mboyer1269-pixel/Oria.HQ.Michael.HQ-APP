@@ -43,6 +43,10 @@ const privateLinks = [
     href: "#command-tower",
   },
   {
+    label: "Théâtre d'exécution",
+    href: "#execution-theatre",
+  },
+  {
     label: "Command Center",
     href: "#command-center",
   },
