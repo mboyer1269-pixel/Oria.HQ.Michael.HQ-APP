@@ -1,11 +1,9 @@
 // src/features/hq/components/command-tower.tsx
 //
-// Command Tower v1 — the first section of /hq (design: docs/COMMAND_TOWER_V1.md).
-// Server component: reads the already-merged engines (decision spine, execution
-// intents, action ledger), builds the pure view-model, renders seven cards.
-// Read-only everywhere except the Approval Rail, which reuses the existing
-// governed approve/reject panel. A failed read renders "unavailable" — never
-// a fake zero, never a fake "ready".
+// Command Tower v1 — first section of /hq (design: docs/COMMAND_TOWER_V1.md).
+// Server component: reads decision spine / intents / ledger, builds the pure
+// view-model, and mounts the Execution Theatre client island (SSE HITL feed).
+// A failed read renders "unavailable" — never a fake zero, never a fake "ready".
 
 import type { Route } from "next";
 import Link from "next/link";
@@ -17,7 +15,6 @@ import {
   Send,
   TowerControl,
 } from "lucide-react";
-import { ExecutionIntentReviewPanel } from "@/features/agents/components/execution-intent-review-panel";
 import {
   buildCommandTowerModel,
   MAX_EVIDENCE_ITEMS,
@@ -25,7 +22,14 @@ import {
   type CommandTowerModel,
 } from "@/features/hq/command-tower/command-tower-model";
 import { loadRuntimeStatusBoard } from "@/features/hq/command-tower/runtime-status-source";
+import { ExecutionTheatreClient } from "@/features/hq/components/execution-theatre-client";
 import { formatLedgerActivityTimestamp } from "@/features/hq/ledger-activity";
+import {
+  THEATRE_LEDGER_LIMIT,
+  deriveLedgerTone,
+  type TheatreLedgerLine,
+  type TheatrePendingIntent,
+} from "@/features/hq/theatre/theatre-events";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import { listPendingAgentExecutionIntents } from "@/server/agents/execution-intent-repository";
@@ -353,11 +357,16 @@ function ApprovalRailCard({ model }: { model: CommandTowerModel }) {
       eyebrow="6 · Approuver / Rejeter"
       badge={rail.state}
     >
-      <p className="mb-3 text-xs text-neutral-500">
-        Le seul endroit de la tour où un clic déclenche quelque chose : approuver ou rejeter un
-        intent (transitions atomiques, preuve au ledger).
+      <p className="mb-3 font-mono text-xs text-neutral-500">
+        Le rail live (SSE) vit dans le Théâtre d&apos;exécution ci-dessus. Un clic CEO explicite
+        reste le seul déclencheur — aucune exécution aveugle.
       </p>
-      <ExecutionIntentReviewPanel agentId="hermes" />
+      <a
+        href="#execution-theatre"
+        className="inline-flex min-h-10 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 font-mono text-xs font-bold text-amber-300 transition hover:bg-amber-500/20"
+      >
+        Ouvrir le rail HITL temps réel
+      </a>
     </TowerCard>
   );
 }
@@ -388,6 +397,50 @@ export async function CommandTower() {
   const inputs = await loadCommandTowerInputs(context.workspace.id);
   const model = buildCommandTowerModel(inputs);
 
+  const [theatreLedger, theatreIntents] = await Promise.all([
+    listActionLedgerForWorkspace({
+      workspaceId: context.workspace.id,
+      limit: THEATRE_LEDGER_LIMIT,
+    })
+      .then((result) => ({
+        source: result.source as "supabase" | "local",
+        entries: result.entries.map(
+          (entry): TheatreLedgerLine => ({
+            id: entry.id,
+            summary: entry.summary,
+            eventType: entry.eventType ?? null,
+            agentId: entry.agentId ?? null,
+            skillId: entry.skillId ?? null,
+            actionType: entry.actionType ?? null,
+            autonomyLevel: entry.autonomyLevel ?? null,
+            createdAt: entry.createdAt,
+            tone: deriveLedgerTone({
+              eventType: entry.eventType,
+              summary: entry.summary,
+            }),
+          }),
+        ),
+      }))
+      .catch(() => null),
+    listPendingAgentExecutionIntents(context.workspace.id)
+      .then((intents) =>
+        intents.map(
+          (intent): TheatrePendingIntent => ({
+            intentId: intent.intentId,
+            agentId: intent.agentId,
+            skillId: intent.skillId,
+            toolName: intent.toolName,
+            autonomyLevel: intent.autonomyLevel,
+            status: "pending",
+            createdAt: intent.createdAt,
+            actionType: intent.payload?.actionType,
+            client: intent.payload?.client,
+          }),
+        ),
+      )
+      .catch(() => [] as TheatrePendingIntent[]),
+  ]);
+
   return (
     <section id="command-tower" className="scroll-mt-6 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -416,6 +469,32 @@ export async function CommandTower() {
 
       <MissionBriefCard model={model} />
 
+      <section id="execution-theatre" className="scroll-mt-6 space-y-3">
+        <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-400">
+                0 · Théâtre d&apos;exécution
+              </p>
+              <h3 className="mt-1 font-mono text-lg text-white">Realtime · HITL · no mocks</h3>
+              <p className="mt-1 max-w-2xl font-mono text-xs leading-5 text-zinc-500">
+                Flux SSE authentifié, cloisonné par workspaceId. Les tables ledger/intents restent
+                service-role-only ; le serveur pousse la vérité sans ouvrir le Realtime client.
+              </p>
+            </div>
+            <span className="rounded border border-zinc-700 px-2 py-1 font-mono text-[10px] text-zinc-500">
+              workspace={context.workspace.id}
+            </span>
+          </div>
+          <ExecutionTheatreClient
+            workspaceId={context.workspace.id}
+            initialLedger={theatreLedger?.entries ?? []}
+            initialIntents={theatreIntents}
+            initialSource={theatreLedger?.source ?? null}
+          />
+        </div>
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <DecisionQueueCard model={model} />
         <RuntimeStatusCard model={model} />
@@ -428,3 +507,4 @@ export async function CommandTower() {
     </section>
   );
 }
+

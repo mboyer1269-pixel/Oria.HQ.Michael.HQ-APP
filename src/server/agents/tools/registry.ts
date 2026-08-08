@@ -8,6 +8,8 @@
 import type { McpTool, McpToolDefinition } from "./types";
 import { toMcpToolDefinition } from "./types";
 import { n8nWebhookTriggerTool } from "./n8n-webhook-trigger";
+import { engineeringPackageDeliverTool } from "./engineering-package-deliver";
+import { validationReportDeliverTool } from "./validation-report-deliver";
 
 export class McpToolRegistry {
   private readonly tools = new Map<string, McpTool>();
@@ -39,3 +41,5 @@ export class McpToolRegistry {
 // The process-wide registry. Pre-seeded with the sanctioned tools.
 export const mcpToolRegistry = new McpToolRegistry();
 mcpToolRegistry.register(n8nWebhookTriggerTool);
+mcpToolRegistry.register(engineeringPackageDeliverTool);
+mcpToolRegistry.register(validationReportDeliverTool);

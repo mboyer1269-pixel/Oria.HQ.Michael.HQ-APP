@@ -10,6 +10,7 @@ import {
   createAgentExecutionIntent,
   listPendingAgentExecutionIntents,
 } from "@/server/agents/execution-intent-repository";
+import { applyTelemetryToIntent } from "@/server/michael-hq/intent-telemetry";
 import { logger } from "@/lib/logger";
 
 /**
@@ -95,6 +96,12 @@ export async function POST(
 
   const createdAt = new Date().toISOString();
   const intentId = `intent_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const { payload: telemetryPayload } = applyTelemetryToIntent({
+    payload: payloadCheck.data,
+    estimationHint: `${actionType} ${skillId} ${client}`,
+  });
+
   const intent = buildAgentExecutionIntent({
     intentId,
     workspaceId: ctx.workspace.id,
@@ -102,7 +109,7 @@ export async function POST(
     skillId,
     toolName: N8N_WEBHOOK_TRIGGER_TOOL_NAME,
     autonomyLevel,
-    payload: payloadCheck.data,
+    payload: telemetryPayload,
     createdAt,
   });
 

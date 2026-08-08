@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "check:supabase": "node --experimental-strip-types src/scripts/check-supabase-config.ts",
     "smoke:joris": "node src/scripts/smoke/joris-booking.mjs",
+    "smoke:michael-hq-e2e": "node src/scripts/smoke/michael-hq-e2e.mjs",
     "smoke:joris:memex-evidence": "node src/scripts/smoke/joris-memex-evidence.mjs",
     "smoke:revenue": "node src/scripts/smoke/revenue-readiness.mjs",
     "smoke:runtime": "node src/scripts/smoke/runtime-health-echo.mjs",
@@ -18,6 +19,7 @@
     "ledger:audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audit/ledger-hash-chain-audit.mjs",
     "ledger:check-migration-draft": "node scripts/audit/check-hash-chain-migration-draft.mjs",
     "ledger:guard-not-live": "node scripts/audit/guard-hash-chain-not-live.mjs",
+    "ledger:apply-migration": "node scripts/audit/apply-ledger-hash-chain-migration.mjs",
     "mission:check-migration-draft": "node scripts/audit/check-mission-persistence-migration-draft.mjs",
     "mission:guard-not-live": "node scripts/audit/guard-mission-persistence-not-live.mjs",
     "doctor": "node scripts/doctor/hq-doctor.mjs",
@@ -76,6 +78,7 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "resend": "^6.12.4",
+    "stripe": "^18.5.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

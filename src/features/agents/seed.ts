@@ -128,6 +128,46 @@ export const agentRegistry: AgentProfile[] = [
     reviewCadence: "Mensuelle",
   },
   {
+    id: "validation",
+    lore:
+      "Le juge de marché du HQ : rien ne se construit sans preuve de demande — TAM, SAM, SOM avant le premier Dockerfile.",
+    name: "Validation",
+    role: "scout",
+    tagline: "Demand-check — TAM/SAM/SOM + canaux d'acquisition avant l'ingénierie",
+    description:
+      "Produit un rapport de validation de marché structuré avant toute allocation de budget d'ingénierie. Soumet au rail d'approbation CEO avec télémétrie Michael HQ.",
+    status: "active",
+    autonomyLevel: 2,
+    skillIds: ["market.demand_check"],
+    constraints: [
+      "Aucune allocation de budget ingénierie sans approbation CEO du demand-check",
+      "Rapport JSON structuré uniquement — pas de déploiement",
+      "Isolation mode Vie/Travail obligatoire",
+    ],
+    ventures: ["hq", "suivia", "mcl"],
+    reviewCadence: "Par mission",
+  },
+  {
+    id: "engineering",
+    lore:
+      "L'ingénieur souverain du HQ : IaC portable, zéro lock-in — chaque ligne de code attend le sceau du CEO.",
+    name: "Engineering",
+    role: "builder",
+    tagline: "Agent d'ingénierie souverain — Docker, Terraform, dépôts clonables",
+    description:
+      "Reçoit les briefs de Joris et génère des paquets de code portables. Aucun déploiement autonome — soumission au rail d'approbation avec télémétrie Michael HQ.",
+    status: "active",
+    autonomyLevel: 2,
+    skillIds: ["infrastructure.generate"],
+    constraints: [
+      "Aucun déploiement autonome — CEO approve uniquement",
+      "Configurations portables uniquement (Docker, Terraform, GitHub-ready)",
+      "Isolation mode Vie/Travail obligatoire sur chaque proposition",
+    ],
+    ventures: ["hq"],
+    reviewCadence: "Par mission",
+  },
+  {
     id: "builder",
     lore:
       "La forge du HQ : specs, plans et prototypes — rien n'en sort sans être solide.",
