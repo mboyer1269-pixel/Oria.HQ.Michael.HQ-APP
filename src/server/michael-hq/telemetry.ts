@@ -3,6 +3,9 @@
 // Michael HQ telemetry — algorithmic cost estimation for execution intents.
 // Intercepts proposals before PENDING insert and attaches transparent pricing
 // (LLM tokens + external API calls) for CEO approval in the Execution Theatre.
+//
+// After CEO approval, estimated_cost is billed via stripe-billing.ts / wallet.ts
+// as usage-only charges — NEVER as a percentage of end-user project revenue.
 
 import { PREMIUM_MODEL_ID } from "@/server/ai/model-config";
 

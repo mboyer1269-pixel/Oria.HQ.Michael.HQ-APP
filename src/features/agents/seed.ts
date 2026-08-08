@@ -128,6 +128,26 @@ export const agentRegistry: AgentProfile[] = [
     reviewCadence: "Mensuelle",
   },
   {
+    id: "validation",
+    lore:
+      "Le juge de marché du HQ : rien ne se construit sans preuve de demande — TAM, SAM, SOM avant le premier Dockerfile.",
+    name: "Validation",
+    role: "scout",
+    tagline: "Demand-check — TAM/SAM/SOM + canaux d'acquisition avant l'ingénierie",
+    description:
+      "Produit un rapport de validation de marché structuré avant toute allocation de budget d'ingénierie. Soumet au rail d'approbation CEO avec télémétrie Michael HQ.",
+    status: "active",
+    autonomyLevel: 2,
+    skillIds: ["market.demand_check"],
+    constraints: [
+      "Aucune allocation de budget ingénierie sans approbation CEO du demand-check",
+      "Rapport JSON structuré uniquement — pas de déploiement",
+      "Isolation mode Vie/Travail obligatoire",
+    ],
+    ventures: ["hq", "suivia", "mcl"],
+    reviewCadence: "Par mission",
+  },
+  {
     id: "engineering",
     lore:
       "L'ingénieur souverain du HQ : IaC portable, zéro lock-in — chaque ligne de code attend le sceau du CEO.",

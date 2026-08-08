@@ -15,6 +15,7 @@ import {
   Workflow,
   Car,
   Server,
+  BadgeDollarSign,
 } from "lucide-react";
 import { Tooltip } from "./ui";
 import { CockpitTopbar } from "./cockpit-topbar";
@@ -50,6 +51,7 @@ const NAV: NavItem[] = [
   { key: "skills", label: "Skills", href: "/hq/skills", icon: Sparkles, group: "Pilotage", tipTitle: "Skills", tipDetail: "Catalogue des compétences gouvernées." },
   { key: "runtime", label: "Runtime", href: "/hq/runtime", icon: CircleDot, group: "Pilotage", tipTitle: "Runtime", tipDetail: "Exécution verrouillée tant qu'une action n'est pas ledgerée et bornée.", tipMeta: "Verrouillé" },
   { key: "infrastructure", label: "Infrastructure", href: "/hq/infrastructure", icon: Server, group: "Pilotage", tipTitle: "Infrastructure", tipDetail: "Paquets de code souverains validés par le CEO — export GitHub/cloud sans lock-in." },
+  { key: "finance", label: "Finance", href: "/hq/finance", icon: BadgeDollarSign, group: "Pilotage", tipTitle: "Finance éthique", tipDetail: "Wallet usage-only + Stripe — zéro commission sur vos revenus projets." },
   { key: "ventures", label: "Ventures", href: "/hq/ventures", icon: Building2, group: "Pilotage", tipTitle: "Ventures", tipDetail: "Portefeuille et file de décisions stratégiques." },
   { key: "outbound", label: "Send Desk", href: "/hq/outbound", icon: SendHorizonal, group: "Pilotage", tipTitle: "Send Desk", tipDetail: "File d'envoi ceo_single_send — un clic, un envoi, une preuve au ledger." },
   { key: "sales", label: "Sales Desk", href: "/hq/sales", icon: Car, group: "Pilotage", tipTitle: "Sales Desk", tipDetail: "File du matin, fiches Marketplace, capture leads — prepare-only." },
