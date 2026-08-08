@@ -3,7 +3,7 @@ import type { ActionLedgerStatus, CalendarStorageMode, ModelMode } from "@/core/
 import type { LedgerEventType } from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { ServerUserContext } from "@/server/auth/user-context";
-import type { ActionLedgerRow, Json } from "@/server/db/types";
+import type { ActionLedgerInsert, ActionLedgerRow, Json } from "@/server/db/types";
 import type { CanonicalJson } from "@/server/ledger/hash-chain-canonicalizer";
 import { resolveChainColumns, type ChainTip } from "@/server/ledger/hash-chain-live-append";
 import type { ChainWriteColumns } from "@/server/ledger/hash-chain-write-plan";
@@ -339,7 +339,7 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
         );
       }
 
-      const insertRow: Record<string, unknown> = {
+      const insertRow: ActionLedgerInsert = {
         id,
         user_id: user.userId,
         action_type: input.actionType,
@@ -356,16 +356,15 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
         payload,
         metadata,
         created_at: createdAt,
+        ...(chain
+          ? {
+              prev_hash: chain.prev_hash,
+              entry_hash: chain.entry_hash,
+              hmac: chain.hmac,
+              canonical_version: chain.canonical_version,
+            }
+          : {}),
       };
-
-      // Only attach chain columns when sealing is active — older DBs without
-      // Phase 1 columns must keep working while the flag is OFF.
-      if (chain) {
-        insertRow.prev_hash = chain.prev_hash;
-        insertRow.entry_hash = chain.entry_hash;
-        insertRow.hmac = chain.hmac;
-        insertRow.canonical_version = chain.canonical_version;
-      }
 
       const { data, error } = await supabase.from("action_ledger").insert(insertRow).select().single();
 
