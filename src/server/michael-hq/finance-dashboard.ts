@@ -4,7 +4,8 @@
 
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import { getWalletSnapshot, listWalletCharges } from "./wallet.ts";
-import { fetchStripeCustomerBalanceCents, BILLING_MODEL, REVENUE_SHARE_PERCENT } from "./stripe-billing.ts";
+import { fetchStripeCustomerBalanceCents } from "./stripe-billing.ts";
+import { BILLING_MODEL, REVENUE_SHARE_PERCENT } from "./billing-policy.ts";
 
 export type FinanceDashboard = {
   workspaceId: string;
