@@ -19,6 +19,7 @@ import { ModuleCard } from "@/features/hq/components/module-card";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { CeoBriefSection } from "@/features/hq/components/ceo-brief-section";
 import { LedgerActivity } from "@/features/hq/components/ledger-activity";
+import { LedgerHealthPanel } from "@/features/hq/components/ledger-health-panel";
 import { OperatorSnapshot } from "@/features/hq/components/operator-snapshot";
 import { PrivateHqOverview } from "@/features/hq/components/private-hq-overview";
 import { HqOverviewWidgets } from "@/features/hq/components/hq-overview-widgets";
@@ -65,6 +66,10 @@ const privateLinks = [
   {
     label: "Aperçu opérateur",
     href: "#operator-snapshot",
+  },
+  {
+    label: "Ledger Health",
+    href: "#ledger-health",
   },
   {
     label: "Ledger Activity",
@@ -199,6 +204,12 @@ export default async function HqPage() {
       <HqWidget title="Operator snapshot" eyebrow="Read-only health" icon={ShieldCheck}>
         <OperatorSnapshot />
       </HqWidget>
+
+      <div id="ledger-health" className="scroll-mt-6">
+        <HqWidget title="Ledger Health" eyebrow="Cryptographic integrity" icon={ShieldCheck}>
+          <LedgerHealthPanel />
+        </HqWidget>
+      </div>
 
       <div id="ledger-activity" className="scroll-mt-6">
         <HqWidget title="Ledger activity" eyebrow="Audit trail" icon={CheckCircle2}>

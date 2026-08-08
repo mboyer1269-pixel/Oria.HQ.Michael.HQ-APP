@@ -18,6 +18,7 @@
     "ledger:audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audit/ledger-hash-chain-audit.mjs",
     "ledger:check-migration-draft": "node scripts/audit/check-hash-chain-migration-draft.mjs",
     "ledger:guard-not-live": "node scripts/audit/guard-hash-chain-not-live.mjs",
+    "ledger:apply-migration": "node scripts/audit/apply-ledger-hash-chain-migration.mjs",
     "mission:check-migration-draft": "node scripts/audit/check-mission-persistence-migration-draft.mjs",
     "mission:guard-not-live": "node scripts/audit/guard-mission-persistence-not-live.mjs",
     "doctor": "node scripts/doctor/hq-doctor.mjs",

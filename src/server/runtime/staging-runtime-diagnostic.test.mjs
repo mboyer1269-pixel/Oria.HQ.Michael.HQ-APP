@@ -157,8 +157,10 @@ test("presence booleans are true when secrets are set, false when absent", () =>
   assert.equal(bare.ledgerHmacKeyPresent, false);
 });
 
-test("feature flags default OFF and reflect explicit truthy values", () => {
-  const off = buildStagingRuntimeDiagnostic(stagingEnabledEnv());
+test("feature flags reflect defaults and explicit truthy values", () => {
+  const off = buildStagingRuntimeDiagnostic(
+    stagingEnabledEnv({ LEDGER_HASH_CHAIN_WRITE: "false" }),
+  );
   assert.equal(off.missionDurableDraftsEnabled, false);
   assert.equal(off.ledgerHashChainWriteEnabled, false);
 
@@ -167,6 +169,9 @@ test("feature flags default OFF and reflect explicit truthy values", () => {
   );
   assert.equal(on.missionDurableDraftsEnabled, true);
   assert.equal(on.ledgerHashChainWriteEnabled, true);
+
+  const defaultOn = buildStagingRuntimeDiagnostic(stagingEnabledEnv());
+  assert.equal(defaultOn.ledgerHashChainWriteEnabled, true);
 });
 
 // --- 5. secrets are not included in response -------------------------------

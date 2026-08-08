@@ -78,8 +78,9 @@ test("HQ capability status contract (P4a)", async (t) => {
       flagOn,
       `registry says "${chain.status}" but LEDGER_HASH_CHAIN_WRITE on=${flagOn} — update the registry`,
     );
-    // Current reality: flag off by default → shadow.
-    if (!flagOn) assert.equal(chain.status, "shadow");
+    // Current reality: flag on by default → live when registry says live.
+    if (flagOn) assert.equal(chain.status, "live");
+    if (!flagOn) assert.notEqual(chain.status, "live");
   });
 
   await t.test("locked capabilities stay declared as planned", () => {
