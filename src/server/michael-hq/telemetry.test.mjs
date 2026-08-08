@@ -1,9 +1,28 @@
-import assert from "node:assert/strict";
-import { test } from "node:test";
+#!/usr/bin/env node
 
-const { buildEstimatedCost, estimateTokensFromText } = await import("./telemetry.ts");
-const { applyTelemetryToIntent } = await import("./intent-telemetry.ts");
-const { extractEstimatedCostFromIntentData } = await import("./telemetry-extract.ts");
+import assert from "node:assert/strict";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, "..", "..", "..");
+
+const { createJiti } = await import("jiti");
+const jiti = createJiti(import.meta.url, {
+  alias: {
+    "@": path.join(projectRoot, "src"),
+    "server-only": path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs"),
+  },
+});
+
+const { buildEstimatedCost, estimateTokensFromText } = await jiti.import(
+  path.join(__dirname, "telemetry.ts"),
+);
+const { applyTelemetryToIntent } = await jiti.import(path.join(__dirname, "intent-telemetry.ts"));
+const { extractEstimatedCostFromIntentData } = await jiti.import(
+  path.join(__dirname, "telemetry-extract.ts"),
+);
 
 test("buildEstimatedCost computes token-based USD", () => {
   const cost = buildEstimatedCost({
