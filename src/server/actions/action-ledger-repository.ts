@@ -1,8 +1,16 @@
+import { randomUUID } from "node:crypto";
 import type { ActionLedgerStatus, CalendarStorageMode, ModelMode } from "@/core/types";
 import type { LedgerEventType } from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { ServerUserContext } from "@/server/auth/user-context";
 import type { ActionLedgerRow, Json } from "@/server/db/types";
+import type { CanonicalJson } from "@/server/ledger/hash-chain-canonicalizer";
+import {
+  sealLiveLedgerEntry,
+  tipFromStoredChain,
+} from "@/server/ledger/hash-chain-live-seal";
+import type { LedgerChainEntry } from "@/server/ledger/hash-chain-verifier";
+import { isHashChainWriteEnabled } from "@/server/ledger/hash-chain-write-flag";
 import { createOptionalSupabaseAdminClient, hasSupabaseAdminConfig } from "@/server/supabase/admin";
 
 export type ActionLedgerEntry = {
@@ -23,6 +31,11 @@ export type ActionLedgerEntry = {
   metadata: Json;
   createdAt: string;
   storageMode: CalendarStorageMode;
+  /** Hash-chain seal fields when LEDGER_HASH_CHAIN_WRITE sealed this row. */
+  prevHash?: string | null;
+  entryHash?: string;
+  hmac?: string | null;
+  canonicalVersion?: number;
 };
 
 /**
@@ -137,6 +150,10 @@ function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): A
     metadata: row.metadata,
     createdAt: row.created_at,
     storageMode,
+    prevHash: row.prev_hash ?? undefined,
+    entryHash: row.entry_hash ?? undefined,
+    hmac: row.hmac ?? undefined,
+    canonicalVersion: row.canonical_version ?? undefined,
   };
 }
 
@@ -163,12 +180,107 @@ function buildMetadata(input: RecordActionInput): Json {
   });
 }
 
+function toCanonicalJson(value: Json): CanonicalJson {
+  return value as CanonicalJson;
+}
+
+function findLocalChainTip(workspaceId: string | undefined): LedgerChainEntry | null {
+  const scoped = localEntries
+    .filter((entry) => (entry.workspaceId ?? null) === (workspaceId ?? null))
+    .filter((entry) => typeof entry.entryHash === "string" && entry.entryHash.length > 0)
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+
+  const tip = scoped[scoped.length - 1];
+  if (!tip || !tip.entryHash) return null;
+
+  return tipFromStoredChain({
+    id: tip.id,
+    entryHash: tip.entryHash,
+    prevHash: tip.prevHash ?? null,
+    hmac: tip.hmac ?? null,
+    canonicalVersion: tip.canonicalVersion ?? null,
+    content: {
+      workspace_id: tip.workspaceId ?? null,
+      user_id: tip.userId,
+      agent_id: tip.agentId ?? null,
+      skill_id: tip.skillId ?? null,
+      mission_id: tip.missionId ?? null,
+      action_type: tip.actionType,
+      event_type: tip.eventType ?? null,
+      summary: tip.summary,
+      autonomy_level: tip.autonomyLevel,
+      requires_confirmation: tip.requiresConfirmation,
+      payload: toCanonicalJson(tip.payload),
+      metadata: toCanonicalJson(tip.metadata),
+      created_at: tip.createdAt,
+    },
+  });
+}
+
+type SupabaseAdmin = NonNullable<ReturnType<typeof createOptionalSupabaseAdminClient>>;
+
+async function findSupabaseChainTip(
+  supabase: SupabaseAdmin,
+  workspaceId: string | null,
+): Promise<LedgerChainEntry | null> {
+  let query = supabase
+    .from("action_ledger")
+    .select("id, entry_hash, prev_hash, hmac, canonical_version")
+    .not("entry_hash", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  query = workspaceId === null ? query.is("workspace_id", null) : query.eq("workspace_id", workspaceId);
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    throw new ActionLedgerRepositoryError(
+      `Failed to read hash-chain tip for seal-on-write: ${error.message}`,
+    );
+  }
+
+  if (!data) return null;
+
+  return tipFromStoredChain({
+    id: data.id,
+    entryHash: data.entry_hash,
+    prevHash: data.prev_hash,
+    hmac: data.hmac,
+    canonicalVersion: data.canonical_version,
+  });
+}
+
 function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedgerRepository {
   return {
     mode: "local",
     async record(input) {
+      const id = createLocalId();
+      const createdAt = new Date().toISOString();
+      const metadata = buildMetadata(input);
+      const payload = input.payload ?? {};
+      const chain = sealLiveLedgerEntry({
+        fields: {
+          id,
+          userId: user.userId,
+          workspaceId: input.workspaceId,
+          agentId: input.agentId,
+          skillId: input.skillId,
+          missionId: input.missionId,
+          actionType: input.actionType,
+          eventType: input.eventType,
+          summary: input.summary,
+          autonomyLevel: input.autonomyLevel,
+          requiresConfirmation: input.requiresConfirmation,
+          payload: toCanonicalJson(payload),
+          metadata: toCanonicalJson(metadata),
+          createdAt,
+        },
+        tail: findLocalChainTip(input.workspaceId),
+      });
+
       const entry: ActionLedgerEntry = {
-        id: createLocalId(),
+        id,
         userId: user.userId,
         actionType: input.actionType,
         eventType: input.eventType,
@@ -181,10 +293,14 @@ function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedge
         skillId: input.skillId,
         agentId: input.agentId,
         missionId: input.missionId,
-        payload: input.payload ?? {},
-        metadata: buildMetadata(input),
-        createdAt: new Date().toISOString(),
+        payload,
+        metadata,
+        createdAt,
         storageMode: "local",
+        prevHash: chain?.prev_hash,
+        entryHash: chain?.entry_hash,
+        hmac: chain?.hmac ?? undefined,
+        canonicalVersion: chain?.canonical_version,
       };
 
       localEntries.push(entry);
@@ -204,9 +320,41 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
   return {
     mode: "supabase",
     async record(input) {
+      const metadata = buildMetadata(input);
+      const payload = input.payload ?? {};
+      const sealEnabled = isHashChainWriteEnabled();
+
+      // When sealing, bind id + created_at before insert so entry_hash matches
+      // the persisted row (append-only trigger forbids post-insert UPDATE).
+      const id = sealEnabled ? randomUUID() : undefined;
+      const createdAt = sealEnabled ? new Date().toISOString() : undefined;
+      const chain = sealEnabled
+        ? sealLiveLedgerEntry({
+            fields: {
+              id: id!,
+              userId: user.userId,
+              workspaceId: input.workspaceId,
+              agentId: input.agentId,
+              skillId: input.skillId,
+              missionId: input.missionId,
+              actionType: input.actionType,
+              eventType: input.eventType,
+              summary: input.summary,
+              autonomyLevel: input.autonomyLevel,
+              requiresConfirmation: input.requiresConfirmation,
+              payload: toCanonicalJson(payload),
+              metadata: toCanonicalJson(metadata),
+              createdAt: createdAt!,
+            },
+            tail: await findSupabaseChainTip(supabase, input.workspaceId ?? null),
+          })
+        : null;
+
       const { data, error } = await supabase
         .from("action_ledger")
         .insert({
+          ...(id ? { id } : {}),
+          ...(createdAt ? { created_at: createdAt } : {}),
           user_id: user.userId,
           action_type: input.actionType,
           event_type: input.eventType ?? null,
@@ -219,8 +367,16 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
           skill_id: input.skillId ?? null,
           agent_id: input.agentId ?? null,
           mission_id: input.missionId ?? null,
-          payload: input.payload ?? {},
-          metadata: buildMetadata(input),
+          payload,
+          metadata,
+          ...(chain
+            ? {
+                prev_hash: chain.prev_hash,
+                entry_hash: chain.entry_hash,
+                hmac: chain.hmac,
+                canonical_version: chain.canonical_version,
+              }
+            : {}),
         })
         .select()
         .single();
@@ -260,6 +416,11 @@ export function createActionLedgerRepository(user: ServerUserContext): ActionLed
 /** Read-only view of in-memory ledger entries (local persistence mode). */
 export function listLocalActionLedgerEntries(): readonly ActionLedgerEntry[] {
   return [...localEntries];
+}
+
+/** Test helper: clear the in-memory ledger between seal-path tests. */
+export function clearLocalActionLedgerEntriesForTests(): void {
+  localEntries.length = 0;
 }
 
 export function getLocalActionLedgerEntriesForSmoke(): readonly ActionLedgerEntry[] {

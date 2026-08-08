@@ -19,6 +19,7 @@ import { ModuleCard } from "@/features/hq/components/module-card";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { CeoBriefSection } from "@/features/hq/components/ceo-brief-section";
 import { LedgerActivity } from "@/features/hq/components/ledger-activity";
+import { LedgerHashChainAudit } from "@/features/hq/components/ledger-hash-chain-audit";
 import { OperatorSnapshot } from "@/features/hq/components/operator-snapshot";
 import { PrivateHqOverview } from "@/features/hq/components/private-hq-overview";
 import { HqOverviewWidgets } from "@/features/hq/components/hq-overview-widgets";
@@ -65,6 +66,10 @@ const privateLinks = [
   {
     label: "Ledger Activity",
     href: "#ledger-activity",
+  },
+  {
+    label: "Hash-chain audit",
+    href: "#ledger-hash-chain",
   },
   {
     label: "Missions",
@@ -199,6 +204,12 @@ export default async function HqPage() {
       <div id="ledger-activity" className="scroll-mt-6">
         <HqWidget title="Ledger activity" eyebrow="Audit trail" icon={CheckCircle2}>
           <LedgerActivity />
+        </HqWidget>
+      </div>
+
+      <div id="ledger-hash-chain" className="scroll-mt-6">
+        <HqWidget title="Hash-chain integrity" eyebrow="Bloc F · Audit" icon={ShieldCheck}>
+          <LedgerHashChainAudit />
         </HqWidget>
       </div>
 

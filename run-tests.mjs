@@ -50,7 +50,7 @@ if (gapsOnly) {
 
 const result = spawnSync(
   process.execPath,
-  ['--test', ...files],
+  ['--experimental-strip-types', '--test', ...files],
   { stdio: 'inherit' }
 );
 

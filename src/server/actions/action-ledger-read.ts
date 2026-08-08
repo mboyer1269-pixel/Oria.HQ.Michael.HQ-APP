@@ -44,6 +44,10 @@ function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): A
     metadata: row.metadata,
     createdAt: row.created_at,
     storageMode,
+    prevHash: row.prev_hash ?? undefined,
+    entryHash: row.entry_hash ?? undefined,
+    hmac: row.hmac ?? undefined,
+    canonicalVersion: row.canonical_version ?? undefined,
   };
 }
 

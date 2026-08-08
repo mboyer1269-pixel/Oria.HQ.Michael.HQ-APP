@@ -1,19 +1,14 @@
 // src/server/ledger/hash-chain-write-plan.ts
 //
-// Dormant write-contract for the FUTURE live hash-chain seal-on-append.
+// Write-contract for the live hash-chain seal-on-append path.
 //
-// This module is intentionally NOT wired into the live ledger write path
-// (recordLedgerEvent / action-ledger-repository). It defines the pure contract
-// the future wiring will call, so the seal-on-write logic can be designed and
-// tested ahead of GO with ZERO effect on current behavior.
-//
-// Contract: given the current chain tail and the canonical fields of a new row,
-// planChainWrite() returns the chain columns to persist alongside the row — or
-// null when the feature flag is OFF (the default), signalling "persist the row
-// exactly as today, with no chain columns".
+// Wired into action-ledger-repository via sealLiveLedgerEntry() when
+// LEDGER_HASH_CHAIN_WRITE is ON. While the flag remains OFF (the default /
+// CI-guarded fail-safe), planChainWrite() returns null and no chain columns
+// are written — current behavior is unchanged.
 //
 // PURE: no DB, no env read for secrets. The HMAC key is an explicit argument the
-// caller will source from the environment at GO; it is never read here.
+// caller sources from the environment at GO; it is never read here.
 
 import { CANONICAL_VERSION, type CanonicalLedgerFields } from "./hash-chain-canonicalizer.ts";
 import { sealLedgerEntry } from "./hash-chain-sealer.ts";
