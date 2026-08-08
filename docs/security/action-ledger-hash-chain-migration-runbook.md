@@ -33,7 +33,11 @@ fork-prevention indexes assume a fully sealed chain.
 | Post-apply verify | `..._hash_chain_verify.sql` | read-only `SELECT`s to confirm the applied state |
 | Draft checker | `npm run ledger:check-migration-draft` | static completeness + revert-symmetry (CI) |
 | Write flag | `src/server/ledger/hash-chain-write-flag.ts` | `LEDGER_HASH_CHAIN_WRITE`, OFF by default |
-| Seal-plan contract | `src/server/ledger/hash-chain-write-plan.ts` | pure planner, not yet wired |
+| Live write helpers | `src/server/ledger/hash-chain-live-write.ts` | tip resolve + seal-on-append helpers |
+| Seal-plan contract | `src/server/ledger/hash-chain-write-plan.ts` | pure planner, wired via live-write |
+| Repository wiring | `src/server/actions/action-ledger-repository.ts` | seals when flag ON |
+| Verify CLI | `npm run ledger:verify` | prev_hash ↔ entry_hash linkage proof |
+| CEO panel | `/hq#ledger-integrity` | read-only integrity view |
 | Audit proof | `npm run ledger:audit` (CI + nightly) | fail-closed chain verification |
 
 ---
@@ -57,8 +61,9 @@ hosting provider's environment configuration.
 - [ ] `npm run ledger:audit` and `npm run test:ledger-hash-chain` green on `main`.
 - [ ] `LEDGER_HMAC_KEY` provisioned in the target environment's secrets.
 - [ ] A recent backup / PITR window confirmed for the target database.
-- [ ] Writer integration (the wiring that calls `planChainWrite`) reviewed — note
-      it is intentionally NOT merged/enabled yet; enabling is part of this sequence.
+- [ ] Writer integration (`planChainWrite` via `hash-chain-live-write` in
+      `action-ledger-repository`) reviewed — code is merged; enabling is still
+      the env flag flip in this sequence.
 
 ---
 

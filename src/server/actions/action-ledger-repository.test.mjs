@@ -246,3 +246,61 @@ test("record() derives assistantProfileId from agentId on the real shaping path"
   assert.equal(entry.metadata.assistantProfileId, "joris");
   assert.equal(entry.metadata.eventType, "decision");
 });
+
+test("record() leaves chain fields absent while LEDGER_HASH_CHAIN_WRITE is OFF", async () => {
+  delete process.env.LEDGER_HASH_CHAIN_WRITE;
+  delete process.env.LEDGER_HMAC_KEY;
+
+  const { createActionLedgerRepository } = await importRepository();
+  const repository = createActionLedgerRepository({ userId: "owner-test", storagePreference: "local" });
+  const entry = await repository.record(
+    baseRecordInput({ workspaceId: "ws-chain-off", actionType: "chain.off" }),
+  );
+
+  assert.equal(entry.entryHash, undefined);
+  assert.equal(entry.prevHash, undefined);
+});
+
+test("record() seals and links entries when LEDGER_HASH_CHAIN_WRITE is ON", async () => {
+  const previousWrite = process.env.LEDGER_HASH_CHAIN_WRITE;
+  const previousHmac = process.env.LEDGER_HMAC_KEY;
+  process.env.LEDGER_HASH_CHAIN_WRITE = "1";
+  process.env.LEDGER_HMAC_KEY = "repo-seal-integration-test-key";
+
+  try {
+    const { createActionLedgerRepository } = await importRepository();
+    const repository = createActionLedgerRepository({
+      userId: "owner-test",
+      storagePreference: "local",
+    });
+
+    const first = await repository.record(
+      baseRecordInput({
+        workspaceId: "ws-chain-on",
+        actionType: "chain.genesis",
+        summary: "genesis seal",
+      }),
+    );
+    const second = await repository.record(
+      baseRecordInput({
+        workspaceId: "ws-chain-on",
+        actionType: "chain.next",
+        summary: "successor seal",
+      }),
+    );
+
+    assert.equal(first.prevHash, null);
+    assert.match(first.entryHash, /^[0-9a-f]{64}$/);
+    assert.match(first.hmac, /^[0-9a-f]{64}$/);
+    assert.equal(first.canonicalVersion, 1);
+
+    assert.equal(second.prevHash, first.entryHash);
+    assert.match(second.entryHash, /^[0-9a-f]{64}$/);
+    assert.notEqual(second.entryHash, first.entryHash);
+  } finally {
+    if (previousWrite === undefined) delete process.env.LEDGER_HASH_CHAIN_WRITE;
+    else process.env.LEDGER_HASH_CHAIN_WRITE = previousWrite;
+    if (previousHmac === undefined) delete process.env.LEDGER_HMAC_KEY;
+    else process.env.LEDGER_HMAC_KEY = previousHmac;
+  }
+});

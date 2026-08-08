@@ -37,6 +37,11 @@ export type ActionLedgerRow = {
   payload: Json;
   metadata: Json;
   created_at: string;
+  /** Hash-chain columns — present after migration 0022; null until sealed. */
+  prev_hash?: string | null;
+  entry_hash?: string | null;
+  hmac?: string | null;
+  canonical_version?: number | null;
 };
 
 export type ActionLedgerInsert = Omit<ActionLedgerRow, "id" | "created_at"> & {

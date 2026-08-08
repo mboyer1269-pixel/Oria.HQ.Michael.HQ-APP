@@ -1,6 +1,6 @@
 # Hash-Chain Track Status
 
-**As of:** 2026-06-08
+**As of:** 2026-08-08
 **Repo:** Oria.HQ
 **Track:** `action_ledger` tamper-evident hash-chain integrity
 **See also:** `docs/HQ_CHAINS.md` — ledger hash-chain (integrity) vs memory chainline (lineage), and where they meet.
@@ -84,29 +84,24 @@ Absent fields → `null`. Unknown fields → stripped.
 
 ---
 
-## What Is NOT Yet Done (mandate-gated)
+## What Is NOT Yet Done (mandate-gated / operator GO)
 
-Promoting the shadow chain into the live ledger requires explicit GO — it
-touches the production DB, secrets, and the live `action_ledger` write path.
+Code wiring for seal-on-append is **in repo** (flag still defaults OFF). Remaining
+operator steps before claiming production immutability:
 
-### DB migration
-Adds `prev_hash`, `entry_hash`, `hmac`, `canonical_version` columns, the
-immutable `BEFORE UPDATE OR DELETE` trigger, and per-chain fork prevention,
-plus a paired revert script. Shipped as a draft, dry-run reviewed, **not**
-applied without GO. Backfill of historical rows (genesis + recompute) is part
-of this draft's design.
+### DB migration apply
+Migrations `0022` (columns) and `0023` (immutability trigger) are promoted in
+the numbered sequence. Apply on staging first per the runbook, then production
+only with a separate written GO.
 
-### DB writer integration
-Reads `action_ledger` rows, seals each with the chain-tip prevHash, writes back
-`entry_hash` + `hmac`. Requires:
-- HMAC key provisioned per workspace (env/secrets, never in this repo)
-- the migration above
-- a service-role executor that seals at write time
+### Env activation
+- Provision `LEDGER_HMAC_KEY` in the target environment secrets.
+- Set `LEDGER_HASH_CHAIN_WRITE=1` after Phase 1 + backfill.
+- Confirm new rows carry `entry_hash` / `prev_hash` / `hmac`.
 
-### Live reconciliation
-Wire the read-only audit (`auditChain` / `ledger:audit` snapshot mode) to a real
-exported range of `action_ledger` rows once the columns exist. The tooling is
-ready; only the data source is gated.
+### Live reconciliation soak
+Run `npm run ledger:verify` / `npm run ledger:audit` (snapshot mode) over
+exported production ranges for the agreed soak window.
 
 ---
 
@@ -120,7 +115,10 @@ ready; only the data source is gated.
               ├─► golden-vector / edge-guard / regression / bad-input tests (done)
               └─► audit report (#249)
                     └─► audit script + CI (#250–#254, done)
-                          └─► DB writer integration (future — needs migration + secrets, GO-gated)
+                          └─► live write wiring (hash-chain-live-write + repository, flag OFF)
+                                ├─► ledger:verify CLI
+                                ├─► CEO panel /hq#ledger-integrity
+                                └─► operator GO: migrate + LEDGER_HMAC_KEY + flag ON
 ```
 
 ---
@@ -129,16 +127,15 @@ ready; only the data source is gated.
 
 | Risk | Severity | Note |
 |------|----------|------|
-| HMAC key management | High | Keys must never be in source; per-workspace provisioning strategy TBD |
-| DB migration scope | Medium | Columns + immutable trigger; coordinated, mandate-gated deploy |
-| Backfill of existing rows | Medium | Existing rows have no hashes; genesis anchoring needs a plan |
-| Shadow → live writer gap | Low | Pure functions fully tested; integration wiring is the next hard step |
+| HMAC key management | High | Keys must never be in source; provisioned only in env secrets |
+| DB migration apply | Medium | 0022/0023 promoted; staging-first apply still GO-gated |
+| Backfill of existing rows | Medium | Existing rows have no hashes until backfill before Phase 2 |
+| Concurrent tip races | Medium | Phase 2 unique `(workspace_id, prev_hash)` rejects forks; retry on conflict |
 
 ---
 
 ## Next Step
 
-The shadow + audit layers are complete and continuously proven (CI `verify` +
-nightly). The next track step — the DB migration draft (columns + immutable
-trigger + revert script, applied to **nothing** until GO) — is **mandate-gated**
-and must not start without Michael's explicit instruction.
+Code path is ready. Operator sequence (staging first): apply 0022 → backfill →
+apply 0023 → set `LEDGER_HMAC_KEY` + `LEDGER_HASH_CHAIN_WRITE=1` → soak with
+`npm run ledger:verify` / nightly audit → production GO.

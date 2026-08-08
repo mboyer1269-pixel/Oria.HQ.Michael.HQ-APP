@@ -1,9 +1,9 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 508,
-    "live": 455,
-    "testOnly": 9,
+    "sourceFiles": 511,
+    "live": 463,
+    "testOnly": 4,
     "incubation": 44
   },
   "incubationByArea": {
@@ -161,6 +161,7 @@
     "src/features/hq/components/hq-widget-system.tsx",
     "src/features/hq/components/language-toggle.tsx",
     "src/features/hq/components/ledger-activity.tsx",
+    "src/features/hq/components/ledger-hash-chain-audit.tsx",
     "src/features/hq/components/mission-draft-pending-panel.tsx",
     "src/features/hq/components/module-card.tsx",
     "src/features/hq/components/operator-snapshot.tsx",
@@ -394,7 +395,14 @@
     "src/server/joris/sales-appointment-intent.ts",
     "src/server/joris/sales-marketing-intent.ts",
     "src/server/joris/work-order-review-interpreter.ts",
+    "src/server/ledger/hash-chain-audit.ts",
+    "src/server/ledger/hash-chain-canonicalizer.ts",
+    "src/server/ledger/hash-chain-live-write.ts",
+    "src/server/ledger/hash-chain-sealer.ts",
+    "src/server/ledger/hash-chain-verifier.ts",
+    "src/server/ledger/hash-chain-workspace-audit.ts",
     "src/server/ledger/hash-chain-write-flag.ts",
+    "src/server/ledger/hash-chain-write-plan.ts",
     "src/server/market/autotrader-comps-parser.ts",
     "src/server/market/fetch-market-comps.ts",
     "src/server/market/market-advantage-brief.ts",
@@ -482,13 +490,8 @@
     "src/server/ventures/venture-score-shadow-runner.ts"
   ],
   "testOnly": [
-    "src/server/ledger/hash-chain-audit.ts",
-    "src/server/ledger/hash-chain-canonicalizer.ts",
-    "src/server/ledger/hash-chain-sealer.ts",
     "src/server/ledger/hash-chain-shadow-writer.ts",
     "src/server/ledger/hash-chain-test-fixtures.ts",
-    "src/server/ledger/hash-chain-verifier.ts",
-    "src/server/ledger/hash-chain-write-plan.ts",
     "src/server/outbound/outbound-executor-dry-run.ts",
     "src/server/outbound/outbound-policy-engine.ts"
   ],

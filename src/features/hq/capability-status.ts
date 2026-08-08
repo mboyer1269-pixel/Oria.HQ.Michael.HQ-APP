@@ -103,10 +103,10 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     id: "ledger_hash_chain",
     label: "Ledger integrity hash-chain",
     status: "shadow",
-    surface: null,
+    surface: "/hq#ledger-integrity",
     evidence:
-      "src/server/ledger/hash-chain-write-flag.ts (LEDGER_HASH_CHAIN_WRITE off par défaut)",
-    note: "Vérificateur + sealer prêts ; écriture live mandate-gated (migration Phase 1 + LEDGER_HMAC_KEY).",
+      "src/server/ledger/hash-chain-live-write.ts + action-ledger-repository (seal-on-append when LEDGER_HASH_CHAIN_WRITE=1; flag off par défaut)",
+    note: "Write path câblé et vue d'audit CEO (#ledger-integrity). Live en prod = flag ON + migration 0022/0023 + LEDGER_HMAC_KEY.",
   },
   {
     id: "sales_lead_bank",

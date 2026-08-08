@@ -25,7 +25,7 @@
 | Agent council (délibération) | **live** | `/hq/ventures/cash-actions` | run durable (runId/status/verdict) persisté sur `prepared_actions` (P4b) |
 | Memory vault (v0.1 fichier) | **live** | `/hq/memory` | `memory/` + `learning-loop-service.ts` |
 | Memory vault — Supabase/pgvector | **planned** | — | `MEMORY_VAULT_CONTRACT.md` (verrouillé) |
-| Ledger integrity hash-chain | **shadow** | — | `hash-chain-write-flag.ts` (flag off) |
+| Ledger integrity hash-chain | **shadow** | `/hq#ledger-integrity` | write path câblé (`hash-chain-live-write.ts`), flag off |
 | Sales lead bank + morning queue | **shadow** | `/hq/sales` + `/api/sales/leads` | Sales Desk UI + in-memory APIs |
 | Marketplace listing → lead capture | **shadow** | `/hq/sales` + `/api/marketplace/listings` | prepare + capture (manual publish) |
 | Dealership inventory snapshot | **shadow** | `/hq/sales` + `/api/inventory/sync` | Sync site + manual JSON |
@@ -47,7 +47,9 @@
   sur `prepared_actions` (colonne jsonb `council`, **sans migration**) + badge
   phase (P2) sur `/hq/ventures/cash-actions` → council passé `display_only` →
   `live`. Reste : loop autonome (run dédié + reprise) = P4b+.
-- **Activation hash-chain** : mandate-gated (migration Phase 1 + `LEDGER_HMAC_KEY`),
-  puis passer l'entrée à `live` — le test l'exigera.
+- **Activation hash-chain** : write path câblé (flag OFF par défaut). GO prod =
+  migration 0022/0023 appliquée + `LEDGER_HMAC_KEY` + `LEDGER_HASH_CHAIN_WRITE=1`,
+  puis passer l'entrée à `live` — le test l'exigera. Vue CEO : `/hq#ledger-integrity`.
+  Vérif CLI : `npm run ledger:verify`.
 - *(optionnel)* une petite tuile read-only sur une page HQ qui lit ce registre,
   pour rendre la posture visible au CEO.
