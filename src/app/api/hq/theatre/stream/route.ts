@@ -59,9 +59,33 @@ export async function GET(request: Request) {
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const shutdown = () => {
+        closed = true;
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      };
+
+      // Register before any await — an already-aborted signal never fires later.
+      if (request.signal.aborted) {
+        shutdown();
+        return;
+      }
+      request.signal.addEventListener("abort", shutdown, { once: true });
+
       const push = (chunk: string) => {
         if (closed) return;
-        controller.enqueue(encoder.encode(chunk));
+        try {
+          controller.enqueue(encoder.encode(chunk));
+        } catch {
+          shutdown();
+        }
       };
 
       const pushEvent = (event: TheatreSseEvent) => {
@@ -72,6 +96,7 @@ export async function GET(request: Request) {
         if (closed) return;
         try {
           const snapshot = await loadTheatrePollSnapshot(workspaceId);
+          if (closed) return;
           const emittedAt = new Date().toISOString();
           const events = diffTheatreSnapshots(previous, snapshot, emittedAt);
           for (const event of events) {
@@ -84,11 +109,15 @@ export async function GET(request: Request) {
             workspaceId,
             reason: error instanceof Error ? error.message : "unknown",
           });
-          pushEvent({
-            type: "error",
-            message: "Theatre poll failed.",
-            emittedAt: new Date().toISOString(),
-          });
+          try {
+            pushEvent({
+              type: "error",
+              message: "Theatre poll failed.",
+              emittedAt: new Date().toISOString(),
+            });
+          } catch {
+            shutdown();
+          }
         }
       };
 
@@ -100,19 +129,10 @@ export async function GET(request: Request) {
       push(formatTheatreSseComment("oria-theatre-sse"));
 
       await tick();
+      if (closed) return;
       timer = setInterval(() => {
         void tick();
       }, THEATRE_POLL_INTERVAL_MS);
-
-      request.signal.addEventListener("abort", () => {
-        closed = true;
-        if (timer) clearInterval(timer);
-        try {
-          controller.close();
-        } catch {
-          // already closed
-        }
-      });
     },
     cancel() {
       closed = true;

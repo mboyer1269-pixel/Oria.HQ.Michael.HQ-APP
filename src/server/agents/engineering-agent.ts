@@ -7,7 +7,6 @@
 import "server-only";
 
 import { buildAgentExecutionIntent } from "@/features/agents/execution-intent";
-import { chooseModel } from "@/server/ai/model-router";
 import { generateStructuredJson } from "@/server/ai/llm-json-provider";
 import { createAgentExecutionIntent } from "@/server/agents/execution-intent-repository";
 import { applyTelemetryToIntent } from "@/server/michael-hq/intent-telemetry";
@@ -62,13 +61,6 @@ export async function generateEngineeringPackage(
   | { ok: true; artifact: EngineeringPackageArtifact; modelId: string; tokenUsage?: { input: number; output: number } }
   | { ok: false; error: string; errorCode: "llm_unavailable" | "generation_failed" }
 > {
-  const route = chooseModel({
-    message: brief,
-    highImpact: true,
-    taskClass: "general",
-    agentId: ENGINEERING_AGENT_ID,
-  });
-
   const systemPrompt = [
     "You are the Sovereign Engineering Agent for Michael HQ.",
     "Generate portable Infrastructure-as-Code only — Docker, Terraform, or clone-ready repo files.",
@@ -166,7 +158,7 @@ export async function submitEngineeringProposal(
     payload: basePayload,
     tokenUsage: tokenUsage
       ? { modelId, inputTokens: tokenUsage.input, outputTokens: tokenUsage.output }
-      : { modelId, inputTokens: 0, outputTokens: 0 },
+      : undefined,
     estimationHint: input.brief,
     modelId,
   });
@@ -211,7 +203,12 @@ export async function submitEngineeringProposal(
       estimatedCostUsd: telemetry.estimated_cost.totalUsd,
       modelId,
     },
-  }).catch(() => void 0);
+  }).catch((err) => {
+    logger.warn("engineering-agent.ledger.failed", {
+      intentId,
+      reason: err instanceof Error ? err.message : "unknown",
+    });
+  });
 
   return {
     ok: true,

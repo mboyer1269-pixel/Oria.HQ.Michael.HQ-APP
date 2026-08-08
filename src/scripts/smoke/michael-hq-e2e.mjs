@@ -49,7 +49,7 @@ async function main() {
   );
   const { syncApprovedUsageCharge, REVENUE_SHARE_PERCENT, BILLING_MODEL } =
     await jiti.import(path.join(root, "src/server/michael-hq/stripe-billing.ts"));
-  const { getWalletSnapshot, resetWallet } = await jiti.import(
+  const { resetWallet } = await jiti.import(
     path.join(root, "src/server/michael-hq/wallet.ts"),
   );
   const { buildFinanceDashboard } = await jiti.import(

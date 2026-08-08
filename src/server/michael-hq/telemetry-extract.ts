@@ -4,17 +4,28 @@
 
 import type { EstimatedCost, TelemetryEnvelope } from "./telemetry.ts";
 
+function asEstimatedCost(value: unknown): EstimatedCost | null {
+  if (!value || typeof value !== "object") return null;
+  const cost = value as Record<string, unknown>;
+  const totalUsd = cost.totalUsd;
+  const totalCents = cost.totalCents;
+  if (typeof totalUsd !== "number" || !Number.isFinite(totalUsd)) return null;
+  if (typeof totalCents !== "number" || !Number.isFinite(totalCents) || totalCents < 0) {
+    return null;
+  }
+  if (typeof cost.modelId !== "string" || cost.modelId.length === 0) return null;
+  return value as EstimatedCost;
+}
+
 export function extractEstimatedCostFromIntentData(
   data: Record<string, unknown> | undefined,
 ): EstimatedCost | null {
   if (!data || typeof data !== "object") return null;
-  const direct = data.estimated_cost;
-  if (direct && typeof direct === "object" && "totalUsd" in direct) {
-    return direct as EstimatedCost;
-  }
+  const direct = asEstimatedCost(data.estimated_cost);
+  if (direct) return direct;
   const envelope = data.michael_hq_telemetry;
   if (envelope && typeof envelope === "object" && "estimated_cost" in envelope) {
-    return (envelope as TelemetryEnvelope).estimated_cost;
+    return asEstimatedCost((envelope as TelemetryEnvelope).estimated_cost);
   }
   return null;
 }

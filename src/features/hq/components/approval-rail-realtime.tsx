@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Loader2, ShieldAlert, X } from "lucide-react";
 import type { TheatrePendingIntent } from "@/features/hq/theatre/theatre-events";
 
@@ -10,6 +10,8 @@ const ACTION_ROUTE: Record<ActionKind, (id: string) => string> = {
   approve: (id) => `/api/agents/execution-intents/${encodeURIComponent(id)}/approve`,
   reject: (id) => `/api/agents/execution-intents/${encodeURIComponent(id)}/reject`,
 };
+
+const ACTION_TIMEOUT_MS = 20_000;
 
 export type ApprovalRailRealtimeProps = {
   intents: TheatrePendingIntent[];
@@ -35,23 +37,35 @@ export function ApprovalRailRealtime({
   const [busy, setBusy] = useState<{ intentId: string; kind: ActionKind } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ intentId: string; kind: ActionKind } | null>(null);
+  // Sync guard — React state alone cannot block double-clicks in the same batch.
+  const inFlightRef = useRef(false);
 
   const newIds = useMemo(() => new Set(recentIntentIds), [recentIntentIds]);
 
   const sorted = useMemo(
-    () => [...intents].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
+    () =>
+      [...intents].sort((a, b) => {
+        if (a.createdAt === b.createdAt) {
+          return a.intentId < b.intentId ? 1 : a.intentId > b.intentId ? -1 : 0;
+        }
+        return a.createdAt < b.createdAt ? 1 : -1;
+      }),
     [intents],
   );
 
   async function runAction(intentId: string, kind: ActionKind) {
-    if (busy) return;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setBusy({ intentId, kind });
     setError(null);
     setConfirming(null);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ACTION_TIMEOUT_MS);
     try {
       const response = await fetch(ACTION_ROUTE[kind](intentId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
@@ -60,8 +74,14 @@ export function ApprovalRailRealtime({
       setFlash({ intentId, kind });
       onActionComplete?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action impossible.");
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Délai dépassé — réessayez.");
+      } else {
+        setError(err instanceof Error ? err.message : "Action impossible.");
+      }
     } finally {
+      clearTimeout(timeout);
+      inFlightRef.current = false;
       setBusy(null);
     }
   }

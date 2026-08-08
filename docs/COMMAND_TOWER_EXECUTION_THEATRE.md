@@ -1,6 +1,6 @@
 # Command Tower — Execution Theatre (Bloc B)
 
-Status: implemented on branch `cursor/execution-theatre-sse-af8b`  
+Status: implemented (SSE theatre + HITL approval rail on Command Tower)  
 Depends on: existing `action_ledger` + `agent_execution_intents` read paths (no schema changes)
 
 ## Why SSE (not browser Supabase Realtime)

@@ -7,7 +7,6 @@
 import "server-only";
 
 import { buildAgentExecutionIntent } from "@/features/agents/execution-intent";
-import { chooseModel } from "@/server/ai/model-router";
 import { generateStructuredJson } from "@/server/ai/llm-json-provider";
 import { createAgentExecutionIntent } from "@/server/agents/execution-intent-repository";
 import { applyTelemetryToIntent } from "@/server/michael-hq/intent-telemetry";
@@ -84,13 +83,6 @@ export async function generateDemandCheckReport(
     }
   | { ok: false; error: string; errorCode: "llm_unavailable" | "generation_failed" }
 > {
-  chooseModel({
-    message: brief,
-    highImpact: true,
-    taskClass: "client_audit",
-    agentId: VALIDATION_AGENT_ID,
-  });
-
   const systemPrompt = [
     "You are the Validation Agent for Michael HQ.",
     "Your job is a demand-check BEFORE any engineering budget is allocated.",
@@ -168,7 +160,7 @@ export async function submitValidationProposal(
     payload: basePayload,
     tokenUsage: tokenUsage
       ? { modelId, inputTokens: tokenUsage.input, outputTokens: tokenUsage.output }
-      : { modelId, inputTokens: 0, outputTokens: 0 },
+      : undefined,
     estimationHint: input.brief,
     modelId,
   });
@@ -214,7 +206,12 @@ export async function submitValidationProposal(
       estimatedCostUsd: telemetry.estimated_cost.totalUsd,
       modelId,
     },
-  }).catch(() => void 0);
+  }).catch((err) => {
+    logger.warn("validation-agent.ledger.failed", {
+      intentId,
+      reason: err instanceof Error ? err.message : "unknown",
+    });
+  });
 
   return {
     ok: true,

@@ -8,6 +8,7 @@ import { extractEstimatedCostFromIntentData } from "./telemetry-extract.ts";
 import { syncApprovedUsageCharge, type SyncApprovedUsageResult } from "./stripe-billing.ts";
 import { recordLedgerEvent } from "@/server/actions/ledger-events";
 import type { WorkspaceContext } from "@/core/workspace-context";
+import { logger } from "@/lib/logger";
 
 export async function billApprovedIntentUsage(input: {
   ctx: WorkspaceContext;
@@ -49,7 +50,12 @@ export async function billApprovedIntentUsage(input: {
       billingModel: result.billingModel,
       revenueSharePercent: result.revenueSharePercent,
     },
-  }).catch(() => void 0);
+  }).catch((err) => {
+    logger.warn("michael-hq.billing.ledger_failed", {
+      intentId: input.intent.intentId,
+      reason: err instanceof Error ? err.message : "unknown",
+    });
+  });
 
   return result;
 }

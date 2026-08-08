@@ -50,16 +50,19 @@ Script (30 seconds):
 ## 4. Launch sequence (21 days)
 
 ### Days 1–7 — Proof & narrative
+
 1. Merge PR → apply hash-chain migrations 0022/0023 → set `LEDGER_HMAC_KEY`.
 2. Record a 3-minute Loom of the E2E path: Validation → cost on rail → APPROVE → Engineering → export → `/hq/finance`.
 3. Publish manifesto post: *“We refuse the 20% AI tax.”* Link Loom + waitlist.
 
 ### Days 8–14 — Design partners (5 conversations)
+
 1. Target: founders burned by locked agent platforms / opaque LLM bills (LinkedIn + personal network).
 2. Offer: free design-partner seat for 30 days in exchange for a public case note.
 3. Success criteria: ≥3 complete the Validation → Engineering → Export path without help.
 
 ### Days 15–21 — Soft launch
+
 1. Open waitlist / paid early access with usage wallet top-up.
 2. Ship weekly changelog from `/hq/finance` honesty (sample anonymized cost lines).
 3. One channel only until message sticks: LinkedIn founder outbound + personal network intros.

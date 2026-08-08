@@ -16,7 +16,16 @@ import type { McpTool, McpToolContext, McpToolResult } from "./types";
 export const ENGINEERING_PACKAGE_DELIVER_TOOL_NAME = "engineering_package_deliver";
 
 const fileSchema = z.object({
-  path: z.string().min(1),
+  path: z
+    .string()
+    .min(1)
+    .refine(
+      (value) =>
+        !value.startsWith("/") &&
+        !value.includes("\\") &&
+        !value.split("/").some((part) => part === ".." || part === ""),
+      "path must be a relative, traversal-free POSIX path",
+    ),
   content: z.string(),
 });
 

@@ -23,7 +23,8 @@ export async function GET(
     return NextResponse.json({ error: "Package not found." }, { status: 404 });
   }
 
-  const filename = `${pkg.packageId}.json`;
+  const safeId = pkg.packageId.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 120) || "package";
+  const filename = `${safeId}.json`;
   return new NextResponse(JSON.stringify(pkg, null, 2), {
     status: 200,
     headers: {

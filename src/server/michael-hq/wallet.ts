@@ -88,10 +88,17 @@ export type ChargeWalletInput = {
 /**
  * Deduct usage cost after CEO approval. Amount is the telemetry estimated_cost
  * in cents — never a percentage of project revenue.
+ * Idempotent per intentId within a workspace (retries return the existing entry).
  */
 export function chargeWalletForApprovedIntent(input: ChargeWalletInput): WalletLedgerEntry {
   if (input.estimatedCost.totalCents < 0) {
     throw new Error("Wallet charge amount must be non-negative.");
+  }
+
+  const state = getState(input.workspaceId);
+  const existing = state.entries.find((entry) => entry.intentId === input.intentId);
+  if (existing) {
+    return existing;
   }
 
   const entry: WalletLedgerEntry = {
@@ -111,7 +118,7 @@ export function chargeWalletForApprovedIntent(input: ChargeWalletInput): WalletL
     billingModel: "usage_only_no_revenue_share",
   };
 
-  getState(input.workspaceId).entries.unshift(entry);
+  state.entries.unshift(entry);
   return entry;
 }
 

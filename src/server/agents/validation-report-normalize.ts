@@ -40,10 +40,14 @@ export function normalizeMarketReport(
   if (!sizing || typeof sizing !== "object" || Array.isArray(sizing)) return null;
   const s = sizing as Record<string, unknown>;
 
-  const tamUsd = Number(s.tamUsd);
-  const samUsd = Number(s.samUsd);
-  const somUsd = Number(s.somUsd);
-  if (![tamUsd, samUsd, somUsd].every((n) => Number.isFinite(n) && n >= 0)) return null;
+  const asUsd = (value: unknown): number | null => {
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+    return value;
+  };
+  const tamUsd = asUsd(s.tamUsd);
+  const samUsd = asUsd(s.samUsd);
+  const somUsd = asUsd(s.somUsd);
+  if (tamUsd === null || samUsd === null || somUsd === null) return null;
   if (!(somUsd <= samUsd && samUsd <= tamUsd)) return null;
   if (typeof s.rationale !== "string" || s.rationale.trim().length === 0) return null;
   if (!isVerdict(raw.demandVerdict)) return null;

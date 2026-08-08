@@ -96,23 +96,26 @@ export async function syncApprovedUsageCharge(
 
     // Invoice item for exact usage amount (cents). Not a % of project revenue.
     const amountCents = Math.max(0, input.estimatedCost.totalCents);
-    const invoiceItem = await stripe.invoiceItems.create({
-      customer: customerId,
-      amount: amountCents,
-      currency: "usd",
-      description: `Michael HQ usage — ${input.agentId}/${input.skillId} (${input.intentId})`,
-      metadata: {
-        workspaceId: input.workspaceId,
-        intentId: input.intentId,
-        agentId: input.agentId,
-        skillId: input.skillId,
-        billingModel: BILLING_MODEL,
-        revenueSharePercent: String(REVENUE_SHARE_PERCENT),
-        modelId: input.estimatedCost.modelId,
-        inputTokens: String(input.estimatedCost.inputTokens),
-        outputTokens: String(input.estimatedCost.outputTokens),
+    const invoiceItem = await stripe.invoiceItems.create(
+      {
+        customer: customerId,
+        amount: amountCents,
+        currency: "usd",
+        description: `Michael HQ usage — ${input.agentId}/${input.skillId} (${input.intentId})`,
+        metadata: {
+          workspaceId: input.workspaceId,
+          intentId: input.intentId,
+          agentId: input.agentId,
+          skillId: input.skillId,
+          billingModel: BILLING_MODEL,
+          revenueSharePercent: String(REVENUE_SHARE_PERCENT),
+          modelId: input.estimatedCost.modelId,
+          inputTokens: String(input.estimatedCost.inputTokens),
+          outputTokens: String(input.estimatedCost.outputTokens),
+        },
       },
-    });
+      { idempotencyKey: `michael_hq_usage_${input.intentId}` },
+    );
 
     const walletEntry = chargeWalletForApprovedIntent({
       ...input,
@@ -161,10 +164,13 @@ async function ensureStripeCustomer(
     if (existing.data[0]?.id) return existing.data[0].id;
   }
 
-  const created = await stripe.customers.create({
-    email,
-    metadata: { oriaUserId: userId, billingModel: BILLING_MODEL },
-  });
+  const created = await stripe.customers.create(
+    {
+      email,
+      metadata: { oriaUserId: userId, billingModel: BILLING_MODEL },
+    },
+    { idempotencyKey: `michael_hq_customer_${userId}` },
+  );
   return created.id;
 }
 
