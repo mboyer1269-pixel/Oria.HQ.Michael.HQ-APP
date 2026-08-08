@@ -1,8 +1,22 @@
+import { randomUUID } from "node:crypto";
+
 import type { ActionLedgerStatus, CalendarStorageMode, ModelMode } from "@/core/types";
 import type { LedgerEventType } from "@/core/types";
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { ServerUserContext } from "@/server/auth/user-context";
-import type { ActionLedgerRow, Json } from "@/server/db/types";
+import type { ActionLedgerRow, ActionLedgerInsert, Json } from "@/server/db/types";
+import {
+  getOrCreateLocalChainWriter,
+} from "@/server/ledger/hash-chain-local-registry";
+import {
+  resolveLedgerChainScope,
+  toCanonicalLedgerFields,
+  type LedgerRowForChain,
+} from "@/server/ledger/hash-chain-ledger-fields";
+import { resolveLedgerHmacKey } from "@/server/ledger/hash-chain-hmac-key";
+import { sealNewLedgerRow } from "@/server/ledger/hash-chain-live-seal";
+import { isHashChainWriteEnabled } from "@/server/ledger/hash-chain-write-flag";
+import type { LedgerChainEntry } from "@/server/ledger/hash-chain-verifier";
 import { createOptionalSupabaseAdminClient, hasSupabaseAdminConfig } from "@/server/supabase/admin";
 
 export type ActionLedgerEntry = {
@@ -23,6 +37,10 @@ export type ActionLedgerEntry = {
   metadata: Json;
   createdAt: string;
   storageMode: CalendarStorageMode;
+  prevHash?: string | null;
+  entryHash?: string | null;
+  hmac?: string | null;
+  canonicalVersion?: number;
 };
 
 /**
@@ -119,6 +137,13 @@ export function withWorkspaceActionMetadata(
 }
 
 function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): ActionLedgerEntry {
+  const extended = row as ActionLedgerRow & {
+    prev_hash?: string | null;
+    entry_hash?: string | null;
+    hmac?: string | null;
+    canonical_version?: number | null;
+  };
+
   return {
     id: row.id,
     userId: row.user_id,
@@ -137,6 +162,83 @@ function mapActionRow(row: ActionLedgerRow, storageMode: CalendarStorageMode): A
     metadata: row.metadata,
     createdAt: row.created_at,
     storageMode,
+    prevHash: extended.prev_hash ?? undefined,
+    entryHash: extended.entry_hash ?? undefined,
+    hmac: extended.hmac ?? undefined,
+    canonicalVersion: extended.canonical_version ?? undefined,
+  };
+}
+
+function buildRowForSeal(
+  input: RecordActionInput,
+  user: ServerUserContext,
+  id: string,
+  createdAt: string,
+): LedgerRowForChain {
+  return {
+    id,
+    user_id: user.userId,
+    workspace_id: input.workspaceId ?? null,
+    agent_id: input.agentId ?? null,
+    skill_id: input.skillId ?? null,
+    mission_id: input.missionId ?? null,
+    action_type: input.actionType,
+    event_type: input.eventType ?? null,
+    summary: input.summary,
+    autonomy_level: input.autonomyLevel,
+    requires_confirmation: input.requiresConfirmation,
+    payload: (input.payload ?? {}) as LedgerRowForChain["payload"],
+    metadata: buildMetadata(input) as LedgerRowForChain["metadata"],
+    created_at: createdAt,
+  };
+}
+
+async function fetchSupabaseChainTail(
+  supabase: NonNullable<ReturnType<typeof createOptionalSupabaseAdminClient>>,
+  workspaceId: string | null,
+  userId: string,
+): Promise<LedgerChainEntry | null> {
+  const query = supabase
+    .from("action_ledger")
+    .select("id, workspace_id, user_id, agent_id, skill_id, mission_id, action_type, event_type, summary, autonomy_level, requires_confirmation, payload, metadata, created_at, prev_hash, entry_hash, hmac, canonical_version")
+    .not("entry_hash", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  const { data, error } = workspaceId
+    ? await query.eq("workspace_id", workspaceId)
+    : await query.is("workspace_id", null).eq("user_id", userId);
+
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("entry_hash") || message.includes("column")) {
+      return null;
+    }
+    throw new ActionLedgerRepositoryError(`Failed to read ledger chain tail: ${error.message}`);
+  }
+
+  const row = data?.[0];
+  if (!row || typeof row.entry_hash !== "string") return null;
+
+  return {
+    id: row.id,
+    workspace_id: row.workspace_id,
+    user_id: row.user_id,
+    agent_id: row.agent_id,
+    skill_id: row.skill_id,
+    mission_id: row.mission_id,
+    action_type: row.action_type,
+    event_type: row.event_type,
+    summary: row.summary,
+    autonomy_level: row.autonomy_level,
+    requires_confirmation: row.requires_confirmation,
+    payload: row.payload as LedgerRowForChain["payload"],
+    metadata: row.metadata as LedgerRowForChain["metadata"],
+    created_at: row.created_at,
+    prev_hash: row.prev_hash ?? null,
+    entry_hash: row.entry_hash,
+    hmac: row.hmac ?? null,
+    canonical_version: row.canonical_version ?? undefined,
   };
 }
 
@@ -167,8 +269,28 @@ function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedge
   return {
     mode: "local",
     async record(input) {
+      const id = createLocalId();
+      const createdAt = new Date().toISOString();
+      const chainScope = resolveLedgerChainScope(input.workspaceId ?? null, user.userId);
+      const rowForSeal = buildRowForSeal(input, user, id, createdAt);
+
+      let prevHash: string | null | undefined;
+      let entryHash: string | undefined;
+      let hmac: string | null | undefined;
+      let canonicalVersion: number | undefined;
+
+      if (isHashChainWriteEnabled()) {
+        const hmacKey = resolveLedgerHmacKey();
+        const writer = getOrCreateLocalChainWriter(chainScope, hmacKey);
+        const sealed = writer.append(toCanonicalLedgerFields(rowForSeal));
+        prevHash = sealed.prev_hash;
+        entryHash = sealed.entry_hash;
+        hmac = sealed.hmac ?? null;
+        canonicalVersion = sealed.canonical_version;
+      }
+
       const entry: ActionLedgerEntry = {
-        id: createLocalId(),
+        id,
         userId: user.userId,
         actionType: input.actionType,
         eventType: input.eventType,
@@ -183,8 +305,12 @@ function createLocalActionLedgerRepository(user: ServerUserContext): ActionLedge
         missionId: input.missionId,
         payload: input.payload ?? {},
         metadata: buildMetadata(input),
-        createdAt: new Date().toISOString(),
+        createdAt,
         storageMode: "local",
+        prevHash,
+        entryHash,
+        hmac,
+        canonicalVersion,
       };
 
       localEntries.push(entry);
@@ -204,24 +330,48 @@ function createSupabaseActionLedgerRepository(user: ServerUserContext): ActionLe
   return {
     mode: "supabase",
     async record(input) {
+      const id = randomUUID();
+      const createdAt = new Date().toISOString();
+      const rowForSeal = buildRowForSeal(input, user, id, createdAt);
+
+      const insertPayload: ActionLedgerInsert = {
+        id,
+        user_id: user.userId,
+        action_type: input.actionType,
+        event_type: input.eventType ?? null,
+        summary: input.summary,
+        autonomy_level: input.autonomyLevel,
+        requires_confirmation: input.requiresConfirmation,
+        model_id: input.modelId ?? null,
+        cost_mode: input.costMode ?? null,
+        workspace_id: input.workspaceId ?? null,
+        skill_id: input.skillId ?? null,
+        agent_id: input.agentId ?? null,
+        mission_id: input.missionId ?? null,
+        payload: input.payload ?? {},
+        metadata: buildMetadata(input),
+        created_at: createdAt,
+      };
+
+      if (isHashChainWriteEnabled()) {
+        const hmacKey = resolveLedgerHmacKey();
+        const tail = await fetchSupabaseChainTail(
+          supabase,
+          input.workspaceId ?? null,
+          user.userId,
+        );
+        const chainCols = sealNewLedgerRow({ row: rowForSeal, tail, hmacKey });
+        if (chainCols) {
+          insertPayload.prev_hash = chainCols.prev_hash;
+          insertPayload.entry_hash = chainCols.entry_hash;
+          insertPayload.hmac = chainCols.hmac;
+          insertPayload.canonical_version = chainCols.canonical_version;
+        }
+      }
+
       const { data, error } = await supabase
         .from("action_ledger")
-        .insert({
-          user_id: user.userId,
-          action_type: input.actionType,
-          event_type: input.eventType ?? null,
-          summary: input.summary,
-          autonomy_level: input.autonomyLevel,
-          requires_confirmation: input.requiresConfirmation,
-          model_id: input.modelId ?? null,
-          cost_mode: input.costMode ?? null,
-          workspace_id: input.workspaceId ?? null,
-          skill_id: input.skillId ?? null,
-          agent_id: input.agentId ?? null,
-          mission_id: input.missionId ?? null,
-          payload: input.payload ?? {},
-          metadata: buildMetadata(input),
-        })
+        .insert(insertPayload)
         .select()
         .single();
 

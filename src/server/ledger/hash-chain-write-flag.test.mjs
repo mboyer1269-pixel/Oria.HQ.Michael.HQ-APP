@@ -1,9 +1,8 @@
 /**
  * hash-chain-write-flag.test.mjs
  *
- * The live hash-chain write flag must default OFF and only enable on an
- * explicit recognized truthy value. OFF is the invariant that keeps the current
- * ledger write path unchanged.
+ * The live hash-chain write flag defaults ON (CEO mandate 2026-08-08).
+ * Explicit falsey values opt out.
  */
 
 import assert from "node:assert/strict";
@@ -13,23 +12,23 @@ const { isHashChainWriteEnabled, HASH_CHAIN_WRITE_ENV } = await import(
   "./hash-chain-write-flag.ts"
 );
 
-test("defaults OFF when the toggle is unset", () => {
-  assert.equal(isHashChainWriteEnabled({}), false);
+test("defaults ON when the toggle is unset", () => {
+  assert.equal(isHashChainWriteEnabled({}), true);
 });
 
-test("OFF for empty / unknown / falsey values", () => {
-  for (const v of ["", "0", "false", "off", "no", "nope", " ", "enabled?"]) {
+test("OFF for explicit falsey values", () => {
+  for (const v of ["0", "false", "off", "no", "FALSE", " Off "]) {
     assert.equal(isHashChainWriteEnabled({ [HASH_CHAIN_WRITE_ENV]: v }), false, v);
   }
 });
 
-test("ON only for recognized truthy values (case/space-insensitive)", () => {
+test("ON for empty string and recognized truthy values", () => {
+  assert.equal(isHashChainWriteEnabled({ [HASH_CHAIN_WRITE_ENV]: "" }), true);
   for (const v of ["1", "true", "on", "yes", "TRUE", " On ", "YES"]) {
     assert.equal(isHashChainWriteEnabled({ [HASH_CHAIN_WRITE_ENV]: v }), true, v);
   }
 });
 
-test("reads process.env by default — OFF in the test environment", () => {
-  // The runner does not set LEDGER_HASH_CHAIN_WRITE.
-  assert.equal(isHashChainWriteEnabled(), false);
+test("reads process.env by default — ON in the test environment", () => {
+  assert.equal(isHashChainWriteEnabled(), true);
 });

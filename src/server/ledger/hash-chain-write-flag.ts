@@ -1,30 +1,31 @@
 // src/server/ledger/hash-chain-write-flag.ts
 //
-// Feature flag for the FUTURE live hash-chain write path. OFF by default.
+// Feature flag for the live hash-chain write path. ON by default (CEO mandate
+// 2026-08-08). Set LEDGER_HASH_CHAIN_WRITE to 0|false|off|no to opt out.
 //
-// While this returns false (the default), the live action_ledger write path is
-// completely unchanged: nothing calls the seal planner and no chain columns are
-// written. Flipping it ON is a future, mandate-gated step that ALSO requires the
-// Phase 1 migration (chain columns) to be applied and LEDGER_HMAC_KEY to be
-// provisioned in the environment.
+// When enabled, every action_ledger append is sealed via planChainWrite() and
+// persisted with prev_hash / entry_hash / hmac. Requires LEDGER_HMAC_KEY in
+// production (local dev may use the documented fallback when persistence
+// fallback is allowed).
 //
-// This module reads only a NON-SECRET toggle. It never reads the HMAC key — the
-// key is passed explicitly to the seal path (see hash-chain-write-plan.ts),
-// mirroring the verifier/sealer rule that secrets are arguments, not env reads.
+// This module reads only a NON-SECRET toggle. The HMAC key is resolved
+// separately (see hash-chain-hmac-key.ts) and passed explicitly to the seal path.
 
-/** Env toggle name. Set to one of the truthy values below to enable (future). */
+/** Env toggle name. Explicit falsey values disable the live write path. */
 export const HASH_CHAIN_WRITE_ENV = "LEDGER_HASH_CHAIN_WRITE";
 
-const TRUTHY = new Set(["1", "true", "on", "yes"]);
+const FALSY = new Set(["0", "false", "off", "no"]);
 
 /**
- * Whether the live hash-chain write path is enabled. Defaults to FALSE for any
- * absent, empty, or unrecognized value — fail-safe OFF.
+ * Whether the live hash-chain write path is enabled. Defaults to TRUE unless
+ * LEDGER_HASH_CHAIN_WRITE is set to a recognized falsey value.
  */
 export function isHashChainWriteEnabled(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   const raw = env[HASH_CHAIN_WRITE_ENV];
-  if (typeof raw !== "string") return false;
-  return TRUTHY.has(raw.trim().toLowerCase());
+  if (typeof raw !== "string") return true;
+  const normalized = raw.trim().toLowerCase();
+  if (normalized.length === 0) return true;
+  return !FALSY.has(normalized);
 }

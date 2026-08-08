@@ -33,15 +33,21 @@ function rawEntry(id, summary) {
   };
 }
 
-test("OFF (explicit) returns null — no chain columns, current behavior", () => {
+test("OFF (explicit) returns null — no chain columns", () => {
   assert.equal(
     planChainWrite({ fields: rawEntry("a", "x"), tail: null, enabled: false }),
     null,
   );
 });
 
-test("OFF by default (no env) returns null", () => {
-  assert.equal(planChainWrite({ fields: rawEntry("a", "x"), tail: null }), null);
+test("ON by default (no env) seals when hmacKey provided", () => {
+  const cols = planChainWrite({
+    fields: rawEntry("a", "x"),
+    tail: null,
+    hmacKey: HMAC,
+  });
+  assert.ok(cols);
+  assert.equal(cols.prev_hash, null);
 });
 
 test("ON without hmacKey throws (fail-closed)", () => {

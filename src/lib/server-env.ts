@@ -40,6 +40,10 @@ const serverEnvSchema = z.object({
   // n8n_webhook_trigger MCP tool). N8N_SECRET secures the transfer (x-webhook-secret).
   N8N_WEBHOOK_URL: z.string().url().optional(),
   N8N_SECRET: z.string().min(1).optional(),
+  // Michael HQ ethical billing (optional — local wallet works without Stripe)
+  STRIPE_SECRET_KEY: z.string().min(1).optional(),
+  STRIPE_CUSTOMER_ID: z.string().min(1).optional(),
+  STRIPE_METER_EVENT_NAME: z.string().min(1).optional(),
 });
 
 type ParsedEnv = z.infer<typeof serverEnvSchema>;
@@ -114,6 +118,9 @@ export const serverEnv = {
   agentHermesWebhookUrl: _parsed.AGENT_HERMES_WEBHOOK_URL,
   n8nWebhookUrl: _parsed.N8N_WEBHOOK_URL,
   n8nSecret: _parsed.N8N_SECRET,
+  stripeSecretKey: _parsed.STRIPE_SECRET_KEY,
+  stripeCustomerId: _parsed.STRIPE_CUSTOMER_ID,
+  stripeMeterEventName: _parsed.STRIPE_METER_EVENT_NAME,
 };
 
 export function isLocalPersistenceFallbackAllowed() {
