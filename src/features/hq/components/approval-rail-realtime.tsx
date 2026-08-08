@@ -149,6 +149,17 @@ export function ApprovalRailRealtime({
                     tool={intent.toolName} · autonomy={intent.autonomyLevel}
                     {intent.client ? ` · client=${intent.client}` : ""}
                   </p>
+                  {typeof intent.estimatedCostUsd === "number" ? (
+                    <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] text-emerald-300">
+                      <span className="uppercase tracking-wider text-emerald-400/80">coût estimé</span>
+                      <span className="font-bold text-emerald-200">
+                        ${intent.estimatedCostUsd.toFixed(4)}
+                      </span>
+                      {intent.telemetryModelId ? (
+                        <span className="text-emerald-400/70">· {intent.telemetryModelId}</span>
+                      ) : null}
+                    </p>
+                  ) : null}
                   <p className="mt-1 truncate font-mono text-[10px] text-zinc-700">
                     {intent.intentId}
                   </p>

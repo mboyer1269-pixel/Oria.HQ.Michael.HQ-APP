@@ -128,6 +128,26 @@ export const agentRegistry: AgentProfile[] = [
     reviewCadence: "Mensuelle",
   },
   {
+    id: "engineering",
+    lore:
+      "L'ingénieur souverain du HQ : IaC portable, zéro lock-in — chaque ligne de code attend le sceau du CEO.",
+    name: "Engineering",
+    role: "builder",
+    tagline: "Agent d'ingénierie souverain — Docker, Terraform, dépôts clonables",
+    description:
+      "Reçoit les briefs de Joris et génère des paquets de code portables. Aucun déploiement autonome — soumission au rail d'approbation avec télémétrie Michael HQ.",
+    status: "active",
+    autonomyLevel: 2,
+    skillIds: ["infrastructure.generate"],
+    constraints: [
+      "Aucun déploiement autonome — CEO approve uniquement",
+      "Configurations portables uniquement (Docker, Terraform, GitHub-ready)",
+      "Isolation mode Vie/Travail obligatoire sur chaque proposition",
+    ],
+    ventures: ["hq"],
+    reviewCadence: "Par mission",
+  },
+  {
     id: "builder",
     lore:
       "La forge du HQ : specs, plans et prototypes — rien n'en sort sans être solide.",

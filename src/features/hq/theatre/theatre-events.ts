@@ -26,6 +26,9 @@ export type TheatrePendingIntent = {
   createdAt: string;
   actionType?: string;
   client?: string;
+  estimatedCostUsd?: number;
+  estimatedCostCents?: number;
+  telemetryModelId?: string;
 };
 
 export type TheatreLineTone = "neon" | "amber" | "red" | "neutral";

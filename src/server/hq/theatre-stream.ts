@@ -8,6 +8,7 @@ import {
   type TheatrePendingIntent,
   type TheatreSseEvent,
 } from "@/features/hq/theatre/theatre-events";
+import { extractEstimatedCostFromIntentData } from "@/server/michael-hq/telemetry-extract";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import { listPendingAgentExecutionIntents } from "@/server/agents/execution-intent-repository";
 
@@ -43,6 +44,8 @@ export function mapLedgerEntryToTheatreLine(entry: {
 
 export function mapIntentToTheatrePending(intent: AgentExecutionIntent): TheatrePendingIntent | null {
   if (intent.status !== "pending") return null;
+  const data = intent.payload?.data as Record<string, unknown> | undefined;
+  const estimated = extractEstimatedCostFromIntentData(data);
   return {
     intentId: intent.intentId,
     agentId: intent.agentId,
@@ -53,6 +56,13 @@ export function mapIntentToTheatrePending(intent: AgentExecutionIntent): Theatre
     createdAt: intent.createdAt,
     actionType: intent.payload?.actionType,
     client: intent.payload?.client,
+    ...(estimated
+      ? {
+          estimatedCostUsd: estimated.totalUsd,
+          estimatedCostCents: estimated.totalCents,
+          telemetryModelId: estimated.modelId,
+        }
+      : {}),
   };
 }
 
