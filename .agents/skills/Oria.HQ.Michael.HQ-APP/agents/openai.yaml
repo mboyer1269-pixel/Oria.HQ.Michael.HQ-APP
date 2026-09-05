@@ -1,0 +1,6 @@
+interface:
+  display_name: "Oria.HQ.Michael.HQ APP"
+  short_description: "Repo-specific patterns and workflows for Oria.HQ.Michael.HQ-APP"
+  default_prompt: "Use the Oria.HQ.Michael.HQ-APP repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
