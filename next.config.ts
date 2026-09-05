@@ -58,9 +58,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Required for Docker standalone build (copies server.js + minimal runtime)
-  // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
-  output: "standalone",
+  // Docker/self-host needs standalone. Vercel injects NEXT_ADAPTER_PATH;
+  // Next 16.3.x then skips emitting next-server.js.nft.json while the
+  // standalone finalizer still reads it (vercel/next.js#96646, unfixed on
+  // every stable 16.3.x including 16.3.4). Standalone is unused on Vercel.
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
   typedRoutes: true,
   turbopack: {
     root: process.cwd(),
