@@ -11,7 +11,18 @@ const transitionSchema=z.discriminatedUnion("next",[
   z.object({next:z.literal("running"),expected:z.literal("start_requested"),containerId:z.string().regex(/^[a-f0-9]{64}$/),sessionId:z.string().min(1).max(160)}).strict(),
   z.object({next:z.literal("execution_finished"),expected:z.enum(["start_requested","running"]),containerId:z.string().regex(/^[a-f0-9]{64}$/),
     process:z.object({exitCode:z.number().int(),containerStopped:z.literal(true),deadlineExceeded:z.boolean()}).strict()}).strict(),
+  // Explicit closure of an interrupted launch, bound to an observed container that
+  // cannot act any more. A container that is running, paused, restarting, removing
+  // or of unknown identity is not expressible here, so it can never be closed away.
+  z.object({next:z.literal("cancelled"),expected:z.enum(["creation_requested","container_created","start_requested","running"]),
+    containerId:z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    observed:z.object({containerState:z.enum(["absent","created","dead"]),observedAt:z.iso.datetime({offset:true}),
+      reason:z.enum(["interrupted_before_start","result_unrecoverable"])}).strict()}).strict(),
 ]);
+
+/** A closure reason must match the canonical stage it claims to close. */
+const CLOSURE:Record<string,readonly string[]>={interrupted_before_start:["creation_requested","container_created"],
+  result_unrecoverable:["start_requested","running"]};
 
 /** Trusted host boundary only. No route or browser-supplied runner identity.
  * Uses the same mission CAS as claiming; no parallel execution database. */
@@ -43,6 +54,14 @@ export function createOpenHandsLifecycleService(deps:{store:()=>LaunchStore|null
       }
       if(claim.state!==t.data.expected)return {status:"conflict"};
       if("containerId" in t.data && t.data.next!=="container_created" && claim.containerId!==t.data.containerId)return {status:"binding_mismatch"};
+      if(t.data.next==="cancelled"){
+        // The closure must name exactly the container identity the claim holds.
+        if((claim.containerId??null)!==(t.data.containerId??null))return {status:"binding_mismatch"};
+        if(!CLOSURE[t.data.observed.reason].includes(t.data.expected))return {status:"invalid_transition"};
+        // A container still in `created` was never started, so only the
+        // before-start reason can explain it. Nothing recoverable is discarded.
+        if(t.data.observed.containerState==="created" && t.data.observed.reason!=="interrupted_before_start")return {status:"invalid_transition"};
+      }
       // Recording observed effects remains possible after expiry. Creating new
       // effects requires current authority, canonically reread every time.
       if(t.data.next==="creation_requested" || t.data.next==="start_requested") {
@@ -53,7 +72,9 @@ export function createOpenHandsLifecycleService(deps:{store:()=>LaunchStore|null
         ...(t.data.next==="start_requested"?{startRequestedAt:new Date((deps.now??Date.now)()).toISOString()}:{}),
         ...("sessionId" in t.data?{sessionId:t.data.sessionId}:{}),
         ...("containerId" in t.data?{containerId:t.data.containerId}:{}),
-        ...("process" in t.data?{process:t.data.process}:{})});
+        ...("process" in t.data?{process:t.data.process}:{}),
+        ...(t.data.next==="cancelled"?{reconciliation:{reason:t.data.observed.reason,
+          containerState:t.data.observed.containerState,observedAt:t.data.observed.observedAt}}:{})});
       const saved=await store.compareAndSwap(mission,next);
       return saved?{status:"recorded",claim:next,independentValidationPassed:false}:{status:"conflict"};
     } catch {return {status:"reconciliation_required"};}

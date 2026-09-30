@@ -26,6 +26,9 @@ export const launchClaimSchema = z.object({ version: z.literal(1), launchId: z.u
   sessionId: id.optional(),
   startRequestedAt: z.iso.datetime({offset:true}).optional(),
   process: z.object({exitCode:z.number().int(),containerStopped:z.literal(true),deadlineExceeded:z.boolean()}).strict().optional(),
+  /** Only set when an interrupted launch was explicitly closed on observed state. */
+  reconciliation: z.object({reason:z.enum(["interrupted_before_start","result_unrecoverable"]),
+    containerState:z.enum(["absent","created","dead"]),observedAt:z.iso.datetime({offset:true})}).strict().optional(),
   claimedAt: z.iso.datetime({ offset: true }), authorizationExpiresAt: z.iso.datetime({ offset: true }) }).strict();
 export type LaunchClaim = z.infer<typeof launchClaimSchema>;
 export type LaunchStore = { load(workspaceId: string, missionId: string): Promise<Mission | null>;

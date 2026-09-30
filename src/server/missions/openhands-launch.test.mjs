@@ -212,3 +212,74 @@ test('preparation exports only the canonical dossier with current launch authori
  f.row().input._openhandsLaunch.state='creation_requested';
  assert.equal((await service(ctx,request)).status,'conflict');
 });
+
+test('interrupted launch closes only on an observed container that cannot act',async()=>{
+ const observedAt='2026-09-30T12:05:00Z';
+ // A container still able to act is not expressible, so it can never be closed.
+ for(const state of ['running','paused','restarting','removing','unknown','identity_mismatch','exited']){
+  const f=fixture();const {claim}=await f.service(context,f.request,f.confirmation);
+  const service=createOpenHandsLifecycleService({store:()=>f.store,now:()=>now});
+  const ctx={...context,runnerId:'runner'};const request={...f.request,launchId:claim.launchId};
+  assert.equal((await service(ctx,{...request,transition:{expected:'claimed',next:'creation_requested'}})).status,'recorded');
+  const refused=await service(ctx,{...request,transition:{expected:'creation_requested',next:'cancelled',
+   observed:{containerState:state,observedAt,reason:'interrupted_before_start'}}});
+  assert.equal(refused.status,'invalid_transition',state);
+  assert.equal(f.row().input._openhandsLaunch.state,'creation_requested');
+ }
+});
+
+test('closure reason must match the canonical stage and container identity',async()=>{
+ const observedAt='2026-09-30T12:05:00Z';
+ const f=fixture();const {claim}=await f.service(context,f.request,f.confirmation);
+ const service=createOpenHandsLifecycleService({store:()=>f.store,now:()=>now});
+ const ctx={...context,runnerId:'runner'};const request={...f.request,launchId:claim.launchId};
+ const step=transition=>service(ctx,{...request,transition});
+ assert.equal((await step({expected:'claimed',next:'creation_requested'})).status,'recorded');
+ assert.equal((await step({expected:'creation_requested',next:'container_created',containerId:'d'.repeat(64)})).status,'recorded');
+ // result_unrecoverable does not describe a launch that never started.
+ assert.equal((await step({expected:'container_created',next:'cancelled',containerId:'d'.repeat(64),
+  observed:{containerState:'absent',observedAt,reason:'result_unrecoverable'}})).status,'invalid_transition');
+ // A created container is only explained by the before-start reason.
+ assert.equal((await step({expected:'container_created',next:'cancelled',containerId:'d'.repeat(64),
+  observed:{containerState:'created',observedAt,reason:'result_unrecoverable'}})).status,'invalid_transition');
+ // The closure must carry the exact identity the claim holds.
+ assert.equal((await step({expected:'container_created',next:'cancelled',
+  observed:{containerState:'created',observedAt,reason:'interrupted_before_start'}})).status,'binding_mismatch');
+ assert.equal((await step({expected:'container_created',next:'cancelled',containerId:'e'.repeat(64),
+  observed:{containerState:'created',observedAt,reason:'interrupted_before_start'}})).status,'binding_mismatch');
+ assert.equal(f.row().input._openhandsLaunch.state,'container_created');
+ const closed=await step({expected:'container_created',next:'cancelled',containerId:'d'.repeat(64),
+  observed:{containerState:'created',observedAt,reason:'interrupted_before_start'}});
+ assert.equal(closed.status,'recorded');
+ assert.equal(closed.claim.state,'cancelled');
+ assert.equal(closed.independentValidationPassed,false);
+ assert.deepEqual(closed.claim.reconciliation,{reason:'interrupted_before_start',containerState:'created',observedAt});
+ assert.equal(closed.claim.containerId,'d'.repeat(64));
+ // A closed launch is terminal: no stage of the old sequence can reopen it.
+ for(const transition of [{expected:'claimed',next:'creation_requested'},
+  {expected:'container_created',next:'start_requested',containerId:'d'.repeat(64)},
+  {expected:'start_requested',next:'execution_finished',containerId:'d'.repeat(64),process:{exitCode:0,containerStopped:true,deadlineExceeded:false}},
+  {expected:'container_created',next:'cancelled',containerId:'d'.repeat(64),observed:{containerState:'created',observedAt,reason:'interrupted_before_start'}}])
+  assert.equal((await step(transition)).status,'conflict',JSON.stringify(transition.next));
+ assert.equal(f.row().input._openhandsLaunch.state,'cancelled');
+});
+
+test('a started launch whose container vanished closes as unrecoverable, and expiry does not block closure',async()=>{
+ const observedAt='2026-09-30T12:05:00Z';
+ const f=fixture();const {claim}=await f.service(context,f.request,f.confirmation);
+ const live=createOpenHandsLifecycleService({store:()=>f.store,now:()=>now});
+ const ctx={...context,runnerId:'runner'};const request={...f.request,launchId:claim.launchId};
+ for(const transition of [{expected:'claimed',next:'creation_requested'},
+  {expected:'creation_requested',next:'container_created',containerId:'d'.repeat(64)},
+  {expected:'container_created',next:'start_requested',containerId:'d'.repeat(64)}])
+  assert.equal((await live(ctx,{...request,transition})).status,'recorded');
+ // Closure records an observed effect, so it stays possible after expiry.
+ const expired=createOpenHandsLifecycleService({store:()=>f.store,now:()=>now+600001});
+ assert.equal((await expired(ctx,{...request,transition:{expected:'start_requested',next:'creation_requested'}})).status,'invalid_transition');
+ const closed=await expired(ctx,{...request,transition:{expected:'start_requested',next:'cancelled',containerId:'d'.repeat(64),
+  observed:{containerState:'absent',observedAt,reason:'result_unrecoverable'}}});
+ assert.equal(closed.status,'recorded');
+ assert.equal(closed.claim.state,'cancelled');
+ assert.equal(closed.claim.process,undefined);
+ assert.deepEqual(closed.claim.reconciliation,{reason:'result_unrecoverable',containerState:'absent',observedAt});
+});
