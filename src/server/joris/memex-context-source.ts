@@ -8,6 +8,7 @@
 // context when the handshake and evidence pack both succeed.
 
 import { logger } from "@/lib/logger";
+import { resolveMemexHttpBinding, createHttpMemexTransport } from "@/server/mcp/memex-http-transport";
 import {
   buildMemexContextInjection,
   callMemexReadTool,
@@ -78,12 +79,22 @@ export async function enrichJorisMemoryContextWithMemex(
   });
 
   const environment = resolveMemexExecutionEnvironment(env);
-  if (!environment.spawnAllowed && !input.transport) {
+  const http = resolveMemexHttpBinding(env, input.workspaceId);
+  if (!input.transport && env.ORIA_ENABLE_MEMEX_HTTP_READONLY === "1" && http.status !== "ready") {
+    return baseResult({ status: "unavailable", reason: `Memex HTTP ${http.status}` });
+  }
+  if (!environment.spawnAllowed && !input.transport && http.status !== "ready") {
     return baseResult({ status: "unavailable", reason: environment.reason });
   }
 
   let transport = input.transport ?? null;
   let ownsTransport = false;
+  if (!transport && http.status === "ready") {
+    try {
+      transport = createHttpMemexTransport(http.binding);
+      ownsTransport = true;
+    } catch { return baseResult({ status: "fallback", reason: "Memex HTTP unavailable" }); }
+  }
   if (!transport) {
     const root = env[MEMEX_CORE_ROOT_ENV_VAR]?.trim();
     if (!root) {
@@ -117,11 +128,10 @@ export async function enrichJorisMemoryContextWithMemex(
 
     const call = await callMemexReadTool(
       transport,
-      "agentmemory_librarian_brief",
+      "agentmemory_graph_query",
       {
         namespace: policy.namespace,
-        task: input.taskIntent.slice(0, 500),
-        tokenBudget: policy.maxContextChars,
+        limit: 10,
       },
       policy,
     );
@@ -148,7 +158,7 @@ export async function enrichJorisMemoryContextWithMemex(
 
     const enrichedTrace: MemexContextEnrichmentTrace = {
       status: "enriched",
-      reason: "Memex librarian brief injected with Memory Evidence Pack",
+      reason: "Structured Memex records injected as untrusted advisory evidence",
       handshakeOk: true,
       evidencePackValid: true,
     };

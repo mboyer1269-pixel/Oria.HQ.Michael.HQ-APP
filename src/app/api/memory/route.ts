@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { requireOwnerApiSession } from "@/server/auth/owner";
+import { getAuthenticatedActorId, requireOwnerApiSession } from "@/server/auth/owner";
 import {
   approveMemoryVaultEntry,
   proposeMemoryVaultEntry,
@@ -23,7 +23,7 @@ import {
  *   - Owner session required (requireOwnerApiSession).
  *   - workspaceId is derived from the server context only — never from the
  *     client — so cross-workspace writes are impossible.
- *   - approvedBy is the authenticated owner (ctx.userId).
+ *   - approvedBy is the authenticated session actor, not the configured owner.
  *   - No persistence: the store is in-memory and resets on process restart.
  */
 
@@ -58,6 +58,12 @@ const requestSchema = z.discriminatedUnion("action", [
 export async function POST(request: Request) {
   const authResponse = await requireOwnerApiSession();
   if (authResponse) return authResponse;
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Écriture mémoire indisponible : aucun stockage durable configuré pour cette surface.", code: "memory_persistence_unavailable" },
+      { status: 503 },
+    );
+  }
 
   const body = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(body);
@@ -88,9 +94,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, entry }, { status: 200 });
     }
 
+    const actorId = data.action === "approve" ? await getAuthenticatedActorId() : null;
+    if (data.action === "approve" && !actorId) {
+      return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+    }
     const result =
       data.action === "approve"
-        ? approveMemoryVaultEntry({ entryId: data.id, workspaceId, approvedBy: ctx.userId })
+        ? approveMemoryVaultEntry({ entryId: data.id, workspaceId, approvedBy: actorId! })
         : rejectMemoryVaultEntry({ entryId: data.id, workspaceId });
 
     if (!result.ok) {

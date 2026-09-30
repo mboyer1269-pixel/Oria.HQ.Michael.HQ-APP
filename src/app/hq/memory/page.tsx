@@ -1,13 +1,16 @@
+import { MemexReviewPanel } from "@/features/memory/components/memex-review-panel";
+import { MemexProposalPanel } from "@/features/memory/components/memex-proposal-panel";
+import { MemexReadPanel } from "@/features/memory/components/memex-read-panel";
 import type { Route } from "next";
 import { ShieldCheck, Clock, FileText, BookOpen, StickyNote, Link2, Network, Repeat, PenSquare } from "lucide-react";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import {
   HqMetric,
   HqPageHeader,
-  HqPageShell,
   HqSummaryRail,
   HqWidget,
 } from "@/features/hq/components/hq-widget-system";
+import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { MemoryVaultExplorer } from "@/features/memory/components/memory-vault-explorer";
 import { MemoryWritePanel } from "@/features/memory/components/memory-write-panel";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
@@ -126,16 +129,16 @@ export default async function MemoryPage() {
   const learningLoop = await getLearningLoopReport("michael-hq");
 
   return (
-    <HqPageShell>
+    <CockpitShell active="memory" crumb="Mémoire">
       <HqPageHeader
         backHref={"/hq" as Route}
         eyebrow="Memory Vault"
         icon={ShieldCheck}
         tone="emerald"
-        title="Memory Vault"
+        title="Mémoire du projet"
         description={
           <>
-          Mémoire opérationnelle workspace-scoped : entrées runtime + vault fichiers{" "}
+          Corpus local historique : entrées temporaires + vault fichiers{" "}
           <code className="text-neutral-500">memory/</code>. Seules les entrées{" "}
           <span className="text-emerald-400">vérifiées</span> sont injectées dans le contexte de Joris.
           </>
@@ -154,17 +157,22 @@ export default async function MemoryPage() {
         </HqSummaryRail>
       </HqPageHeader>
 
+      <MemexReadPanel />
+      <MemexProposalPanel workspaceId={workspaceId} />
+      <MemexReviewPanel workspaceId={workspaceId} />
       <HqWidget
         title="Écriture & approbation"
         eyebrow="CEO — local in-memory"
         icon={PenSquare}
         tone="emerald"
       >
-        <MemoryWritePanel pending={pendingProposals} />
+        {process.env.NODE_ENV === "production" ? (
+          <p className="text-sm leading-6 text-amber-200">Les connaissances ci-dessous sont consultables. L’ajout et l’approbation sont indisponibles sur le serveur tant que leur conservation durable n’est pas raccordée : le stockage temporaire actuel disparaît au redémarrage. Ce corpus historique est distinct des panneaux Memex ci-dessus.</p>
+        ) : <MemoryWritePanel pending={pendingProposals} />}
       </HqWidget>
 
       <HqWidget
-        title="Graphe mémoire"
+        title="Graphe du corpus local historique"
         eyebrow="Fichiers memory/ + runtime"
         icon={Network}
         tone="emerald"
@@ -284,8 +292,8 @@ export default async function MemoryPage() {
       </HqWidget>
 
       <p className="mt-8 text-center text-xs text-neutral-700">
-        Écriture &amp; approbation CEO locales (in-memory) · Vault fichiers : <code>memory/</code> · Persistance Supabase verrouillée jusqu&apos;au prochain mandat
+        Sources : règles initiales, mémoire temporaire et fichiers de référence. Les entrées du corpus local historique ne prouvent pas une synchronisation avec Memex Core.
       </p>
-    </HqPageShell>
+    </CockpitShell>
   );
 }

@@ -34,3 +34,7 @@ Thumbs.db
 
 # Claude Code local settings (tool-local, not app code)
 .claude/settings.local.json
+
+# Local browser captures and qualification output (may contain session data)
+.playwright-cli/
+output/

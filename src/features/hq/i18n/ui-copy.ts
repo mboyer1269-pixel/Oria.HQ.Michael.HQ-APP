@@ -14,14 +14,14 @@ interface TopbarCopy {
 
 const COPY: Record<UILanguage, TopbarCopy> = {
   fr: {
-    jorisBadge: "Joris · disponible",
+    jorisBadge: "Joris · assistant",
     jorisTooltip:
       "Joris alimente le plan du jour et les signaux du cockpit. Les actions live restent gouvernées.",
     languageLabel: "Français",
     toggleShort: "FR",
   },
   en: {
-    jorisBadge: "Joris · available",
+    jorisBadge: "Joris · assistant",
     jorisTooltip:
       "Joris powers the daily direction and cockpit signals. Live actions remain governed.",
     languageLabel: "English",

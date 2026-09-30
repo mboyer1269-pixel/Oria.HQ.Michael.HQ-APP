@@ -318,12 +318,12 @@ test("chainlinesForEntry: membership lookup", async () => {
   assert.equal(chainlinesForEntry("unrelated", chainlines).length, 0);
 });
 
-test("seed vault files parse and chain end-to-end", async () => {
+test("synthetic fixture vault files parse and chain end-to-end", async () => {
   const { parseMemoryEntryMarkdown, buildMemoryGraph, buildChainlineGraph, detectDuplicateMemory } =
     await loadModule();
   const { readFile, readdir } = await import("node:fs/promises");
 
-  const memoryRoot = path.join(projectRoot, "memory");
+  const memoryRoot = path.join(__dirname, "fixtures", "synthetic-chain");
   const entries = [];
   async function walk(dir) {
     for (const dirent of await readdir(dir, { withFileTypes: true })) {
@@ -340,15 +340,17 @@ test("seed vault files parse and chain end-to-end", async () => {
   }
   await walk(memoryRoot);
 
-  assert.ok(entries.length >= 8, `expected >= 8 seed entries, got ${entries.length}`);
+  assert.equal(entries.length, 8, "expected all eight synthetic fixture entries");
   assert.deepEqual(detectDuplicateMemory(entries), []);
 
   const graph = buildMemoryGraph(entries);
   assert.ok(graph.edges.length > 0);
 
   const chainlines = buildChainlineGraph(entries);
-  assert.ok(chainlines.length >= 1, "expected at least one chainline in the seed vault");
+  assert.ok(chainlines.length >= 1, "expected at least one chainline in the synthetic vault");
   for (const chainline of chainlines) {
+    assert.ok(chainline.steps.every((step) => step.resolved), "every synthetic chain target resolves");
+    assert.deepEqual(chainline.steps.map((step) => step.stage), ["source", "note", "decision", "action", "ledger", "pr", "next"]);
     assert.deepEqual(
       chainline.missingStages,
       [],

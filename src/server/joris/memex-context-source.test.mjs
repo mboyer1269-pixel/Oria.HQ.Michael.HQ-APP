@@ -33,7 +33,10 @@ test("Joris Memex context source v1", async (t) => {
 
   const okTransport = {
     listTools: async () => [...MEMEX_V1_READ_ALLOWLIST],
-    callTool: async () => "Brief orientatif Memex pour la tâche en cours.",
+    callTool: async (name, args) => {
+      assert.equal(name, "agentmemory_graph_query");
+      return JSON.stringify([{ id: "reviewed-1", namespace: args.namespace, type: "Decision", name: "Reviewed decision", source: "human-review", createdAt: NOW, properties: { status: "verified", zone: "human" } }]);
+    },
     close: async () => {},
   };
 
@@ -99,7 +102,7 @@ test("Joris Memex context source v1", async (t) => {
     assert.ok(result.evidencePack.provenance.length > 0);
     assert.ok(result.evidenceSummary);
     assert.ok(result.evidenceSummary.sourceCount > 0);
-    assert.equal(result.evidenceSummary.confidence, "medium");
+    assert.equal(result.evidenceSummary.confidence, "low");
     assert.notEqual(result.memoryContext, existingContext);
     assert.ok(result.memoryContext.includes("Contexte Memex"));
     assert.ok(result.memoryContext.includes(existingContext));

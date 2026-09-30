@@ -25,7 +25,7 @@ export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
   const copy = getUICopy(mounted ? language : "fr");
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-3.5 border-b border-white/[0.06] bg-[#080b16]/75 px-5 py-3 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 flex items-center gap-2 md:gap-3.5 border-b border-white/[0.06] bg-[#080b16]/75 px-3 md:px-5 py-3 backdrop-blur-xl">
       <div className="text-[13px] text-[#646c8e]">
         Oria HQ&nbsp;/&nbsp;<span className="text-[#eff1fb]">{crumb}</span>
       </div>
@@ -48,13 +48,13 @@ export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
         detail={copy.jorisTooltip}
         align="right"
       >
-        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141a2c]/60 px-3 py-1.5 text-xs font-semibold text-[#98a1c4]">
+        <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141a2c]/60 px-3 py-1.5 text-xs font-semibold text-[#98a1c4]">
           <Bot className="h-3.5 w-3.5 text-violet-400" aria-hidden="true" />
           {copy.jorisBadge}
         </span>
       </Tooltip>
       <LanguageToggle language={language} setLanguage={setLanguage} mounted={mounted} />
-      <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-gradient-to-br from-[#1e2440] to-[#2c376a] text-sm font-bold text-[#eff1fb]">
+      <span className="hidden md:grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-gradient-to-br from-[#1e2440] to-[#2c376a] text-sm font-bold text-[#eff1fb]">
         {userInitial}
       </span>
     </header>

@@ -5,26 +5,7 @@ import { listCalendarEvents } from "@/server/calendar/calendar-service";
 import { createContactLeadRepository } from "@/server/contact/contact-lead-repository";
 import { getDocumentBriefSnapshot } from "@/server/brief/document-index";
 
-function formatTodayISO() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function addDaysISO(dateISO: string, days: number) {
-  const [year, month, day] = dateISO.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + days);
-
-  const nextYear = date.getFullYear();
-  const nextMonth = String(date.getMonth() + 1).padStart(2, "0");
-  const nextDay = String(date.getDate()).padStart(2, "0");
-
-  return `${nextYear}-${nextMonth}-${nextDay}`;
-}
+import { upcomingCalendarWindow } from "@/server/calendar/upcoming-window";
 
 function buildHeadline(input: {
   upcomingCount: number;
@@ -77,8 +58,7 @@ function buildFocusLine(input: {
 }
 
 export async function buildCeoBriefSnapshot(): Promise<CeoBriefSnapshot> {
-  const todayISO = formatTodayISO();
-  const horizonISO = addDaysISO(todayISO, 14);
+  const { fromDateISO: todayISO, toDateISO: horizonISO } = upcomingCalendarWindow();
   const contactRepository = createContactLeadRepository();
 
   const [events, newLeads, allRecentLeads, documents] = await Promise.all([

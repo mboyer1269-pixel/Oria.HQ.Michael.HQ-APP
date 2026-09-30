@@ -1,277 +1,116 @@
-# Oria HQ — Workspace-First Agentic Operator Platform
+# ORIA HQ — atelier de développement et centre de pilotage
 
-> **Owner:** Michael Boyer (President / Capital Allocator)  
-> **Operating Partner:** Joris (L2 assistant)  
-> **Workspace:** Michael HQ  
-> **Last synced:** 2026-06-15 · main + local repository-cleanup stack
+État de cette branche au **30 septembre 2026**. Le code publié, les essais isolés
+et le déploiement actif sont des états différents : ce dépôt ne prétend pas
+qu'une mission autonome complète est déjà opérationnelle.
 
-Oria HQ is a **private operating platform** for running, validating, and governing ventures with AI agents.  
-It is **not** a generic chatbot or a GPT wrapper.  
-It is a **controlled agentic workspace** where agents propose, score, draft, and execute actions under strict human approval, audit trails, and safety guardrails.
+## Notre objectif
 
----
+Construire un atelier de développement basé sur **OpenHands**, accessible dans
+ORIA HQ : demander une modification, suivre les agents, vérifier les résultats
+et essayer le produit. Utiliser ensuite cet atelier pour compléter ORIA HQ.
+L'interface doit expliquer les étapes importantes et rester utilisable sur mobile.
 
-## Vision & direction
+- [Plan HQ constructeur](docs/PLAN-HQ-CONSTRUCTEUR.md)
+- [Liste des tâches et critères de réussite](docs/HQ_TASKS.md)
+- [Scripts d'intégration et runner OpenHands — dépôt privé](https://github.com/mboyer1269-pixel/oria-hq-orchestrator)
+- [Memex Core — mémoire du projet](https://github.com/mboyer1269-pixel/memex-core)
 
-> **Observer → Journaliser → Approuver → Persister → Auditer → Exécuter**
+## Architecture
 
-Oria must become a **CEO operating system augmented by agents** — not an autonomous execution engine.
+| Brique | Responsabilité |
+| --- | --- |
+| HQ / Next.js | Interface, missions, décisions, permissions et aperçu des résultats |
+| Stockage HQ / Supabase | État durable, identité propriétaire et périmètre du workspace |
+| OpenHands / runner isolé | Exécution du travail sur une copie du dépôt et suivi de son cycle de vie |
+| Memex Core | Contexte du projet, provenance et publication gouvernée des connaissances |
+| Vérifications / revue | Tests des changements exacts et contrôle indépendant avant livraison |
 
-The product evolves from the current single-owner foundation toward configurable workspaces, assistant profiles, permissioned actions, and runtime adapters — without baking any one person, assistant, or venture into core application contracts.
+AgentMemory est une mémoire **locale de développement**. Ce n'est pas la mémoire
+opérationnelle Memex des utilisateurs. Les services de modèles, leurs comptes et
+leurs quotas restent distincts ; aucun abonnement ne devient automatiquement une API.
 
-Every sprint must answer one question:
+## Ce qui est implémenté
 
-> Does this make Oria more controllable, more audited, more sellable, or more secure?
+- Dossier de mission interactif, préparation et confirmation du lancement.
+- Contrats de réservation, stockage d'autorité, suivi des permissions et événements.
+- Capture Memex liée au projet et conservée avec le dossier confirmé.
+- Lecture Memex HTTP, propositions et parcours de revue gouvernée.
+- Diagnostic de reprise : état observé, fraîcheur et incertitudes visibles.
+- Chargement ciblé des missions et du contexte ; mesures documentées séparément.
+- Cockpit, calendrier, registre d'agents et outils de gouvernance existants conservés.
 
-If not — it waits.
+Les fonctions d'exécution et de revue restent soumises à leur configuration et à
+leurs garde-fous. Un écran présent dans le code ne prouve pas qu'un compte est connecté.
 
----
+## Ce qui a été qualifié, et les limites
 
-## Current state — what actually exists on `main`
+Le dépôt compagnon documente un parcours isolé reliant HQ, stockage durable,
+Memex, runner et proxy avec un **adaptateur simulé**. Le contexte confirmé et les
+états ont été vérifiés après redémarrage du stockage. Le runner possède une suite
+de 124 tests réussis sous Linux, incluant le budget temporel partagé.
 
-This README reflects the current codebase state. It separates:
+**Encore à prouver :** une mission Claude authentifiée qui modifie réellement du
+code depuis HQ, passe ses tests et une revue indépendante, puis fournit un aperçu
+essayable. La connexion dédiée, le raccordement sécurisé des identifiants, la
+publication approuvée du cadre Memex et l'activation opérateur restent à finaliser.
+Antigravity reste prévu et non qualifié dans ce parcours. Les vérifications
+synthétiques ne démontrent ni économies de tokens ni supériorité de performance.
 
-- **Live** — exists, wired, validated.
-- **Partial / prototype** — exists, not production-ready.
-- **Locked** — deliberately not built yet.
+Voir aussi :
 
-### HQ surfaces
+- [Préparation OpenHands](docs/OPENHANDS_PREPARATION_UI.md)
+- [Contexte Memex](docs/OPENHANDS_MEMEX_CONTEXT.md)
+- [Permissions des outils](docs/openhands-tool-permissions.md)
+- [Profil fournisseur](docs/OPENHANDS_PROVIDER_PROFILE.md)
+- [Diagnostic de reprise](docs/OPENHANDS_RECOVERY_UI.md)
+- [Mesures de chargement](docs/MISSION_LOADING_PERFORMANCE.md)
 
-| Surface | Status | Notes |
-|---------|--------|-------|
-| `/hq` | Live | Cockpit overview — Operator Snapshot + Ledger Activity panels |
-| `/hq/missions` | Live | Mission pipeline UI; dry-run planning + draft gate |
-| `/hq/agents` | Live | Agent registry (seed) |
-| `/hq/skills` | Live | Skills catalog (seed) |
-| `/hq/ventures` | Live | Venture Command Center; read-only venture engine view |
-| `/hq/runtime` | Live | Local prototype status (read-only narrative) |
-| `/hq/memory` | Partial | Read explorer live — verified vault + file-graph, chainlines, duplicate detection, learning-loop report. Write/approval UI still pending. |
-| `/dashboard/documents` | Placeholder | Module retiré temporairement; rebuild prévu |
-| `/contact` | Live | Public contact form |
-| `/login` | Live | Supabase auth (optional in dev) |
+## Développement local
 
-### Joris — orchestrator & controlled executor
+Prérequis : Node.js 22.x (contrainte du dépôt : `>=22 <23`) et npm 10 ou supérieur.
 
-Joris is the **operating partner**, not a free agent runner. All sensitive actions require human confirmation.
-
-- **Two-step Mission Draft gate** — `calendar.book` intents produce a structured preview first; confirmed only on explicit reply (`confirme`, `oui`, `go`). Pending drafts have a 10-minute TTL.
-- **Workspace context** — every Joris action injects `workspaceId`, `modeId`, `assistantProfileId` into the ledger.
-- **Joris Brain** (`src/server/joris/brain.ts`) routes intents: `mission.draft`, `mission.plan`, `calendar.book`, governance checks.
-- **Model invocation** — conversational replies (general `chat`, `board.consult`) call a real LLM through the shared provider (`generateStructuredJson`: Anthropic → OpenAI) **when API keys are configured**, and fall back to a deterministic, clearly-labelled response otherwise (`CommandResult.generation` is `"llm"` or `"fallback"`). Structured intents (booking, mission plan, governance, brief) are deterministic and rules-based — the router only *selects* a model for them, it does not invoke one.
-- **Smoke test**: `npm run smoke:joris` — full two-step flow + `missionId` tracing on ledger.
-- **Routing doctrine** — provider-neutral routing, Cost Ladder rungs (`free`/`economy`/`premium`), and the panel/fusion-as-exception policy are ratified in [`docs/JORIS_ROUTING_DOCTRINE.md`](docs/JORIS_ROUTING_DOCTRINE.md). Doctrine only — runtime stays `display_only`.
-
-### Action ledger & governance
-
-- **Ledger write path**: every `calendar.book` records a `decision` event _before_ the calendar write, then an `action` event _after_. Compensating delete on ledger failure.
-- **Ledger Activity panel** on `/hq` — read-only; classifies each row as **Liée** (known missionId), **Orphelin** (no missionId), or **Réf. inconnue**.
-- **Mission ↔ Ledger traceability** — `missionId` flows from Mission Draft confirmation through calendar write into ledger metadata.
-- **Workspace-scoped** — all ledger rows, calendar events, and decisions carry `workspaceId`.
-
-### Venture engine
-
-Under `src/features/ventures` and `src/server/ventures`:
-
-- **EvidenceRef** — typed, trust-classified revenue evidence (`stripe_charge`, `signed_loi`, `email_reply`, `screenshot`, `manual_note`, etc.). Only verified financial kinds back realized cash. Anti-gaming foundation.
-- **AgentRevenueOutcome** — structured venture work outcomes: six signals (customerProof, paymentSignal, painClarity, buyerIdentifiability, offerTestability, cashProximity), `cashGenerated`, `nextCashAction`.
-- **VentureCashScore** — scores ventures on cash readiness: `totalCashScore`, `cashScoreBand` (`blocked` → `cash_ready`), `survivalStatus` (`kill_candidate` → `cash_ready`).
-- **AgentOperatorScore** — scores agents as economic operators: revenueImpact, economicInitiative, executionEfficiency, credibility, skillGrowth. Bands from `underperforming` to `elite_operator`.
-- **ExecutiveSelectionIndex** — combines both scores into allocation decisions (proposals only, no execution).
-- **Hermes Prep Agent** (`hermesPrepTick`) — pure planner for outreach prep cycles; produces `OutreachPlan` proposals stored in the `prepared_actions` durable store. No live execution.
-- **Prepared Actions store** (`prepared_actions`) — durable store for agent-prepared actions pending CEO review.
-- **Agent economics loop** — score history persisted; loop closed from evidence → outcome → score → selection.
-- **ROI Arena** (`src/server/arena/roi-arena.ts`) — evaluates mission/idea/action candidates with ROI multiples, sanity ceilings, and dry-run execution plans.
-
-### Live Execution Layer (bounded, guarded)
-
-Under `src/server/runtime` and `src/features/agents`:
-
-- **Bounded Live Execution Layer** (PR #218) — foundation for controlled live execution. No unguarded dispatch.
-- **Sentinelle Policy Engine** (PR #219) — zone-based execution policies. Each action zone has explicit allowed operations, approval thresholds, and hard blocks.
-- **Green Lane Execute** (PR #220) — pre-approved, low-risk actions can flow through a fast-path with lightweight confirmation. ROI meter validates value-to-cost ratio before dispatch.
-- **Webhook Bridge** (PR #220) — n8n webhook integration for external action triggers. All inbound webhooks pass through the Sentinelle policy check.
-- **Smoke test**: `npm run smoke:agent-execute` — validates guard, policy check, and execution attempt logging.
-
-All live execution remains behind:
-- `humanOnTheLoop: true` contract invariant.
-- Sentinelle policy zone check.
-- Ledger entry before and after any execution attempt.
-- `POST /api/missions/execute` **does not exist** by design.
-
----
-
-## Known current limitations
-
-Honest constraints of the current build:
-
-- **`/dashboard/documents` is a placeholder** — not a functional module yet.
-- **`/hq/memory` is read-only.** The vault read explorer is live (verified entries are injected into Joris at every brain invocation, max 20, workspace-scoped) and the propose → approve → verified governance path exists server-side (`memory-vault-repository.ts`). What is **not** built yet: a write/approval UI, an HTTP API surface, and Supabase persistence (the in-memory store resets on restart). See `docs/MEMORY_VAULT_CONTRACT.md`.
-- **Document store is dev/test-only.** `db/documents.json` is a local fixture, **fail-closed in production**; the Supabase `documents` migration is planned (`docs/migrations/documents-file-store-to-db.md`).
-- **Joris conversational LLM needs API keys.** Without a configured provider, the conversational path returns a deterministic, clearly-labelled fallback (`generation: "fallback"`) — no fabricated "AI" output.
-- **Rate limiting** falls back to an in-memory, per-instance limiter unless Upstash is configured.
-- **Single workspace** (`michael-hq`); multi-workspace configuration is future work.
-- **Live mission execution is locked** — no unguarded dispatch; `POST /api/missions/execute` does not exist.
-
----
-
-## Architecture map
-
-| Path | Role |
-|------|------|
-| `src/app/` | Next.js App Router surfaces (`/hq`, `/hq/missions`, `/hq/agents`, `/hq/ventures`, etc.). |
-| `src/features/ventures/` | Venture models, EvidenceRef, AgentRevenueOutcome, scoring, Hermes plans, workbench, profitability panels. |
-| `src/features/agents/` | Agent registry, autonomy cockpit, knowledge packs, quality evaluation, approval packets, bounded execution layer. |
-| `src/features/cockpit/` | HQ cockpit shell, Operator Snapshot, Ledger Activity, control chain, Joris dock, morning readiness. |
-| `src/features/hq/` | HQ page-level components (operator-snapshot, ledger-activity read model). |
-| `src/server/agents/` | Agent contracts: work orders, autonomy envelopes, Next Action Mandate, governance helpers, Sentinelle policy engine. |
-| `src/server/arena/` | ROI Arena — value/ROI evaluation, verdicts, batch ranking, candidate generator. |
-| `src/server/joris/` | Joris brain, intent detection, governance bundles, mission router, work-order review, mission-draft gate. |
-| `src/server/missions/` | Mission draft builder, confirmation, pending-draft session (TTL), plan endpoint. |
-| `src/server/runtime/` | Execution guard, runtime safety, Green Lane, webhook bridge, local prototype. |
-| `src/server/ventures/` | Venture repository, lifecycle service, prepared_actions store, Hermes orchestration. |
-| `src/server/actions/` | Action ledger repository — local and Supabase paths, workspace metadata helpers. |
-| `src/server/calendar/` | Calendar service — workspace-scoped, ledger-wrapped, mission-draft–gated. |
-| `src/core/workspaces/` | Workspace config registry, workspace context types. |
-| `src/config/workspaces/` | Workspace seed definitions. |
-| `src/scripts/smoke/` | Smoke tests (joris two-step, agent-execute, runtime health, revenue operational-value). |
-| `db/` | Migrations and verification SQL for ventures, governance, and workspace tables. |
-| `docs/` | Doctrine, governance specs, approval schemas, operating model, current state canonical. |
-
----
-
-## Safety model — what agents can and cannot do
-
-### Agents may:
-
-- **research** — collect information, scan options.
-- **analyze** — compare options, critique, highlight risks.
-- **score** — produce VentureCashScore / AgentOperatorScore / ROI Arena scores.
-- **draft** — internal plans, briefs, outreach prep, offers.
-- **compare** — ventures, agents, options, outcomes.
-- **estimate ROI** — via ROI Arena and profitability engines.
-- **prepare** — Hermes outreach plans, prepared actions for CEO review.
-- **propose next work** — Next Action Mandate, `nextCashAction`, routing suggestions.
-- **execute (Green Lane)** — pre-approved, low-risk actions with Sentinelle policy clearance and ledger trace.
-
-### Agents may **not** do without explicit approval and logged guardrails:
-
-- **contact customers** — send emails, messages, or book meetings without Mission Draft confirmation.
-- **spend money** — payments, transfers, purchases.
-- **publish** — public content, posts, docs.
-- **deploy** — infrastructure, code, config to production.
-- **modify database** — schema or data writes outside venture services and migrations.
-- **connect external tools** — new integrations without explicit scope.
-- **bypass approvals** — no silent auto-approval flows.
-- **execute outside policy zones** — any action not cleared by Sentinelle is blocked.
-
-These constraints are enforced by:
-
-- Contract-level invariants (`humanOnTheLoop: true`, `approvalRequired: true`, `noExecutionAuthorized: true`).
-- Central runtime guard (`execution-guard`) for any candidate execution.
-- Sentinelle Policy Engine — zone-based hard blocks and approval thresholds.
-- Governance / ledger layers — every decision and action is recorded and traced.
-
----
-
-## Owner identity & dev fallback
-
-The server resolves the active user via `getServerUserContext()` (`src/server/auth/user-context.ts`):
-
-- **Real owner** — when `MICHAEL_HQ_OWNER_ID` is set, that identity is used with Supabase-backed storage.
-- **Dev fallback** — when it is unset, the app uses a local single-user identity (`local-michael`, in-memory storage) so it can run without Supabase. This is **development / local only**.
-
-The fallback is never silent and never implicit in production:
-
-- Outside production it is allowed automatically (logs a one-time warning).
-- In production the app **fail-closes** (throws) when no real owner is configured — unless `ORIA_ALLOW_DEV_USER_FALLBACK=true` is explicitly set (strongly discouraged). See `.env.example`.
-
----
-
-## Venture profitability loop
-
-> **Evidence → Outcome → Score → ROI → Selection → Mandate → Prepared Action → CEO Review**
-
-- **Evidence** (`EvidenceRef`) — typed, trust-classified. Only `stripe_charge` / `signed_loi` backs real cash.
-- **Outcome** (`AgentRevenueOutcome`) — structured venture work result; positive cash requires verified financial evidence.
-- **Score** (`VentureCashScore`, `AgentOperatorScore`) — survival status and operator quality.
-- **ROI** (ROI Arena) — net value and ROI multiples with sanity ceilings.
-- **Selection** (`ExecutiveSelectionIndex`) — allocation decisions (proposals only).
-- **Mandate** (`NextActionMandate`) — next cash-oriented move; agent accepts, refutes, or counter-proposes.
-- **Prepared Action** (Hermes + `prepared_actions` store) — durable store; CEO reviews before any outreach or external contact.
-- **CEO Review** — explicit approval gate; no action leaves the system without it.
-
----
-
-## Validation
-
-From the repo root using Windows PowerShell:
-
-```powershell
-npm run typecheck     # TypeScript strict
-npm run lint          # ESLint
-npm run build         # Next.js build
-npm run smoke:joris   # Joris two-step mission draft + ledger trace
+```sh
+npm ci
+npm run dev
 ```
 
-Full validation suite:
+Les variables disponibles sont décrites dans `.env.example`. Conserver les vraies
+valeurs dans la configuration locale ou le gestionnaire de secrets du déploiement.
+Les intégrations externes exigent leur propre configuration. Le mode local de
+certaines fonctions n'est pas une preuve de connexion à Supabase ou aux modèles.
 
-```powershell
-npm run smoke:agent-execute         # Bounded execution layer smoke
-npm run test:mission-draft          # Mission draft gate + TTL
-npm run test:calendar-ledger-atomicity
-npm run test:ledger-events
-npm run test:ledger-activity-read
-npm run smoke:revenue               # Venture operational-value check
+## Vérifications
+
+```sh
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run smoke:joris
 ```
 
-`overrides.sharp` is exact because Next.js installs Sharp as an optional native
-image dependency. Updating that native binary is a deliberate lockstep change,
-validated with `npm ci`, the build, smoke tests, and `npm run audit:deps`.
+Le smoke Joris utilise le parcours local par défaut. Ne pas activer les écritures
+externes pour une simple validation du dépôt. Les rapports de qualification
+précisent leur périmètre ; les résultats ne constituent pas une garantie zéro bug.
 
-All checks must pass before merge.
+## Façon de travailler
 
-CI runs the same gate on every pull request and push to `main`
-(`.github/workflows/ci.yml`): `npm ci` on Node 22, then typecheck, lint, build,
-tests, and the Joris/runtime smokes — offline, no secrets, with least-privilege
-`contents: read` permissions and stale-run cancellation.
+Un résultat utile par mission, avec périmètre, budget et critères d'acceptation.
+Réutiliser les briques existantes ; automatiser les contrôles répétitifs ; fournir
+aux agents le contexte pertinent. Un développeur ne valide pas seul sa livraison.
+Les essais audacieux restent isolés et les reprises vérifient les effets existants.
 
----
+Les fichiers de session navigateur, journaux locaux, dépendances et identifiants
+ne font pas partie des sources à publier. Une publication GitHub ne déploie pas le VPS.
 
-## Development rules
+## Repères et historique
 
-- **Small PRs** — one branch = one mandate = one PR = one validation.
-- **Diagnosis first** — every session starts read-only (`git status`, `git log`, `git diff`).
-- **Pure/local models first** — contracts and pure helpers before wiring runtime or DB.
-- **No DB/API/runtime changes** without an explicit mandate and clear scope.
-- **No duplicate concepts** — one canonical owner per domain type.
-- **No hardcoded secrets** — configuration via environment / tooling only.
-- **No approval bypass** — all sensitive actions flow through governance and guardrails.
-- **No unguarded live execution** — runtime dispatch must always go through the execution guard, Sentinelle policy check, and ledger.
+- [AGENTS.md](AGENTS.md) : règles de contribution.
+- [SOUL.md](SOUL.md) : posture des agents.
+- [Consolidation des dépôts](docs/REPO_CONSOLIDATION.md) : frontières du produit.
+- [Ancien README, conservé comme historique](docs/HQ_README_BASELINE_2026-06-15.md).
 
----
-
-## Roadmap (near-term)
-
-| Priority | Sprint | Objective |
-|----------|--------|-----------|
-| P0 | **Memory Vault** | Workspace-bound typed memory (decision, SOP, note, source). Joris read rules + propose/approve governance path **done** (server-side, in-memory). Remaining: write/approval UI, HTTP API, Supabase persistence. No vector DB. |
-| P0 | **Money / ROI Cockpit** | Runway, AI spend, ROI by agent/mission. Manual model first — no banking, no billing. |
-| P1 | **Mission Persistence** | Missions, approval records, execution attempts in DB. Docs/migration proposal first; staging gate before prod. |
-| P1 | **n8n Webhook Hardening** | Auth, replay protection, rate limits on inbound webhook bridge. |
-| P2 | **Workspace Configuration** | Multi-workspace seed expansion; configurable assistant profiles. |
-| P2 | **Runtime HTTP endpoint** | Only after ledger, mission, and memory are observable and stable. |
-
-Rule: no new phase starts without an explicit mandate from Michael.
-
----
-
-## Contact
-
-Private, owner-operated workspace.  
-Collaborators start from:
-
-- `docs/ORIA_HQ_CURRENT_STATE.md` — canonical current state.
-- `docs/AGENTS.md` → `AGENTS.md` at repo root — operating rules for agents.
-- `docs/AGENT_GOVERNANCE_REVIEW_LOOP.md` — governance and review loop.
-- `docs/VENTURE_ENGINE_RECALIBRATION.md` — venture engine direction.
-- `SOUL.md` — agent posture and values.
+Les anciens documents peuvent décrire des choix ou états antérieurs, notamment
+Paperclip comme premier exécutant. Le plan et la liste de tâches ci-dessus fixent
+la priorité actuelle ; les preuves datées déterminent ce qui fonctionne réellement.

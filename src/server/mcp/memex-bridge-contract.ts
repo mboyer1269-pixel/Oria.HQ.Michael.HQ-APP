@@ -62,6 +62,7 @@ const ALL_MEMEX_TOOLS = Object.keys({
  * traversal surface the bridge does not need to touch to be useful.
  */
 export const MEMEX_V1_READ_ALLOWLIST: readonly MemexToolName[] = [
+  "agentmemory_graph_query",
   "agentmemory_context_pack",
   "agentmemory_librarian_brief",
   "agentmemory_project_state",
@@ -74,12 +75,11 @@ export const MEMEX_V1_FORBIDDEN_TOOLS: readonly MemexToolName[] = [
   "agentmemory_write_vault_file",
   "agentmemory_read_vault_file",
   "agentmemory_search_vault",
-  "agentmemory_graph_query",
   "agentmemory_tool_catalog_search",
 ];
 
 /** Memory zones, mirroring the Memex fabric. "unknown" is a rejection. */
-export type MemexZone = "human" | "agent" | "unknown";
+export type MemexZone = "human" | "agent" | "system" | "unknown";
 
 // ---------------------------------------------------------------------------
 // Descriptors
@@ -101,6 +101,7 @@ export type MemexContextItem = {
   deprecated: boolean;
   content: string;
   provenance: MemexProvenance | null;
+  observedAtIso?: string;
 };
 
 /**
@@ -147,7 +148,7 @@ export const MEMEX_MIN_TIMEOUT_MS = 500;
 export const MEMEX_MAX_TIMEOUT_MS = 15_000;
 export const MEMEX_MAX_CONTEXT_CHARS_CEILING = 20_000;
 
-const NAMESPACE_PATTERN = /^[a-z][a-z0-9._-]{0,63}$/;
+const NAMESPACE_PATTERN = /^org:[a-zA-Z0-9][a-zA-Z0-9:_.-]{0,127}$/;
 
 /** True when the string is a plausible Memex namespace, not a path or glob. */
 export function isValidMemexNamespace(value: unknown): value is string {
@@ -201,7 +202,7 @@ export function validateMemexBridgePolicy(policy: MemexBridgePolicy): ContractVa
 
   if (!isValidMemexNamespace(policy.namespace)) {
     errors.push(
-      `namespace "${policy.namespace}" is invalid — lowercase dotted identifier, no paths`,
+      `namespace "${policy.namespace}" is invalid — expected an exact org: project identifier`,
     );
   }
   if (
@@ -281,7 +282,7 @@ export function selectInjectableMemexItems(
       rejected.push({ id, reason: "deprecated memories are excluded by default" });
       continue;
     }
-    if (item.zone === "unknown" || (item.zone !== "human" && item.zone !== "agent")) {
+    if (item.zone === "unknown" || (item.zone !== "human" && item.zone !== "agent" && item.zone !== "system")) {
       rejected.push({ id, reason: `zone "${item.zone}" is not injectable` });
       continue;
     }

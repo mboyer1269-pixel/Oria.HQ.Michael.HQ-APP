@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   Download,
   Loader2,
-  Mic,
+  MessageSquare,
   Send,
   ShieldCheck,
   Sparkles,
@@ -96,9 +96,9 @@ function downloadAuditExport(auditExport: NonNullable<ChatResponse["auditExport"
   URL.revokeObjectURL(url);
 }
 
-const bookingExamples = [
-  "Joris, book un rendez-vous dentiste pour les enfants demain à 18:00",
-  "Joris, book un suivi avec Eric vendredi à 9:30",
+const commandExamples = [
+  "Prépare un plan de mission pour améliorer les tests de mon application",
+  "Résume le contexte disponible et indique ce qui reste à vérifier",
 ];
 
 function MissionDraftProposalHint({ preview }: { preview: MissionDraftPreview }) {
@@ -179,8 +179,7 @@ export function CommandCenter() {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-400">Command Center</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">Parler à Joris</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-neutral-400">
-            Donne une commande claire à Joris dans le contexte Michael HQ. Les modes métier viendront ensuite cadrer
-            les demandes finance, immobilier et autres niches.
+            Décris ton objectif et le résultat attendu. Joris peut préparer une réponse ou une proposition ; cela ne lance pas automatiquement une équipe d’agents.
           </p>
         </div>
         <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
@@ -191,12 +190,12 @@ export function CommandCenter() {
 
       <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row">
         <div className="flex min-h-14 flex-1 items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 transition focus-within:border-amber-500/60 focus-within:ring-2 focus-within:ring-amber-500/10">
-          <Mic className="h-5 w-5 shrink-0 text-neutral-500" />
+          <MessageSquare aria-hidden="true" className="h-5 w-5 shrink-0 text-neutral-500" />
           <input
             value={command}
             onChange={(event) => setCommand(event.target.value)}
             className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-neutral-600"
-            placeholder="Joris, book un rendez-vous demain à 18:00..."
+            placeholder="Quel résultat veux-tu obtenir pour ton projet ?"
             aria-label="Commande pour Joris"
           />
         </div>
@@ -210,13 +209,15 @@ export function CommandCenter() {
         </button>
       </form>
 
+      <p className="mt-3 text-xs leading-5 text-neutral-400">L’envoi peut utiliser un fournisseur IA configuré par API. Les abonnements CLI ne sont pas automatiquement utilisés ; la consommation n’est pas encore mesurée dans cette vue.</p>
+
       {!result && !error && (
         <div className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">Sélectionnez un exemple pour tester Joris</p>
+              <p className="text-sm font-semibold text-white">Partir d’un exemple</p>
               <p className="mt-1 text-sm leading-6 text-neutral-400">
-                Commencez avec un booking simple. Joris affichera le résultat et journalisera l&apos;action une fois confirmée.
+                Un clic remplit le champ. Tu peux modifier la demande avant de l’envoyer.
               </p>
             </div>
             <span className="w-fit rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200">
@@ -224,7 +225,7 @@ export function CommandCenter() {
             </span>
           </div>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            {bookingExamples.map((example) => (
+            {commandExamples.map((example) => (
               <button
                 key={example}
                 type="button"

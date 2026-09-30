@@ -41,7 +41,7 @@ test("Memex Read-Only Bridge contract", async (t) => {
   const validPolicy = {
     mode: "read_only",
     toolAllowlist: ["agentmemory_context_pack", "agentmemory_librarian_brief"],
-    namespace: "michael.oria",
+    namespace: "org:michael.oria",
     timeoutMs: 3000,
     maxContextChars: 4000,
     allowAgentZone: false,
@@ -58,7 +58,7 @@ test("Memex Read-Only Bridge contract", async (t) => {
     content: "Le brief SOP du matin vit dans docs/MASTER_BRIEF.md.",
     provenance: {
       sourceTool: "agentmemory_context_pack",
-      namespace: "michael.oria",
+      namespace: "org:michael.oria",
       retrievedAtIso: NOW,
       memexVersion: "0.7.0",
     },
@@ -157,7 +157,7 @@ test("Memex Read-Only Bridge contract", async (t) => {
         id: "p2",
         provenance: {
           sourceTool: "agentmemory_write_vault_file",
-          namespace: "michael.oria",
+          namespace: "org:michael.oria",
           retrievedAtIso: NOW,
           memexVersion: null,
         },
@@ -166,7 +166,7 @@ test("Memex Read-Only Bridge contract", async (t) => {
         id: "p3",
         provenance: {
           sourceTool: "agentmemory_context_pack",
-          namespace: "someone.else",
+          namespace: "org:someone.else",
           retrievedAtIso: NOW,
           memexVersion: null,
         },
@@ -175,7 +175,7 @@ test("Memex Read-Only Bridge contract", async (t) => {
         id: "p4",
         provenance: {
           sourceTool: "agentmemory_context_pack",
-          namespace: "michael.oria",
+          namespace: "org:michael.oria",
           retrievedAtIso: "not-a-date",
           memexVersion: null,
         },
@@ -261,8 +261,8 @@ test("Memex Read-Only Bridge contract", async (t) => {
   });
 
   await t.test("14. namespace validation rejects paths and globs", () => {
-    assert.equal(isValidMemexNamespace("michael.oria"), true);
-    assert.equal(isValidMemexNamespace("michael"), true);
+    assert.equal(isValidMemexNamespace("org:michael.oria"), true);
+    assert.equal(isValidMemexNamespace("org:michael"), true);
     for (const bad of ["", "Michael", "../x", "a/b", "a b", "*", "a".repeat(70), 42, null]) {
       assert.equal(isValidMemexNamespace(bad), false, `"${bad}" must be rejected`);
     }

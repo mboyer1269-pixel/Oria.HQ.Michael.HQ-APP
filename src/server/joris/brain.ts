@@ -294,48 +294,6 @@ export async function runJorisCommand(
 ): Promise<CommandResult> {
   const ctx = workspaceContext;
 
-  // Memory Vault — read verified entries at the start of every brain invocation.
-  // Workspace-scoped, verified only, max 20 entries (contract §Joris read rules).
-  // This context is available to all downstream handlers in this invocation.
-  const vaultContext = (deps.readVerifiedVault ?? readVerifiedVaultContext)(ctx.workspace.id);
-  const vaultNote = buildVaultContextNote(vaultContext);
-
-  // Verified lessons rail — advisory block composed from the same verified
-  // read, filtered to lessons concerning the active agent, capped and
-  // sanitized. Subordinate to system rules by construction; the trace is
-  // non-sensitive (ids and counts only, never lesson content).
-  const lessonsRail = composeVerifiedLessonsContext({
-    entries: vaultContext.entries,
-    agentId: ctx.activeAgentProfile.id,
-  });
-  if (lessonsRail.block) {
-    logger.info("joris.memory.lessons.rail", { ...lessonsRail.trace });
-  }
-  let memoryContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
-
-  const memexEnrichment = await (deps.enrichMemexContext ?? enrichJorisMemoryContextWithMemex)({
-    existingContext: memoryContext,
-    taskIntent: message,
-    workspaceId: ctx.workspace.id,
-  });
-  if (memexEnrichment.trace.status === "enriched" && memexEnrichment.memoryContext !== null) {
-    memoryContext = memexEnrichment.memoryContext;
-  }
-  logger.info(
-    MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
-    buildMemexMemoryEvidenceObservabilityPayload({
-      summary: memexEnrichment.evidenceSummary,
-      evidencePackValid: memexEnrichment.trace.evidencePackValid ?? false,
-    }),
-  );
-
-  const attachMemexPreview = (summaryText: string, intent: JorisIntent) =>
-    withMemexEvidencePreview(summaryText, {
-      intent,
-      memoryContext,
-      evidenceSummary: memexEnrichment.evidenceSummary,
-    });
-
   const route = chooseModel({
     message,
     highImpact: false,
@@ -353,6 +311,60 @@ export async function runJorisCommand(
     modeId: ctx.activeMode.id,
     assistantId: ctx.activeAgentProfile.id,
   };
+
+  // Vault and Memex context are only consumed by brief generation and the
+  // conversational path below. Keep this request-scoped and lazy so structured
+  // intents and pending-reply handlers avoid an unrelated memory round trip.
+  let memoryContextPromise:
+    | Promise<{ memoryContext: string | null; enrichment: MemexContextEnrichmentResult }>
+    | undefined;
+  const getMemoryContext = () => {
+    memoryContextPromise ??= (async () => {
+      // Workspace-scoped, verified only, max 20 entries (contract §Joris read rules).
+      const vaultContext = (deps.readVerifiedVault ?? readVerifiedVaultContext)(ctx.workspace.id);
+      const vaultNote = buildVaultContextNote(vaultContext);
+
+      // The lessons rail uses the same verified read, scoped to this agent,
+      // capped and sanitized. Its trace contains ids and counts only.
+      const lessonsRail = composeVerifiedLessonsContext({
+        entries: vaultContext.entries,
+        agentId: ctx.activeAgentProfile.id,
+      });
+      if (lessonsRail.block) {
+        logger.info("joris.memory.lessons.rail", { ...lessonsRail.trace });
+      }
+      const existingContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
+      const enrichment = await (deps.enrichMemexContext ?? enrichJorisMemoryContextWithMemex)({
+        existingContext,
+        taskIntent: message,
+        workspaceId: ctx.workspace.id,
+      });
+      const memoryContext =
+        enrichment.trace.status === "enriched" && enrichment.memoryContext !== null
+          ? enrichment.memoryContext
+          : existingContext;
+      logger.info(
+        MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
+        buildMemexMemoryEvidenceObservabilityPayload({
+          summary: enrichment.evidenceSummary,
+          evidencePackValid: enrichment.trace.evidencePackValid ?? false,
+        }),
+      );
+      return { memoryContext, enrichment };
+    })();
+    return memoryContextPromise;
+  };
+
+  const attachMemexPreview = (
+    summaryText: string,
+    intent: JorisIntent,
+    context: Awaited<ReturnType<typeof getMemoryContext>>,
+  ) =>
+    withMemexEvidencePreview(summaryText, {
+      intent,
+      memoryContext: context.memoryContext,
+      evidenceSummary: context.enrichment.evidenceSummary,
+    });
 
   // Governance review reply runs before the mission-draft reply so that, when
   // only a governance bundle is pending, review verbs ("approuve", "rejette",
@@ -469,14 +481,15 @@ export async function runJorisCommand(
   }
 
   if (intent === "brief.generate") {
+    const memory = await getMemoryContext();
     const brief = await buildCeoBriefSnapshot();
-    const briefSummary = memoryContext
-      ? `${brief.headline} ${brief.focusLine}\n\n${memoryContext}`
+    const briefSummary = memory.memoryContext
+      ? `${brief.headline} ${brief.focusLine}\n\n${memory.memoryContext}`
       : `${brief.headline} ${brief.focusLine}`;
 
     return {
       intent,
-      summary: attachMemexPreview(briefSummary, "brief.generate"),
+      summary: attachMemexPreview(briefSummary, "brief.generate", memory),
       modelId: routedModel.model.id,
       costMode: routedModel.mode,
       ...workspaceMeta,
@@ -679,18 +692,19 @@ export async function runJorisCommand(
   // LLM reply via the shared provider; when no provider is configured (no API
   // keys) or the call fails, fall back to a deterministic summary. The result is
   // labelled (`generation`) so nothing claims "AI mode" when rules produced it.
-  const llmReply = await deps.generateReply({ message, memoryContext });
+  const memory = await getMemoryContext();
+  const llmReply = await deps.generateReply({ message, memoryContext: memory.memoryContext });
   if (llmReply.ok) {
     // Preserve the deterministic verified-memory/lessons rail verbatim by
     // appending it OUTSIDE the LLM (board.consult), so the audit block is
     // guaranteed in the summary rather than left to the model to reproduce.
     const summary =
-      intent === "board.consult" && memoryContext
-        ? `${llmReply.text}\n\n${memoryContext}`
+      intent === "board.consult" && memory.memoryContext
+        ? `${llmReply.text}\n\n${memory.memoryContext}`
         : llmReply.text;
     return {
       intent,
-      summary: attachMemexPreview(summary, intent),
+      summary: attachMemexPreview(summary, intent, memory),
       modelId: llmReply.modelId,
       // The shared provider uses a low-cost default model; report an honest
       // conservative cost mode rather than the routed (possibly premium) one.
@@ -703,13 +717,13 @@ export async function runJorisCommand(
 
   const fallbackSummary = buildFallbackSummary(intent, message);
   const finalSummary =
-    intent === "board.consult" && memoryContext
-      ? `${fallbackSummary}\n\n${memoryContext}`
+    intent === "board.consult" && memory.memoryContext
+      ? `${fallbackSummary}\n\n${memory.memoryContext}`
       : fallbackSummary;
 
   return {
     intent,
-    summary: attachMemexPreview(finalSummary, intent),
+    summary: attachMemexPreview(finalSummary, intent, memory),
     modelId: routedModel.model.id,
     costMode: routedModel.mode,
     ...workspaceMeta,

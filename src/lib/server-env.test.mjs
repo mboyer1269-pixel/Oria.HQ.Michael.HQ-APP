@@ -86,6 +86,21 @@ test("Production fail-fast — it covers what authentication actually needs", as
     assert.equal(result.ok, true, `expected a clean boot, got: ${result.message}`);
   });
 
+  await t.test("mission control boots without model API credentials and reports that capability unavailable", () => {
+    const env = { ...PRODUCTION_BASE };
+    delete env.ANTHROPIC_API_KEY;
+    assert.equal(loadServerEnvWith(env).ok, true);
+    const body = callHealthWith(env);
+    assert.equal(body.ok, true);
+    assert.equal(body.degraded, true);
+    assert.ok(body.warnings.some(w => w.code === "model_api_keys_missing"));
+    // Optional inference must not make authentication or persistence optional.
+    delete env.SUPABASE_SERVICE_ROLE_KEY;
+    const missingStore = loadServerEnvWith(env);
+    assert.equal(missingStore.ok, false);
+    assert.match(missingStore.message, /SUPABASE_SERVICE_ROLE_KEY/);
+  });
+
   await t.test("a missing anon key stops the boot instead of breaking every route", () => {
     const env = { ...PRODUCTION_BASE };
     delete env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

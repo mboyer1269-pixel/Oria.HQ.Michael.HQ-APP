@@ -193,6 +193,13 @@ export function MemoryVaultExplorer({
 
   return (
     <div className="flex flex-col gap-4">
+      <label className="flex flex-col gap-2 text-sm text-neutral-300">
+        Explorer une connaissance
+        <select value={selectedId ?? ""} onChange={(event) => setSelectedId(event.target.value || null)} className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white focus-visible:outline-2 focus-visible:outline-emerald-400">
+          <option value="">Choisir une connaissance</option>
+          {positioned.map((node) => <option key={node.id} value={node.id}>{node.title}</option>)}
+        </select>
+      </label>
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Graph */}
         <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-2 lg:col-span-3">

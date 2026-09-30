@@ -79,7 +79,7 @@ function ApprovalCard({ mission }: { mission: Mission }) {
           Request changes
         </button>
         <span className="ml-auto rounded-md border border-neutral-800 bg-neutral-900 px-2 py-1 text-[10px] font-medium text-neutral-500">
-          Mock only — no action is executed
+          Actions d’approbation non reliées
         </span>
       </div>
     </article>
@@ -106,10 +106,10 @@ export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">
-            Approbation exécuteur (Phase 2 — mock)
+            Politique d’approbation — lecture seule
           </p>
           <h2 className="mt-2 text-xl font-semibold text-white">
-            {gated.length} mission{gated.length > 1 ? "s" : ""} seed en attente (exécuteur futur)
+            {gated.length} mission{gated.length > 1 ? "s" : ""} de cette page {gated.length > 1 ? "nécessitent" : "nécessite"} une revue
           </h2>
           <p className="mt-1 text-sm text-neutral-400">
             Distinct du gate calendrier Joris : les rendez-vous pending se confirment sur{" "}
@@ -118,7 +118,7 @@ export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-neutral-700 px-3 py-1 text-[11px] font-medium text-neutral-500">
-          Mock only
+          Lecture seule
         </span>
       </div>
 

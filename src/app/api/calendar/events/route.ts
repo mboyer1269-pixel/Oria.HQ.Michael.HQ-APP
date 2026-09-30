@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createCalendarEvent, CalendarServiceError, listCalendarEvents } from "@/server/calendar/calendar-service";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { requireOwnerApiSession } from "@/server/auth/owner";
+import { upcomingCalendarWindow } from "@/server/calendar/upcoming-window";
 
 const dateSchema = z
   .string()
@@ -83,10 +84,11 @@ export async function GET(request: Request) {
   if (authResponse) return authResponse;
 
   const url = new URL(request.url);
+  const upcoming = url.searchParams.get("upcoming") === "true" ? upcomingCalendarWindow() : null;
   const parsed = listEventsSchema.safeParse({
     limit: url.searchParams.get("limit") ?? undefined,
-    fromDateISO: url.searchParams.get("fromDateISO") ?? undefined,
-    toDateISO: url.searchParams.get("toDateISO") ?? undefined,
+    fromDateISO: upcoming?.fromDateISO ?? url.searchParams.get("fromDateISO") ?? undefined,
+    toDateISO: upcoming?.toDateISO ?? url.searchParams.get("toDateISO") ?? undefined,
   });
 
   if (!parsed.success) {

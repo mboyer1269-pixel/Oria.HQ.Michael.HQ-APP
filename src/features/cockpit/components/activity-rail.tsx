@@ -28,7 +28,7 @@ export function ActivityRail() {
           Lecture seule
         </span>
         <Link
-          href={"/hq#ledger-activity" as Route}
+          href={"/hq/activity" as Route}
           className="ml-auto inline-flex items-center gap-1 font-semibold text-sky-300/90 transition hover:text-sky-200"
         >
           <ScrollText className="h-3 w-3" aria-hidden="true" />
@@ -37,8 +37,7 @@ export function ActivityRail() {
         </Link>
       </div>
       <p className="text-[10.5px] leading-snug text-[#646c8e]">
-        Aucune activité vérifiée à afficher ici · aucune écriture ledger depuis cette vue. Les événements
-        apparaissent uniquement depuis une source auditée — le journal d&apos;audit complet vit sur la page HQ.
+        Consulte les événements enregistrés et leurs liens vers les missions dans le journal.
       </p>
     </aside>
   );

@@ -48,7 +48,7 @@ export function AgendaPanel() {
     setError(null);
 
     try {
-      const response = await fetch("/api/calendar/events?limit=8", {
+      const response = await fetch("/api/calendar/events?limit=8&upcoming=true", {
         cache: "no-store",
       });
       const data = (await response.json()) as CalendarEventsResponse;
@@ -88,7 +88,7 @@ export function AgendaPanel() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-400">Agenda</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Prochains bookings</h2>
+          <h2 className="mt-2 text-2xl font-semibold text-white">Agenda · 14 prochains jours</h2>
           <p className="mt-1 text-sm leading-6 text-neutral-400">
             Les événements créés par Joris Book apparaissent ici dès qu&apos;ils sont confirmés dans le Command Center.
           </p>
@@ -128,7 +128,7 @@ export function AgendaPanel() {
         {!loading && !error && events.length === 0 && (
           <div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/40 p-5">
             <CalendarDays className="h-6 w-6 text-neutral-500" />
-            <p className="mt-3 font-medium text-white">Rien de booké pour l&apos;instant.</p>
+            <p className="mt-3 font-medium text-white">Aucun rendez-vous dans les 14 prochains jours.</p>
             <p className="mt-1 text-sm leading-6 text-neutral-500">
               Va au Command Center et essaie: “Joris, book un rendez-vous banque demain à 18:00”.
             </p>

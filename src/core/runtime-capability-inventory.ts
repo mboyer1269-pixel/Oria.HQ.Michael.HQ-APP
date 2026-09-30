@@ -125,6 +125,10 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
       "src/server/joris/governance-decision-repository.ts",
       "src/server/missions/approval-record-repository.ts",
       "src/server/missions/mission-draft-durable-repository.ts",
+      "src/server/missions/openhands-authority-store.ts",
+      "src/server/missions/openhands-reservation-store.ts",
+      "src/server/missions/openhands-memory-snapshot-store.ts",
+      "src/server/missions/openhands-memory-attachment.ts",
       "src/server/ventures/cash-signal-intake-repository.ts",
       "src/server/ventures/venture-repository.ts",
     ],
@@ -155,6 +159,11 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
   reason: string;
   paths: readonly string[];
 }[] = [
+  {
+    reason:
+      "Générateur cash conservé comme utilitaire de smoke manuel revenue-readiness ; aucune page servie ne le déclenche au rendu.",
+    paths: ["src/features/ventures/llm-cash-action-packet-generator.ts"],
+  },
   {
     reason:
       "Utilitaire développeur lancé explicitement en ligne de commande pour traiter un document et déléguer à Task Master ; aucune route ni aucun agent ne l'appelle.",
@@ -238,6 +247,36 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
       "src/server/joris/memex-context-source.ts",
       "src/server/mcp/memex-readonly-client.ts",
     ],
+  },
+  {
+    id: "memex_http_read",
+    label: "HQ / Joris · lecture Memex distante",
+    executorKey: null,
+    effect: "external_call",
+    gate: "owner_session",
+    detail: "Pont HTTP opt-in, credential read_only limité au workspace. Consultation manuelle ou contexte Joris ; aucun droit de publication.",
+    evidence: { path: "src/server/mcp/memex-http-rpc.ts", mustContain: "await fetcher(", because: "Bounded HTTP wire reached through the separately gated read transport." },
+    covers: ["src/server/mcp/memex-http-transport.ts", "src/app/api/memory/search/route.ts", "src/app/api/memory/search/search-handler.ts"],
+  },
+  {
+    id: "memex_operator_review",
+    label: "HQ · revue humaine Memex",
+    executorKey: null,
+    effect: "external_call",
+    gate: "owner_session",
+    detail: "Décision explicite liée au hash du snapshot, acteur Supabase authentifié et credential opérateur séparé. Aucun effet de publication.",
+    evidence: { path: "src/server/memory/memex-review-service.ts", mustContain: "deps.fetcher ?? fetch", because: "Dedicated bounded operator HTTP calls, opt-in and exact workspace binding." },
+    covers: ["src/app/api/memory/review/route.ts", "src/app/api/memory/review/handler.ts"],
+  },
+  {
+    id: "memex_proposal_submission",
+    label: "HQ · proposition Memex durable",
+    executorKey: null,
+    effect: "external_call",
+    gate: "owner_session",
+    detail: "Soumission explicite depuis la session propriétaire, Origin contrôlée et credential distinct. Reçu idempotent ; aucune approbation ou publication automatique.",
+    evidence: { path: "src/server/mcp/memex-http-rpc.ts", mustContain: "await fetcher(", because: "Same bounded wire, with an independent submit/status-only credential and owner route." },
+    covers: ["src/server/mcp/memex-proposal-transport.ts", "src/server/memory/memex-proposal-service.ts", "src/app/api/memory/proposals/route.ts", "src/app/api/memory/proposals/handlers.ts"],
   },
   {
     id: "joris_public_inventory_sync",
@@ -363,6 +402,36 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
     covers: ["src/server/ventures/venture-score-shadow-runner.ts"],
   },
   {
+    id: "openhands_tool_decision",
+    label: "OpenHands · décision ponctuelle sur un outil",
+    executorKey: "/api/orchestration/openhands/tools/[launchId]",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail:
+      "Désactivée par défaut. Une session propriétaire choisit une option pour une demande exacte et active ; décision et consommation unique sont journalisées. L’exécution de l’outil reste une preuve distincte.",
+    evidence: {
+      path: "src/server/missions/openhands-tool-decision-store.ts",
+      mustContain: "mission.openhands_tool_decision",
+      because:
+        "The owner review service persists a bound per-call decision; the host consumes it once through the lifecycle service. Neither record proves tool execution.",
+    },
+    covers: ["src/server/missions/openhands-tool-decision-store.ts"],
+  },
+  {
+    id: "openhands_launch_claim",
+    label: "OpenHands · confirmer la configuration de lancement",
+    executorKey: "/api/orchestration/openhands",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail: "Désactivée par défaut. Confirme une configuration serveur exacte et réserve une tentative ; ne lance pas de conteneur.",
+    evidence: {
+      path: "src/server/missions/openhands-launch-store.ts",
+      mustContain: "mission.openhands_launch_authorization",
+      because: "The owner-confirmed launch persists authority and a canonical claim before any separate host dispatch.",
+    },
+    covers: ["src/server/missions/openhands-launch-store.ts"],
+  },
+  {
     id: "calendar_event_write",
     label: "Calendrier · création d'événement",
     executorKey: "/api/calendar/events",
@@ -410,19 +479,32 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
     covers: ["src/features/cockpit/events/generate-daily-direction-action.ts"],
   },
   {
-    id: "cash_action_packet_generation",
-    label: "Ventures · paquet d'actions cash",
-    executorKey: "/hq/ventures/cash-actions",
+    id: "paperclip_backlog_read",
+    label: "Paperclip · lire le backlog",
+    executorKey: "/api/orchestration/missions",
     effect: "external_call",
     gate: "owner_session",
-    detail:
-      "Génération par appel de modèle au rendu de la page. Aucune confirmation par action : ouvrir la page suffit à engager le coût.",
+    detail: "Lecture bornée du backlog externe lié au workspace ; aucune mutation ni exécution.",
     evidence: {
-      path: "src/features/ventures/llm-cash-action-packet-generator.ts",
-      mustContain: "generateStructuredJson",
-      because:
-        "The packet generator calls a model provider, and the page renders it behind an owner session only.",
+      path: "src/server/orchestration/paperclip-client.ts",
+      mustContain: "await fetcher(",
+      because: "The owner-authenticated projection uses the bounded external Paperclip reader.",
     },
+  },
+  {
+    id: "paperclip_backlog_dispatch",
+    label: "Paperclip · transmettre au backlog",
+    executorKey: "/api/orchestration/missions/dispatch",
+    effect: "external_call",
+    gate: "owner_confirmed",
+    detail:
+      "Désactivé par défaut. Après confirmation du propriétaire, crée une issue externe non assignée au backlog ; ne démarre aucun agent ni exécution.",
+    evidence: {
+      path: "src/server/orchestration/paperclip-dispatch.ts",
+      mustContain: "await fetcher(",
+      because: "The confirmed, feature-gated dispatch sends a backlog issue with assigneeAgentId null.",
+    },
+    covers: ["src/server/orchestration/paperclip-dispatch-store.ts"],
   },
   {
     id: "green_lane_dry_run_preview",

@@ -25,6 +25,20 @@ out
 .env.development
 .env.production
 .env.*.local
+.env*
+**/.env*
+*.pem
+*.key
+*.p12
+**/*.pem
+**/*.key
+**/*.p12
+.secrets
+**/.secrets
+.playwright-cli
+output
+.validation
+.agent-handoff
 
 # Docs & planning (not needed in runtime)
 docs

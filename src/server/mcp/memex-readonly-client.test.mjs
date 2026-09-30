@@ -43,8 +43,9 @@ test("Memex Read-Only Client v1", async (t) => {
   const { validateMemoryEvidencePack, applyMemoryRoutingHint } = evidence;
 
   const NOW = "2026-07-03T21:00:00.000Z";
-  const namespace = "michael.oria";
+  const namespace = "org:michael.oria";
   const policy = defaultMemexBridgePolicy(namespace);
+  const structured = JSON.stringify([{ id: "decision-1", namespace, type: "Decision", name: "Reviewed decision", source: "operator-review", createdAt: NOW, properties: { status: "verified", zone: "human" } }]);
 
   const fakeTransport = (overrides = {}) => ({
     listTools: async () => [...MEMEX_V1_READ_ALLOWLIST],
@@ -115,7 +116,7 @@ test("Memex Read-Only Client v1", async (t) => {
   await t.test("7. Memory Evidence Pack produced on successful injection", () => {
     const injection = buildMemexContextInjection(
       "existing vault context",
-      "Le brief SOP du matin.",
+      structured,
       policy,
       NOW,
       0,
@@ -124,6 +125,8 @@ test("Memex Read-Only Client v1", async (t) => {
     assert.deepEqual(validateMemoryEvidencePack(injection.evidencePack), { ok: true });
     assert.equal(injection.evidencePack.source, "memex");
     assert.equal(injection.evidencePack.oriaAuthority, true);
+    assert.equal(injection.evidencePack.zone, "system");
+    assert.equal(injection.evidencePack.trustLevel, "untrusted");
   });
 
   await t.test("8. provenance is required — empty brief yields no pack", () => {
@@ -208,7 +211,7 @@ test("Memex Read-Only Client v1", async (t) => {
 
   await t.test("14. Memex merge adds to existing context — does not replace vault", () => {
     const existing = "Memory Vault verified block";
-    const injection = buildMemexContextInjection(existing, "Memex advisory brief.", policy, NOW, 0);
+    const injection = buildMemexContextInjection(existing, structured, policy, NOW, 0);
     assert.ok(injection);
     assert.ok(injection.context.includes(existing));
     assert.ok(injection.context.includes("Contexte Memex"));
@@ -233,7 +236,27 @@ test("Memex Read-Only Client v1", async (t) => {
   });
 
   await t.test("workspace id maps to valid Memex namespace", () => {
-    assert.equal(workspaceIdToMemexNamespace("michael-hq"), "michael.hq");
-    assert.match(workspaceIdToMemexNamespace("550e8400-e29b-41d4-a716-446655440000"), /^w\./);
+    assert.equal(workspaceIdToMemexNamespace("michael-hq"), "org:workspace:michael-hq");
+    assert.match(workspaceIdToMemexNamespace("550e8400-e29b-41d4-a716-446655440000"), /^org:workspace:/);
+    assert.notEqual(workspaceIdToMemexNamespace("a-b"), workspaceIdToMemexNamespace("a.b"));
+    assert.notEqual(workspaceIdToMemexNamespace("Ab"), workspaceIdToMemexNamespace("ab"));
+    assert.notEqual(workspaceIdToMemexNamespace("a b"), workspaceIdToMemexNamespace("ab"));
+    assert.match(workspaceIdToMemexNamespace("a b"), /^org:workspace-sha256:/);
+  });
+
+  await t.test("raw or unproven memories never gain human provenance", () => {
+    for (const raw of ["plain librarian prose", "## Task\\nNo memory", JSON.stringify([{ id: "x", namespace, properties: { status: "verified" } }])]) {
+      assert.equal(buildMemexContextInjection("existing", raw, policy, NOW, 0), null);
+    }
+    const record = JSON.parse(structured)[0];
+    for (const override of [{ namespace: "org:foreign" }, { source: "" }, { properties: { status: "proposed", zone: "human" } }, { properties: { status: "quarantined", zone: "agent" } }, { validTo: "2020-01-01T00:00:00.000Z" }]) {
+      assert.equal(buildMemexContextInjection("existing", JSON.stringify([{ ...record, ...override }]), policy, NOW, 0), null);
+    }
+  });
+
+  await t.test("discovery ignores write capabilities while calls remain denied", async () => {
+    const result = await runMemexHandshake(fakeTransport({ listTools: async () => [...MEMEX_V1_READ_ALLOWLIST, "agentmemory_write_vault_file", "agentmemory_submit_proposal"] }), policy);
+    assert.equal(result.ok, true);
+    assert.ok(!result.allowedTools.includes("agentmemory_write_vault_file"));
   });
 });

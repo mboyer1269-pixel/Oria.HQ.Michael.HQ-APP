@@ -13,7 +13,9 @@ import { z } from "zod";
 // ---------------------------------------------------------------------------
 
 const serverEnvSchema = z.object({
-  // AI providers — at least one must be set in production (enforced below)
+  // Operator-only, read-only mission benchmark; not an application capability.
+  HQ_MISSION_READONLY_LIVE: z.string().optional(),
+  // Model APIs are optional: mission control and CLI executors do not need them.
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   OPENAI_API_KEY: z.string().min(1).optional(),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1).optional(),
@@ -57,6 +59,31 @@ const serverEnvSchema = z.object({
   // is exactly "1"; they are declared here so the schema is the full inventory
   // of what the environment can change, not a partial one.
   ORIA_ENABLE_MEMEX_READONLY: z.enum(["0", "1"]).optional(),
+    ORIA_ENABLE_MEMEX_HTTP_READONLY: z.enum(["0", "1"]).optional(),
+    MEMEX_HTTP_ENDPOINT: z.string().optional(),
+    MEMEX_HTTP_READ_HANDLE: z.string().optional(),
+    MEMEX_HTTP_READ_HANDLE_FILE: z.string().optional(),
+    MEMEX_HTTP_HQ_WORKSPACE_ID: z.string().optional(),
+  ORIA_ENABLE_MEMEX_REVIEW: z.enum(["0", "1"]).optional(),
+  MEMEX_REVIEW_ENDPOINT: z.string().optional(),
+  MEMEX_REVIEW_HQ_WORKSPACE_ID: z.string().optional(),
+  MEMEX_REVIEW_TOKEN_FILE: z.string().optional(),
+  ORIA_ENABLE_MEMEX_PROPOSALS: z.enum(["0", "1"]).optional(),
+  MEMEX_HTTP_PROPOSAL_HANDLE: z.string().optional(),
+  MEMEX_HTTP_PROPOSAL_HANDLE_FILE: z.string().optional(),
+  ORIA_HQ_PUBLIC_ORIGIN: z.string().optional(),
+  ORIA_ENABLE_OPENHANDS_CONFIRMATION: z.enum(["0", "1"]).optional(),
+  ORIA_ENABLE_OPENHANDS_LAUNCH: z.enum(["0", "1"]).optional(),
+  ORIA_OPENHANDS_LAUNCH_CONFIG: z.string().max(4096).optional(),
+  ORIA_ENABLE_OPENHANDS_TOOL_REVIEW: z.enum(["0", "1"]).optional(),
+  // Server-only project mappings; credential contents stay in mounted files.
+  ORIA_MEMEX_PROJECT_BINDINGS: z.string().max(32768).optional(),
+  ORIA_ENABLE_PAPERCLIP_READONLY: z.enum(["0", "1"]).optional(),
+    ORIA_ENABLE_PAPERCLIP_DISPATCH: z.enum(["0", "1"]).optional(),
+  PAPERCLIP_BASE_URL: z.string().optional(),
+  PAPERCLIP_BOARD_TOKEN: z.string().optional(),
+  PAPERCLIP_HQ_WORKSPACE_ID: z.string().optional(),
+  PAPERCLIP_COMPANY_ID: z.string().optional(),
   MEMEX_CORE_ROOT: z.string().min(1).optional(),
   ORIA_ENABLE_LOCAL_RUNTIME_PROBE: z.enum(["0", "1"]).optional(),
   ORIA_ALLOW_DEV_USER_FALLBACK: z.enum(["true", "false"]).optional(),
@@ -98,16 +125,6 @@ const isNextBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 if (process.env.NODE_ENV === "production" && !isNextBuild) {
   const criticalMissing: string[] = [];
-
-  // At least one AI key must be present — the model router needs it.
-  const hasAiKey =
-    _parsed.ANTHROPIC_API_KEY ||
-    _parsed.OPENAI_API_KEY ||
-    _parsed.GOOGLE_GENERATIVE_AI_API_KEY ||
-    _parsed.OPENROUTER_API_KEY;
-  if (!hasAiKey) {
-    criticalMissing.push("ANTHROPIC_API_KEY (or OPENAI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY / OPENROUTER_API_KEY)");
-  }
 
   // Owner identity is required for auth gating in production.
   if (!_parsed.MICHAEL_HQ_OWNER_ID) criticalMissing.push("MICHAEL_HQ_OWNER_ID");
@@ -153,6 +170,12 @@ export const serverEnv = {
   inngestEventKey: _parsed.INNGEST_EVENT_KEY,
   inngestSigningKey: _parsed.INNGEST_SIGNING_KEY,
   memexCoreRoot: _parsed.MEMEX_CORE_ROOT,
+  paperclipReadOnlyEnabled: _parsed.ORIA_ENABLE_PAPERCLIP_READONLY === "1",
+  paperclipDispatchEnabled: _parsed.ORIA_ENABLE_PAPERCLIP_DISPATCH === "1",
+  paperclipBaseUrl: _parsed.PAPERCLIP_BASE_URL,
+  paperclipBoardToken: _parsed.PAPERCLIP_BOARD_TOKEN,
+  paperclipWorkspaceId: _parsed.PAPERCLIP_HQ_WORKSPACE_ID,
+  paperclipCompanyId: _parsed.PAPERCLIP_COMPANY_ID,
   mclArchiveDir: _parsed.MCL_ARCHIVE_DIR,
 };
 
@@ -160,11 +183,12 @@ export const serverEnv = {
 export type ProductionReadinessWarning = {
   /** Stable machine-readable id, safe to alert on. */
   code:
+    | "model_api_keys_missing"
     | "inngest_keys_missing"
     | "n8n_static_secret_missing"
     | "n8n_signing_secret_missing";
   /** The subsystem that is degraded. */
-  subsystem: "scheduled_jobs" | "n8n_dispatch";
+  subsystem: "scheduled_jobs" | "n8n_dispatch" | "model_api";
   message: string;
 };
 
@@ -183,6 +207,14 @@ export function getProductionReadinessWarnings(): ProductionReadinessWarning[] {
   if (process.env.NODE_ENV !== "production") return [];
 
   const warnings: ProductionReadinessWarning[] = [];
+  if (!serverEnv.anthropicApiKey && !serverEnv.openAiApiKey
+    && !serverEnv.googleGenerativeAiApiKey && !serverEnv.openRouterApiKey) {
+    warnings.push({
+      code: "model_api_keys_missing",
+      subsystem: "model_api",
+      message: "No model API provider is configured. Mission control remains available; CLI executor authentication is qualified separately.",
+    });
+  }
   if (!serverEnv.inngestEventKey || !serverEnv.inngestSigningKey) {
     warnings.push({
       code: "inngest_keys_missing",

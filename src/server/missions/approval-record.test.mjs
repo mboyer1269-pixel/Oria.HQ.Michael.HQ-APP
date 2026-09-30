@@ -66,6 +66,19 @@ test("MissionApprovalRecord contract tests", async (t) => {
     assert.equal(res.reason, "missing_timestamp");
   });
 
+  await t.test("rejects malformed approval and expiration timestamps", () => {
+    for (const fields of [
+      { approvedAt: "not-a-date" },
+      { expiresAt: "not-a-date" },
+      { expiresAt: "" },
+      { expiresAt: "   " },
+    ]) {
+      const res = verifyMissionApprovalRecord(baseMission, { ...baseRecord, ...fields });
+      assert.equal(res.verified, false);
+      assert.equal(res.reason, "invalid_timestamp");
+    }
+  });
+
   await t.test("rejects expired approval", () => {
     const expiredRecord = {
       ...baseRecord,

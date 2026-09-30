@@ -234,7 +234,7 @@ export function CashActionReviewClient({
 
       {preparedQueueUnavailable && (
         <div className="rounded-xl border border-neutral-700/60 bg-neutral-900/40 px-3 py-2 text-[11px] text-neutral-400">
-          Prepared queue unavailable — using live generation fallback.
+          File préparée indisponible. Réessayez plus tard ; aucun modèle n’a été lancé.
         </div>
       )}
 

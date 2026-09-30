@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import {createJiti} from 'jiti';
+const jiti=createJiti(import.meta.url,{alias:{'@':path.join(process.cwd(),'src'),'server-only':path.join(process.cwd(),'src/scripts/smoke/server-only-stub.mjs')}});
+const {createOpenHandsRecoveryReader}=await jiti.import('./openhands-recovery.ts');
+const id='11111111-1111-4111-8111-111111111111',date='2026-09-30T12:00:00Z';
+const claim={version:1,launchId:id,authorizationId:id,workspaceId:'w',missionId:id,reservationId:id,payloadHash:'a'.repeat(64),launchHash:'b'.repeat(64),actorId:'owner',runnerId:'r',imageDigest:'sha256:'+'a'.repeat(64),commitSha:'a'.repeat(40),containerName:'hq-openhands-'+id,state:'execution_finished',claimedAt:date,authorizationExpiresAt:date};
+const report={version:1,launchId:id,missionId:id,workspaceId:'w',runnerId:'r',observedAt:date,canonicalState:'execution_finished',canonicalObservationStable:true,status:'observed',gateway:{containerState:'absent',networkState:'absent'},automaticRetry:false,resourcesModified:false,resumeAuthorized:false,independentValidationPassed:false};
+test('recovery scope checked before file access; stale and mismatched reports fail closed',async()=>{
+ let calls=0,value=structuredClone(report),now=Date.parse(date);
+ const reader=createOpenHandsRecoveryReader({store:()=>({load:async()=>({input:{_openhandsLaunch:claim}})}),read:async()=>{calls++;return value;},now:()=>now});
+ assert.equal((await reader({actorId:'foreign',workspaceId:'w'},id)).status,'not_found');assert.equal(calls,0);
+ assert.equal((await reader({actorId:'owner',workspaceId:'foreign'},id)).status,'not_found');assert.equal(calls,0);
+ const owner={actorId:'owner',workspaceId:'w'};
+ assert.equal((await reader(owner,id)).stale,false);
+ now+=61000;assert.equal((await reader(owner,id)).stale,true);
+ value.workspaceId='foreign';assert.equal((await reader(owner,id)).status,'unavailable');
+ value=structuredClone(report);value.resumeAuthorized=true;assert.equal((await reader(owner,id)).status,'unavailable');
+ value=structuredClone(report);value.canonicalState='running';assert.equal((await reader(owner,id)).stale,true);
+});

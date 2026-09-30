@@ -1,6 +1,7 @@
 import type { Mission } from "@/core/types";
 import type { Json } from "@/server/db/types";
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
+import { mapMissionRow } from "./mission-row";
 
 // Durable (Supabase) mission-draft persistence — DORMANT.
 //
@@ -20,12 +21,13 @@ export class MissionDraftDurableRepositoryError extends Error {
 
 /**
  * Persist a mission draft durably to the `missions` table via the service-role
- * admin client. Upsert by id so a re-confirm is idempotent. Throws (fail-closed)
+ * admin client. Insert-or-ignore by id so re-confirmation cannot overwrite an
+ * existing mission or its external-dispatch reservation. Returns the canonical
+ * persisted row, scoped to the workspace. Throws (fail-closed)
  * when no Supabase admin client is configured — the caller must only reach this
  * path with durable persistence enabled and Supabase available.
  */
-export async function persistMissionDraftDurable(mission: Mission): Promise<Mission> {
-  const supabase = createOptionalSupabaseAdminClient();
+export async function persistMissionDraftDurable(mission: Mission, supabase = createOptionalSupabaseAdminClient()): Promise<Mission> {
 
   if (!supabase) {
     throw new MissionDraftDurableRepositoryError(
@@ -33,6 +35,9 @@ export async function persistMissionDraftDurable(mission: Mission): Promise<Miss
     );
   }
 
+  if (Object.prototype.hasOwnProperty.call(mission.input, "_paperclipDispatch")) {
+    throw new MissionDraftDurableRepositoryError("Draft creation cannot supply an external dispatch receipt.");
+  }
   const { error } = await supabase.from("missions").upsert({
     id: mission.id,
     workspace_id: mission.workspaceId,
@@ -51,7 +56,7 @@ export async function persistMissionDraftDurable(mission: Mission): Promise<Miss
     created_at: mission.createdAt,
     updated_at: mission.updatedAt,
     completed_at: mission.completedAt ?? null,
-  });
+  }, { onConflict: "id", ignoreDuplicates: true });
 
   if (error) {
     throw new MissionDraftDurableRepositoryError(
@@ -59,5 +64,7 @@ export async function persistMissionDraftDurable(mission: Mission): Promise<Miss
     );
   }
 
-  return mission;
+  const { data, error: readError } = await supabase.from("missions").select().eq("id", mission.id).eq("workspace_id", mission.workspaceId).single();
+  if (readError || !data) throw new MissionDraftDurableRepositoryError("Persisted mission is unavailable in this workspace.");
+  return mapMissionRow(data);
 }

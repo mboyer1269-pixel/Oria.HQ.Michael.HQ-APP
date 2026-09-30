@@ -84,8 +84,8 @@ const EFFECT_SINKS = [
   },
   {
     name: "injected external fetch",
-    pattern: /\b(?:fetchImpl|fetchFn)\s*\(/,
-    marker: /\b(?:fetchImpl|fetchFn)\s*\(/,
+    pattern: /\b(?:fetchImpl|fetchFn|fetcher)\s*\(\s*(?!["'`]\/api(?:\/|["'`]))/,
+    marker: /\b(?:fetchImpl|fetchFn|fetcher)\s*\(/,
   },
   {
     name: "child process",
@@ -134,6 +134,7 @@ function detectedEffectSinks(rel, source) {
 // additional executors. Keep the attribution sink-specific so a file gaining a
 // different outbound call still fails the scan.
 const ATTRIBUTED_ELSEWHERE = {
+  "src/server/mcp/memex-http-transport.ts": [{ sink: "injected external fetch", capabilities: ["joris_memex_context_lookup"] }],
   "src/server/ai/anthropic-json-client.ts": [
     {
       sink: "injected external fetch",
@@ -141,7 +142,6 @@ const ATTRIBUTED_ELSEWHERE = {
         "shadow_pass_scoring",
         "joris_reply_generation",
         "daily_direction_generation",
-        "cash_action_packet_generation",
       ],
     },
   ],
@@ -152,7 +152,6 @@ const ATTRIBUTED_ELSEWHERE = {
         "shadow_pass_scoring",
         "joris_reply_generation",
         "daily_direction_generation",
-        "cash_action_packet_generation",
       ],
     },
   ],
@@ -703,4 +702,19 @@ test("Capability inventory — the derived posture reports the runtime honestly"
       );
     }
   });
+});
+
+
+test("cash page stays read-only and Paperclip dispatch is confirmation-gated backlog only", async () => {
+  const page = await readFile(path.join(projectRoot, "src/app/hq/ventures/cash-actions/page.tsx"), "utf8");
+  assert.doesNotMatch(page, /llm-cash-action-packet-generator|generateLlmCashActionPackets/);
+  assert.ok(!RUNTIME_CAPABILITIES.some(c => c.id === "cash_action_packet_generation"));
+  const dispatch = RUNTIME_CAPABILITIES.find(c => c.id === "paperclip_backlog_dispatch");
+  assert.equal(dispatch?.gate, "owner_confirmed");
+  assert.equal(dispatch?.effect, "external_call");
+  const source = await readFile(path.join(projectRoot, dispatch.evidence.path), "utf8");
+  assert.match(source, /confirm: z.literal\(true\)/);
+  assert.match(source, /if \(!deps.enabled\(\)\)/);
+  assert.match(source, /status: "backlog"/);
+  assert.match(source, /assigneeAgentId: null/);
 });

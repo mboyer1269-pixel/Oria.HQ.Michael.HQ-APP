@@ -4,6 +4,31 @@ Last updated: 2026-05-21
 
 ## Official Repository
 
+### HQ constructor publication — 30 September 2026
+
+The current constructor plan is [PLAN-HQ-CONSTRUCTEUR.md](PLAN-HQ-CONSTRUCTEUR.md)
+and its tracked acceptance checklist is [HQ_TASKS.md](HQ_TASKS.md).
+The plan is a publication snapshot of the companion integration workspace;
+future changes to the product plan must keep these references consistent.
+
+Companion repository decision:
+
+1. **Problem:** preserve the host runner, deployment qualification scripts and
+   integration evidence that previously existed only outside GitHub.
+2. **Owner:** the ORIA HQ development team under the repository owner's authority.
+3. **Core link:** the runner consumes HQ mission contracts and project-scoped Memex
+   context. HQ remains the authority for application identity and mission state.
+4. **Maintenance cost:** pinned container dependencies, host Python scripts,
+   qualification fixtures and documented runtime configuration.
+5. **Decision:** `external-reference` — keep these files in the private
+   [oria-hq-orchestrator](https://github.com/mboyer1269-pixel/oria-hq-orchestrator)
+   repository. No foreign application, auth implementation or UI shell is imported.
+6. **Validation:** host tests passed separately; HQ publication checks are recorded
+   in [HQ_PUBLICATION_2026-09-30.md](HQ_PUBLICATION_2026-09-30.md).
+
+This publication is not a deployment or an approval of account access. OpenHands
+qualification has priority over historical Paperclip-first assumptions.
+
 `mboyer1269-pixel/Oria.HQ.Michael.HQ-APP` is the official Oria repository and the only source of truth for product architecture, core contracts, authentication, permissions, action ledger, workspace boundaries, model routing, and future mission orchestration.
 
 ## Secondary Repositories And Projects

@@ -118,7 +118,7 @@ export default async function AgentsPage() {
         description={
           <>
             Tous les agents Oria — orchestrateur, scouts, builders, closers, opérateurs, auditeur
-            et finance. Aucun agent n&apos;agit sans mandat explicite.
+            et finance. Aucun agent n&apos;agit sans mandat explicite. Ces statuts décrivent les profils configurés ; ils ne confirment pas la connexion des fournisseurs.
           </>
         }
       >
@@ -127,7 +127,7 @@ export default async function AgentsPage() {
             Résumé
           </p>
           <div className="mt-3 grid gap-2">
-            <HqMetric label="Actifs" value={active.length} tone="emerald" />
+            <HqMetric label="Profils activés" value={active.length} tone="emerald" />
             <HqMetric label="Standby" value={standby.length} tone="amber" />
             <HqMetric label="Verrouillés" value={locked.length} tone="rose" />
             <HqMetric label="Planifiés" value={planned.length} />
@@ -164,7 +164,7 @@ export default async function AgentsPage() {
       </HqWidget>
 
       {[
-        { label: "Actifs", agents: active },
+        { label: "Profils activés", agents: active },
         { label: "Standby", agents: standby },
         { label: "Verrouillés", agents: locked },
         { label: "Planifiés", agents: planned },

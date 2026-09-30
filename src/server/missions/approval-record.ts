@@ -76,6 +76,7 @@ export type MissionApprovalVerificationFailReason =
   | "not_approved"        // record.status !== "approved"
   | "missing_approver"    // record.approvedBy is absent
   | "missing_timestamp"   // record.approvedAt is absent
+  | "invalid_timestamp"   // approval or expiration timestamp cannot be parsed
   | "expired"             // record.expiresAt is in the past
   | "scope_missing";      // required scope not in record.approvalScope
 
@@ -142,7 +143,12 @@ export function verifyMissionApprovalRecord(
     return { verified: false, record, reason: "missing_timestamp" };
   }
 
-  if (record.expiresAt && new Date(record.expiresAt) <= new Date()) {
+  if (!Number.isFinite(Date.parse(record.approvedAt)) ||
+      (record.expiresAt !== undefined && !Number.isFinite(Date.parse(record.expiresAt)))) {
+    return { verified: false, record, reason: "invalid_timestamp" };
+  }
+
+  if (record.expiresAt !== undefined && Date.parse(record.expiresAt) <= Date.now()) {
     return { verified: false, record, reason: "expired" };
   }
 
