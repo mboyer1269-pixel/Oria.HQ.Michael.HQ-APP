@@ -3,21 +3,21 @@ import {
   ECONOMY_MODEL_ID,
   LONG_CONTEXT_MODEL_ID,
   PREMIUM_MODEL_ID,
-  pickAvailableModelId,
-  resolveModelProfileOrFallback,
+  resolveModelProfile,
 } from "@/server/ai/model-config";
 import {
   createInMemoryBudgetStore,
   dayKeyOf,
   decideLadder,
   freeModelProfile,
-  recordLadderCost,
   RUNG_COST_WEIGHT,
   type BudgetStore,
   type CostRung,
   type FreeModelEntry,
   type TaskClass,
 } from "@/server/ai/cost-ladder";
+import { recordCallAccounting } from "@/server/ai/call-accounting";
+import { executionTargetForModel } from "@/server/ai/execution-models";
 
 export type ModelRouteInput = {
   message: string;
@@ -38,6 +38,8 @@ export type ModelRouteInput = {
   dailyBudget?: number;
   /** Override the budget store (defaults to the module in-memory store). */
   budgetStore?: BudgetStore;
+  /** Journal scope only. Selection does not bill this workspace. */
+  workspaceId?: string;
 };
 
 export type BrainRouteVia = "keyword" | "semantic-fallback" | "default" | "cost-ladder";
@@ -45,6 +47,21 @@ export type BrainRouteVia = "keyword" | "semantic-fallback" | "default" | "cost-
 export type ModelRouteDecision = {
   model: ModelProfile;
   modelId: string;
+  /** Same id as `modelId`. Selection never executes a model. */
+  chosenModelId: string;
+  executedModelId: null;
+  /** `refused` means the caller must not send a provider request. */
+  execution: "callable" | "refused";
+  refusalReason?: string;
+  /** Relative ladder weight. Not dollars. Not written to the budget store. */
+  estimate: {
+    kind: "estimation";
+    relativeWeight: number;
+    unit: "relative_weight_not_dollars";
+    monetaryUsd: null;
+  };
+  /** chooseModel does not debit, reserve, or observe a provider usage. */
+  accountingEffect: "none";
   mode: ModelMode;
   reason: string;
   via: BrainRouteVia;
@@ -120,6 +137,8 @@ type RouteCandidate = {
   mode: ModelMode;
   reason: string;
   via: BrainRouteVia;
+  /** Set when this id must not be sent to a provider. */
+  refused?: string;
 };
 
 /**
@@ -234,15 +253,14 @@ function applyAvailabilityFallback(
   candidate: RouteCandidate,
   unavailableModelIds: ReadonlySet<string>,
 ): RouteCandidate {
-  const resolvedId = pickAvailableModelId(candidate.modelId, unavailableModelIds);
-  if (resolvedId === candidate.modelId) {
+  if (!unavailableModelIds.has(candidate.modelId)) {
     return candidate;
   }
 
   return {
     ...candidate,
-    modelId: resolvedId,
-    reason: `${candidate.reason} (fallback: ${candidate.modelId} indisponible → ${resolvedId})`,
+    refused: `${candidate.modelId} indisponible: refus, aucune substitution payante`,
+    reason: `${candidate.reason} (refusé: ${candidate.modelId} indisponible, aucune substitution payante)`,
   };
 }
 
@@ -269,6 +287,8 @@ type LadderRoute = {
   candidate: RouteCandidate;
   /** Set when the ladder picked a concrete free model (skips generic fallback). */
   profile?: ModelProfile;
+  /** Relative weight of the rung. Not added to the budget store. */
+  relativeWeight: number;
 };
 
 function applyCostLadder(
@@ -290,34 +310,44 @@ function applyCostLadder(
     ...(input.dailyBudget !== undefined ? { dailyBudget: input.dailyBudget } : {}),
   });
 
-  // Respect the router's unavailable set before committing to a free model.
-  let rung = decision.rung;
-  let freeModel = decision.freeModel;
-  if (rung === "free" && freeModel && unavailable.has(freeModel.id)) {
-    rung = "economy";
-    freeModel = undefined;
-  }
-
-  const estimatedCost =
-    rung === decision.rung ? decision.estimatedCost : RUNG_COST_WEIGHT.economy;
-  store.add(agentId, dayKey, estimatedCost);
-
   const requested = input.requestedMode ?? "auto";
   let candidate: RouteCandidate;
   let profile: ModelProfile | undefined;
+  const relativeWeight = decision.estimatedCost;
 
-  if (rung === "free" && freeModel) {
+  if (decision.rung === "free" && decision.freeModel && unavailable.has(decision.freeModel.id)) {
     candidate = {
-      modelId: freeModel.id,
+      modelId: decision.freeModel.id,
+      mode: resolveMode(requested, "economy"),
+      reason: `Modèle ${decision.freeModel.id} indisponible. Aucune substitution payante. Poids relatif ${relativeWeight}, qui n'est pas un dollar ni un coût observé.`,
+      via: "cost-ladder",
+      refused: `${decision.freeModel.id} indisponible`,
+    };
+    profile = freeModelProfile(decision.freeModel);
+  } else if (decision.rung === "free" && decision.freeModel) {
+    candidate = {
+      modelId: decision.freeModel.id,
       mode: resolveMode(requested, "economy"),
       reason: decision.reason,
       via: "cost-ladder",
     };
-    profile = freeModelProfile(freeModel);
-  } else if (rung === "premium") {
+    profile = freeModelProfile(decision.freeModel);
+  } else if (decision.rung === "premium") {
     candidate = {
       modelId: PREMIUM_MODEL_ID,
       mode: resolveMode(requested, "brute"),
+      reason: decision.reason,
+      via: "cost-ladder",
+    };
+  } else if (
+    decision.rung === "economy" &&
+    rungOfModelId(baseCandidate.modelId) === "economy"
+  ) {
+    // Keep the base id. Do not replace Gemini, or any other non-premium id,
+    // with gpt-4o-mini just because the rung is economy.
+    candidate = {
+      modelId: baseCandidate.modelId,
+      mode: resolveMode(requested, "economy"),
       reason: decision.reason,
       via: "cost-ladder",
     };
@@ -330,18 +360,8 @@ function applyCostLadder(
     };
   }
 
-  recordLadderCost({
-    agentId,
-    taskClass,
-    rung,
-    modelId: candidate.modelId,
-    estimatedCost,
-    floorBound: decision.floorBound,
-    budgetBound: decision.budgetBound,
-    timestamp: new Date(nowMs).toISOString(),
-  });
-
-  return profile ? { candidate, profile } : { candidate };
+  // `store.spendOf` is only a policy input. This function does not add to it.
+  return profile ? { candidate, profile, relativeWeight } : { candidate, relativeWeight };
 }
 
 export function setBrainRouteSink(sink: BrainRouteSink): void {
@@ -398,21 +418,72 @@ export function chooseModel(input: ModelRouteInput): ModelRouteDecision {
   let resolved: RouteCandidate;
   let model: ModelProfile;
   if (ladder?.profile) {
-    // Concrete free model: availability already handled inside the ladder.
     resolved = ladder.candidate;
     model = ladder.profile;
   } else {
     resolved = applyAvailabilityFallback(ladder?.candidate ?? baseCandidate, unavailable);
-    model = resolveModelProfileOrFallback(resolved.modelId);
+    const known = resolveModelProfile(resolved.modelId);
+    model = known ?? {
+      id: resolved.modelId,
+      label: resolved.modelId,
+      provider: "openrouter",
+      defaultUse: "Identifiant absent du catalogue: aucun appel et aucune substitution.",
+      costTier: "low",
+      strengths: [],
+    };
+    if (!known) {
+      resolved = {
+        ...resolved,
+        refused: resolved.refused ?? `${resolved.modelId} absent du catalogue`,
+      };
+    }
   }
+
+  const target = executionTargetForModel(resolved.modelId);
+  let execution: ModelRouteDecision["execution"] = "callable";
+  let refusalReason: string | undefined;
+  if (resolved.refused) {
+    execution = "refused";
+    refusalReason = resolved.refused;
+  } else if (!target.callable) {
+    execution = "refused";
+    refusalReason = target.reason;
+  }
+
+  const relativeWeight =
+    ladder?.relativeWeight ??
+    (resolved.modelId === PREMIUM_MODEL_ID ? RUNG_COST_WEIGHT.premium : RUNG_COST_WEIGHT.economy);
 
   const decision: ModelRouteDecision = {
     model,
     modelId: model.id,
+    chosenModelId: model.id,
+    executedModelId: null,
+    execution,
+    ...(refusalReason ? { refusalReason } : {}),
+    estimate: {
+      kind: "estimation",
+      relativeWeight,
+      unit: "relative_weight_not_dollars",
+      monetaryUsd: null,
+    },
+    accountingEffect: "none",
     mode: resolved.mode,
     reason: resolved.reason,
     via: resolved.via,
   };
+
+  recordCallAccounting({
+    kind: "estimation",
+    workspaceId: input.workspaceId ?? "unscoped",
+    ...(input.agentId ? { agentId: input.agentId } : {}),
+    chosenModelId: decision.chosenModelId,
+    executedModelId: null,
+    relativeWeight,
+    monetaryUsd: null,
+    networkRequestSent: false,
+    note: "Sélection uniquement. Le poids relatif n'est pas un dollar et n'est pas ajouté au budget.",
+  });
 
   recordBrainRoute({
     model: decision.model,

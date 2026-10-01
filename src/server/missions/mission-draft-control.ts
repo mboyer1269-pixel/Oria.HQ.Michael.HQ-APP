@@ -41,11 +41,26 @@ function buildWorkspaceMeta(ctx: WorkspaceContext): Pick<CommandResult, "workspa
   };
 }
 
+function unexecutedRouteFields(route: ReturnType<typeof buildRoute>) {
+  return {
+    modelId: route.modelId,
+    chosenModelId: route.chosenModelId,
+    executedModelId: null as null,
+    costMode: route.mode,
+    costAccounting: {
+      kind: "estimation" as const,
+      monetaryUsd: null as null,
+      relativeWeight: route.estimate.relativeWeight,
+      networkRequestSent: false,
+    },
+  };
+}
+
 export function buildRoute(message: string) {
   // Shadow tagging (Cost Ladder, display_only): mission-draft confirmations
   // (confirm / cancel) are tagged conservatively `general` — they defer to the
-  // base router, so the displayed model is unchanged; only `via` + the cost
-  // event become observable. No provider call changes; no free model is forced.
+  // base router, so the displayed model is unchanged. Selection does not debit
+  // and executedModelId stays null. No provider call; no free model is forced.
   return chooseModel({
     message,
     highImpact: false,
@@ -114,8 +129,7 @@ export function cancelPendingMissionDraft(
     return {
       intent: "chat",
       summary: "Il n'y a aucune mission draft en attente à annuler.",
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -125,8 +139,7 @@ export function cancelPendingMissionDraft(
   if (mismatch) {
     return {
       ...mismatch,
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       missionDraftPreview: pending.preview,
     };
@@ -137,8 +150,7 @@ export function cancelPendingMissionDraft(
   return {
     intent: "mission.draft",
     summary: "Mission draft annulée. Tu peux reformuler un nouveau rendez-vous quand tu veux.",
-    modelId: route.model.id,
-    costMode: route.mode,
+    ...unexecutedRouteFields(route),
     ...workspaceMeta,
     requiresConfirmation: false,
   };
@@ -156,8 +168,7 @@ export async function confirmPendingMissionDraft(
     return {
       intent: "chat",
       summary: "Il n'y a rien à confirmer pour l'instant. Propose d'abord un rendez-vous à booker.",
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -167,8 +178,7 @@ export async function confirmPendingMissionDraft(
   if (mismatch) {
     return {
       ...mismatch,
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       missionDraftPreview: pending.preview,
       requiresConfirmation: true,
@@ -181,8 +191,7 @@ export async function confirmPendingMissionDraft(
     return {
       intent: "calendar.book",
       summary: cachedBeforeBook.summary,
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       pendingDraftId: cachedBeforeBook.pendingDraftId,
       missionId: cachedBeforeBook.missionId,
@@ -196,8 +205,7 @@ export async function confirmPendingMissionDraft(
       intent: "mission.draft",
       summary:
         "La mission draft a expiré. Reformule le rendez-vous à booker (date et heure) pour que je prépare une nouvelle proposition.",
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -207,8 +215,7 @@ export async function confirmPendingMissionDraft(
     return {
       intent: "mission.draft",
       summary: "La mission draft en attente ne correspond pas à calendar.book. Reformule ta demande.",
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -219,8 +226,7 @@ export async function confirmPendingMissionDraft(
     return {
       intent: "calendar.book",
       summary: `Je ne peux pas exécuter cette action sans confirmation: ${permission.reason}`,
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       missionDraftPreview: pending.preview,
       pendingDraftId: pending.pendingDraftId,
@@ -270,8 +276,7 @@ export async function confirmPendingMissionDraft(
     return {
       intent: "calendar.book",
       summary: `${summary} ${ledgerSummary} ${storageSummary}`,
-      modelId: route.model.id,
-      costMode: route.mode,
+      ...unexecutedRouteFields(route),
       ...workspaceMeta,
       calendarIntent: pending.calendarIntent,
       calendarEvent: event,
@@ -287,8 +292,7 @@ export async function confirmPendingMissionDraft(
       return {
         intent: "calendar.book",
         summary: `Je ne peux pas booker ce rendez-vous tout de suite: ${error.message}`,
-        modelId: route.model.id,
-        costMode: route.mode,
+        ...unexecutedRouteFields(route),
         ...workspaceMeta,
         missionDraftPreview: pending.preview,
         pendingDraftId: pending.pendingDraftId,

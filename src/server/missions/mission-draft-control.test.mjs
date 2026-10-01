@@ -226,6 +226,9 @@ test("shadow tagging: buildRoute tags the mission-draft route via the ladder, ou
   const result = cancelPendingMissionDraft(ctx);
   assert.equal(result.intent, "chat");
   assert.match(result.summary, /aucune mission draft en attente/i);
-  assert.ok(result.modelId, "route metadata is still surfaced (behaviour identical)");
+  assert.ok(result.modelId, "chosen route id stays available to existing callers");
+  assert.equal(result.chosenModelId, result.modelId);
+  assert.equal(result.executedModelId, null);
+  assert.equal(result.costAccounting.monetaryUsd, null);
   assert.ok(result.costMode);
 });

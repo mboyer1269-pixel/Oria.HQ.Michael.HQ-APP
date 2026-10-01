@@ -80,40 +80,53 @@ await test("generateStructuredJson", async (t) => {
     assert.deepEqual(result.json, payload);
   });
 
-  await t.test("auto: falls back to OpenAI when Anthropic has no key", async () => {
+  await t.test("auto: does not call OpenAI when Anthropic has no key", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    let openaiCalls = 0;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
       userPrompt: "user",
-      fetchFns: { openai: makeOpenAiOkFetch(payload) },
+      fetchFns: {
+        openai: async () => {
+          openaiCalls += 1;
+          return makeOpenAiOkFetch(payload)();
+        },
+      },
     });
-    assert.equal(result.ok, true);
-    assert.equal(result.providerUsed, "openai");
-    assert.equal(result.fallbackUsed, true);
-    assert.ok(result.failureChain.length > 0, "failureChain records Anthropic failure");
+    assert.equal(result.ok, false);
+    assert.equal(openaiCalls, 0);
+    assert.equal(result.cost.kind, "refused");
+    assert.equal(result.cost.monetaryUsd, null);
+    assert.equal(result.executedModelId, null);
   });
 
-  await t.test("auto: falls back to OpenAI when Anthropic returns provider error", async () => {
+  await t.test("auto: does not call OpenAI when Anthropic returns a provider error", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    let openaiCalls = 0;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
       userPrompt: "user",
       fetchFns: {
         anthropic: makeErrorFetch(503),
-        openai: makeOpenAiOkFetch(payload),
+        openai: async () => {
+          openaiCalls += 1;
+          return makeOpenAiOkFetch(payload)();
+        },
       },
     });
-    assert.equal(result.ok, true);
-    assert.equal(result.providerUsed, "openai");
-    assert.equal(result.fallbackUsed, true);
-    assert.ok(result.failureChain.some((r) => r.startsWith("anthropic:")));
+    assert.equal(result.ok, false);
+    assert.equal(openaiCalls, 0);
+    assert.equal(result.cost.kind, "failed_maybe_billed");
+    assert.equal(result.cost.monetaryUsd, null);
+    assert.notEqual(result.cost.monetaryUsd, 0);
+    assert.equal(result.executedModelId, null);
   });
 
-  await t.test("auto: both providers fail → ok:false with populated failureChain", async () => {
+  await t.test("auto: without authorization only Anthropic is recorded when it fails", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
     const result = await generateStructuredJson({
@@ -127,9 +140,9 @@ await test("generateStructuredJson", async (t) => {
     });
     assert.equal(result.ok, false);
     assert.equal(result.errorCode, "all_providers_failed");
-    assert.ok(result.failureChain.length >= 2);
-    assert.ok(result.failureChain.some((r) => r.startsWith("anthropic:")));
-    assert.ok(result.failureChain.some((r) => r.startsWith("openai:")));
+    assert.equal(result.failureChain.length, 1);
+    assert.ok(result.failureChain[0].startsWith("anthropic:"));
+    assert.equal(result.failureChain.some((r) => r.startsWith("openai:")), false);
   });
 
   await t.test("explicit anthropic: only tries Anthropic even with OpenAI available", async () => {
@@ -192,24 +205,31 @@ await test("generateStructuredJson", async (t) => {
       userPrompt: "user",
     });
     assert.equal(result.ok, false);
-    assert.ok(result.failureChain.length >= 2);
+    assert.equal(result.failureChain.length, 1);
+    assert.ok(result.failureChain[0].startsWith("anthropic:"));
+    assert.equal(result.cost.networkRequestSent, false);
   });
 
-  await t.test("Anthropic timeout triggers OpenAI fallback", async () => {
+  await t.test("Anthropic timeout does not call OpenAI without workspace authorization", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    let openaiCalls = 0;
     const result = await generateStructuredJson({
       providerPreference: "auto",
       systemPrompt: "sys",
       userPrompt: "user",
       fetchFns: {
         anthropic: makeAbortFetch(),
-        openai: makeOpenAiOkFetch(payload),
+        openai: async () => {
+          openaiCalls += 1;
+          return makeOpenAiOkFetch(payload)();
+        },
       },
     });
-    assert.equal(result.ok, true);
-    assert.equal(result.providerUsed, "openai");
-    assert.equal(result.fallbackUsed, true);
+    assert.equal(result.ok, false);
+    assert.equal(openaiCalls, 0);
+    assert.equal(result.cost.kind, "failed_maybe_billed");
+    assert.equal(result.cost.monetaryUsd, null);
   });
 
   await t.test("fallbackUsed is false when first provider succeeds", async () => {

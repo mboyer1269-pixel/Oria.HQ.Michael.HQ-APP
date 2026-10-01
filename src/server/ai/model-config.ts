@@ -34,23 +34,14 @@ export function resolveModelProfileOrFallback(
   return resolveModelProfile(modelId) ?? resolveModelProfile(fallbackId) ?? modelProfiles[0];
 }
 
-/** Ordered fallback when a target model is unavailable. */
-export function fallbackModelIds(primaryId: string): readonly string[] {
-  switch (primaryId) {
-    case PREMIUM_MODEL_ID:
-      return [PREMIUM_MODEL_ID, "gpt-4o", ECONOMY_MODEL_ID];
-    case LONG_CONTEXT_MODEL_ID:
-      return [LONG_CONTEXT_MODEL_ID, ECONOMY_MODEL_ID, PREMIUM_MODEL_ID];
-    case ECONOMY_MODEL_ID:
-    default:
-      return [ECONOMY_MODEL_ID, LONG_CONTEXT_MODEL_ID, PREMIUM_MODEL_ID];
-  }
-}
-
+/**
+ * Availability is a yes/no on the requested id. An unavailable model is not
+ * replaced by another paid model.
+ */
 export function pickAvailableModelId(
   primaryId: string,
   unavailableModelIds: ReadonlySet<string> = new Set(),
-): string {
-  const chain = fallbackModelIds(primaryId);
-  return chain.find((id) => !unavailableModelIds.has(id)) ?? ECONOMY_MODEL_ID;
+): string | null {
+  if (unavailableModelIds.has(primaryId)) return null;
+  return primaryId;
 }

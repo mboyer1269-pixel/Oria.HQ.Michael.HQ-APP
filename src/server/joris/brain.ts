@@ -72,9 +72,9 @@ const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
  * intents carry the premium-mandatory `client_audit` floor (never downgraded,
  * even in economy mode or under budget pressure). Every other intent is
  * `general`, which defers to the base router — so the displayed model is
- * unchanged and the ladder simply becomes observable (`via: "cost-ladder"` plus
- * a recorded cost event). No free model is ever forced here: the free rung
- * stays config-gated and empty until a later (dispatch) phase.
+ * unchanged and the ladder stays observable (`via: "cost-ladder"`). Selection
+ * does not debit. No free model is forced here: the free rung stays
+ * config-gated, and an unsupported id is refused instead of being called.
  *
  * `client_audit` is reused as the only existing premium-floor class; the tag is
  * a routing-tier signal, not a claim that these intents are literal audits.
@@ -100,6 +100,22 @@ const INTENT_TASK_CLASS: Record<JorisIntent, TaskClass> = {
 /** Conservative, pure mapping from a detected intent to its shadow task class. */
 export function taskClassForIntent(intent: JorisIntent): TaskClass {
   return INTENT_TASK_CLASS[intent] ?? "general";
+}
+
+/** Rules path: the route id is chosen, not executed. The weight is not a debit. */
+function unexecutedRouteFields(route: ReturnType<typeof chooseModel>) {
+  return {
+    modelId: route.modelId,
+    chosenModelId: route.chosenModelId,
+    executedModelId: null as null,
+    costMode: route.mode,
+    costAccounting: {
+      kind: "estimation" as const,
+      monetaryUsd: null as null,
+      relativeWeight: route.estimate.relativeWeight,
+      networkRequestSent: false,
+    },
+  };
 }
 
 /**
@@ -145,8 +161,7 @@ async function handleMissionDraftReply(
         intent: "mission.draft",
         summary:
           "Ta réponse mélange confirmation et nouvelle demande calendrier. Réponds seulement « confirme », « oui » ou « go » pour booker la mission draft en cours, ou « annule » pour abandonner.",
-        modelId: route.model.id,
-        costMode: route.mode,
+        ...unexecutedRouteFields(route),
         ...workspaceMeta,
         missionDraftPreview: pending.preview,
         pendingDraftId: pending.pendingDraftId,
@@ -261,8 +276,7 @@ async function handleGovernanceReviewReply(
   return {
     intent: "opportunity.score",
     summary,
-    modelId: route.model.id,
-    costMode: route.mode,
+    ...unexecutedRouteFields(route),
     ...workspaceMeta,
     requiresConfirmation: false,
   };
@@ -270,7 +284,12 @@ async function handleGovernanceReviewReply(
 
 /** Injectable dependencies — lets tests supply a mock LLM reply / vault (no network). */
 export type RunJorisCommandDeps = {
-  generateReply: (input: { message: string; memoryContext?: string | null }) => Promise<JorisReplyResult>;
+  generateReply: (input: {
+    message: string;
+    memoryContext?: string | null;
+    chosenModelId?: string;
+    workspaceId?: string;
+  }) => Promise<JorisReplyResult>;
   /** Verified-vault reader; defaults to the real one. Injectable for tests. */
   readVerifiedVault?: (workspaceId: string) => MemoryVaultReadResult;
   /** Optional Memex read-only enrichment — defaults to env-gated stdio client. */
@@ -301,9 +320,10 @@ export async function runJorisCommand(
     // (governance / mission-draft confirmations) is always tagged conservatively
     // `general` — a confirmation reply must never inherit a premium or free tag
     // from its own keywords. `general` defers to the base router, so the
-    // displayed model is unchanged; only `via` + the cost event become observable.
+    // displayed model is unchanged. Selection does not debit.
     taskClass: "general",
     agentId: ctx.activeAgentProfile.id,
+    workspaceId: ctx.workspace.id,
   });
 
   const workspaceMeta = {
@@ -391,6 +411,7 @@ export async function runJorisCommand(
     // forced — the free rung stays config-gated/empty in this phase.
     taskClass: taskClassForIntent(intent),
     agentId: ctx.activeAgentProfile.id,
+    workspaceId: ctx.workspace.id,
   });
 
   if (intent === "governance.audit") {
@@ -418,8 +439,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
       auditExport: {
@@ -473,8 +493,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -490,8 +509,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: attachMemexPreview(briefSummary, "brief.generate", memory),
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -505,8 +523,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: listing.summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -520,8 +537,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: market.summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -536,8 +552,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: livre.summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -551,8 +566,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: marketing.summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -566,8 +580,7 @@ export async function runJorisCommand(
       return {
         intent,
         summary: `Je ne peux pas exécuter cette action sans confirmation: ${permission.reason}`,
-        modelId: routedModel.model.id,
-        costMode: routedModel.mode,
+        ...unexecutedRouteFields(routedModel),
         ...workspaceMeta,
         requiresConfirmation: true,
       };
@@ -578,15 +591,13 @@ export async function runJorisCommand(
         workspaceId: ctx.workspace.id,
         userId: ctx.userId,
         calendarIntent,
-        modelId: routedModel.model.id,
-        costMode: routedModel.mode,
+        ...unexecutedRouteFields(routedModel),
       });
 
       return {
         intent: "mission.draft",
         summary: formatMissionDraftProposalSummary(pending.preview),
-        modelId: routedModel.model.id,
-        costMode: routedModel.mode,
+        ...unexecutedRouteFields(routedModel),
         ...workspaceMeta,
         calendarIntent,
         missionDraftPreview: pending.preview,
@@ -598,8 +609,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: "Il me manque l’heure ou la date pour booker ça proprement. Donne-moi au moins l’heure, puis je le crée sans friction.",
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -619,8 +629,7 @@ export async function runJorisCommand(
         return {
           intent,
           summary: `Plusieurs missions correspondent. Précise laquelle :\n${list}`,
-          modelId: routedModel.model.id,
-          costMode: routedModel.mode,
+          ...unexecutedRouteFields(routedModel),
           ...workspaceMeta,
           requiresConfirmation: false,
         };
@@ -633,8 +642,7 @@ export async function runJorisCommand(
         summary: available
           ? `Aucune mission trouvée pour ta demande. Missions disponibles :\n${available}`
           : "Aucune mission active dans ce workspace.",
-        modelId: routedModel.model.id,
-        costMode: routedModel.mode,
+        ...unexecutedRouteFields(routedModel),
         ...workspaceMeta,
         requiresConfirmation: false,
       };
@@ -680,20 +688,45 @@ export async function runJorisCommand(
     return {
       intent,
       summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: true,
       missionPlanResult,
     };
   }
 
-  // Conversational catch-all (chat / board.consult / reminders). Attempt a real
-  // LLM reply via the shared provider; when no provider is configured (no API
-  // keys) or the call fails, fall back to a deterministic summary. The result is
-  // labelled (`generation`) so nothing claims "AI mode" when rules produced it.
+  // Conversational catch-all (chat / board.consult / reminders). A provider
+  // request is sent only when the chosen id is supported. A template summary
+  // does not publish that id as an executed model.
   const memory = await getMemoryContext();
-  const llmReply = await deps.generateReply({ message, memoryContext: memory.memoryContext });
+  const fallbackSummary = buildFallbackSummary(intent, message);
+  const finalSummary =
+    intent === "board.consult" && memory.memoryContext
+      ? `${fallbackSummary}\n\n${memory.memoryContext}`
+      : fallbackSummary;
+  const template = {
+    intent,
+    summary: attachMemexPreview(finalSummary, intent, memory),
+    chosenModelId: routedModel.chosenModelId,
+    executedModelId: null as null,
+    ...workspaceMeta,
+    requiresConfirmation: false as const,
+    generation: "fallback" as const,
+  };
+
+  if (routedModel.execution === "refused") {
+    return {
+      ...template,
+      costAccounting: { kind: "refused", monetaryUsd: null, networkRequestSent: false },
+    };
+  }
+
+  const llmReply = await deps.generateReply({
+    message,
+    memoryContext: memory.memoryContext,
+    chosenModelId: routedModel.chosenModelId,
+    workspaceId: ctx.workspace.id,
+  });
   if (llmReply.ok) {
     // Preserve the deterministic verified-memory/lessons rail verbatim by
     // appending it OUTSIDE the LLM (board.consult), so the audit block is
@@ -702,32 +735,31 @@ export async function runJorisCommand(
       intent === "board.consult" && memory.memoryContext
         ? `${llmReply.text}\n\n${memory.memoryContext}`
         : llmReply.text;
+    const executedModelId = llmReply.modelId;
     return {
       intent,
       summary: attachMemexPreview(summary, intent, memory),
-      modelId: llmReply.modelId,
-      // The shared provider uses a low-cost default model; report an honest
-      // conservative cost mode rather than the routed (possibly premium) one.
-      costMode: "economy",
+      modelId: executedModelId,
+      chosenModelId: routedModel.chosenModelId,
+      executedModelId,
+      ...(executedModelId === routedModel.chosenModelId ? { costMode: routedModel.mode } : {}),
+      costAccounting: llmReply.cost ?? {
+        kind: "unknown_cost",
+        monetaryUsd: null,
+        networkRequestSent: true,
+      },
       ...workspaceMeta,
       requiresConfirmation: false,
       generation: "llm",
     };
   }
 
-  const fallbackSummary = buildFallbackSummary(intent, message);
-  const finalSummary =
-    intent === "board.consult" && memory.memoryContext
-      ? `${fallbackSummary}\n\n${memory.memoryContext}`
-      : fallbackSummary;
-
   return {
-    intent,
-    summary: attachMemexPreview(finalSummary, intent, memory),
-    modelId: routedModel.model.id,
-    costMode: routedModel.mode,
-    ...workspaceMeta,
-    requiresConfirmation: false,
-    generation: "fallback",
+    ...template,
+    costAccounting: llmReply.cost ?? {
+      kind: "refused",
+      monetaryUsd: null,
+      networkRequestSent: false,
+    },
   };
 }
