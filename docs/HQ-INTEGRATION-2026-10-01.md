@@ -38,10 +38,40 @@ Codex a validé une copie native Linux de `c4659f1` avec le diff exact du correc
 
 Journaux locaux : `Orchestrator/.validation/hq-candidate-native/`. Diff validé SHA256 `912ac8de1d33260bc07b41bb9e222bd8d9eaac1cd372d2b8224f3528dbd758b2`. Ces durées mesurent la validation de développement, pas les performances du HQ. Les 61 tests Cursor et 18 tests d'admission ont été rejoués auparavant sur leurs fichiers inchangés.
 
+## Qualification PostgreSQL réelle — 1 octobre, 06:27 UTC
+
+Docker local rétabli, Antigravity a exécuté le CLI et les services de ce candidat
+sur PostgreSQL/PostgREST jetables, migration réelle appliquée. Le premier essai
+avait bloqué sur `docker exec -i ... psql -c`; Codex l'a constaté et a demandé
+la correction. Le commit source `78df5171c37cb36d5f3f793f7865b607dccda986`,
+repris dans `ad549d7`, ferme stdin quand inutile et ajoute `timeout -k 2`.
+Seul le script du banc change; les sources produit validées restent identiques.
+
+Le nouvel essai `1790836047_67270` a terminé avec code **0**. Codex a relu le
+journal et les assertions : une mission par demande identique concurrente,
+conflit sur contenu divergent, refus du workspace falsifié, réponse perdue
+après commit récupérée sans doublon, quatre missions et leur contenu conservés
+après redémarrage avec un client neuf. Toutes restent `draft`, avec approbation
+requise et autonomie zéro. Les listes Docker filtrées sur ce run ne contiennent
+plus de conteneur, volume ou réseau.
+
+Images observées : `postgres:16.4-alpine` digest
+`5660c2cbfea50c7a9127d17dc4e48543eedd3d7a41a595a2dfa572471e37e64c`,
+`postgrest/postgrest:v12.2.0` digest
+`2cf1efd2c9c2e7606610c113cc73e936d8ce9ba089271cb9cbf11aa564bc30c7`.
+Script SHA256 `7bb134906e1532630b3f1b59f6e4dff92e7c69fe4f2bd09f4506dfeac1c12f6a`;
+journal SHA256 `b1c5bc3a24bba43b0285c1b141510daddc6b6908e54584571f28521c2186238a`,
+conservé dans `Orchestrator/.validation/real-infra-20261001/`.
+
+Portée : persistance et contrat CLI/service réels. Le rôle de test `BYPASSRLS`
+et l'identité synthétique ne qualifient pas l'authentification propriétaire,
+les politiques RLS, le lanceur privilégié, Hermes ou un modèle. Le test de
+redémarrage n'est pas une preuve de résistance à une panne électrique.
+
 ## Suite et conditions de sortie
 
 1. Assemblage et contrôles centraux terminés dans cette copie isolée. La recette navigateur du formulaire et la qualification réelle restent distinctes.
-2. Exécuter le harnais sur un hôte Docker autorisé : `sh proofs/run-intake-real-db.sh "$PWD"`, avec Node 22. Il crée des ressources jetables propres au run et des ports loopback; il ne doit jamais viser une base de production.
+2. Qualification du stockage passée; terminer la recette navigateur et la revue indépendante. Pour reproduire sur un hôte autorisé : `sh proofs/run-intake-real-db.sh "$PWD"`, Node 22, ressources jetables et ports loopback seulement.
 3. Qualifier identité, compte, budget et outils de Hermes, puis une mission réelle jusqu'au résultat vérifié.
 4. Faire valider la maquette par Michael avant de l'intégrer. Elle reste dans sa branche Antigravity séparée.
 
