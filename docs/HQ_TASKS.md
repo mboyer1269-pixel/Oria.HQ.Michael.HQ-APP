@@ -1,6 +1,6 @@
 # HQ constructeur — tâches et critères de sortie
 
-Mise à jour : 30 septembre 2026. Cette liste distingue le code livré sur la
+Mise à jour : 1 octobre 2026. Cette liste distingue le code livré sur la
 branche de travail, les essais isolés et le fonctionnement réel en service.
 Une case cochée ne signifie pas que toute la chaîne est déployée.
 
@@ -8,7 +8,9 @@ Une case cochée ne signifie pas que toute la chaîne est déployée.
 
 Un atelier de développement basé sur OpenHands, accessible depuis ORIA HQ,
 qui produit des changements vérifiés et essayables ; utiliser ensuite cet
-atelier pour finaliser ORIA. Voir le [plan](PLAN-HQ-CONSTRUCTEUR.md).
+atelier pour finaliser ORIA. Hermes est l'interlocuteur/orchestrateur cible,
+HQ conserve les missions et OpenHands exécute. Voir le [plan](PLAN-HQ-CONSTRUCTEUR.md)
+et le [contrat courant des agents](https://github.com/mboyer1269-pixel/oria-hq-orchestrator/blob/codex/cursor-recovery-handoff/docs/HQ-LIVRAISON-2026-10-01.md).
 
 ## Réalisé dans le code / qualification
 
@@ -19,11 +21,13 @@ atelier pour finaliser ORIA. Voir le [plan](PLAN-HQ-CONSTRUCTEUR.md).
 - [x] Exécution isolée et réseau contrôlé dans le dépôt compagnon.
 - [x] Parcours connecté avec adaptateur simulé, stockage durable et Memex isolé.
 - [x] Diagnostic de reprise en lecture seule et affichage des limites de preuve.
-- [x] Budget temporel partagé ; 124 tests du runner passent sous Linux.
+- [x] Budget temporel partagé ; qualification historique du runner sous Linux (124 tests à cette étape, pas un décompte courant).
+- [x] Registre budgétaire désactivé, délais fournisseur et erreurs du registre corrigés; 65 tests et quatre validations globales sur `286a211`, PostgreSQL réel dans le périmètre documenté.
+- [x] Qualification locale route/owner et RLS `cf4fc4a` : 10 tests sans exclusion, lint ciblé, PostgreSQL réel sous rôles ordinaires; aucune session utilisateur réelle prétendue.
 
 ## P0 — première mission réelle (critère de réussite immédiat)
 
-- [ ] Obtenir le consentement OAuth de l'instance Claude dédiée, puis confirmer sa connexion.
+- [ ] Identifier le véritable runtime Hermes après autorisation d'inspection, puis confirmer le profil/compte/modèle autorisé pour la mission; aucun nouvel accès ou repli payant implicite.
 - [ ] Qualifier le stockage et le renouvellement de l'accès dans le contexte réel d'exécution.
 - [ ] Mettre en place la séparation des identifiants entre compte, HQ et outils de mission.
 - [ ] Approuver puis publier le cadre de projet Memex par le parcours gouverné.
@@ -52,6 +56,7 @@ produit par un agent. Une simulation ou une session ouverte ne suffit pas.
 - [ ] Réutiliser les recettes Memex avec provenance et limites explicites.
 - [ ] Rendre visibles l'avancement, les blocages, les preuves et le résultat essayable.
 - [ ] Ajouter les explications à la demande et valider les parcours mobile / ordinateur.
+- [ ] Obtenir la validation visuelle de la maquette `d821773`, déjà testée séparément, avant de l'intégrer aux événements réels.
 - [ ] N'adopter un nouvel outil qu'après un gain démontré sur ces missions.
 
 ## Règles de travail

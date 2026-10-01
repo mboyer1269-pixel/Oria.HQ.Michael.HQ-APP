@@ -1,6 +1,6 @@
 # ORIA HQ — atelier de développement et centre de pilotage
 
-État de cette branche au **30 septembre 2026**. Le code publié, les essais isolés
+État de cette branche au **1 octobre 2026**. Le code publié, les essais isolés
 et le déploiement actif sont des états différents : ce dépôt ne prétend pas
 qu'une mission autonome complète est déjà opérationnelle.
 
@@ -9,7 +9,17 @@ qu'une mission autonome complète est déjà opérationnelle.
 Construire un atelier de développement basé sur **OpenHands**, accessible dans
 ORIA HQ : demander une modification, suivre les agents, vérifier les résultats
 et essayer le produit. Utiliser ensuite cet atelier pour compléter ORIA HQ.
-L'interface doit expliquer les étapes importantes et rester utilisable sur mobile.
+Hermes est l'interlocuteur et l'orchestrateur cible de cet atelier : les espaces
+Discuter et Atelier partagent les mêmes missions, conservées par HQ. Son runtime
+installé et son raccordement restent à qualifier. L'interface doit expliquer les
+étapes importantes et rester utilisable sur mobile.
+
+Le candidat de code `286a211` passe 65 tests ciblés et les quatre validations
+globales. La qualification complémentaire `cf4fc4a` ajoute 10 tests et un banc
+PostgreSQL réel des accès missions/budget, vérifiés indépendamment. Elle ne
+modifie pas la logique applicative et ne prouve pas une session Supabase réelle.
+Le budget reste désactivé. La maquette mobile reste séparée et attend la validation
+visuelle avant intégration. [Résultats exacts et prochaine séquence](https://github.com/mboyer1269-pixel/oria-hq-orchestrator/blob/codex/cursor-recovery-handoff/docs/HQ-FRONTIERES-ACCES-2026-10-01.md).
 
 - [Plan HQ constructeur](docs/PLAN-HQ-CONSTRUCTEUR.md)
 - [Liste des tâches et critères de réussite](docs/HQ_TASKS.md)
@@ -20,6 +30,7 @@ L'interface doit expliquer les étapes importantes et rester utilisable sur mobi
 
 | Brique | Responsabilité |
 | --- | --- |
+| Hermes, cible à raccorder | Interlocuteur quotidien, planification et délégation dans les outils autorisés |
 | HQ / Next.js | Interface, missions, décisions, permissions et aperçu des résultats |
 | Stockage HQ / Supabase | État durable, identité propriétaire et périmètre du workspace |
 | OpenHands / runner isolé | Exécution du travail sur une copie du dépôt et suivi de son cycle de vie |
