@@ -501,6 +501,68 @@ test("un reçu incomplet ou un statut inconnu ne passe pas pour un enregistremen
   assert.deepEqual(unknown, { status: "unavailable" });
 });
 
+// ---------------------------------------------------------------------------
+// Isolation réelle entre projets : B ne peut pas emprunter la charge de A
+// ---------------------------------------------------------------------------
+
+test("le formulaire est monté sous une instance distincte par projet", async () => {
+  // La charge figée vit dans une ref. Tant qu'une seule instance sert deux
+  // projets, cette ref survit au changement — et un enregistrement en B peut
+  // poster l'identifiant et le contenu de A. `key={workspaceId}` force un
+  // démontage réel : état et refs repartent de zéro.
+  const React = (await import("react")).default;
+  globalThis.React = React;
+
+  const componentJiti = createJiti(import.meta.url, {
+    jsx: true,
+    alias: {
+      "@": path.resolve(__dirname, "..", ".."),
+      "next/navigation": path.join(__dirname, "..", "..", "__server-only-noop.js"),
+    },
+  });
+  const { DevelopmentMissionForm } = await componentJiti.import(
+    "./components/development-mission-form.tsx",
+  );
+
+  const inA = DevelopmentMissionForm({ workspaceId: "workspace-a" });
+  const inB = DevelopmentMissionForm({ workspaceId: "workspace-b" });
+
+  assert.equal(inA.key, "workspace-a");
+  assert.equal(inB.key, "workspace-b");
+  assert.notEqual(inA.key, inB.key, "une même clé réutiliserait l’instance, donc les refs");
+  assert.equal(inA.props.workspaceId, "workspace-a");
+});
+
+test("une instance neuve ne peut pas renvoyer la charge d’un autre projet", () => {
+  // Dans une instance fraîche (passage en B), aucune charge n'est figée et la
+  // saisie est vide : le seul plan qui réutiliserait un identifiant et une
+  // charge existants — `retry` — est refusé.
+  const inB = planIntent(state({ hasFrozenPayload: false, inputComplete: false }), "retry");
+
+  assert.equal(inB.kind, "refused");
+  assert.equal(requestMethodFor(inB), null);
+
+  // Et un enregistrement en B part forcément sur un identifiant neuf, jamais
+  // sur celui de A : le plan `create` n'en transporte aucun.
+  const creating = planIntent(state({ inputComplete: true }), "create");
+  assert.deepEqual(creating, { kind: "create" });
+});
+
+test("revenir au projet A propose une relecture explicite, jamais un envoi silencieux", () => {
+  // A -> B -> A : l'instance de A est neuve, mais sessionStorage a gardé son
+  // requestId. Il est relu à l'action.
+  const backInA = state({ pendingRequestId: ID_A });
+
+  const creating = planIntent(backInA, "create");
+  assert.equal(creating.kind, "refused");
+  assert.equal(creating.reason, "resume-decision-required");
+  assert.equal(requestMethodFor(creating), null);
+
+  const reading = planIntent(backInA, "read-active");
+  assert.deepEqual(reading, { kind: "read", requestId: ID_A });
+  assert.equal(requestMethodFor(reading), "GET");
+});
+
 test("le formulaire se charge et consomme bien cette logique", async () => {
   // Pas un rendu : un chargement. Il vérifie que le composant corrigé parse,
   // que ses imports résolvent et qu'il expose toujours le même export. Les

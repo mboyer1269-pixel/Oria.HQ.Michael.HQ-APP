@@ -321,3 +321,35 @@ facile là aurait dévalué le seul signal qui bloque une relance aveugle.
 Le rendu du formulaire corrigé n'a pas été vu dans un navigateur. Les quatre gates du dépôt n'ont pas
 tourné dans cette copie, donc ce diff n'est pas type-vérifié : c'est la revue centrale qui le
 qualifiera. Je ne déclare pas la livraison globale complète.
+
+---
+
+## 9. Rectificatif — lint bloquant et fuite de charge entre projets
+
+Après le commit `13930e1`, deux défauts ont été relevés sur ce formulaire et corrigés.
+
+**Lint.** `react-hooks/set-state-in-effect` (remise à zéro synchrone dans un effet) et
+`react-hooks/refs` (`payload.current` lu pendant le rendu, 8 diagnostics). Corrigés à la racine, sans
+`eslint-disable`, sans règle désactivée et sans microtask : le suivi de session est désormais lu **au
+moment de l'action**, comme `openhands-launch.tsx` — plus aucune lecture de stockage au rendu, donc
+plus d'écart d'hydratation possible ; l'effet restant ne fait que du nettoyage (annulation de la
+requête en vol et invalidation de son ticket au démontage) ; et `frozen` sert au rendu là où la ref
+était lue, la ref restant réservée aux actions.
+
+**Fuite de charge entre projets.** La charge figée vivait dans une ref partagée par tous les projets.
+Un enregistrement dans B pouvait donc poster l'identifiant et le contenu de A tout en inscrivant un
+nouvel identifiant B dans `sessionStorage`. `DevelopmentMissionForm` est maintenant un enveloppe qui
+rend une instance interne sous `key={workspaceId}` : le changement de projet démonte réellement
+l'instance, état et refs inclus. Seul le `requestId` persistant subsiste, relu à l'action — revenir
+en A propose une reprise explicite, jamais un envoi silencieux.
+
+**Vérifications.** Elles sont le fait de **Codex**, en indépendant, sur un snapshot Linux natif
+(base `c4659f1` plus ce diff) : 110 tests ciblés et dépendants passants, typecheck, lint (0 erreur,
+5 avertissements préexistants), build et `smoke:joris`. Journaux dans
+`Orchestrator/.validation/hq-candidate-native/`. De mon côté : `eslint` sur les fichiers touchés,
+sortie vide, exit 0.
+
+**Limites.** Les tests React ajoutés portent sur le **chargement du module et la clé d'instance**, pas
+sur un rendu navigateur : le démontage par `key` est une garantie de React, non une observation faite
+ici. Aucun test mobile ni clavier. Aucune mission réelle n'a été admise et ce rapport n'affirme pas
+l'absence de bogues.
