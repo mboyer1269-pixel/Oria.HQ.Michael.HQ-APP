@@ -9,20 +9,21 @@
 
 export type ExecutionProvider = "anthropic" | "openai";
 
-const SUPPORTED_EXECUTION_MODELS: Record<string, ExecutionProvider> = {
-  "claude-sonnet-4-6": "anthropic",
-  "claude-haiku-4-5-20251001": "anthropic",
-  "gpt-4o": "openai",
-  "gpt-4o-mini": "openai",
-};
+/** Map lookup does not inherit constructor, toString, or __proto__. */
+const SUPPORTED_EXECUTION_MODELS = new Map<string, ExecutionProvider>([
+  ["claude-sonnet-4-6", "anthropic"],
+  ["claude-haiku-4-5-20251001", "anthropic"],
+  ["gpt-4o", "openai"],
+  ["gpt-4o-mini", "openai"],
+]);
 
 export type ExecutionTarget =
   | { callable: true; provider: ExecutionProvider }
   | { callable: false; reason: string };
 
 export function executionTargetForModel(modelId: string): ExecutionTarget {
-  const provider = SUPPORTED_EXECUTION_MODELS[modelId];
-  if (provider) {
+  const provider = SUPPORTED_EXECUTION_MODELS.get(modelId);
+  if (provider === "anthropic" || provider === "openai") {
     return { callable: true, provider };
   }
 

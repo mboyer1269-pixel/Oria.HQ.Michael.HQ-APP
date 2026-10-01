@@ -29,6 +29,9 @@ const { clearCallAccountingLog, getCallAccountingLog, reservationNotImplemented,
 const { generateStructuredJson } = await jiti.import(
   path.join(projectRoot, "src/server/ai/llm-json-provider.ts"),
 );
+const { executionTargetForModel } = await jiti.import(
+  path.join(projectRoot, "src/server/ai/execution-models.ts"),
+);
 const { PREMIUM_MODEL_ID, ECONOMY_MODEL_ID, LONG_CONTEXT_MODEL_ID } = await jiti.import(
   path.join(projectRoot, "src/server/ai/model-config.ts"),
 );
@@ -380,4 +383,205 @@ test("an economy selection stays on gpt-4o-mini and can be executed as that id",
   assert.equal(sent, ECONOMY_MODEL_ID);
   assert.equal(result.executedModelId, ECONOMY_MODEL_ID);
   assert.equal(result.providerUsed, "openai");
+});
+
+test("constructor, toString and __proto__ are refused with zero injected fetches", async () => {
+  process.env.ANTHROPIC_API_KEY = "synthetic";
+  process.env.OPENAI_API_KEY = "synthetic";
+  try {
+    for (const modelId of ["constructor", "toString", "__proto__"]) {
+      const target = executionTargetForModel(modelId);
+      assert.equal(target.callable, false);
+      assert.equal("provider" in target, false);
+      let anthropicCalls = 0;
+      let openaiCalls = 0;
+      const result = await generateStructuredJson({
+        providerPreference: "auto",
+        modelId,
+        workspaceId: "ws-proto",
+        paidFallback: { authorized: true, workspaceId: "ws-proto" },
+        systemPrompt: "sys",
+        userPrompt: "user",
+        fetchFns: {
+          anthropic: async () => {
+            anthropicCalls += 1;
+            throw new Error("anthropic fetch must not run");
+          },
+          openai: async () => {
+            openaiCalls += 1;
+            throw new Error("openai fetch must not run");
+          },
+        },
+      });
+      assert.equal(anthropicCalls, 0, modelId);
+      assert.equal(openaiCalls, 0, modelId);
+      assert.equal(result.ok, false);
+      assert.equal(result.errorCode, "model_unsupported");
+      assert.equal(result.executedModelId, null);
+      assert.equal(result.providerUsed, undefined);
+      assert.equal(typeof result.providerUsed, "undefined");
+      assert.equal(result.attempts.length, 0);
+      assert.equal(result.cost.kind, "refused");
+      assert.equal(result.cost.networkRequestSent, false);
+      assert.equal(result.cost.monetaryUsd, null);
+    }
+  } finally {
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("authorized Anthropic 503 then OpenAI 200 keeps both attempts and an unknown total", async () => {
+  process.env.ANTHROPIC_API_KEY = "synthetic";
+  process.env.OPENAI_API_KEY = "synthetic";
+  let anthropicCalls = 0;
+  let openaiCalls = 0;
+  try {
+    const result = await generateStructuredJson({
+      providerPreference: "auto",
+      workspaceId: "ws-bill",
+      paidFallback: { authorized: true, workspaceId: "ws-bill" },
+      systemPrompt: "sys",
+      userPrompt: "user",
+      fetchFns: {
+        anthropic: async () => {
+          anthropicCalls += 1;
+          return { ok: false, status: 503, json: async () => ({}) };
+        },
+        openai: async () => {
+          openaiCalls += 1;
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              choices: [{ message: { content: JSON.stringify({ reply: "ok" }) } }],
+              usage: { prompt_tokens: 3, completion_tokens: 4 },
+            }),
+          };
+        },
+      },
+    });
+    assert.equal(anthropicCalls, 1);
+    assert.equal(openaiCalls, 1);
+    assert.equal(result.ok, true);
+    assert.equal(result.fallbackUsed, true);
+    assert.equal(result.providerUsed, "openai");
+    assert.equal(result.attempts.length, 2);
+    assert.equal(result.attempts[0].provider, "anthropic");
+    assert.equal(result.attempts[0].cost.kind, "failed_maybe_billed");
+    assert.equal(result.attempts[0].cost.networkRequestSent, true);
+    assert.equal(result.attempts[0].cost.monetaryUsd, null);
+    assert.equal(result.attempts[1].provider, "openai");
+    assert.equal(result.attempts[1].cost.kind, "observed_usage");
+    assert.equal(result.attempts[1].cost.inputTokens, 3);
+    assert.equal(result.attempts[1].cost.outputTokens, 4);
+    assert.equal(result.attempts[1].cost.monetaryUsd, null);
+    assert.equal(result.cost.kind, "unknown_cost");
+    assert.equal(result.cost.inputTokens, undefined);
+    assert.equal(result.cost.outputTokens, undefined);
+    assert.equal(result.cost.networkRequestSent, true);
+    assert.equal(result.cost.monetaryUsd, null);
+    assert.notEqual(result.cost.monetaryUsd, 0);
+    assert.equal(DURABLE_BUDGET_IMPLEMENTED, false);
+  } finally {
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("a missing Anthropic key then an authorized OpenAI success keeps the refused attempt", async () => {
+  delete process.env.ANTHROPIC_API_KEY;
+  process.env.OPENAI_API_KEY = "synthetic";
+  let anthropicCalls = 0;
+  let openaiCalls = 0;
+  try {
+    const result = await generateStructuredJson({
+      providerPreference: "auto",
+      workspaceId: "ws-nokey",
+      paidFallback: { authorized: true, workspaceId: "ws-nokey" },
+      systemPrompt: "sys",
+      userPrompt: "user",
+      fetchFns: {
+        anthropic: async () => {
+          anthropicCalls += 1;
+          throw new Error("anthropic fetch must not run without a key");
+        },
+        openai: async () => {
+          openaiCalls += 1;
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              choices: [{ message: { content: JSON.stringify({ reply: "ok" }) } }],
+              usage: { prompt_tokens: 8, completion_tokens: 2 },
+            }),
+          };
+        },
+      },
+    });
+    assert.equal(anthropicCalls, 0);
+    assert.equal(openaiCalls, 1);
+    assert.equal(result.ok, true);
+    assert.equal(result.attempts.length, 2);
+    assert.equal(result.attempts[0].provider, "anthropic");
+    assert.equal(result.attempts[0].cost.kind, "refused");
+    assert.equal(result.attempts[0].cost.networkRequestSent, false);
+    assert.equal(result.attempts[0].cost.monetaryUsd, null);
+    assert.equal(result.attempts[1].provider, "openai");
+    assert.equal(result.attempts[1].cost.kind, "observed_usage");
+    assert.equal(result.attempts[1].cost.inputTokens, 8);
+    assert.equal(result.attempts[1].cost.outputTokens, 2);
+    assert.equal(result.cost.kind, "observed_usage");
+    assert.equal(result.cost.inputTokens, 8);
+    assert.equal(result.cost.outputTokens, 2);
+    assert.equal(result.cost.monetaryUsd, null);
+    assert.notEqual(result.cost.monetaryUsd, 0);
+  } finally {
+    delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("when every authorized attempt fails, none is recorded as zero dollars", async () => {
+  process.env.ANTHROPIC_API_KEY = "synthetic";
+  process.env.OPENAI_API_KEY = "synthetic";
+  let anthropicCalls = 0;
+  let openaiCalls = 0;
+  try {
+    const result = await generateStructuredJson({
+      providerPreference: "auto",
+      workspaceId: "ws-fail",
+      paidFallback: { authorized: true, workspaceId: "ws-fail" },
+      systemPrompt: "sys",
+      userPrompt: "user",
+      fetchFns: {
+        anthropic: async () => {
+          anthropicCalls += 1;
+          return { ok: false, status: 503, json: async () => ({}) };
+        },
+        openai: async () => {
+          openaiCalls += 1;
+          return { ok: false, status: 500, json: async () => ({}) };
+        },
+      },
+    });
+    assert.equal(anthropicCalls, 1);
+    assert.equal(openaiCalls, 1);
+    assert.equal(result.ok, false);
+    assert.equal(result.errorCode, "all_providers_failed");
+    assert.equal(result.executedModelId, null);
+    assert.equal(result.attempts.length, 2);
+    assert.equal(result.attempts[0].provider, "anthropic");
+    assert.equal(result.attempts[0].cost.kind, "failed_maybe_billed");
+    assert.equal(result.attempts[1].provider, "openai");
+    assert.equal(result.attempts[1].cost.kind, "failed_maybe_billed");
+    assert.equal(result.attempts.every((attempt) => attempt.cost.monetaryUsd === null), true);
+    assert.equal(result.attempts.every((attempt) => attempt.cost.monetaryUsd !== 0), true);
+    assert.equal(result.cost.kind, "failed_maybe_billed");
+    assert.equal(result.cost.networkRequestSent, true);
+    assert.equal(result.cost.monetaryUsd, null);
+    assert.notEqual(result.cost.monetaryUsd, 0);
+  } finally {
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+  }
 });

@@ -57,6 +57,12 @@ export type LlmJsonProviderInput = {
   };
 };
 
+/** One provider attempt. Monetary amount stays null on every entry. */
+export type LlmAttemptCost = {
+  provider: LlmProvider;
+  cost: RoutingCostAssessment;
+};
+
 export type LlmJsonProviderSuccess = {
   ok: true;
   json: unknown;
@@ -70,6 +76,13 @@ export type LlmJsonProviderSuccess = {
   fallbackUsed: boolean;
   failureChain: string[];
   tokenUsage?: { input: number; output: number };
+  /** Every attempt, including one that may have been billed before a later success. */
+  attempts: LlmAttemptCost[];
+  /**
+   * Aggregate. `unknown_cost` when an earlier attempt may have been billed or
+   * returned no usage: the successful tokens are not the whole cost.
+   * `monetaryUsd` stays null. This is not a persistent budget.
+   */
   cost: RoutingCostAssessment;
 };
 
@@ -86,6 +99,7 @@ export type LlmJsonProviderFailure = {
   providerUsed?: LlmProvider;
   chosenModelId?: string;
   executedModelId: null;
+  attempts: LlmAttemptCost[];
   cost: RoutingCostAssessment;
 };
 
@@ -113,8 +127,47 @@ function resolveOrder(input: LlmJsonProviderInput): LlmProvider[] {
   return paidFallbackAuthorized(input) ? ["anthropic", "openai"] : ["anthropic"];
 }
 
-function refused(networkRequestSent: false): RoutingCostAssessment {
-  return { kind: "refused", monetaryUsd: null, networkRequestSent };
+function refused(): RoutingCostAssessment {
+  return { kind: "refused", monetaryUsd: null, networkRequestSent: false };
+}
+
+/**
+ * Global cost across attempts. Does not add dollars and does not drop an
+ * earlier attempt. A later observed usage does not erase a request that may
+ * already have been billed; that aggregate stays unknown.
+ */
+function aggregateCost(attempts: LlmAttemptCost[]): RoutingCostAssessment {
+  if (attempts.length === 0 || attempts.every((attempt) => attempt.cost.kind === "refused")) {
+    return refused();
+  }
+  const last = attempts[attempts.length - 1].cost;
+  const priorMaybeBilled = attempts
+    .slice(0, -1)
+    .some((attempt) => attempt.cost.kind === "failed_maybe_billed");
+  const lastSucceeded = last.kind === "observed_usage" || last.kind === "unknown_cost";
+  if (lastSucceeded && priorMaybeBilled) {
+    return { kind: "unknown_cost", monetaryUsd: null, networkRequestSent: true };
+  }
+  const anyMaybeBilled = attempts.some((attempt) => attempt.cost.kind === "failed_maybe_billed");
+  if (!lastSucceeded && anyMaybeBilled) {
+    return { kind: "failed_maybe_billed", monetaryUsd: null, networkRequestSent: true };
+  }
+  if (last.kind === "observed_usage") {
+    return {
+      kind: "observed_usage",
+      monetaryUsd: null,
+      inputTokens: last.inputTokens,
+      outputTokens: last.outputTokens,
+      networkRequestSent: true,
+    };
+  }
+  return {
+    kind: last.kind,
+    monetaryUsd: null,
+    networkRequestSent: last.networkRequestSent,
+    ...(last.inputTokens !== undefined ? { inputTokens: last.inputTokens } : {}),
+    ...(last.outputTokens !== undefined ? { outputTokens: last.outputTokens } : {}),
+  };
 }
 
 function costFromClient(result: {
@@ -157,17 +210,30 @@ export async function generateStructuredJson(
         failureChain: [],
         chosenModelId: input.modelId,
         executedModelId: null,
-        cost: refused(false),
+        attempts: [],
+        cost: refused(),
       };
     }
   }
 
   const order = resolveOrder(input);
   const failureChain: string[] = [];
+  const attempts: LlmAttemptCost[] = [];
   let attemptCount = 0;
-  let sawMaybeBilled = false;
 
   for (const provider of order) {
+    if (provider !== "anthropic" && provider !== "openai") {
+      return {
+        ok: false,
+        errorCode: "model_unsupported",
+        fallbackReason: `${String(provider)} n'est pas un fournisseur pris en charge.`,
+        failureChain,
+        ...(input.modelId ? { chosenModelId: input.modelId } : {}),
+        executedModelId: null,
+        attempts,
+        cost: refused(),
+      };
+    }
     attemptCount++;
     const isFirstAttempt = attemptCount === 1;
 
@@ -204,12 +270,17 @@ export async function generateStructuredJson(
     } catch {
       const reason = `${provider}: unexpected exception`;
       failureChain.push(reason);
-      sawMaybeBilled = true;
+      attempts.push({
+        provider,
+        cost: { kind: "failed_maybe_billed", monetaryUsd: null, networkRequestSent: true },
+      });
       continue;
     }
 
+    const attemptCost = costFromClient(result);
+    attempts.push({ provider, cost: attemptCost });
+
     if (result.ok) {
-      const cost = costFromClient(result);
       return {
         ok: true,
         json: result.json,
@@ -221,12 +292,11 @@ export async function generateStructuredJson(
         fallbackUsed: !isFirstAttempt,
         failureChain,
         tokenUsage: result.tokenUsage,
-        cost,
+        attempts,
+        cost: aggregateCost(attempts),
       };
     }
 
-    const attemptCost = costFromClient(result);
-    if (attemptCost.kind === "failed_maybe_billed") sawMaybeBilled = true;
     failureChain.push(`${provider}: ${result.fallbackReason}`);
   }
 
@@ -240,8 +310,7 @@ export async function generateStructuredJson(
     failureChain,
     ...(input.modelId ? { chosenModelId: input.modelId } : {}),
     executedModelId: null,
-    cost: sawMaybeBilled
-      ? { kind: "failed_maybe_billed", monetaryUsd: null, networkRequestSent: true }
-      : refused(false),
+    attempts,
+    cost: aggregateCost(attempts),
   };
 }
