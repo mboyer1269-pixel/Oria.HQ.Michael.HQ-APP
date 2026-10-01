@@ -327,7 +327,7 @@ export async function generateStructuredJson(
         executedModelId: null,
         attempts,
         reservation,
-        cost: refused(),
+        cost: aggregateCost(attempts),
       };
     }
     attemptCount++;
@@ -368,7 +368,7 @@ export async function generateStructuredJson(
           executedModelId: null,
           attempts,
           reservation,
-          cost: refused(),
+          cost: aggregateCost(attempts),
         };
       }
       continue;

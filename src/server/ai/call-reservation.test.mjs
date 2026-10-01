@@ -882,7 +882,105 @@ test("a rejected or unavailable registry does not throw, emit, or drop known cen
       assert.equal(consumed.result.reservation.reservedCents, 40, mode);
       assert.notEqual(consumed.result.reservation.reservedCents, 0, mode);
       assert.equal(consumed.result.reservation.reconciliationRequired, true, mode);
+      assert.equal(consumed.result.cost.kind, "unknown_cost", mode);
+      assert.equal(consumed.result.cost.networkRequestSent, true, mode);
+      assert.notEqual(consumed.result.cost.kind, "refused", mode);
       assert.equal(consumed.result.cost.monetaryUsd, null, mode);
+    }
+  } finally {
+    delete process.env.HQ_CALL_RESERVATION;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("a blocked authorized fallback keeps the first emitted attempt in the aggregate cost", async () => {
+  process.env.HQ_CALL_RESERVATION = "1";
+  process.env.ANTHROPIC_API_KEY = "synthetic";
+  process.env.OPENAI_API_KEY = "synthetic";
+  const held = {
+    configured: true,
+    status: "held",
+    currency: "USD",
+    reservedCents: 40,
+    networkEmitted: false,
+    reconciliationRequired: false,
+  };
+  const marked = {
+    configured: true,
+    status: "emitted_unknown",
+    currency: "USD",
+    reservedCents: 40,
+    networkEmitted: true,
+    reconciliationRequired: true,
+  };
+  const unavailable = {
+    configured: true,
+    status: "unavailable",
+    reason: "malformed",
+    currency: null,
+    reservedCents: null,
+    networkEmitted: false,
+    reconciliationRequired: false,
+  };
+
+  async function run(primary, registry) {
+    let emissions = 0;
+    const result = await generateStructuredJson({
+      providerPreference: "auto",
+      workspaceId: "ws-a",
+      callSubjectId: "call-blocked-cost",
+      paidFallback: { authorized: true, workspaceId: "ws-a" },
+      systemPrompt: "sys",
+      userPrompt: "user",
+      reservationGate: {
+        reserve(input) {
+          if (input.provider === "openai") {
+            return registry === "reject"
+              ? Promise.reject(new Error("registry rejected"))
+              : Promise.resolve(unavailable);
+          }
+          return Promise.resolve(held);
+        },
+        markEmitted() { return Promise.resolve(marked); },
+        release() { return Promise.reject(new Error("release must not run")); },
+        consume() { return Promise.reject(new Error("consume must not run")); },
+      },
+      fetchFns: {
+        anthropic: async () => {
+          emissions += 1;
+          if (primary === "throw") throw new Error("socket failed");
+          return { ok: false, status: 503, json: async () => ({}) };
+        },
+        openai: async () => {
+          emissions += 1;
+          throw new Error("second socket");
+        },
+      },
+    });
+    return { result, emissions };
+  }
+
+  try {
+    for (const primary of ["http", "throw"]) {
+      for (const registry of ["unavailable", "reject"]) {
+        const label = `${primary}/${registry}`;
+        const { result, emissions } = await run(primary, registry);
+        assert.equal(emissions, 1, label);
+        assert.equal(result.ok, false, label);
+        assert.equal(result.errorCode, "reservation_blocked", label);
+        assert.equal(result.attempts.length, 2, label);
+        assert.equal(result.attempts[0].provider, "anthropic", label);
+        assert.equal(result.attempts[0].cost.kind, "failed_maybe_billed", label);
+        assert.equal(result.attempts[0].cost.networkRequestSent, true, label);
+        assert.equal(result.attempts[1].provider, "openai", label);
+        assert.equal(result.attempts[1].cost.kind, "refused", label);
+        assert.equal(result.attempts[1].cost.networkRequestSent, false, label);
+        assert.equal(result.cost.kind, "failed_maybe_billed", label);
+        assert.equal(result.cost.networkRequestSent, true, label);
+        assert.equal(result.cost.monetaryUsd, null, label);
+        assert.notEqual(result.cost.kind, "refused", label);
+      }
     }
   } finally {
     delete process.env.HQ_CALL_RESERVATION;
