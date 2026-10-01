@@ -8,7 +8,7 @@ import { mapMissionRow } from "./mission-row";
 import { isDurableMissionDraftEnabled } from "./mission-persistence-flag";
 export const developmentInputSchema=z.object({requestId:z.string().uuid(),title:z.string().trim().min(1).max(200),objective:z.string().trim().min(1).max(4000),scope:z.string().trim().min(1).max(1000),acceptanceCriteria:z.string().trim().min(1).max(2000)}).strict();
 export type DevelopmentInput=z.infer<typeof developmentInputSchema>;
-export type DevelopmentReceipt={status:"saved";missionId:string;title:string;missionStatus:Mission["status"];updatedAt:string;executionRequested:false}|{status:"disabled"|"unavailable"|"outcome_unknown"|"not_found"|"conflict"};
+export type DevelopmentReceipt={status:"saved";missionId:string;title:string;missionStatus:Mission["status"];updatedAt:string;executionRequested:false}|{status:"disabled"|"unavailable"|"outcome_unknown"|"not_found"|"conflict"|"invalid_request"};
 export type DevelopmentStore={save:(mission:Mission)=>Promise<Mission>;load:(workspaceId:string,missionId:string)=>Promise<Mission|null>};
 /** RFC 9562 UUIDv5, fixed DNS namespace and an application-qualified scoped name. */
 export function developmentMissionId(workspaceId:string,requestId:string):string {
@@ -29,7 +29,9 @@ export function createDevelopmentService(deps:{enabled?:()=>boolean;store?:()=>D
   async create(input:DevelopmentInput,context:{workspaceId:string;modeId:string;actorId:string}):Promise<DevelopmentReceipt>{
    if(!(deps.enabled??isDurableMissionDraftEnabled)())return {status:"disabled"};
    const store=(deps.store??createDevelopmentStore)();if(!store)return {status:"unavailable"};
-   const parsed=developmentInputSchema.parse(input);
+   const parsedRes=developmentInputSchema.safeParse(input);
+   if(!parsedRes.success)return {status:"invalid_request"};
+   const parsed=parsedRes.data;
    const payloadHash=createHash("sha256").update(JSON.stringify([parsed.title,parsed.objective,parsed.scope,parsed.acceptanceCriteria,context.modeId,context.actorId])).digest("hex");
    const now=new Date().toISOString();const mission:Mission={id:developmentMissionId(context.workspaceId,parsed.requestId),workspaceId:context.workspaceId,modeId:context.modeId,title:parsed.title,objective:parsed.objective,assignedAgentId:"",autonomyLevel:0,status:"draft",riskLevel:"medium",requiresApproval:true,
     input:{development:{version:1,requestId:parsed.requestId.toLowerCase(),scope:parsed.scope,acceptanceCriteria:parsed.acceptanceCriteria,createdBy:context.actorId,payloadHash}},expectedOutput:`Périmètre autorisé :\n${parsed.scope}\n\nCritères d’acceptation :\n${parsed.acceptanceCriteria}\n\nLivrer les changements et les preuves de validation. Aucun déploiement automatique.`,createdAt:now,updatedAt:now};
@@ -41,6 +43,8 @@ export function createDevelopmentService(deps:{enabled?:()=>boolean;store?:()=>D
   async lookup(requestId:string,workspaceId:string):Promise<DevelopmentReceipt>{
    if(!(deps.enabled??isDurableMissionDraftEnabled)())return {status:"disabled"};
    const store=(deps.store??createDevelopmentStore)();if(!store)return {status:"unavailable"};
+   const uuidRes=z.string().uuid().safeParse(requestId);
+   if(!uuidRes.success)return {status:"invalid_request"};
    try{const mission=await store.load(workspaceId,developmentMissionId(workspaceId,requestId));if(!mission)return {status:"not_found"};
     const meta=mission.input.development as Record<string,unknown>|undefined;
     if(mission.workspaceId!==workspaceId||meta?.version!==1||meta.requestId!==requestId.toLowerCase())return {status:"conflict"};return receipt(mission);
