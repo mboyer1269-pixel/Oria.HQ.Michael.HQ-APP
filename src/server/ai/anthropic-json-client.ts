@@ -104,6 +104,7 @@ export async function generateJsonWithAnthropic(
   const timeoutMs = input.timeoutMs ?? ANTHROPIC_JSON_DEFAULT_TIMEOUT_MS;
   const temperature = input.temperature ?? ANTHROPIC_JSON_DEFAULT_TEMPERATURE;
 
+  // Armed through response.json(). Clearing after headers leaves a stalled body unbounded.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -124,8 +125,6 @@ export async function generateJsonWithAnthropic(
         messages: [{ role: "user", content: input.userPrompt }],
       }),
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return {
@@ -173,9 +172,7 @@ export async function generateJsonWithAnthropic(
 
     return { ok: true, json, rawText, modelId, tokenUsage };
   } catch (err) {
-    clearTimeout(timeoutId);
-
-    if (err instanceof Error && err.name === "AbortError") {
+    if (isAbortError(err)) {
       return {
         ok: false,
         errorCode: "timeout",
@@ -190,5 +187,16 @@ export async function generateJsonWithAnthropic(
       fallbackReason: "Unexpected error contacting Anthropic",
       modelId,
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const name = "name" in err ? err.name : undefined;
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const cause = "cause" in err ? err.cause : undefined;
+  if (!cause || typeof cause !== "object" || !("name" in cause)) return false;
+  return cause.name === "AbortError" || cause.name === "TimeoutError";
 }
