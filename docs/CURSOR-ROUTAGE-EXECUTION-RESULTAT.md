@@ -66,6 +66,7 @@ Contrat proposé, non migré, pour une table HQ partagée et non pour Antigravit
 - `src/server/joris/joris-reply-generator.ts` (adaptateur d'appel utilisé par le cerveau)
 - `src/server/missions/mission-draft-control.ts`
 - `src/core/types.ts` (champs optionnels)
+- `src/features/ventures/llm-cash-action-packet-generator.test.mjs`
 - tests d'appelants listés ci-dessous
 - ce document
 
@@ -84,10 +85,30 @@ Depuis le clone produit, après `npm ci --ignore-scripts` (760 paquets, code 0) 
 
 Les fixtures n'ouvrent pas le réseau réel. `fetch` est injecté ou la requête est refusée avant `fetch`.
 
+## Impact sur les appelants de `generateStructuredJson`
+
+Aucun appelant ne reçoit un consentement par défaut. `paidFallback` n'est envoyé que si l'appelant le fournit, et seulement s'il vise le même `workspaceId`. La fonction Ventures n'a pas été modifiée : elle n'a pas de paramètre d'autorisation.
+
+- `generateLlmCashActionPacketsFromVentures` appelle `auto` sans `paidFallback`. Un échec Anthropic produit `fallback_seed` et une `failureChain` d'un seul élément. OpenAI n'est pas appelé. `providerPreference: "openai"` ou `"anthropic"` reste un choix explicite d'un seul fournisseur, pas un repli. Le commentaire du paramètre dit encore « Anthropic → OpenAI » ; le comportement ne le fait plus. `smoke:revenue` l'appelle sans clé et obtient `fallback_seed`.
+- `generateDailyDirection` fait deux tentatives de prompt, chacune en `auto` sans `paidFallback`. Chaque tentative n'appelle qu'Anthropic. Ce n'est pas un repli de fournisseur. Ses 6 tests passent.
+- `generateJorisReply` transmet `paidFallback` seulement si on le lui donne. `runJorisCommand` ne le donne pas. Le modèle choisi part vers son seul fournisseur pris en charge.
+- `runShadowProposalForVenture` appelle `auto` sans workspace ni `paidFallback`. Un échec Anthropic saute la venture ; OpenAI n'est pas tenté. Ses tests injectent `generateJson` et passent.
+- Le test du générateur de paquets prouve les deux côtés sans ajouter de consentement au générateur : un appel Anthropic et zéro appel OpenAI ; puis, sur `generateStructuredJson` seulement, le second fournisseur quand `paidFallback` autorise le même workspace, et pas quand le workspace diffère.
+
+## Vérifications du 1er octobre, après alignement du test
+
+- `npx tsc --noEmit` : code 0
+- `npm run lint` : code 0, 5 avertissements déjà présents, aucun dans ce diff
+- `npm run build` : code 0
+- `npm run smoke:joris` : PASS
+- `npm run smoke:runtime` : PASS
+- `npm run smoke:revenue` : PASS, `source: fallback_seed`, clés absentes
+- `node --test --test-concurrency=1` sur le générateur de paquets, `daily-direction-generator`, `joris-reply-generator`, `venture-score-shadow-runner` : 59 tests, 0 échec
+
 ## Limites
 
-- `git push -u origin cursor/routage-couts-execution` a répondu `403` : `Permission to mboyer1269-pixel/Oria.HQ.Michael.HQ-APP.git denied to cursor[bot]`. La branche n'existe pas sur GitHub. La livraison est le commit local `aa3d543b8ab10255b6c61c5a172cb93d892d90e9` et le patch `git format-patch e9ff840..HEAD`. Action pour publier : un compte qui a `contents: write` sur ce dépôt pousse cette branche, sans force-push.
-- `src/features/ventures/llm-cash-action-packet-generator.test.mjs` a deux sous-tests rouges : ils exigent encore le repli implicite Anthropic vers OpenAI et une `failureChain` de longueur au moins 2. Le générateur n'a pas été modifié. Action : son propriétaire passe `paidFallback` seulement avec une autorisation explicite du même workspace, puis aligne ces deux assertions. `daily-direction-generator` reste vert.
+- La tentative de push précédente a reçu `403` : `Permission to mboyer1269-pixel/Oria.HQ.Michael.HQ-APP.git denied to cursor[bot]`. Une nouvelle tentative suit ce commit. S'il échoue encore, la branche reste locale et le patch `git format-patch e9ff840..HEAD` est la copie vérifiable. Action : un compte avec `contents: write` pousse `cursor/routage-couts-execution` vers `codex/hq-mission-dossier`, sans force-push, puis ouvre la PR. Aucune fusion.
+- Pas de migration de budget. `DURABLE_BUDGET_IMPLEMENTED` reste `false`.
 - Pas de table de prix. Un usage observé n'est pas un montant.
 - Le journal d'estimation disparaît avec le processus.
 - Aucune preuve backend réelle (`be61d26`, rapport PostgreSQL collecté) n'est dans ce clone. Elle n'a pas été revue.
