@@ -15,15 +15,28 @@
 //   - Never throws toward the caller.
 //   - Individual fetchFns per provider so tests can inject mocks independently.
 //
-// No persistence. Monetary amount stays null: tokens are not dollars,
-// and a failed request is not recorded as zero.
+// No observed price is copied onto the cost: tokens are not dollars, a
+// routing weight is not a reserve, and a failed request is not zero.
+// When HQ_CALL_RESERVATION=1, a separate USD-cent hold is taken from the
+// server quote before the socket. That hold is not the cost assessment.
 
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import type { RoutingCostAssessment } from "@/core/types";
+import {
+  accessClassForModel,
+  authorizeCallAttempt,
+  callReservationConfigured,
+  createDurableCallReservationGate,
+  unavailableReservation,
+  type CallReservationGate,
+  type CallReservationSnapshot,
+} from "@/server/ai/call-reservation";
 import { executionTargetForModel } from "@/server/ai/execution-models";
-import { generateJsonWithAnthropic } from "./anthropic-json-client";
-import { generateJsonWithOpenAI } from "./openai-json-client";
+import { generateJsonWithAnthropic, ANTHROPIC_JSON_DEFAULT_MAX_TOKENS, ANTHROPIC_JSON_DEFAULT_MODEL } from "./anthropic-json-client";
+import { generateJsonWithOpenAI, OPENAI_JSON_DEFAULT_MAX_TOKENS, OPENAI_JSON_DEFAULT_MODEL } from "./openai-json-client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,6 +63,13 @@ export type LlmJsonProviderInput = {
   workspaceId?: string;
   /** Absent by default. A mismatching workspace does not authorize a second provider. */
   paidFallback?: PaidFallbackAuthorization;
+  /**
+   * Server identity of this call or mission. Not a price and not a ceiling.
+   * Required only when HQ_CALL_RESERVATION=1. Never taken from a client budget field.
+   */
+  callSubjectId?: string;
+  /** Test double. Production uses the durable SQL ledger. */
+  reservationGate?: CallReservationGate;
   // Per-provider fetch overrides for test injection.
   fetchFns?: {
     anthropic?: typeof fetch;
@@ -79,6 +99,11 @@ export type LlmJsonProviderSuccess = {
   /** Every attempt, including one that may have been billed before a later success. */
   attempts: LlmAttemptCost[];
   /**
+   * Last reservation decision. USD cents come from a server quote when status
+   * holds money. This is not a routing weight and not a provider invoice cap.
+   */
+  reservation: CallReservationSnapshot;
+  /**
    * Aggregate. `unknown_cost` when an earlier attempt may have been billed or
    * returned no usage: the successful tokens are not the whole cost.
    * `monetaryUsd` stays null. This is not a persistent budget.
@@ -89,7 +114,8 @@ export type LlmJsonProviderSuccess = {
 export type LlmJsonProviderErrorCode =
   | "no_provider_available"
   | "all_providers_failed"
-  | "model_unsupported";
+  | "model_unsupported"
+  | "reservation_blocked";
 
 export type LlmJsonProviderFailure = {
   ok: false;
@@ -100,6 +126,7 @@ export type LlmJsonProviderFailure = {
   chosenModelId?: string;
   executedModelId: null;
   attempts: LlmAttemptCost[];
+  reservation: CallReservationSnapshot;
   cost: RoutingCostAssessment;
 };
 
@@ -197,12 +224,44 @@ function costFromClient(result: {
 // Main export
 // ---------------------------------------------------------------------------
 
+function providerHasApiKey(provider: LlmProvider): boolean {
+  return provider === "anthropic"
+    ? Boolean(process.env.ANTHROPIC_API_KEY)
+    : Boolean(process.env.OPENAI_API_KEY);
+}
+
+function defaultModelFor(provider: LlmProvider): string {
+  return provider === "anthropic" ? ANTHROPIC_JSON_DEFAULT_MODEL : OPENAI_JSON_DEFAULT_MODEL;
+}
+
+function maxTokensFor(provider: LlmProvider, requested: number | undefined): number {
+  if (requested !== undefined) return requested;
+  return provider === "anthropic" ? ANTHROPIC_JSON_DEFAULT_MAX_TOKENS : OPENAI_JSON_DEFAULT_MAX_TOKENS;
+}
+
 export async function generateStructuredJson(
   input: LlmJsonProviderInput,
 ): Promise<LlmJsonProviderResult> {
+  const configured = callReservationConfigured();
+  const gate = configured ? (input.reservationGate ?? createDurableCallReservationGate()) : null;
+  const callerId = randomUUID();
+  let reservation: CallReservationSnapshot = unavailableReservation();
+
   if (input.modelId) {
     const target = executionTargetForModel(input.modelId);
     if (!target.callable) {
+      if (configured) {
+        reservation = {
+          configured: true,
+          status: "refused",
+          currency: null,
+          reservedCents: null,
+          accessClass: accessClassForModel(input.modelId),
+          networkEmitted: false,
+          reconciliationRequired: false,
+          reason: "access_class",
+        };
+      }
       return {
         ok: false,
         errorCode: "model_unsupported",
@@ -211,6 +270,7 @@ export async function generateStructuredJson(
         chosenModelId: input.modelId,
         executedModelId: null,
         attempts: [],
+        reservation,
         cost: refused(),
       };
     }
@@ -231,11 +291,50 @@ export async function generateStructuredJson(
         ...(input.modelId ? { chosenModelId: input.modelId } : {}),
         executedModelId: null,
         attempts,
+        reservation,
         cost: refused(),
       };
     }
     attemptCount++;
     const isFirstAttempt = attemptCount === 1;
+    const modelId = input.modelId ?? defaultModelFor(provider);
+    const maxTokens = maxTokensFor(provider, input.maxTokens);
+    const decision = await authorizeCallAttempt({
+      configured,
+      gate,
+      workspaceId: input.workspaceId,
+      callSubjectId: input.callSubjectId,
+      callerId,
+      provider,
+      modelId,
+      maxTokens,
+      hasApiKey: providerHasApiKey(provider),
+    });
+    reservation = decision.reservation;
+    if (!decision.emit) {
+      const blocking =
+        decision.reservation.reason === "identity" ||
+        decision.reservation.reason === "store_unavailable" ||
+        decision.reservation.reason === "access_class" ||
+        decision.reservation.reason === "emit_right_held" ||
+        decision.reservation.status === "lost";
+      failureChain.push(`${provider}: reservation ${decision.reservation.reason ?? decision.reservation.status}`);
+      attempts.push({ provider, cost: refused() });
+      if (blocking) {
+        return {
+          ok: false,
+          errorCode: "reservation_blocked",
+          fallbackReason: failureChain[failureChain.length - 1],
+          failureChain,
+          ...(input.modelId ? { chosenModelId: input.modelId } : {}),
+          executedModelId: null,
+          attempts,
+          reservation,
+          cost: refused(),
+        };
+      }
+      continue;
+    }
 
     let result:
       | Awaited<ReturnType<typeof generateJsonWithAnthropic>>
@@ -247,7 +346,7 @@ export async function generateStructuredJson(
           {
             systemPrompt: input.systemPrompt,
             userPrompt: input.userPrompt,
-            maxTokens: input.maxTokens,
+            maxTokens,
             temperature: input.temperature,
             timeoutMs: input.timeoutMs,
             ...(input.modelId ? { modelId: input.modelId } : {}),
@@ -259,7 +358,7 @@ export async function generateStructuredJson(
           {
             systemPrompt: input.systemPrompt,
             userPrompt: input.userPrompt,
-            maxTokens: input.maxTokens,
+            maxTokens,
             temperature: input.temperature,
             timeoutMs: input.timeoutMs,
             ...(input.modelId ? { modelId: input.modelId } : {}),
@@ -275,6 +374,10 @@ export async function generateStructuredJson(
         cost: { kind: "failed_maybe_billed", monetaryUsd: null, networkRequestSent: true },
       });
       continue;
+    }
+
+    if (configured && gate && decision.reservation.status === "emitted_unknown" && result.ok) {
+      reservation = await gate.consume(decision.identity);
     }
 
     const attemptCost = costFromClient(result);
@@ -293,6 +396,7 @@ export async function generateStructuredJson(
         failureChain,
         tokenUsage: result.tokenUsage,
         attempts,
+        reservation,
         cost: aggregateCost(attempts),
       };
     }
@@ -311,6 +415,7 @@ export async function generateStructuredJson(
     ...(input.modelId ? { chosenModelId: input.modelId } : {}),
     executedModelId: null,
     attempts,
+    reservation,
     cost: aggregateCost(attempts),
   };
 }

@@ -338,6 +338,47 @@ export type AgentExecutionIntentInsert = Omit<AgentExecutionIntentRow, "id" | "c
   created_at?: string;
 };
 
+export type HqCallBudgetCeilingRow = {
+  workspace_id: string;
+  currency: "USD";
+  max_amount_cents: number;
+  created_at: string;
+};
+
+export type HqCallBudgetQuoteRow = {
+  provider: "anthropic" | "openai";
+  model_id: string;
+  currency: "USD";
+  not_to_exceed_cents: number;
+  covers_max_tokens: number;
+  reliable: boolean;
+  created_at: string;
+};
+
+export type HqCallEmitRightRow = {
+  workspace_id: string;
+  subject_id: string;
+  caller_id: string;
+  created_at: string;
+};
+
+export type HqCallReservationRow = {
+  workspace_id: string;
+  subject_id: string;
+  provider: "anthropic" | "openai";
+  caller_id: string;
+  access_class: "api";
+  currency: "USD";
+  reserved_cents: number;
+  state: "held" | "released" | "emitted_unknown" | "consumed";
+  reconciliation_required: boolean;
+  model_id: string;
+  max_tokens: number;
+  network_emitted: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type MichaelHqDatabase = {
   public: {
     Tables: {
@@ -425,9 +466,61 @@ export type MichaelHqDatabase = {
         Update: Partial<AgentExecutionIntentInsert>;
         Relationships: [];
       };
+      hq_call_budget_ceiling: {
+        Row: HqCallBudgetCeilingRow;
+        Insert: Omit<HqCallBudgetCeilingRow, "created_at"> & { created_at?: string };
+        Update: Partial<Pick<HqCallBudgetCeilingRow, "max_amount_cents">>;
+        Relationships: [];
+      };
+      hq_call_budget_quote: {
+        Row: HqCallBudgetQuoteRow;
+        Insert: Omit<HqCallBudgetQuoteRow, "created_at"> & { created_at?: string };
+        Update: Partial<Pick<HqCallBudgetQuoteRow, "not_to_exceed_cents" | "covers_max_tokens" | "reliable">>;
+        Relationships: [];
+      };
+      hq_call_emit_right: {
+        Row: HqCallEmitRightRow;
+        Insert: Omit<HqCallEmitRightRow, "created_at"> & { created_at?: string };
+        Update: Partial<Pick<HqCallEmitRightRow, "caller_id">>;
+        Relationships: [];
+      };
+      hq_call_reservation: {
+        Row: HqCallReservationRow;
+        Insert: Omit<HqCallReservationRow, "created_at" | "updated_at"> & {
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Pick<HqCallReservationRow, "state" | "reconciliation_required" | "network_emitted" | "updated_at" | "caller_id" | "reserved_cents" | "model_id" | "max_tokens">>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      hq_reserve_call_attempt: {
+        Args: {
+          p_workspace_id: string;
+          p_subject_id: string;
+          p_caller_id: string;
+          p_provider: string;
+          p_model_id: string;
+          p_access_class: string;
+          p_max_tokens: number;
+        };
+        Returns: Json;
+      };
+      hq_release_call_attempt: {
+        Args: { p_workspace_id: string; p_subject_id: string; p_caller_id: string; p_provider: string };
+        Returns: Json;
+      };
+      hq_mark_call_emitted: {
+        Args: { p_workspace_id: string; p_subject_id: string; p_caller_id: string; p_provider: string };
+        Returns: Json;
+      };
+      hq_consume_call_attempt: {
+        Args: { p_workspace_id: string; p_subject_id: string; p_caller_id: string; p_provider: string };
+        Returns: Json;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

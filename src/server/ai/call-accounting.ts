@@ -5,14 +5,12 @@ import type { RoutingCostKind } from "@/core/types";
  * It is not a budget, not a reservation ledger, and not durable.
  * `chooseModel` may append an estimation. It must not add that weight to a spend store.
  *
- * Durable budget is not implemented. A shared HQ migration would be required
- * before any claim of a persisted budget. Proposed contract, not a table:
- *   hq_model_call_cost (
- *     workspace_id, attempt_id, kind, chosen_model_id, executed_model_id,
- *     input_tokens, output_tokens, monetary_usd null, provider_request_reached,
- *     created_at
- *   )
- * monetary_usd null means unknown, not zero. No row is written by this module.
+ * Durable monetary budget is not implemented in this journal. Relative weights
+ * are routing metrics, not a reserve and not dollars. The provider ledger in
+ * db/migrations/0028_call_reservation.sql holds integer USD cents from a
+ * server quote only when HQ_CALL_RESERVATION=1 and both a ceiling row and a
+ * reliable quote exist. It does not convert weights and it does not cap a
+ * provider invoice. This module still writes no row.
  */
 
 export const DURABLE_BUDGET_IMPLEMENTED = false;
