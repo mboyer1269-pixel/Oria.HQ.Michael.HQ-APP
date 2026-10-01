@@ -107,7 +107,7 @@ Aucun appelant ne reçoit un consentement par défaut. `paidFallback` n'est envo
 
 ## Limites
 
-- La tentative de push précédente a reçu `403` : `Permission to mboyer1269-pixel/Oria.HQ.Michael.HQ-APP.git denied to cursor[bot]`. Une nouvelle tentative suit ce commit. S'il échoue encore, la branche reste locale et le patch `git format-patch e9ff840..HEAD` est la copie vérifiable. Action : un compte avec `contents: write` pousse `cursor/routage-couts-execution` vers `codex/hq-mission-dossier`, sans force-push, puis ouvre la PR. Aucune fusion.
+- `git push -u origin cursor/routage-couts-execution` a de nouveau répondu `403` : `Permission to mboyer1269-pixel/Oria.HQ.Michael.HQ-APP.git denied to cursor[bot]`. `permissions.push` est `false`. La PR n'a pas été ouverte. Le SHA à rejouer est le sommet de cette branche locale. Action : un compte avec `contents: write` pousse `cursor/routage-couts-execution` et ouvre une PR vers `codex/hq-mission-dossier`, sans fusion ni force-push.
 - Pas de migration de budget. `DURABLE_BUDGET_IMPLEMENTED` reste `false`.
 - Pas de table de prix. Un usage observé n'est pas un montant.
 - Le journal d'estimation disparaît avec le processus.
