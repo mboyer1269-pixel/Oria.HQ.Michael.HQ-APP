@@ -743,3 +743,150 @@ test("a lost mark response is not announced as released and opens no socket", as
     delete process.env.OPENAI_API_KEY;
   }
 });
+
+test("a rejected or unavailable registry does not throw, emit, or drop known cents", async () => {
+  process.env.HQ_CALL_RESERVATION = "1";
+  process.env.ANTHROPIC_API_KEY = "synthetic";
+  process.env.OPENAI_API_KEY = "synthetic";
+  const held = {
+    configured: true,
+    status: "held",
+    currency: "USD",
+    reservedCents: 40,
+    networkEmitted: false,
+    reconciliationRequired: false,
+  };
+  const marked = {
+    configured: true,
+    status: "emitted_unknown",
+    currency: "USD",
+    reservedCents: 40,
+    networkEmitted: true,
+    reconciliationRequired: true,
+  };
+  const unavailable = {
+    configured: true,
+    status: "unavailable",
+    reason: "malformed",
+    currency: null,
+    reservedCents: null,
+    networkEmitted: false,
+    reconciliationRequired: false,
+  };
+
+  async function call(gate, allowSocket) {
+    let emissions = 0;
+    const fetchFn = async () => {
+      emissions += 1;
+      if (!allowSocket) throw new Error("socket opened");
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ content: [{ type: "text", text: JSON.stringify({ reply: "kept" }) }] }),
+      };
+    };
+    const result = await generateStructuredJson({
+      providerPreference: "auto",
+      workspaceId: "ws-a",
+      callSubjectId: "call-registry",
+      paidFallback: { authorized: true, workspaceId: "ws-a" },
+      systemPrompt: "sys",
+      userPrompt: "user",
+      reservationGate: gate,
+      fetchFns: { anthropic: fetchFn, openai: fetchFn },
+    });
+    return { result, emissions };
+  }
+
+  try {
+    const reserveRejected = await call({
+      reserve() { return Promise.reject(new Error("reserve rejected")); },
+      markEmitted() { return Promise.reject(new Error("mark must not run")); },
+      release() { return Promise.reject(new Error("release must not run")); },
+      consume() { return Promise.reject(new Error("consume must not run")); },
+    }, false);
+    assert.equal(reserveRejected.emissions, 0);
+    assert.equal(reserveRejected.result.ok, false);
+    assert.equal(reserveRejected.result.errorCode, "reservation_blocked");
+    assert.equal(reserveRejected.result.attempts.length, 1);
+    assert.equal(reserveRejected.result.reservation.status, "unavailable");
+    assert.equal(reserveRejected.result.reservation.reason, "store_unavailable");
+    assert.equal(reserveRejected.result.reservation.reservedCents, null);
+    assert.notEqual(reserveRejected.result.reservation.status, "released");
+    assert.equal(reserveRejected.result.cost.networkRequestSent, false);
+
+    const reserveUnavailable = await call({
+      reserve() { return Promise.resolve(unavailable); },
+      markEmitted() { return Promise.reject(new Error("mark must not run")); },
+      release() { return Promise.reject(new Error("release must not run")); },
+      consume() { return Promise.reject(new Error("consume must not run")); },
+    }, false);
+    assert.equal(reserveUnavailable.emissions, 0);
+    assert.equal(reserveUnavailable.result.ok, false);
+    assert.equal(reserveUnavailable.result.errorCode, "reservation_blocked");
+    assert.equal(reserveUnavailable.result.attempts.length, 1);
+    assert.equal(reserveUnavailable.result.reservation.status, "unavailable");
+    assert.equal(reserveUnavailable.result.reservation.reason, "malformed");
+    assert.equal(reserveUnavailable.result.cost.networkRequestSent, false);
+
+    for (const mode of ["reject", "unavailable"]) {
+      const markLost = await call({
+        reserve() { return Promise.resolve(held); },
+        markEmitted() {
+          return mode === "reject"
+            ? Promise.reject(new Error("mark rejected"))
+            : Promise.resolve(unavailable);
+        },
+        release() {
+          return mode === "reject"
+            ? Promise.reject(new Error("release rejected"))
+            : Promise.resolve(unavailable);
+        },
+        consume() { return Promise.reject(new Error("consume must not run")); },
+      }, false);
+      assert.equal(markLost.emissions, 0, mode);
+      assert.equal(markLost.result.ok, false);
+      assert.equal(markLost.result.attempts.length, 1, mode);
+      assert.equal(markLost.result.reservation.status, "emitted_unknown", mode);
+      assert.notEqual(markLost.result.reservation.status, "released", mode);
+      assert.equal(markLost.result.reservation.reason, "mark_unconfirmed", mode);
+      assert.equal(markLost.result.reservation.currency, "USD", mode);
+      assert.equal(markLost.result.reservation.reservedCents, 40, mode);
+      assert.notEqual(markLost.result.reservation.reservedCents, 0, mode);
+      assert.equal(markLost.result.reservation.reconciliationRequired, true, mode);
+      assert.equal(markLost.result.reservation.networkEmitted, true, mode);
+      assert.equal(markLost.result.cost.networkRequestSent, false, mode);
+      assert.equal(markLost.result.cost.monetaryUsd, null, mode);
+    }
+
+    for (const mode of ["reject", "unavailable"]) {
+      const consumed = await call({
+        reserve() { return Promise.resolve(held); },
+        markEmitted() { return Promise.resolve(marked); },
+        release() { return Promise.reject(new Error("release must not run")); },
+        consume() {
+          return mode === "reject"
+            ? Promise.reject(new Error("consume rejected"))
+            : Promise.resolve(unavailable);
+        },
+      }, true);
+      assert.equal(consumed.emissions, 1, mode);
+      assert.equal(consumed.result.ok, true, mode);
+      assert.equal(consumed.result.attempts.length, 1, mode);
+      assert.equal(consumed.result.fallbackUsed, false, mode);
+      assert.deepEqual(consumed.result.json, { reply: "kept" }, mode);
+      assert.equal(consumed.result.reservation.status, "emitted_unknown", mode);
+      assert.notEqual(consumed.result.reservation.status, "released", mode);
+      assert.equal(consumed.result.reservation.reason, "consume_unconfirmed", mode);
+      assert.equal(consumed.result.reservation.currency, "USD", mode);
+      assert.equal(consumed.result.reservation.reservedCents, 40, mode);
+      assert.notEqual(consumed.result.reservation.reservedCents, 0, mode);
+      assert.equal(consumed.result.reservation.reconciliationRequired, true, mode);
+      assert.equal(consumed.result.cost.monetaryUsd, null, mode);
+    }
+  } finally {
+    delete process.env.HQ_CALL_RESERVATION;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+  }
+});

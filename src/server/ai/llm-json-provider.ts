@@ -12,7 +12,9 @@
 //   - A requested modelId is sent only to the provider that supports it.
 //     An unsupported or unavailable id is refused before any fetch.
 //   - failureChain records each failure reason for observability.
-//   - Never throws toward the caller.
+//   - Never throws toward the caller. A rejected reservation registry is
+//     unavailable: no socket before a confirmed mark, and no second model
+//     call after a completed response.
 //   - Individual fetchFns per provider so tests can inject mocks independently.
 //
 // No observed price is copied onto the cost: tokens are not dollars, a
@@ -225,6 +227,37 @@ function costFromClient(result: {
 // Main export
 // ---------------------------------------------------------------------------
 
+async function settleConsume(
+  gate: CallReservationGate,
+  identity: Parameters<CallReservationGate["consume"]>[0],
+  known: CallReservationSnapshot,
+): Promise<CallReservationSnapshot> {
+  try {
+    const consumed = await gate.consume(identity);
+    if (
+      consumed.status === "consumed"
+      && consumed.currency === "USD"
+      && consumed.reservedCents === known.reservedCents
+      && consumed.reservedCents !== null
+      && consumed.reconciliationRequired === false
+    ) {
+      return { ...consumed, configured: true };
+    }
+  } catch {
+    // The model result is already in hand. Keep the reserved cents unknown.
+  }
+  return {
+    ...known,
+    configured: true,
+    status: "emitted_unknown",
+    currency: known.currency,
+    reservedCents: known.reservedCents,
+    networkEmitted: true,
+    reconciliationRequired: true,
+    reason: "consume_unconfirmed",
+  };
+}
+
 function providerHasApiKey(provider: LlmProvider): boolean {
   return provider === "anthropic"
     ? Boolean(process.env.ANTHROPIC_API_KEY)
@@ -321,7 +354,8 @@ export async function generateStructuredJson(
         decision.reservation.reason === "access_class" ||
         decision.reservation.reason === "emit_right_held" ||
         decision.reservation.reason === "mark_unconfirmed" ||
-        decision.reservation.status === "lost";
+        decision.reservation.status === "lost" ||
+        decision.reservation.status === "unavailable";
       failureChain.push(`${provider}: reservation ${decision.reservation.reason ?? decision.reservation.status}`);
       attempts.push({ provider, cost: refused() });
       if (blocking) {
@@ -381,7 +415,7 @@ export async function generateStructuredJson(
     }
 
     if (configured && gate && decision.reservation.status === "emitted_unknown" && result.ok) {
-      reservation = await gate.consume(decision.identity);
+      reservation = await settleConsume(gate, decision.identity, decision.reservation);
     }
 
     const attemptCost = costFromClient(result);

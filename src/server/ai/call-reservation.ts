@@ -30,6 +30,11 @@ import { executionTargetForModel } from "@/server/ai/execution-models";
  * has no TTL and release refuses it. Success consumes the row without setting
  * the cents to zero. This caps reserved quotes, not a provider invoice.
  *
+ * A rejected registry call is unavailable, not an exception for the caller.
+ * Before `mark`, that refuses the send and every fallback. After `mark`, the
+ * cents confirmed by `reserve` stay even when `mark` and `release` are both
+ * unavailable. Nothing here reports `released` unless `release` confirms it.
+ *
  * `HQ_CALL_RESERVATION` must be exactly `1`. Any other value leaves the
  * control explicitly unavailable and does not change the send path.
  */
@@ -183,9 +188,21 @@ export function createDurableCallReservationGate(
     };
   }
 
+  async function asked(
+    call: () => PromiseLike<{ data: Json | null; error: unknown }>,
+  ): Promise<CallReservationSnapshot> {
+    try {
+      const { data, error } = await call();
+      if (error) return emptyHold("unavailable", true, "store_unavailable");
+      return snapshotFromRpc(data ?? null, true);
+    } catch {
+      return emptyHold("unavailable", true, "store_unavailable");
+    }
+  }
+
   return {
-    async reserve(input) {
-      const { data, error } = await client.rpc("hq_reserve_call_attempt", {
+    reserve(input) {
+      return asked(() => client.rpc("hq_reserve_call_attempt", {
         p_workspace_id: input.workspaceId,
         p_subject_id: input.subjectId,
         p_caller_id: input.callerId,
@@ -194,39 +211,31 @@ export function createDurableCallReservationGate(
         p_access_class: input.accessClass,
         p_max_tokens: input.maxTokens,
         p_input_bytes: input.inputBytes,
-      });
-      if (error) return fail("store_unavailable");
-      return snapshotFromRpc(data, true);
+      }));
     },
-    async release(input) {
-      const { data, error } = await client.rpc("hq_release_call_attempt", {
+    release(input) {
+      return asked(() => client.rpc("hq_release_call_attempt", {
         p_workspace_id: input.workspaceId,
         p_subject_id: input.subjectId,
         p_caller_id: input.callerId,
         p_provider: input.provider,
-      });
-      if (error) return fail("store_unavailable");
-      return snapshotFromRpc(data, true);
+      }));
     },
-    async markEmitted(input) {
-      const { data, error } = await client.rpc("hq_mark_call_emitted", {
+    markEmitted(input) {
+      return asked(() => client.rpc("hq_mark_call_emitted", {
         p_workspace_id: input.workspaceId,
         p_subject_id: input.subjectId,
         p_caller_id: input.callerId,
         p_provider: input.provider,
-      });
-      if (error) return fail("store_unavailable");
-      return snapshotFromRpc(data, true);
+      }));
     },
-    async consume(input) {
-      const { data, error } = await client.rpc("hq_consume_call_attempt", {
+    consume(input) {
+      return asked(() => client.rpc("hq_consume_call_attempt", {
         p_workspace_id: input.workspaceId,
         p_subject_id: input.subjectId,
         p_caller_id: input.callerId,
         p_provider: input.provider,
-      });
-      if (error) return fail("store_unavailable");
-      return snapshotFromRpc(data, true);
+      }));
     },
   };
 }
@@ -306,28 +315,29 @@ export async function authorizeCallAttempt(input: {
     };
   }
 
-  if (!input.hasApiKey || !input.gate) {
+  const gate = input.gate;
+  if (!input.hasApiKey || !gate) {
     return {
       emit: false,
       reservation: {
-        ...emptyHold(input.gate ? "refused" : "unavailable", true, input.gate ? "no_api_key" : "store_unavailable"),
+        ...emptyHold(gate ? "refused" : "unavailable", true, gate ? "no_api_key" : "store_unavailable"),
         accessClass,
       },
     };
   }
 
-  const reserved = await input.gate.reserve({
+  const reserved = await readGate(() => gate.reserve({
     ...identity,
     accessClass,
     modelId: input.modelId,
     maxTokens: input.maxTokens,
     inputBytes: input.inputBytes,
-  });
+  }));
   if (reserved.status !== "held" || reserved.currency !== "USD" || reserved.reservedCents === null) {
-    return { emit: false, reservation: { ...reserved, configured: true } };
+    return { emit: false, reservation: { ...reserved, configured: true, accessClass } };
   }
 
-  const emitted = await input.gate.markEmitted(identity);
+  const emitted = await readGate(() => gate.markEmitted(identity));
   if (markConfirmed(emitted, reserved.reservedCents)) {
     return {
       emit: true,
@@ -336,7 +346,7 @@ export async function authorizeCallAttempt(input: {
     };
   }
 
-  const released = await input.gate.release(identity);
+  const released = await readGate(() => gate.release(identity));
   if (
     released.status === "released" &&
     released.networkEmitted === false &&
@@ -348,19 +358,37 @@ export async function authorizeCallAttempt(input: {
     };
   }
 
-  const preserved = released.status === "emitted_unknown" || released.status === "consumed" ? released : emitted;
+  const ledger = released.status === "emitted_unknown" || released.status === "consumed"
+    ? released
+    : emitted.status === "emitted_unknown" || emitted.status === "consumed"
+      ? emitted
+      : null;
+  const ledgerAgrees = ledger !== null
+    && ledger.currency === "USD"
+    && ledger.reservedCents === reserved.reservedCents;
   return {
     emit: false,
     reservation: {
-      ...preserved,
       configured: true,
       accessClass,
+      status: ledger?.status === "consumed" ? "consumed" : "emitted_unknown",
+      currency: "USD",
+      reservedCents: reserved.reservedCents,
+      networkEmitted: ledgerAgrees ? ledger.networkEmitted : true,
       reconciliationRequired: true,
-      reservedCents: preserved.reservedCents,
-      currency: preserved.currency,
       reason: "mark_unconfirmed",
     },
   };
+}
+
+async function readGate(
+  call: () => Promise<CallReservationSnapshot>,
+): Promise<CallReservationSnapshot> {
+  try {
+    return await call();
+  } catch {
+    return emptyHold("unavailable", true, "store_unavailable");
+  }
 }
 
 function markConfirmed(emitted: CallReservationSnapshot, reservedCents: number): boolean {
