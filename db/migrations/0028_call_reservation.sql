@@ -8,9 +8,11 @@
 -- Contract:
 --   * Unit is integer USD cents. Routing weights are not stored and are not
 --     converted into cents.
---   * A send requires a server ceiling row and a reliable server quote that
---     covers the max tokens of that attempt. The function takes no amount
---     argument. The client cannot name a price or a cap.
+--   * A send requires a server ceiling row and a reliable server quote whose
+--     scope is prompt_system_output: versioned, unexpired, and bounding both
+--     the UTF-8 bytes of system+user and the output max tokens. The function
+--     takes no amount argument. The client cannot name a price or a cap.
+--     valid_until does not release a hold. There is still no TTL.
 --   * One caller wins hq_call_emit_right for (workspace, subject) while the
 --     ceiling row is locked. A unique key is not the mutex. Another caller
 --     is lost and cannot emit any provider, including a fallback.
@@ -46,9 +48,19 @@ create table if not exists public.hq_call_budget_quote (
   not_to_exceed_cents bigint not null
     constraint hq_call_budget_quote_amount_check
     check (not_to_exceed_cents > 0 and not_to_exceed_cents <= 9007199254740991),
-  covers_max_tokens integer not null
-    constraint hq_call_budget_quote_tokens_check
-    check (covers_max_tokens > 0),
+  quote_scope text not null
+    constraint hq_call_budget_quote_scope_check
+    check (quote_scope = 'prompt_system_output'),
+  quote_version text not null
+    constraint hq_call_budget_quote_version_check
+    check (char_length(quote_version) between 1 and 80),
+  valid_until timestamptz not null,
+  covers_input_bytes integer not null
+    constraint hq_call_budget_quote_input_check
+    check (covers_input_bytes > 0),
+  covers_output_tokens integer not null
+    constraint hq_call_budget_quote_output_check
+    check (covers_output_tokens > 0),
   reliable boolean not null,
   created_at timestamptz not null default now(),
   primary key (provider, model_id)
@@ -88,6 +100,9 @@ create table if not exists public.hq_call_reservation (
   max_tokens integer not null
     constraint hq_call_reservation_max_tokens_check
     check (max_tokens > 0),
+  input_bytes integer not null
+    constraint hq_call_reservation_input_bytes_check
+    check (input_bytes >= 0),
   network_emitted boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -109,6 +124,8 @@ alter table public.hq_call_reservation enable row level security;
 create index if not exists hq_call_reservation_workspace_state_idx
   on public.hq_call_reservation (workspace_id, state);
 
+drop function if exists public.hq_reserve_call_attempt(text, text, text, text, text, text, integer);
+
 create or replace function public.hq_reserve_call_attempt(
   p_workspace_id text,
   p_subject_id text,
@@ -116,7 +133,8 @@ create or replace function public.hq_reserve_call_attempt(
   p_provider text,
   p_model_id text,
   p_access_class text,
-  p_max_tokens integer
+  p_max_tokens integer,
+  p_input_bytes integer
 ) returns jsonb
 language plpgsql
 security definer
@@ -149,7 +167,8 @@ begin
     );
   end if;
 
-  if p_max_tokens is null or p_max_tokens < 1 or p_max_tokens > 200000 then
+  if p_max_tokens is null or p_max_tokens < 1 or p_max_tokens > 200000
+     or p_input_bytes is null or p_input_bytes < 0 or p_input_bytes > 2000000 then
     return jsonb_build_object('status', 'refused', 'reason', 'estimate_insufficient', 'currency', null, 'reservedCents', null);
   end if;
 
@@ -169,7 +188,11 @@ begin
     and model_id = p_model_id
     and currency = 'USD'
     and reliable = true
-    and covers_max_tokens >= p_max_tokens;
+    and quote_scope = 'prompt_system_output'
+    and char_length(quote_version) between 1 and 80
+    and valid_until > now()
+    and covers_input_bytes >= p_input_bytes
+    and covers_output_tokens >= p_max_tokens;
 
   if not found then
     return jsonb_build_object('status', 'refused', 'reason', 'estimate_insufficient', 'currency', null, 'reservedCents', null);
@@ -240,6 +263,7 @@ begin
         reconciliation_required = false,
         model_id = p_model_id,
         max_tokens = p_max_tokens,
+        input_bytes = p_input_bytes,
         network_emitted = false,
         updated_at = now()
     where workspace_id = p_workspace_id
@@ -248,10 +272,10 @@ begin
   else
     insert into public.hq_call_reservation (
       workspace_id, subject_id, provider, caller_id, access_class, currency,
-      reserved_cents, state, reconciliation_required, model_id, max_tokens, network_emitted
+      reserved_cents, state, reconciliation_required, model_id, max_tokens, input_bytes, network_emitted
     ) values (
       p_workspace_id, p_subject_id, p_provider, p_caller_id, 'api', 'USD',
-      v_quote, 'held', false, p_model_id, p_max_tokens, false
+      v_quote, 'held', false, p_model_id, p_max_tokens, p_input_bytes, false
     );
   end if;
 
@@ -410,7 +434,7 @@ begin
 end;
 $$;
 
-revoke all on function public.hq_reserve_call_attempt(text, text, text, text, text, text, integer) from public;
+revoke all on function public.hq_reserve_call_attempt(text, text, text, text, text, text, integer, integer) from public;
 revoke all on function public.hq_release_call_attempt(text, text, text, text) from public;
 revoke all on function public.hq_mark_call_emitted(text, text, text, text) from public;
 revoke all on function public.hq_consume_call_attempt(text, text, text, text) from public;
@@ -418,7 +442,7 @@ revoke all on function public.hq_consume_call_attempt(text, text, text, text) fr
 do $$
 begin
   if exists (select 1 from pg_roles where rolname = 'service_role') then
-    grant execute on function public.hq_reserve_call_attempt(text, text, text, text, text, text, integer) to service_role;
+    grant execute on function public.hq_reserve_call_attempt(text, text, text, text, text, text, integer, integer) to service_role;
     grant execute on function public.hq_release_call_attempt(text, text, text, text) to service_role;
     grant execute on function public.hq_mark_call_emitted(text, text, text, text) to service_role;
     grant execute on function public.hq_consume_call_attempt(text, text, text, text) to service_role;

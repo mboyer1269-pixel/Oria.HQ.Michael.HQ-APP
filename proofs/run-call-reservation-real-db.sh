@@ -70,7 +70,7 @@ until timeout -k 2 3 docker exec "$pg" pg_isready -h 127.0.0.1 -U postgres >/dev
 done
 
 after=$(timeout -k 2 10 docker exec "$pg" psql -h 127.0.0.1 -U postgres -X -A -t -q -c \
-  "select (select coalesce(string_agg(line, ',' order by line), '') from (select state || '|' || reconciliation_required::text || '|' || reserved_cents::text || '|' || count(*)::text as line from public.hq_call_reservation group by state, reconciliation_required, reserved_cents) s) || ';' || (select count(*)::text from public.hq_call_emit_right);" < /dev/null)
+  "select coalesce(string_agg(line, ',' order by line), '') from (select 'attempt|' || workspace_id || '|' || subject_id || '|' || caller_id || '|' || provider || '|' || model_id || '|' || currency || '|' || reserved_cents::text || '|' || state || '|' || network_emitted::text || '|' || reconciliation_required::text || '|' || max_tokens::text || '|' || input_bytes::text as line from public.hq_call_reservation union all select 'right|' || workspace_id || '|' || subject_id || '|' || caller_id as line from public.hq_call_emit_right) s;" < /dev/null)
 after=$(printf '%s' "$after" | tr -d '\r')
 before=$(printf '%s' "$before" | tr -d '\r')
 [ "$before" = "$after" ] || {

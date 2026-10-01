@@ -6,6 +6,7 @@
 drop function if exists public.hq_consume_call_attempt(text, text, text, text);
 drop function if exists public.hq_mark_call_emitted(text, text, text, text);
 drop function if exists public.hq_release_call_attempt(text, text, text, text);
+drop function if exists public.hq_reserve_call_attempt(text, text, text, text, text, text, integer, integer);
 drop function if exists public.hq_reserve_call_attempt(text, text, text, text, text, text, integer);
 
 drop table if exists public.hq_call_reservation;

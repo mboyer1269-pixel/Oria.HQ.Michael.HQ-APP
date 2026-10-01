@@ -12,10 +12,12 @@ import { executionTargetForModel } from "@/server/ai/execution-models";
  *
  * A budgeted send needs both of these server rows, never a client field:
  *   - `hq_call_budget_ceiling`: workspace cap in USD cents
- *   - `hq_call_budget_quote`: reliable not-to-exceed USD cents for that
- *     provider and model id, covering the max tokens actually sent
- * Missing ceiling → unavailable. Missing or unreliable quote, or a quote that
- * does not cover max tokens → no send. No price is invented by this module.
+ *   - `hq_call_budget_quote`: scope `prompt_system_output`, a non-empty
+ *     version, `valid_until` still in the future, and not-to-exceed USD cents
+ *     that bound the UTF-8 bytes of system+user plus the output max tokens.
+ *     Quote expiry does not release a hold.
+ * Missing ceiling → unavailable. A quote that is not reliable, not versioned,
+ * expired, or short of that scope → no send. No price is invented here.
  *
  * Emit right: under the ceiling row lock, one caller id owns
  * `hq_call_emit_right` for (workspace, subject). The unique key is only a
@@ -69,6 +71,7 @@ export type CallReservationGate = {
     accessClass: CallAccessClass;
     modelId: string;
     maxTokens: number;
+    inputBytes: number;
   }): Promise<CallReservationSnapshot>;
   release(input: CallReservationIdentity): Promise<CallReservationSnapshot>;
   markEmitted(input: CallReservationIdentity): Promise<CallReservationSnapshot>;
@@ -88,6 +91,11 @@ export function accessClassForModel(modelId: string): CallAccessClass {
   if (id.includes("subscription")) return "subscription";
   if (id.includes("local")) return "local";
   return "unknown";
+}
+
+/** UTF-8 size of the system and user text this process is about to send. */
+export function requestInputBytes(systemPrompt: string, userPrompt: string): number {
+  return new TextEncoder().encode(systemPrompt).length + new TextEncoder().encode(userPrompt).length;
 }
 
 export function unavailableReservation(reason?: string): CallReservationSnapshot {
@@ -185,6 +193,7 @@ export function createDurableCallReservationGate(
         p_model_id: input.modelId,
         p_access_class: input.accessClass,
         p_max_tokens: input.maxTokens,
+        p_input_bytes: input.inputBytes,
       });
       if (error) return fail("store_unavailable");
       return snapshotFromRpc(data, true);
@@ -240,6 +249,7 @@ export async function authorizeCallAttempt(input: {
   provider: "anthropic" | "openai";
   modelId: string;
   maxTokens: number;
+  inputBytes: number;
   hasApiKey: boolean;
 }): Promise<AttemptAuthorization> {
   if (!input.configured) {
@@ -283,7 +293,10 @@ export async function authorizeCallAttempt(input: {
     };
   }
 
-  if (!Number.isSafeInteger(input.maxTokens) || input.maxTokens < 1 || input.maxTokens > 200_000) {
+  if (
+    !Number.isSafeInteger(input.maxTokens) || input.maxTokens < 1 || input.maxTokens > 200_000
+    || !Number.isSafeInteger(input.inputBytes) || input.inputBytes < 0 || input.inputBytes > 2_000_000
+  ) {
     return {
       emit: false,
       reservation: {
@@ -308,31 +321,52 @@ export async function authorizeCallAttempt(input: {
     accessClass,
     modelId: input.modelId,
     maxTokens: input.maxTokens,
+    inputBytes: input.inputBytes,
   });
   if (reserved.status !== "held" || reserved.currency !== "USD" || reserved.reservedCents === null) {
     return { emit: false, reservation: { ...reserved, configured: true } };
   }
 
   const emitted = await input.gate.markEmitted(identity);
-  if (
-    emitted.status !== "emitted_unknown" ||
-    emitted.currency !== "USD" ||
-    emitted.reservedCents === null ||
-    emitted.reservedCents !== reserved.reservedCents
-  ) {
-    await input.gate.release(identity);
+  if (markConfirmed(emitted, reserved.reservedCents)) {
     return {
-      emit: false,
-      reservation: {
-        ...emptyHold("released", true, "mark_failed"),
-        accessClass,
-      },
+      emit: true,
+      reservation: { ...emitted, configured: true, accessClass },
+      identity,
     };
   }
 
+  const released = await input.gate.release(identity);
+  if (
+    released.status === "released" &&
+    released.networkEmitted === false &&
+    released.reconciliationRequired === false
+  ) {
+    return {
+      emit: false,
+      reservation: { ...released, configured: true, accessClass, reason: released.reason ?? "mark_failed" },
+    };
+  }
+
+  const preserved = released.status === "emitted_unknown" || released.status === "consumed" ? released : emitted;
   return {
-    emit: true,
-    reservation: { ...emitted, configured: true, accessClass },
-    identity,
+    emit: false,
+    reservation: {
+      ...preserved,
+      configured: true,
+      accessClass,
+      reconciliationRequired: true,
+      reservedCents: preserved.reservedCents,
+      currency: preserved.currency,
+      reason: "mark_unconfirmed",
+    },
   };
+}
+
+function markConfirmed(emitted: CallReservationSnapshot, reservedCents: number): boolean {
+  return emitted.status === "emitted_unknown"
+    && emitted.currency === "USD"
+    && emitted.reservedCents === reservedCents
+    && emitted.networkEmitted === true
+    && emitted.reconciliationRequired === true;
 }

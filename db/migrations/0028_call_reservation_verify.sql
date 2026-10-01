@@ -38,7 +38,11 @@ where conname in (
   'hq_call_budget_quote_currency_check',
   'hq_call_reservation_currency_check',
   'hq_call_reservation_cents_check',
-  'hq_call_reservation_state_flags_check'
+  'hq_call_reservation_state_flags_check',
+  'hq_call_budget_quote_scope_check',
+  'hq_call_budget_quote_version_check',
+  'hq_call_budget_quote_input_check',
+  'hq_call_budget_quote_output_check'
 )
 order by conname;
 

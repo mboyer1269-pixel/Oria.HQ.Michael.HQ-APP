@@ -350,7 +350,11 @@ export type HqCallBudgetQuoteRow = {
   model_id: string;
   currency: "USD";
   not_to_exceed_cents: number;
-  covers_max_tokens: number;
+  quote_scope: "prompt_system_output";
+  quote_version: string;
+  valid_until: string;
+  covers_input_bytes: number;
+  covers_output_tokens: number;
   reliable: boolean;
   created_at: string;
 };
@@ -374,6 +378,7 @@ export type HqCallReservationRow = {
   reconciliation_required: boolean;
   model_id: string;
   max_tokens: number;
+  input_bytes: number;
   network_emitted: boolean;
   created_at: string;
   updated_at: string;
@@ -475,7 +480,7 @@ export type MichaelHqDatabase = {
       hq_call_budget_quote: {
         Row: HqCallBudgetQuoteRow;
         Insert: Omit<HqCallBudgetQuoteRow, "created_at"> & { created_at?: string };
-        Update: Partial<Pick<HqCallBudgetQuoteRow, "not_to_exceed_cents" | "covers_max_tokens" | "reliable">>;
+        Update: Partial<Pick<HqCallBudgetQuoteRow, "not_to_exceed_cents" | "covers_input_bytes" | "covers_output_tokens" | "reliable" | "valid_until" | "quote_version">>;
         Relationships: [];
       };
       hq_call_emit_right: {
@@ -490,7 +495,7 @@ export type MichaelHqDatabase = {
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Pick<HqCallReservationRow, "state" | "reconciliation_required" | "network_emitted" | "updated_at" | "caller_id" | "reserved_cents" | "model_id" | "max_tokens">>;
+        Update: Partial<Pick<HqCallReservationRow, "state" | "reconciliation_required" | "network_emitted" | "updated_at" | "caller_id" | "reserved_cents" | "model_id" | "max_tokens" | "input_bytes">>;
         Relationships: [];
       };
     };
@@ -505,6 +510,7 @@ export type MichaelHqDatabase = {
           p_model_id: string;
           p_access_class: string;
           p_max_tokens: number;
+          p_input_bytes: number;
         };
         Returns: Json;
       };

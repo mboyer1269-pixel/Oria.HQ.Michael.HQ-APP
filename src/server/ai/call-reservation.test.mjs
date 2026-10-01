@@ -4,6 +4,7 @@
 // No provider network.
 
 import assert from "node:assert/strict";
+import http from "node:http";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -41,15 +42,40 @@ const HAIKU = "claude-haiku-4-5-20251001";
 const SONNET = "claude-sonnet-4-6";
 const MINI = "gpt-4o-mini";
 
+const FAR_FUTURE_MS = Date.now() + 86_400_000;
+
+function quoteRow(cents, extra = {}) {
+  return {
+    cents,
+    reliable: true,
+    scope: "prompt_system_output",
+    version: "fixture",
+    validUntilMs: FAR_FUTURE_MS,
+    coversInputBytes: 100_000,
+    coversOutputTokens: 2048,
+    ...extra,
+  };
+}
+
 function standardQuotes() {
   return new Map([
-    [`anthropic|${ANTHROPIC_JSON_DEFAULT_MODEL}`, { cents: 80, coversMaxTokens: ANTHROPIC_JSON_DEFAULT_MAX_TOKENS, reliable: true }],
-    [`openai|${OPENAI_JSON_DEFAULT_MODEL}`, { cents: 40, coversMaxTokens: OPENAI_JSON_DEFAULT_MAX_TOKENS, reliable: true }],
-    [`anthropic|${HAIKU}`, { cents: 80, coversMaxTokens: 2048, reliable: true }],
-    [`openai|${MINI}`, { cents: 40, coversMaxTokens: 2048, reliable: true }],
-    [`anthropic|${SONNET}`, { cents: 200, coversMaxTokens: 2048, reliable: true }],
-    ["openai|gpt-4o", { cents: 200, coversMaxTokens: 2048, reliable: false }],
+    [`anthropic|${ANTHROPIC_JSON_DEFAULT_MODEL}`, quoteRow(80, { coversOutputTokens: ANTHROPIC_JSON_DEFAULT_MAX_TOKENS })],
+    [`openai|${OPENAI_JSON_DEFAULT_MODEL}`, quoteRow(40, { coversOutputTokens: OPENAI_JSON_DEFAULT_MAX_TOKENS })],
+    [`anthropic|${HAIKU}`, quoteRow(80)],
+    [`openai|${MINI}`, quoteRow(40)],
+    [`anthropic|${SONNET}`, quoteRow(200)],
+    ["openai|gpt-4o", quoteRow(200, { reliable: false })],
   ]);
+}
+
+function quoteCovers(quote, input) {
+  if (!quote || quote.reliable !== true || quote.cents <= 0) return false;
+  if (quote.scope !== "prompt_system_output") return false;
+  if (typeof quote.version !== "string" || quote.version.length < 1) return false;
+  if (typeof quote.validUntilMs !== "number" || quote.validUntilMs <= Date.now()) return false;
+  if (typeof quote.coversInputBytes !== "number" || quote.coversInputBytes < input.inputBytes) return false;
+  if (typeof quote.coversOutputTokens !== "number" || quote.coversOutputTokens < input.maxTokens) return false;
+  return true;
 }
 
 /** Synchronous stand-in for hq_reserve_call_attempt. Not the production store. */
@@ -81,7 +107,7 @@ function memoryGate(ceilings, quotes) {
       }
       if (!ceilings.has(input.workspaceId)) return snap("unavailable", { reason: "ceiling_not_configured" });
       const quote = quotes.get(`${input.provider}|${input.modelId}`);
-      if (!quote || quote.reliable !== true || quote.cents <= 0 || quote.coversMaxTokens < input.maxTokens) {
+      if (!quoteCovers(quote, input)) {
         return snap("refused", { reason: "estimate_insufficient" });
       }
       const owner = rights.get(rightKey(input.workspaceId, input.subjectId));
@@ -544,6 +570,174 @@ test("an exhausted quote ceiling blocks the authorized fallback without releasin
     assert.equal(held.reservedCents, 80);
     assert.equal(held.reconciliationRequired, true);
   } finally {
+    delete process.env.HQ_CALL_RESERVATION;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+  }
+});
+
+test("a quote that does not bound prompt, system and output does not emit", async () => {
+  process.env.HQ_CALL_RESERVATION = "1";
+  process.env.OPENAI_API_KEY = "synthetic";
+  process.env.ANTHROPIC_API_KEY = "synthetic";
+  const quotes = new Map([
+    ["openai|gpt-4o-mini", quoteRow(40, { coversInputBytes: 4 })],
+    ["openai|gpt-4o", quoteRow(40, { validUntilMs: Date.now() - 1000 })],
+    ["anthropic|claude-haiku-4-5-20251001", quoteRow(80, { version: "" })],
+  ]);
+  const gate = memoryGate(new Map([["ws-a", 1000]]), quotes);
+  let calls = 0;
+  const fetchFn = async () => {
+    calls += 1;
+    throw new Error("network must not be used");
+  };
+  try {
+    const tooLarge = await generateStructuredJson({
+      providerPreference: "openai",
+      modelId: MINI,
+      workspaceId: "ws-a",
+      callSubjectId: "call-input-bound",
+      systemPrompt: "sys",
+      userPrompt: "user",
+      reservationGate: gate,
+      fetchFns: { openai: fetchFn, anthropic: fetchFn },
+    });
+    assert.equal(calls, 0);
+    assert.equal(tooLarge.reservation.reason, "estimate_insufficient");
+    assert.equal(tooLarge.reservation.reservedCents, null);
+    assert.equal(gate.rows.size, 0);
+
+    const expired = await generateStructuredJson({
+      providerPreference: "openai",
+      modelId: "gpt-4o",
+      workspaceId: "ws-a",
+      callSubjectId: "call-expired-quote",
+      systemPrompt: "sys",
+      userPrompt: "user",
+      reservationGate: gate,
+      fetchFns: { openai: fetchFn, anthropic: fetchFn },
+    });
+    assert.equal(calls, 0);
+    assert.equal(expired.reservation.reason, "estimate_insufficient");
+
+    const unversioned = await generateStructuredJson({
+      providerPreference: "anthropic",
+      modelId: HAIKU,
+      workspaceId: "ws-a",
+      callSubjectId: "call-unversioned-quote",
+      systemPrompt: "sys",
+      userPrompt: "user",
+      reservationGate: gate,
+      fetchFns: { openai: fetchFn, anthropic: fetchFn },
+    });
+    assert.equal(calls, 0);
+    assert.equal(unversioned.reservation.reason, "estimate_insufficient");
+    assert.equal(gate.rows.size, 0);
+  } finally {
+    delete process.env.HQ_CALL_RESERVATION;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+  }
+});
+
+test("a lost mark response is not announced as released and opens no socket", async () => {
+  process.env.HQ_CALL_RESERVATION = "1";
+  process.env.ANTHROPIC_API_KEY = "synthetic";
+  process.env.OPENAI_API_KEY = "synthetic";
+  const server = http.createServer((req, res) => {
+    req.resume();
+    res.end("{}");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = server.address().port;
+  let sockets = 0;
+  server.on("connection", () => {
+    sockets += 1;
+  });
+  const rows = new Map();
+  const gate = {
+    rows,
+    async reserve(input) {
+      const row = {
+        ...input,
+        state: "held",
+        reservedCents: 40,
+        networkEmitted: false,
+        reconciliationRequired: false,
+      };
+      rows.set(input.provider, row);
+      return {
+        configured: true,
+        status: "held",
+        currency: "USD",
+        reservedCents: 40,
+        networkEmitted: false,
+        reconciliationRequired: false,
+      };
+    },
+    async markEmitted(input) {
+      const row = rows.get(input.provider);
+      row.state = "emitted_unknown";
+      row.networkEmitted = true;
+      row.reconciliationRequired = true;
+      return {
+        configured: true,
+        status: "unavailable",
+        reason: "malformed",
+        currency: null,
+        reservedCents: null,
+        networkEmitted: false,
+        reconciliationRequired: false,
+      };
+    },
+    async release(input) {
+      const row = rows.get(input.provider);
+      return {
+        configured: true,
+        status: row.state,
+        reason: "release_refused",
+        currency: "USD",
+        reservedCents: row.reservedCents,
+        networkEmitted: true,
+        reconciliationRequired: true,
+      };
+    },
+    async consume() {
+      throw new Error("consume must not run");
+    },
+  };
+  const fetchFn = (_url, init) => fetch(`http://127.0.0.1:${port}/`, init);
+  try {
+    const result = await generateStructuredJson({
+      providerPreference: "auto",
+      workspaceId: "ws-a",
+      callSubjectId: "call-lost-mark",
+      paidFallback: { authorized: true, workspaceId: "ws-a" },
+      systemPrompt: "sys",
+      userPrompt: "user",
+      reservationGate: gate,
+      fetchFns: { anthropic: fetchFn, openai: fetchFn },
+    });
+    assert.equal(sockets, 0);
+    assert.equal(result.ok, false);
+    assert.equal(result.reservation.status, "emitted_unknown");
+    assert.notEqual(result.reservation.status, "released");
+    assert.equal(result.reservation.reason, "mark_unconfirmed");
+    assert.equal(result.reservation.currency, "USD");
+    assert.equal(result.reservation.reservedCents, 40);
+    assert.notEqual(result.reservation.reservedCents, 0);
+    assert.equal(result.reservation.reconciliationRequired, true);
+    assert.equal(result.reservation.networkEmitted, true);
+    assert.equal(result.cost.networkRequestSent, false);
+    assert.equal(result.cost.monetaryUsd, null);
+    const row = rows.get("anthropic");
+    assert.equal(row.state, "emitted_unknown");
+    assert.equal(row.reservedCents, 40);
+    assert.equal(row.reconciliationRequired, true);
+    assert.equal(rows.has("openai"), false);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(() => resolve()));
     delete process.env.HQ_CALL_RESERVATION;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;

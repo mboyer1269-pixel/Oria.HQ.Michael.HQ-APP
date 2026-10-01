@@ -30,6 +30,7 @@ import {
   authorizeCallAttempt,
   callReservationConfigured,
   createDurableCallReservationGate,
+  requestInputBytes,
   unavailableReservation,
   type CallReservationGate,
   type CallReservationSnapshot,
@@ -277,6 +278,7 @@ export async function generateStructuredJson(
   }
 
   const order = resolveOrder(input);
+  const inputBytes = requestInputBytes(input.systemPrompt, input.userPrompt);
   const failureChain: string[] = [];
   const attempts: LlmAttemptCost[] = [];
   let attemptCount = 0;
@@ -308,6 +310,7 @@ export async function generateStructuredJson(
       provider,
       modelId,
       maxTokens,
+      inputBytes,
       hasApiKey: providerHasApiKey(provider),
     });
     reservation = decision.reservation;
@@ -317,6 +320,7 @@ export async function generateStructuredJson(
         decision.reservation.reason === "store_unavailable" ||
         decision.reservation.reason === "access_class" ||
         decision.reservation.reason === "emit_right_held" ||
+        decision.reservation.reason === "mark_unconfirmed" ||
         decision.reservation.status === "lost";
       failureChain.push(`${provider}: reservation ${decision.reservation.reason ?? decision.reservation.status}`);
       attempts.push({ provider, cost: refused() });
