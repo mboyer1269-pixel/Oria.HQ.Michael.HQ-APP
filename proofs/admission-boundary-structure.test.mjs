@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-// Structural checks that do not require Docker and do not claim real_infra.
-// The disposable PostgreSQL script is executed separately.
+// Source checks, plus one bounded fake docker process.
+// This file does not start a container and does not claim real_infra.
+// The disposable PostgreSQL bench is the explicit shell command, not this suite.
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -41,26 +43,44 @@ test("mission and budget migrations do not grant client table access or bypassrl
   assert.match(script, /exit 127/);
 });
 
-test("the admission SQL bench reports absence or a real run, never a renamed simulation", () => {
-  let stderr = "";
-  let stdout = "";
+test("absent docker is a bounded fake process and does not create a container", () => {
+  const bin = mkdtempSync(path.join(tmpdir(), "admission-fake-docker-"));
+  const log = path.join(bin, "invocations.log");
+  writeFileSync(
+    path.join(bin, "docker"),
+    "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$ADMISSION_FAKE_DOCKER_LOG\"\nexit 1\n",
+    { mode: 0o755 },
+  );
   let code = 0;
+  let stdout = "";
+  let stderr = "";
+  let invocations = "";
   try {
     stdout = execFileSync("sh", ["proofs/run-admission-rls-real-db.sh"], {
       cwd: root,
       encoding: "utf8",
+      timeout: 15000,
       stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`,
+        ADMISSION_FAKE_DOCKER_LOG: log,
+      },
     });
   } catch (error) {
-    code = error.status;
-    stdout = error.stdout ?? "";
-    stderr = error.stderr ?? "";
+    code = error.status ?? 1;
+    stdout = `${error.stdout ?? ""}`;
+    stderr = `${error.stderr ?? ""}`;
+  } finally {
+    try {
+      invocations = readFileSync(log, "utf8");
+    } catch {
+      invocations = "";
+    }
+    rmSync(bin, { recursive: true, force: true });
   }
-  if (code === 127) {
-    assert.match(stderr, /NON EXECUTE/);
-    assert.doesNotMatch(`${stdout}\n${stderr}`, /QUALIFIÉE/);
-    return;
-  }
-  assert.equal(code, 0, stderr);
-  assert.match(stdout, /ADMISSION RLS QUALIFIÉE/);
+  assert.equal(code, 127, stderr);
+  assert.match(stderr, /NON EXECUTE/);
+  assert.equal(stdout.includes("QUALIFIÉE") || stderr.includes("QUALIFIÉE"), false);
+  assert.equal(invocations, "info\n");
 });
