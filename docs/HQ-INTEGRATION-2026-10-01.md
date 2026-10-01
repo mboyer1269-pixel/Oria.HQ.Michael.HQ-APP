@@ -68,10 +68,32 @@ et l'identité synthétique ne qualifient pas l'authentification propriétaire,
 les politiques RLS, le lanceur privilégié, Hermes ou un modèle. Le test de
 redémarrage n'est pas une preuve de résistance à une panne électrique.
 
+## Recette navigateur et revue — 1 octobre, 06:50 UTC
+
+Cursor a revu la preuve PostgreSQL (`a279100` dans Orchestrator). Il confirme sa
+validité dans le périmètre CLI/service et relève les limites RLS, réponse perdue
+après réception par le proxy, redémarrage propre et assertion exacte du gagnant
+portée par le script Node. Aucun de ces constats n'invalide le run.
+
+Codex a exécuté les clics dans un vrai navigateur sur la fixture Next.js locale
+d'Antigravity, important le formulaire du snapshot validé sans modifier sa logique.
+Transport HTTP simulé : demande résiduelle sans envoi implicite, création explicite,
+réessai sous même identifiant et JSON, changement de workspace pendant l'appel,
+réponse tardive ignorée même si le transport ignore l'annulation, stockage corrompu
+ou inaccessible sans envoi, puis rechargement et GET seul. Ces cas passent.
+Le premier banc d'Antigravity avec DOM maison est exclu de cette preuve navigateur.
+
+Correction de texte Claude `dc0772f`, reprise dans `e0d80e5` : le formulaire décrit
+désormais la préparation/confirmation OpenHands, sans annoncer un lancement actif.
+Un seul paragraphe changé, diff relu, lint ciblé réussi; validations globales non
+répétées. Le snapshot de recette conserve l'ancien texte, avec comportement identique.
+Composant testé SHA256 `cc290783b6105a2895943694e7796a92e56e16b711d864324183e0c043869222`.
+La recette ne qualifie ni l'authentification réelle, ni RLS, ni un appel de modèle.
+
 ## Suite et conditions de sortie
 
 1. Assemblage et contrôles centraux terminés dans cette copie isolée. La recette navigateur du formulaire et la qualification réelle restent distinctes.
-2. Qualification du stockage passée; terminer la recette navigateur et la revue indépendante. Pour reproduire sur un hôte autorisé : `sh proofs/run-intake-real-db.sh "$PWD"`, Node 22, ressources jetables et ports loopback seulement.
+2. Qualification du stockage, recette navigateur bornée et revue indépendante passées. Pour reproduire le banc stockage sur un hôte autorisé : `sh proofs/run-intake-real-db.sh "$PWD"`, Node 22, ressources jetables et ports loopback seulement.
 3. Qualifier identité, compte, budget et outils de Hermes, puis une mission réelle jusqu'au résultat vérifié.
 4. Faire valider la maquette par Michael avant de l'intégrer. Elle reste dans sa branche Antigravity séparée.
 
