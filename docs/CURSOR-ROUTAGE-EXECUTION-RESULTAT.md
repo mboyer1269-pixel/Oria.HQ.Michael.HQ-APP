@@ -9,7 +9,8 @@ Correctif local du produit `Oria.HQ.Michael.HQ-APP`. Ce document décrit un cont
 - Commit de base : `e9ff840a38b4532b687bb29f3e2371afeeb3024e`
 - Branche de travail : `cursor/routage-couts-execution`
 - Commit d'implémentation : `8497a19aa2c306954a1e410044b63e09ba53752d`
-- Ce document est le commit suivant sur la même branche. Son SHA se lit avec `git rev-parse HEAD` après ce commit.
+- Commit de ce document, avant la note de push : `aa3d543b8ab10255b6c61c5a172cb93d892d90e9`
+- Le commit qui enregistre le refus de push est le sommet de la branche. `git rev-parse HEAD` le donne.
 
 ## Reproduction sur e9ff840, avant correctif
 
@@ -85,7 +86,7 @@ Les fixtures n'ouvrent pas le réseau réel. `fetch` est injecté ou la requête
 
 ## Limites
 
-- `permissions.push` du dépôt produit était faux dans cette session. Si le push de cette branche échoue, la livraison est le commit local et le patch, pas une branche GitHub.
+- `git push -u origin cursor/routage-couts-execution` a répondu `403` : `Permission to mboyer1269-pixel/Oria.HQ.Michael.HQ-APP.git denied to cursor[bot]`. La branche n'existe pas sur GitHub. La livraison est le commit local `aa3d543b8ab10255b6c61c5a172cb93d892d90e9` et le patch `git format-patch e9ff840..HEAD`. Action pour publier : un compte qui a `contents: write` sur ce dépôt pousse cette branche, sans force-push.
 - `src/features/ventures/llm-cash-action-packet-generator.test.mjs` a deux sous-tests rouges : ils exigent encore le repli implicite Anthropic vers OpenAI et une `failureChain` de longueur au moins 2. Le générateur n'a pas été modifié. Action : son propriétaire passe `paidFallback` seulement avec une autorisation explicite du même workspace, puis aligne ces deux assertions. `daily-direction-generator` reste vert.
 - Pas de table de prix. Un usage observé n'est pas un montant.
 - Le journal d'estimation disparaît avec le processus.
