@@ -34,19 +34,34 @@ test('approval records the session actor, never the configured owner, and refuse
     await rm(directory,{recursive:true,force:true});
   }
 });
+// La session propriétaire est injectée en remplaçant le MODULE d'autorisation,
+// comme le premier test de ce fichier — et non par `__ownerApiSessionTestResult`.
+// Cette dérivation globale n'est plus lue en production (garde explicite dans
+// `src/server/auth/owner.ts`), or ce test a précisément besoin d'une session
+// autorisée SOUS NODE_ENV=production pour prouver que l'écriture est refusée
+// par la garde de persistance, et non par l'authentification.
 test('authenticated production memory writes fail before touching the ephemeral store', async()=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'hq-memory-production-'));
   const previous=process.env.NODE_ENV;
-  const jiti=createJiti(import.meta.url,{alias:{'@':path.resolve('src'),'server-only':path.resolve('src/scripts/smoke/server-only-stub.mjs')}});
-  const {POST}=await jiti.import(path.resolve('src/app/api/memory/route.ts'));
-  globalThis.__ownerApiSessionTestResult=null;
-  process.env.NODE_ENV='production';
   try {
+    await writeFile(path.join(directory,'auth.mjs'),'export const requireOwnerApiSession=async()=>globalThis.__memoryOwnerSessionFixture??null; export const getAuthenticatedActorId=async()=>"authenticated-owner";');
+    const jiti=createJiti(import.meta.url,{moduleCache:false,fsCache:false,alias:{
+      '@/server/auth/owner':path.join(directory,'auth.mjs'),
+      '@':path.resolve('src'),
+      'server-only':path.resolve('src/scripts/smoke/server-only-stub.mjs'),
+    }});
+    const {POST}=await jiti.import(path.resolve('src/app/api/memory/route.ts'));
+    process.env.NODE_ENV='production';
     for(const action of ['propose','approve','reject']){
       const response=await POST(new Request('http://localhost/api/memory',{method:'POST',body:JSON.stringify({action,title:'Temporary',content:'Do not store',id:'fixture'})}));
       assert.equal(response.status,503);
       assert.equal((await response.json()).code,'memory_persistence_unavailable');
     }
-    globalThis.__ownerApiSessionTestResult=new Response(null,{status:401});
+    globalThis.__memoryOwnerSessionFixture=new Response(null,{status:401});
     assert.equal((await POST(new Request('http://localhost/api/memory',{method:'POST'}))).status,401);
-  } finally {delete globalThis.__ownerApiSessionTestResult;if(previous===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=previous;}
+  } finally {
+    delete globalThis.__memoryOwnerSessionFixture;
+    if(previous===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=previous;
+    await rm(directory,{recursive:true,force:true});
+  }
 });
