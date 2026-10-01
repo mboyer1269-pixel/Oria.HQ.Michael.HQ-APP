@@ -105,9 +105,38 @@ Aucun appelant ne reçoit un consentement par défaut. `paidFallback` n'est envo
 - `npm run smoke:revenue` : PASS, `source: fallback_seed`, clés absentes
 - `node --test --test-concurrency=1` sur le générateur de paquets, `daily-direction-generator`, `joris-reply-generator`, `venture-score-shadow-runner` : 59 tests, 0 échec
 
+## Revue avant acceptation
+
+Commit du correctif : `a8413508d48bd7776931f33292e4febc918f9b07`, sur `cbc7d61473a5e77d524e2018f07cce287d4a3ec8`. Node `v22.14.0`. Aucune clé `ANTHROPIC_API_KEY` ni `OPENAI_API_KEY` dans l'environnement après les essais. Les deux `fetch` sont injectés. Aucun appel fournisseur réel.
+
+Avant ce commit, `executionTargetForModel` lisait un objet ordinaire. `constructor`, `toString` et `__proto__` étaient annoncés appelables et partaient vers OpenAI ; `providerUsed` devenait une fonction ou un objet. L'allowlist est maintenant un `Map`. Une valeur n'est appelable que si elle est exactement `anthropic` ou `openai`.
+
+Avant ce commit, un Anthropic 503 puis un OpenAI 200 autorisé renvoyait `cost.kind=observed_usage` du seul second essai. Le premier essai, possiblement facturé, disparaissait du coût structuré. Chaque tentative est maintenant dans `attempts`. Le coût global ne somme pas des dollars.
+
+Règle du total, sans nouveau type de coût :
+
+- un succès après un `failed_maybe_billed` : `cost.kind=unknown_cost`, `monetaryUsd: null`, sans recopier les jetons du succès sur le total ; ces jetons restent sur la tentative qui les a observés ;
+- une clé absente (`refused`, aucun `fetch`) puis un succès avec usage : le total reste `observed_usage` de cet unique appel réseau, et la tentative refusée reste dans `attempts` ;
+- tous les essais ont envoyé une requête et ont échoué : le total est `failed_maybe_billed`, `monetaryUsd: null`, distinct de 0 ;
+- aucun essai, ou seulement des refus : `refused`.
+
+`tokenUsage` sur un succès reste l'usage de la réponse réussie. Ce n'est pas la somme des tentatives. `DURABLE_BUDGET_IMPLEMENTED` reste `false`.
+
+Essais de cette revue, `node --test --test-concurrency=1 --test-name-pattern 'constructor, toString|authorized Anthropic 503|missing Anthropic key|every authorized attempt fails' src/server/ai/routing-execution.test.mjs` : 4 tests, 0 échec.
+
+- `constructor`, `toString`, `__proto__` : `callable` faux, deux `fetch` injectés, `anthropicCalls` 0 et `openaiCalls` 0 pour chacune, `errorCode` `model_unsupported`, `providerUsed` absent, `attempts` vide, `cost.kind` `refused`.
+- Anthropic 503 puis OpenAI 200 autorisé, même workspace, usage 3/4 : `attempts.length` 2, premier `failed_maybe_billed`, second `observed_usage` avec ces jetons, total `unknown_cost` sans `inputTokens` ni `outputTokens`, `monetaryUsd` `null`.
+- Clé Anthropic absente puis OpenAI 200 autorisé, usage 8/2 : `fetch` Anthropic 0, `fetch` OpenAI 1, premier `refused`, second et total `observed_usage`.
+- Anthropic 503 et OpenAI 500 autorisés : deux `failed_maybe_billed`, total `failed_maybe_billed`, `monetaryUsd` `null`.
+
+Rejoués ensuite : `npx tsc --noEmit` code 0 ; `npx eslint` sur les trois fichiers modifiés code 0 ; `node --test --test-concurrency=1` sur `routing-execution`, `llm-json-provider`, `model-router` et le générateur de paquets : 53 tests, 0 échec ; puis `cost-ladder`, `brain-cost-ladder-tagging`, `brain-llm-reply`, `joris-reply-generator`, `mission-draft-control`, `daily-direction-generator`, `venture-score-shadow-runner` : 77 tests, 0 échec.
+
+Fichiers de ce correctif : `src/server/ai/execution-models.ts`, `src/server/ai/llm-json-provider.ts`, `src/server/ai/routing-execution.test.mjs`, et cette note. Le générateur Ventures n'est pas modifié.
+
 ## Limites
 
-- `git push -u origin cursor/routage-couts-execution` a de nouveau répondu `403` : `Permission to mboyer1269-pixel/Oria.HQ.Michael.HQ-APP.git denied to cursor[bot]`. `permissions.push` est `false`. La PR n'a pas été ouverte. Le SHA à rejouer est le sommet de cette branche locale. Action : un compte avec `contents: write` pousse `cursor/routage-couts-execution` et ouvre une PR vers `codex/hq-mission-dossier`, sans fusion ni force-push.
+- `git push -u origin cursor/routage-couts-execution` a de nouveau répondu `403` : `Permission to mboyer1269-pixel/Oria.HQ.Michael.HQ-APP.git denied to cursor[bot]`. `permissions.push` est `false`. Ce refus n'a pas été réessayé. La PR produit n'existe pas. Le sommet local se relit avec `git rev-parse HEAD`.
+- `git am` du patch produit de nouveaux SHA de commits. L'arbre à comparer est `git rev-parse HEAD^{tree}`, pas le SHA de commit.
 - Pas de migration de budget. `DURABLE_BUDGET_IMPLEMENTED` reste `false`.
 - Pas de table de prix. Un usage observé n'est pas un montant.
 - Le journal d'estimation disparaît avec le processus.
