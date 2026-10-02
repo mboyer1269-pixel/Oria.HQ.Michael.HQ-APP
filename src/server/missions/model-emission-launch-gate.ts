@@ -228,9 +228,17 @@ function defaultLoadLaunchConfig(): LaunchConfig | null {
  * refused BEFORE it runs unless: (1) the confirmed plan names a provider
  * this gate's registry actually knows, (2) that provider is observed
  * connected and execution-ready, and (3) a real persisted approval record
- * verifies. A missing mission is passed straight through: this gate has
- * nothing to add to a case the real launch service already answers
- * honestly.
+ * verifies.
+ *
+ * A mission this gate cannot see is refused, NEVER passed through to the
+ * real launch on a confirm — a prior version did pass it through here,
+ * reasoning "the real service will answer not_found anyway". That is a real
+ * TOCTOU bypass: deps.launch() performs its OWN fresh load internally, so a
+ * mission that is created (or becomes visible) in the gap between THIS
+ * load and that one would reach the real launch service having NEVER been
+ * evaluated by this gate at all — zero gate checks, for a mission that
+ * exists. So on confirm_launch, a null load is a hard stop: deps.launch is
+ * called zero times, same as every other refusal path below.
  */
 export function createGatedOpenHandsLaunch(deps: GatedOpenHandsLaunchDeps): OpenHandsLaunchFn {
   const registry = deps.registry ?? DEFAULT_EXECUTOR_PROVIDER_REGISTRY;
@@ -245,7 +253,8 @@ export function createGatedOpenHandsLaunch(deps: GatedOpenHandsLaunchDeps): Open
 
     const mission = await deps.loadMission(context.workspaceId, missionId);
     if (!mission) {
-      return deps.launch(context, missionId, confirmation);
+      // Refuse, do not delegate: see the TOCTOU note above this function.
+      return { status: "mission_unavailable_for_gate", externalEffectAllowed: false };
     }
 
     const config = loadLaunchConfig();

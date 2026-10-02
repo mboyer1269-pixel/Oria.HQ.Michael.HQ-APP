@@ -142,7 +142,12 @@ test("Gated OpenHands launch tests", async (t) => {
     assert.equal(spy.callCount(), 1);
   });
 
-  await t.test("a missing mission is passed through untouched — the real service's own not_found stands", async () => {
+  await t.test("a mission this gate cannot see is refused on confirm — the real launch is called ZERO times, never passed through", async () => {
+    // Regression guard for the exact bug caught in review: passing this
+    // through to deps.launch would let the real service perform its OWN
+    // fresh load and potentially find (or race) a mission that appeared
+    // between the two reads — reaching a real launch commit having never
+    // been evaluated by this gate at all.
     const spy = makeRealLaunchSpy({ status: "not_found" });
     const gated = createGatedOpenHandsLaunch({
       launch: spy.fn,
@@ -151,6 +156,19 @@ test("Gated OpenHands launch tests", async (t) => {
       loadLaunchConfig: () => { throw new Error("must not be called when there is no mission"); },
     });
     const result = await gated(CONTEXT, MISSION_ID, CONFIRMATION);
+    assert.deepEqual(result, { status: "mission_unavailable_for_gate", externalEffectAllowed: false });
+    assert.equal(spy.callCount(), 0, "deps.launch must never be called when this gate's own load found nothing");
+  });
+
+  await t.test("a dry prepare_launch for a mission this gate cannot see is STILL passed through — nothing is committed by a preview", async () => {
+    const spy = makeRealLaunchSpy({ status: "not_found" });
+    const gated = createGatedOpenHandsLaunch({
+      launch: spy.fn,
+      loadMission: async () => { throw new Error("loadMission must not be called for a dry preview"); },
+      loadApprovalRecord: async () => { throw new Error("must not be called for a dry preview"); },
+      loadLaunchConfig: () => { throw new Error("must not be called for a dry preview"); },
+    });
+    const result = await gated(CONTEXT, MISSION_ID, undefined);
     assert.deepEqual(result, { status: "not_found" });
     assert.equal(spy.callCount(), 1);
   });
