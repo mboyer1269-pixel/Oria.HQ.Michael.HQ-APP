@@ -45,6 +45,7 @@ export function createOpenHandsHandler(deps: {
           ? {expectedLaunchHash:parsed.data.expectedLaunchHash,confirm:true as const} : undefined;
         const value = await deps.launch({workspaceId:deps.workspaceId(),actorId:auth.actorId},parsed.data.missionId,confirmation);
         return json(value, ["prepared","claimed"].includes(value.status) ? 200 : value.status === "not_found" ? 404
+          : value.status === "model_emission_blocked" ? 403
           : ["disabled","unavailable","reconciliation_required"].includes(value.status) ? 503 : 409);
       } catch { return json({status:action === "confirm_launch" ? "reconciliation_required" : "unavailable",externalEffectAllowed:false},503); }
     }
