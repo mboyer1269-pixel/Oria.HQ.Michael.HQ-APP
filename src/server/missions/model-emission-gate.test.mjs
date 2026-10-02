@@ -25,48 +25,68 @@ test("Model emission gate tests", async (t) => {
   const registryResult = createStaticProviderRegistry({
     providers: [
       { id: "openai-codex", label: "OpenAI Codex (ChatGPT OAuth)", kind: "api", trustLevel: "reviewed", supportsMcp: false, supportsToolUse: true },
+      { id: "openrouter", label: "OpenRouter", kind: "router", trustLevel: "allowlisted", apiKeyEnvVar: "OPENROUTER_API_KEY", supportsMcp: false, supportsToolUse: true },
     ],
     models: [
       {
         id: "codex/gpt-codex",
         providerId: "openai-codex",
         label: "Codex model",
-        pricing: { promptUsdPerMTok: 0, completionUsdPerMTok: 0, perRequestUsd: 0 },
-        costTier: "free",
+        // Deliberately non-zero/mixed pricing: billingKind must come from the
+        // SUBSCRIPTION evidence, not from this field, when the two disagree.
+        pricing: { promptUsdPerMTok: 3, completionUsdPerMTok: 15, perRequestUsd: 0 },
+        costTier: "premium",
         supportsToolUse: true,
         supportsStructuredJson: true,
         supportsMcp: false,
         provenance: { source: "manual" },
       },
+      {
+        id: "vendor/free-model:free",
+        providerId: "openrouter",
+        label: "Free model",
+        pricing: { promptUsdPerMTok: 0, completionUsdPerMTok: 0, perRequestUsd: 0 },
+        costTier: "free",
+        supportsToolUse: false,
+        supportsStructuredJson: true,
+        supportsMcp: false,
+        provenance: { source: "static-file" },
+      },
+      {
+        id: "openrouter/paid-model",
+        providerId: "openrouter",
+        label: "Paid model",
+        pricing: { promptUsdPerMTok: 1, completionUsdPerMTok: 2, perRequestUsd: 0 },
+        costTier: "economy",
+        supportsToolUse: true,
+        supportsStructuredJson: true,
+        supportsMcp: false,
+        provenance: { source: "static-file" },
+      },
     ],
     adapters: [
-      {
-        id: "openai-codex-cli",
-        label: "Codex CLI subscription",
-        kind: "cli-subscription",
-        providerId: "openai-codex",
-        sentinelle: { defaultZone: "yellow", requiresApprovalForToolUse: true },
-        ledgerRequired: true,
-      },
+      { id: "openai-codex-cli", label: "Codex CLI subscription", kind: "cli-subscription", providerId: "openai-codex", sentinelle: { defaultZone: "yellow", requiresApprovalForToolUse: true }, ledgerRequired: true },
+      { id: "openrouter-http", label: "OpenRouter HTTP", kind: "http-api", providerId: "openrouter", sentinelle: { defaultZone: "green", requiresApprovalForToolUse: false }, ledgerRequired: true },
     ],
   });
   assert.equal(registryResult.ok, true);
   const registry = registryResult.registry;
 
-  const connectedSnapshot = {
+  const codexConnectedSnapshot = {
     workspaceId: "workspace-a",
-    checkedAtIso: "2026-10-02T12:00:00.000Z",
+    checkedAtIso: "2026-10-02T00:00:00.000Z", // deliberately stale/irrelevant SNAPSHOT-level timestamp
     entries: [
       {
         providerId: "openai-codex",
         connectionState: "connected",
         source: "cli-subscription-login",
+        // The entry's OWN, fresh timestamp — must be what the gate actually uses.
         checkedAtIso: "2026-10-02T12:00:00.000Z",
         evidence: ["hermes_cli auth status openai-codex -> openai-codex: logged in"],
       },
     ],
   };
-  const validTariff = { currency: "USD", notToExceedCents: 500, source: "operator-set-budget", observedAt: "2026-10-02T12:00:00.000Z" };
+  const authorized = { authorized: true, authorizedBy: "mission-approval-1", authorizedAtIso: "2026-10-02T12:15:00.000Z" };
   const nowMs = Date.parse("2026-10-02T12:30:00.000Z");
 
   const baseRequest = {
@@ -75,15 +95,21 @@ test("Model emission gate tests", async (t) => {
     modelId: "codex/gpt-codex",
     requiresTools: true,
     registry,
-    connectionSnapshot: connectedSnapshot,
-    authorization: { authorized: true, authorizedBy: "mission-approval-1", authorizedAtIso: "2026-10-02T12:15:00.000Z" },
-    tariff: validTariff,
+    connectionSnapshot: codexConnectedSnapshot,
+    authorization: authorized,
+    tariff: null,
     nowMs,
   };
 
   await t.test("cross-workspace request is refused before the catalog is even built", () => {
     const result = evaluateModelEmissionGate({ ...baseRequest, requestingWorkspaceId: "workspace-b" });
     assert.deepEqual(result, { status: "cross_workspace_denied" });
+  });
+
+  await t.test("a connection snapshot scoped to ANOTHER workspace is refused, even if both request ids agree", () => {
+    const foreignSnapshot = { ...codexConnectedSnapshot, workspaceId: "workspace-z" };
+    const result = evaluateModelEmissionGate({ ...baseRequest, connectionSnapshot: foreignSnapshot });
+    assert.deepEqual(result, { status: "connection_snapshot_workspace_mismatch" });
   });
 
   await t.test("missing registry/catalog input (invalid request) is refused, never guessed", () => {
@@ -101,17 +127,101 @@ test("Model emission gate tests", async (t) => {
     assert.deepEqual(result, { status: "authorization_missing" });
   });
 
-  await t.test("no budget/tariff: refused by name", () => {
-    const result = evaluateModelEmissionGate({ ...baseRequest, tariff: null });
+  await t.test("a subscription-connected, authorized model emits WITHOUT any tariff — none is required or asked for", () => {
+    const result = evaluateModelEmissionGate(baseRequest); // tariff: null in baseRequest
+    assert.equal(result.status, "ok");
+    assert.equal(result.assessment.emit, true);
+    assert.equal(result.assessment.billingKind, "subscription");
+    assert.equal("notToExceedCents" in result.assessment, false);
+    assert.equal(result.assessment.capability.billingKind, "subscription");
+    assert.equal(result.assessment.capability.tariff, null);
+    // The catalog's model pricing says "premium" — proof billingKind came from
+    // the connection evidence, not from the model's own pricing descriptor.
+  });
+
+  await t.test("the entry's observedAt is the PROVIDER ENTRY's own timestamp, not the snapshot-level one", () => {
+    const result = evaluateModelEmissionGate(baseRequest);
+    assert.equal(result.status, "ok");
+    assert.equal(result.assessment.capability.observedAt, "2026-10-02T12:00:00.000Z");
+    assert.notEqual(result.assessment.capability.observedAt, codexConnectedSnapshot.checkedAtIso);
+  });
+
+  await t.test("a stale INDIVIDUAL provider entry is blocked even while the snapshot-level timestamp looks fresh", () => {
+    const staleEntrySnapshot = {
+      workspaceId: "workspace-a",
+      checkedAtIso: "2026-10-02T12:29:59.000Z", // snapshot-level: looks fresh relative to nowMs
+      entries: [
+        {
+          providerId: "openai-codex",
+          connectionState: "connected",
+          source: "cli-subscription-login",
+          checkedAtIso: "2026-09-01T00:00:00.000Z", // but THIS entry is actually ancient
+          evidence: ["hermes_cli auth status openai-codex -> openai-codex: logged in"],
+        },
+      ],
+    };
+    const result = evaluateModelEmissionGate({ ...baseRequest, connectionSnapshot: staleEntrySnapshot });
+    assert.equal(result.status, "ok");
+    assert.deepEqual(result.assessment, { emit: false, block: "capability_stale", requestedModelId: "codex/gpt-codex" });
+  });
+
+  await t.test("budget_missing is raised ONLY for billingKind 'api' — never for subscription or verified_free", () => {
+    // Subscription path: no tariff supplied, must NOT be budget_missing.
+    const subscriptionResult = evaluateModelEmissionGate({ ...baseRequest, tariff: null });
+    assert.notEqual(subscriptionResult.status, "budget_missing");
+
+    // Verified-free path (OpenRouter, catalog-proven zero pricing, api-key connection).
+    const freeSnapshot = {
+      workspaceId: "workspace-a",
+      checkedAtIso: "2026-10-02T12:00:00.000Z",
+      entries: [{ providerId: "openrouter", connectionState: "connected", source: "env-key-presence", checkedAtIso: "2026-10-02T12:00:00.000Z", evidence: ["OPENROUTER_API_KEY present"] }],
+    };
+    const freeResult = evaluateModelEmissionGate({
+      ...baseRequest,
+      modelId: "vendor/free-model:free",
+      requiresTools: false,
+      connectionSnapshot: freeSnapshot,
+      tariff: null,
+    });
+    assert.notEqual(freeResult.status, "budget_missing");
+    assert.equal(freeResult.status, "ok");
+    assert.equal(freeResult.assessment.emit, true);
+    assert.equal(freeResult.assessment.billingKind, "verified_free");
+    assert.equal(freeResult.assessment.capability.tariff, null);
+  });
+
+  await t.test("budget_missing IS raised for a genuinely metered 'api' model with no tariff", () => {
+    const paidSnapshot = {
+      workspaceId: "workspace-a",
+      checkedAtIso: "2026-10-02T12:00:00.000Z",
+      entries: [{ providerId: "openrouter", connectionState: "connected", source: "env-key-presence", checkedAtIso: "2026-10-02T12:00:00.000Z", evidence: ["OPENROUTER_API_KEY present"] }],
+    };
+    const result = evaluateModelEmissionGate({
+      ...baseRequest,
+      modelId: "openrouter/paid-model",
+      connectionSnapshot: paidSnapshot,
+      tariff: null,
+    });
     assert.deepEqual(result, { status: "budget_missing" });
   });
 
-  await t.test("real connected evidence + explicit authorization + valid tariff -> emission allowed", () => {
-    const result = evaluateModelEmissionGate(baseRequest);
+  await t.test("a genuinely metered 'api' model WITH a valid tariff emits with billingKind 'api' and notToExceedCents", () => {
+    const paidSnapshot = {
+      workspaceId: "workspace-a",
+      checkedAtIso: "2026-10-02T12:00:00.000Z",
+      entries: [{ providerId: "openrouter", connectionState: "connected", source: "env-key-presence", checkedAtIso: "2026-10-02T12:00:00.000Z", evidence: ["OPENROUTER_API_KEY present"] }],
+    };
+    const tariff = { currency: "USD", notToExceedCents: 500, source: "operator-set-budget", observedAt: "2026-10-02T12:00:00.000Z" };
+    const result = evaluateModelEmissionGate({
+      ...baseRequest,
+      modelId: "openrouter/paid-model",
+      connectionSnapshot: paidSnapshot,
+      tariff,
+    });
     assert.equal(result.status, "ok");
     assert.equal(result.assessment.emit, true);
-    assert.equal(result.assessment.capability.state, "authorized");
-    assert.equal(result.assessment.capability.modelId, "codex/gpt-codex");
+    assert.equal(result.assessment.billingKind, "api");
+    assert.equal(result.assessment.notToExceedCents, 500);
   });
 
   await t.test("connected but NOT authorized caps the entry at 'connected' — assessServerEmission blocks not_authorized", () => {
@@ -127,9 +237,7 @@ test("Model emission gate tests", async (t) => {
     const disconnectedSnapshot = {
       workspaceId: "workspace-a",
       checkedAtIso: "2026-10-02T12:00:00.000Z",
-      entries: [
-        { providerId: "openai-codex", connectionState: "connection_required", source: "cli-subscription-login", checkedAtIso: "2026-10-02T12:00:00.000Z", evidence: [] },
-      ],
+      entries: [{ providerId: "openai-codex", connectionState: "connection_required", source: "cli-subscription-login", checkedAtIso: "2026-10-02T12:00:00.000Z", evidence: [] }],
     };
     const result = evaluateModelEmissionGate({ ...baseRequest, connectionSnapshot: disconnectedSnapshot });
     assert.equal(result.status, "ok");
@@ -140,9 +248,7 @@ test("Model emission gate tests", async (t) => {
     const declaredOnlySnapshot = {
       workspaceId: "workspace-a",
       checkedAtIso: "2026-10-02T12:00:00.000Z",
-      entries: [
-        { providerId: "openai-codex", connectionState: "connected", source: "declared-capability", checkedAtIso: "2026-10-02T12:00:00.000Z", evidence: [] },
-      ],
+      entries: [{ providerId: "openai-codex", connectionState: "connected", source: "declared-capability", checkedAtIso: "2026-10-02T12:00:00.000Z", evidence: [] }],
     };
     const result = evaluateModelEmissionGate({ ...baseRequest, connectionSnapshot: declaredOnlySnapshot });
     assert.equal(result.status, "ok");
@@ -156,27 +262,32 @@ test("Model emission gate tests", async (t) => {
     assert.deepEqual(result.assessment, { emit: false, block: "not_listed", requestedModelId: "nonexistent/model" });
   });
 
-  await t.test("requiresTools true against a tool-incapable model is blocked by Cursor's own gate, unchanged by this caller", () => {
-    const noToolsRegistry = createStaticProviderRegistry({
-      providers: [{ id: "openai-codex", label: "x", kind: "api", trustLevel: "reviewed", supportsMcp: false, supportsToolUse: true }],
-      models: [
-        {
-          id: "codex/no-tools",
-          providerId: "openai-codex",
-          label: "No tools",
-          pricing: { promptUsdPerMTok: 0, completionUsdPerMTok: 0, perRequestUsd: 0 },
-          costTier: "free",
-          supportsToolUse: false,
-          supportsStructuredJson: true,
-          supportsMcp: false,
-          provenance: { source: "manual" },
-        },
-      ],
-      adapters: [{ id: "openai-codex-cli", label: "x", kind: "cli-subscription", providerId: "openai-codex", sentinelle: { defaultZone: "yellow", requiresApprovalForToolUse: true }, ledgerRequired: true }],
-    }).registry;
-    const result = evaluateModelEmissionGate({ ...baseRequest, registry: noToolsRegistry, modelId: "codex/no-tools" });
+  await t.test("invokedProviderId is forwarded: a mismatched invoked provider is blocked by Cursor's own gate", () => {
+    const result = evaluateModelEmissionGate({ ...baseRequest, invokedProviderId: "some-other-adapter-provider" });
     assert.equal(result.status, "ok");
-    assert.deepEqual(result.assessment, { emit: false, block: "tools_unavailable", requestedModelId: "codex/no-tools" });
+    assert.deepEqual(result.assessment, { emit: false, block: "provider_mismatch", requestedModelId: "codex/gpt-codex" });
+  });
+
+  await t.test("invokedProviderId matching the entry's provider still emits normally", () => {
+    const result = evaluateModelEmissionGate({ ...baseRequest, invokedProviderId: "openai-codex" });
+    assert.equal(result.status, "ok");
+    assert.equal(result.assessment.emit, true);
+  });
+
+  await t.test("requiresTools true against a tool-incapable model is blocked by Cursor's own gate, unchanged by this caller", () => {
+    const freeSnapshot = {
+      workspaceId: "workspace-a",
+      checkedAtIso: "2026-10-02T12:00:00.000Z",
+      entries: [{ providerId: "openrouter", connectionState: "connected", source: "env-key-presence", checkedAtIso: "2026-10-02T12:00:00.000Z", evidence: ["OPENROUTER_API_KEY present"] }],
+    };
+    const result = evaluateModelEmissionGate({
+      ...baseRequest,
+      modelId: "vendor/free-model:free",
+      requiresTools: true,
+      connectionSnapshot: freeSnapshot,
+    });
+    assert.equal(result.status, "ok");
+    assert.deepEqual(result.assessment, { emit: false, block: "tools_unavailable", requestedModelId: "vendor/free-model:free" });
   });
 
   await t.test("replaying the exact same request produces a deep-equal result (idempotent, no new side effect)", () => {
