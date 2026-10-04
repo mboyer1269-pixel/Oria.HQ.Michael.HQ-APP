@@ -174,3 +174,10 @@ test("Memory Vault — propose/approve governance path", async (t) => {
     assert.equal(repo.listPendingProposals(ws).length, 0);
   });
 });
+
+test('seed freshness is anchored to source dates, not process startup',()=>{
+ const entries=repo.listAllVaultEntriesForWorkspace('michael-hq').filter(e=>e.id.startsWith('mem_seed_'));
+ assert.ok(entries.length>0);
+ for(const e of entries){assert.equal(e.updatedAt,e.createdAt);assert.ok(!e.content.includes('18/18'));}
+ assert.ok(entries.find(e=>e.id==='mem_seed_decision_003').content.includes('lost on restart'));
+});

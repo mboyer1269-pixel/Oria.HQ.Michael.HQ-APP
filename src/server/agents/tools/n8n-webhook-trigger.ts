@@ -16,15 +16,36 @@
 import crypto from "node:crypto";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { isAllowed } from "@/lib/rate-limit";
-import { findApprovedWebhookBinding } from "@/server/runtime/webhook-registry";
+import { isAllowed, rateLimitKey, RATE_LIMIT_POLICIES } from "@/lib/rate-limit";
+import {
+  AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY,
+  findApprovedWebhookBinding,
+  N8N_STATIC_SECRET_ENV_KEY,
+  resolveApprovedWebhook,
+  resolveWebhookConfigurationState,
+  type WebhookConfigurationState,
+} from "@/server/runtime/webhook-registry";
 import type { McpTool, McpToolContext, McpToolResult } from "./types";
 
 export const N8N_WEBHOOK_TRIGGER_TOOL_NAME = "n8n_webhook_trigger";
 
 // Internal rate limit: max dispatches per rolling window, per workspace+agent.
-export const N8N_DISPATCH_RATE_LIMIT = 30;
-export const N8N_DISPATCH_RATE_WINDOW_MS = 60_000;
+// Sourced from the policy registry so this dispatch uses its declared numbers.
+const N8N_POLICY = RATE_LIMIT_POLICIES.n8n_dispatch;
+export const N8N_DISPATCH_RATE_LIMIT = N8N_POLICY.limit;
+export const N8N_DISPATCH_RATE_WINDOW_MS = N8N_POLICY.windowMs;
+
+const CONFIGURATION_ERRORS: Record<
+  Exclude<WebhookConfigurationState, "configured">,
+  string
+> = {
+  destination_env_missing: "N8N_WEBHOOK_URL is not configured.",
+  destination_url_invalid: "N8N_WEBHOOK_URL is not a valid URL or protocol.",
+  destination_hostname_not_allowed: "N8N_WEBHOOK_URL hostname is not allowed.",
+  destination_localhost_in_production: "localhost n8n endpoint is not allowed in production.",
+  static_secret_missing: "N8N_SECRET is not configured.",
+  signing_secret_missing: "Missing AGENT_WEBHOOK_SIGNING_SECRET for signed webhook.",
+};
 
 /**
  * Strict payload Hermès (Relay) produces and stores in an execution intent.
@@ -63,32 +84,19 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
     return { ok: false, error: `No approved webhook binding for ${input.agentId}/${input.skillId}.` };
   }
 
-  // 2. Destination + static secret (required to secure the transfer).
-  const rawUrl = process.env.N8N_WEBHOOK_URL;
-  if (!rawUrl) return { ok: false, error: "N8N_WEBHOOK_URL is not configured." };
-
-  const staticSecret = process.env.N8N_SECRET;
-  if (!staticSecret) return { ok: false, error: "N8N_SECRET is not configured." };
-
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(rawUrl);
-  } catch {
-    return { ok: false, error: "N8N_WEBHOOK_URL is not a valid URL." };
+  // 2. Destination and secrets. The registry is the single validator for URL,
+  // hostname, protocol, production loopback, and required credentials.
+  const configuration = resolveWebhookConfigurationState(binding);
+  if (configuration !== "configured") {
+    return { ok: false, error: CONFIGURATION_ERRORS[configuration] };
   }
-  if (!binding.allowedHostnames.includes(parsedUrl.hostname)) {
-    return { ok: false, error: `N8N_WEBHOOK_URL hostname ${parsedUrl.hostname} is not allowed.` };
-  }
-  if (
-    process.env.NODE_ENV === "production" &&
-    (parsedUrl.hostname === "localhost" || parsedUrl.hostname === "127.0.0.1")
-  ) {
-    return { ok: false, error: "localhost n8n endpoint is not allowed in production." };
-  }
+  const resolvedWebhook = resolveApprovedWebhook(input.agentId, input.skillId);
+  if (!resolvedWebhook) return { ok: false, error: "Approved webhook configuration changed." };
+  const staticSecret = process.env[N8N_STATIC_SECRET_ENV_KEY] as string;
 
   // 3. Internal rate limit -- prevents a bug from bombing n8n.
-  const rlKey = `n8n:${ctx.workspaceId}:${input.agentId}`;
-  const allowed = await isAllowedImpl(rlKey, N8N_DISPATCH_RATE_LIMIT, N8N_DISPATCH_RATE_WINDOW_MS);
+  const rlKey = rateLimitKey(N8N_POLICY, `${ctx.workspaceId}:${input.agentId}`);
+  const allowed = await isAllowedImpl(rlKey, N8N_POLICY.limit, N8N_POLICY.windowMs);
   if (!allowed) {
     logger.warn("mcp.n8n_webhook_trigger.rate_limited", {
       workspaceId: ctx.workspaceId,
@@ -119,10 +127,7 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   };
 
   if (binding.requiresSignature) {
-    const signingSecret = process.env.AGENT_WEBHOOK_SIGNING_SECRET;
-    if (!signingSecret) {
-      return { ok: false, error: "Missing AGENT_WEBHOOK_SIGNING_SECRET for signed webhook." };
-    }
+    const signingSecret = process.env[AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY] as string;
     const timestamp = String(now());
     const signature = crypto
       .createHmac("sha256", signingSecret)
@@ -137,7 +142,7 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), binding.timeoutMs);
   try {
-    const response = await fetchImpl(parsedUrl.toString(), {
+    const response = await fetchImpl(resolvedWebhook.url, {
       method: "POST",
       headers,
       body,

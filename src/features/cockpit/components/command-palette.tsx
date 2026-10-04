@@ -6,6 +6,7 @@ import type { Route } from "next";
 import {
   ArrowUp,
   Bot,
+  BookOpen,
   Building2,
   CalendarCheck,
   Car,
@@ -21,7 +22,6 @@ import {
   ScrollText,
   Search,
   SendHorizonal,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 
@@ -52,22 +52,21 @@ type PaletteItem = {
 // /hq home (command-center, mission-draft-pending, agenda-panel, ledger-activity,
 // ceo-brief, operator-snapshot).
 const ITEMS: PaletteItem[] = [
-  { group: "Aller à", label: "HQ", icon: Home, href: "/hq", kbd: "G H" },
-  { group: "Aller à", label: "Cockpit", icon: LayoutDashboard, href: "/hq/cockpit", kbd: "G C" },
-  { group: "Aller à", label: "Missions", icon: ListChecks, href: "/hq/missions", kbd: "G M" },
-  { group: "Aller à", label: "Agents", icon: Bot, href: "/hq/agents", kbd: "G A" },
-  { group: "Aller à", label: "Skills", icon: Sparkles, href: "/hq/skills", kbd: "G S" },
+  { group: "Aller à", label: "HQ", icon: Home, href: "/hq" },
+  { group: "Aller à", label: "Cockpit", icon: LayoutDashboard, href: "/hq/cockpit" },
+  { group: "Aller à", label: "Missions", icon: ListChecks, href: "/hq/missions" },
+  { group: "Aller à", label: "Mémoire", icon: BookOpen, href: "/hq/memory" },
+  { group: "Aller à", label: "Agents", icon: Bot, href: "/hq/agents" },
+  { group: "Aller à", label: "Skills", icon: Sparkles, href: "/hq/skills" },
   { group: "Aller à", label: "Runtime · verrouillé", icon: CircleDot, href: "/hq/runtime" },
-  { group: "Aller à", label: "Ventures", icon: Building2, href: "/hq/ventures", kbd: "G V" },
+  { group: "Aller à", label: "Ventures", icon: Building2, href: "/hq/ventures" },
   { group: "Aller à", label: "Send Desk", icon: SendHorizonal, href: "/hq/outbound" },
-  { group: "Aller à", label: "Sales Desk", icon: Car, href: "/hq/sales", kbd: "G L" },
+  { group: "Aller à", label: "Sales Desk", icon: Car, href: "/hq/sales" },
   { group: "Aller à", label: "Documents", icon: FileText, href: "/dashboard/documents" },
   { group: "Sur cette page", label: "Parler à Joris", icon: MessageSquare, href: "#command-center", anchor: true },
   { group: "Sur cette page", label: "File d'approbation", icon: CheckCheck, href: "#mission-draft-pending", anchor: true },
-  { group: "Sur cette page", label: "Agenda du jour", icon: CalendarCheck, href: "#agenda-panel", anchor: true },
+  { group: "Sur cette page", label: "Agenda · 14 prochains jours", icon: CalendarCheck, href: "#agenda-panel", anchor: true },
   { group: "Sur cette page", label: "Décisions · Ledger", icon: ScrollText, href: "#ledger-activity", anchor: true },
-  { group: "Sur cette page", label: "CEO Brief", icon: Sparkles, href: "#ceo-brief", anchor: true },
-  { group: "Sur cette page", label: "Aperçu opérateur", icon: ShieldCheck, href: "#operator-snapshot", anchor: true },
 ];
 
 export function CommandPalette() {
@@ -76,6 +75,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -101,7 +101,10 @@ export function CommandPalette() {
       if (item.anchor) {
         const el = typeof document !== "undefined" ? document.querySelector(item.href) : null;
         if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+            if (parent instanceof HTMLDetailsElement) parent.open = true;
+          }
+          el.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
         } else {
           // The anchor lives on the /hq home — route there carrying the hash.
           router.push(`/hq${item.href}` as Route);
@@ -129,6 +132,15 @@ export function CommandPalette() {
         return;
       }
       if (!open) return;
+      if (e.key === "Tab") {
+        const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>("input, button:not([disabled])") ?? []);
+        const current = items.indexOf(document.activeElement as HTMLElement);
+        if (items.length) {
+          e.preventDefault();
+          items[(current + (e.shiftKey ? -1 : 1) + items.length) % items.length]?.focus();
+        }
+        return;
+      }
       if (e.key === "Escape") {
         close();
       } else if (e.key === "ArrowDown") {
@@ -137,7 +149,7 @@ export function CommandPalette() {
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === "Enter") {
+      } else if (e.key === "Enter" && e.target === inputRef.current) {
         e.preventDefault();
         const item = results[index];
         if (item) run(item);
@@ -150,8 +162,9 @@ export function CommandPalette() {
   // Focus the input when the palette opens (DOM side-effect only).
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 30);
-    return () => clearTimeout(t);
+    const previous = document.activeElement;
+    inputRef.current?.focus();
+    return () => { if (previous instanceof HTMLElement) previous.focus(); };
   }, [open]);
 
   if (!open) return null;
@@ -168,6 +181,7 @@ export function CommandPalette() {
 
   return (
     <div
+      ref={dialogRef}
       onMouseDown={() => close()}
       className="fixed inset-0 z-[300] flex items-start justify-center bg-black/60 pt-[12vh]"
       role="dialog"

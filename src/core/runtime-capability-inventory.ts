@@ -1,0 +1,749 @@
+// src/core/runtime-capability-inventory.ts
+//
+// The hand-authored inventory of executors inside a DECLARED SCOPE, the effect
+// each produces, and the gate standing in front of it.
+//
+// The scope is narrow on purpose, and stated so a count from this module can be
+// read correctly: it is not "everything this runtime does". Persistence that an
+// owner drives through the application's own screens is out, and listed as such
+// in OUT_OF_SCOPE_SURFACES rather than left undetected.
+//
+// An entry claims nothing on its own authority: each carries a file and a
+// marker that must be present for the claim to hold. Completeness is enforced
+// by runtime-capability-inventory.test.mjs, which enumerates every outbound
+// call and every persistence write in src/ and requires each to be either
+// covered by a capability or explicitly out of scope.
+//
+// Pure data. No imports, no I/O.
+
+/**
+ * What this inventory covers, and what it does not.
+ *
+ * Rendered next to any count derived from it, because a number without its
+ * boundary reads as a total.
+ */
+export const INVENTORY_SCOPE = {
+  covers:
+    "les effets qui sortent du processus, et les effets qu'un agent ou une planification peut provoquer",
+  excludes:
+    "la persistance applicative pilotée par le propriétaire depuis les écrans (mise en page, notes, ventures, arène, missions), le journal d'audit lui-même et les utilitaires de développement ou de smoke lancés manuellement",
+} as const;
+
+/** What actually happens when a capability runs. */
+export const RUNTIME_EFFECTS = ["none", "internal_write", "external_call"] as const;
+export type RuntimeEffect = (typeof RUNTIME_EFFECTS)[number];
+
+/**
+ * What must clear before a capability can run.
+ *
+ *   ceo_approval           — an explicit human approval on a queued intent.
+ *   owner_confirmed        — an owner session plus a per-action confirmation
+ *                            (approval token, confirm flag) on the request.
+ *   owner_session          — an owner session only. The effect follows from the
+ *                            request or the page render, with no per-action
+ *                            confirmation.
+ *   sentinelle_green_lane  — an owner-authenticated request the Sentinelle
+ *                            zones green; no approval packet.
+ *   scheduled_pass         — a background pass; no per-action human decision.
+ *   public_unauthenticated — reachable without any session.
+ */
+export const RUNTIME_GATES = [
+  "ceo_approval",
+  "owner_confirmed",
+  "owner_session",
+  "sentinelle_green_lane",
+  "scheduled_pass",
+  "public_unauthenticated",
+] as const;
+export type RuntimeGate = (typeof RUNTIME_GATES)[number];
+
+/** Gates that route an action through the approval rail before it can run. */
+export const APPROVAL_RAIL_GATES: readonly RuntimeGate[] = ["ceo_approval"];
+
+export type RuntimeCapabilityEvidence = {
+  /** Repo-relative file that proves the capability exists as described. */
+  path: string;
+  /** Substring that must appear in that file. */
+  mustContain: string;
+  /** Why this proves it — read by whoever hits the failure. */
+  because: string;
+};
+
+export type RuntimeCapability = {
+  id: string;
+  label: string;
+  /**
+   * The executor registry key this maps to: a skill id for a built-in handler,
+   * an MCP tool name, or a route path for an executor reached directly.
+   * `null` means the capability covers no single registry key.
+   */
+  executorKey: string | null;
+  effect: RuntimeEffect;
+  gate: RuntimeGate;
+  detail: string;
+  evidence: RuntimeCapabilityEvidence;
+  /**
+   * Additional files this capability accounts for — the implementation it
+   * reaches. Without them the completeness check would report a capability's
+   * own repository as an undeclared surface.
+   */
+  covers?: readonly string[];
+};
+
+/**
+ * Persistence and mutation surfaces deliberately outside the inventory.
+ *
+ * Detected by the completeness check and classified here, so "not shown" is a
+ * decision on record rather than a gap. A new mutation surface belongs to a
+ * capability or to one of these groups; anything else fails CI.
+ */
+export const OUT_OF_SCOPE_SURFACES: readonly {
+  reason: string;
+  paths: readonly string[];
+}[] = [
+  {
+    reason:
+      "Le journal d'audit lui-même. Chaque capacité écrit à travers lui ; le compter comme un exécuteur le ferait apparaître une fois par capacité.",
+    paths: ["src/server/actions/action-ledger-repository.ts"],
+  },
+  {
+    reason:
+      "Persistance applicative pilotée par le propriétaire depuis un écran : la requête est une action humaine directe, pas un effet qu'un agent peut provoquer.",
+    paths: [
+      "src/app/login/actions.ts",
+      "src/features/cockpit/actions/cockpit-layout.ts",
+      "src/features/cockpit/events/event-client.ts",
+      "src/features/cockpit/events/idea-capture-action.ts",
+      "src/features/notes/note-action.ts",
+      "src/features/ventures/cash-signal-intake-action.ts",
+      "src/features/ventures/loi96-pipeline-action.ts",
+      "src/features/ventures/venture-asset-action.ts",
+      "src/features/ventures/venture-lifecycle-action.ts",
+      "src/features/ventures/venture-save-action.ts",
+      "src/server/auth/actions.ts",
+      "src/server/arena/arena-verdict-repository.ts",
+      "src/server/joris/governance-decision-repository.ts",
+      "src/server/missions/mission-draft-durable-repository.ts",
+      "src/server/missions/openhands-authority-store.ts",
+      "src/server/missions/openhands-reservation-store.ts",
+      "src/server/missions/openhands-memory-snapshot-store.ts",
+      "src/server/missions/openhands-memory-attachment.ts",
+      "src/server/ventures/cash-signal-intake-repository.ts",
+      "src/server/ventures/venture-repository.ts",
+    ],
+  },
+  {
+    reason:
+      "Comptabilité de résultat d'une capacité déjà inventoriée : la ligne est écrite après coup et ne déclenche rien.",
+    paths: [
+      "src/server/ventures/agent-outcome-repository.ts",
+      "src/server/ventures/agent-score-snapshot-repository.ts",
+    ],
+  },
+  {
+    reason:
+      "Proposition en ajout seul : la ligne enregistre une intention et n'exécute jamais.",
+    paths: ["src/server/ventures/prepared-action-repository.ts"],
+  },
+];
+
+/**
+ * Calls that leave the process but are not part of the deployed runtime.
+ *
+ * These exact files are still scanned. The inverse assertion fails if an
+ * exclusion disappears or stops containing the effect it was written for, so
+ * this list cannot become a filename-shaped blind spot.
+ */
+export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
+  reason: string;
+  paths: readonly string[];
+}[] = [
+  {
+    reason:
+      "Générateur cash conservé comme utilitaire de smoke manuel revenue-readiness ; aucune page servie ne le déclenche au rendu.",
+    paths: ["src/features/ventures/llm-cash-action-packet-generator.ts"],
+  },
+  {
+    reason:
+      "Utilitaire développeur lancé explicitement en ligne de commande pour traiter un document et déléguer à Task Master ; aucune route ni aucun agent ne l'appelle.",
+    paths: ["src/scripts/process-document.ts"],
+  },
+  {
+    reason:
+      "Smoke n8n manuel : il vérifie une URL fournie par l'opérateur et ne fait pas partie du runtime servi par Next.js.",
+    paths: ["src/scripts/smoke/n8n-execution-slice.mjs"],
+  },
+  {
+    reason:
+      "Sonde SSH Hermes de qualification opérateur : aucune route ni page applicative ne l'importe. Commande de statut seule, approbation écrite et environnement local requis ; aucun prompt modèle.",
+    paths: ["src/server/agents/models/hermes-codex-connection-probe.ts"],
+  },
+];
+
+/**
+ * Every executor reachable in this runtime today, ordered by decreasing
+ * consequence.
+ */
+export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
+  {
+    id: "runner_connection_status_probe",
+    label: "Runner · statut de connexion",
+    executorKey: "createRunnerClaudeCliConnectionProbe",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "La préparation d'une approbation ou la confirmation de lancement propriétaire peut sonder le statut CLI par SSH. Le transport reste fermé sans approbation opérateur liée au workspace, environnement autorisé, hôte et identité SSH ; aucune inférence modèle.",
+    evidence: {
+      path: "src/server/agents/models/runner-executor-connection-probe.ts",
+      mustContain: "execFile(",
+      because:
+        "Owner-authenticated approval preparation and confirm_launch invoke this Docker CLI status probe only with a workspace-bound operator approval; the unconfigured default remains not_approved.",
+    },
+  },
+  {
+    id: "runner_account_identity_persistence",
+    label: "Runner · identité opaque de compte",
+    executorKey: "resolveOpaqueAccountId",
+    effect: "internal_write",
+    gate: "owner_session",
+    detail:
+      "Après attestation CLI valide, associe le compte à un UUID par fournisseur et workspace dans account_identities. Persistance serveur ; repli process-local uniquement hors production.",
+    evidence: {
+      path: "src/server/agents/models/account-identity-repository.ts",
+      mustContain: 'onConflict: "provider,workspace_id,email", ignoreDuplicates: true',
+      because:
+        "The runner connection probe can persist a surrogate identity while an owner prepares an approval, before a decision is confirmed; this write does not grant model execution rights.",
+    },
+  },
+  {
+    id: "model_catalog_consultation",
+    label: "Catalogue · consultation des modèles",
+    executorKey: "consultModelCatalog",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Après vérification de la session propriétaire, consulte les catalogues allowlistés par GET borné. Les prix et modèles publics ne prouvent ni accès au compte ni autorisation d'exécution.",
+    evidence: {
+      path: "src/server/ai/model-catalog-consultation.ts",
+      mustContain: "fetchImpl(url,",
+      because:
+        "consultModelCatalog checks requireOwnerApiSession before resolving an allowlisted gateway and invoking its bounded catalog transport.",
+    },
+  },
+  {
+    id: "gateway_catalog_read",
+    label: "Catalogue · lecture de la passerelle",
+    executorKey: null,
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Transport de catalogue utilisé par la consultation propriétaire : GET vers la source vérifiée, redirections refusées et délai borné ; aucun appel de génération.",
+    evidence: {
+      path: "src/server/ai/gateway-catalog.ts",
+      mustContain: "request.fetch(request.sourceUrl,",
+      because:
+        "The catalog consultation's owner gate precedes this injected gateway GET; public listing does not authorize model execution.",
+    },
+  },
+  {
+    id: "contact_form_email",
+    label: "Formulaire de contact · courriel Resend",
+    executorKey: "/api/contact",
+    effect: "external_call",
+    gate: "public_unauthenticated",
+    detail:
+      "Une soumission publique déclenche un envoi Resend réel et insère une ligne contact_leads. Aucune session requise ; seule une limite par IP la borne.",
+    evidence: {
+      path: "src/server/contact/contact-notification-service.ts",
+      mustContain: "resend.emails.send",
+      because:
+        "The notification service sends through Resend. The contact route is unauthenticated, so this is the only executor a stranger can reach.",
+    },
+    covers: ["src/server/contact/contact-lead-repository.ts"],
+  },
+  {
+    id: "outbound_send_email",
+    label: "Envoi sortant · courriel Resend",
+    executorKey: "/api/outbound/send",
+    effect: "external_call",
+    gate: "owner_confirmed",
+    detail:
+      "Envoi réel d'un courriel approuvé. Session propriétaire plus un approvalToken qui doit correspondre au contenu approuvé.",
+    evidence: {
+      path: "src/server/outbound/outbound-executor-live.ts",
+      mustContain: "ports.channelSend.send(",
+      because:
+        "The live bridge reaches the channel adapter, which is the Resend client. Every guardrail runs upstream of that call.",
+    },
+  },
+  {
+    id: "n8n_webhook_dispatch",
+    label: "Dispatch n8n · rail d'intents",
+    executorKey: "n8n_webhook_trigger",
+    effect: "external_call",
+    gate: "ceo_approval",
+    detail:
+      "Envoi HMAC signé vers n8n. Déclenché uniquement par la route d'approbation CEO, jamais par l'évaluation automatique.",
+    evidence: {
+      path: "src/app/api/agents/execution-intents/[intentId]/approve/route.ts",
+      mustContain: "tool.handler(intent.payload",
+      because:
+        "The approve route is the only caller of the dispatch tool. Another caller would mean this gate is no longer ceo_approval.",
+    },
+    covers: ["src/server/agents/execution-intent-repository.ts"],
+  },
+  {
+    id: "joris_memex_context_lookup",
+    label: "Joris · contexte Memex local",
+    executorKey: "enrichJorisMemoryContextWithMemex",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Quand le pont local est explicitement activé, chaque message Joris peut démarrer le serveur MCP Memex en stdio et y lire du contexte. Le transport reste local et lecture seule.",
+    evidence: {
+      path: "src/server/mcp/memex-stdio-transport.ts",
+      mustContain: "client.callTool(",
+      because:
+        "The Joris brain reaches this MCP client through memex-context-source. The official stdio transport spawns a local process and calls a read-only Memex tool.",
+    },
+    covers: [
+      "src/server/joris/brain.ts",
+      "src/server/joris/memex-context-source.ts",
+      "src/server/mcp/memex-readonly-client.ts",
+    ],
+  },
+  {
+    id: "memex_http_read",
+    label: "HQ / Joris · lecture Memex distante",
+    executorKey: null,
+    effect: "external_call",
+    gate: "owner_session",
+    detail: "Pont HTTP opt-in, credential read_only limité au workspace. Consultation manuelle ou contexte Joris ; aucun droit de publication.",
+    evidence: { path: "src/server/mcp/memex-http-rpc.ts", mustContain: "await fetcher(", because: "Bounded HTTP wire reached through the separately gated read transport." },
+    covers: ["src/server/mcp/memex-http-transport.ts", "src/app/api/memory/search/route.ts", "src/app/api/memory/search/search-handler.ts"],
+  },
+  {
+    id: "memex_operator_review",
+    label: "HQ · revue humaine Memex",
+    executorKey: null,
+    effect: "external_call",
+    gate: "owner_session",
+    detail: "Décision explicite liée au hash du snapshot, acteur Supabase authentifié et credential opérateur séparé. Aucun effet de publication.",
+    evidence: { path: "src/server/memory/memex-review-service.ts", mustContain: "deps.fetcher ?? fetch", because: "Dedicated bounded operator HTTP calls, opt-in and exact workspace binding." },
+    covers: ["src/app/api/memory/review/route.ts", "src/app/api/memory/review/handler.ts"],
+  },
+  {
+    id: "memex_proposal_submission",
+    label: "HQ · proposition Memex durable",
+    executorKey: null,
+    effect: "external_call",
+    gate: "owner_session",
+    detail: "Soumission explicite depuis la session propriétaire, Origin contrôlée et credential distinct. Reçu idempotent ; aucune approbation ou publication automatique.",
+    evidence: { path: "src/server/mcp/memex-http-rpc.ts", mustContain: "await fetcher(", because: "Same bounded wire, with an independent submit/status-only credential and owner route." },
+    covers: ["src/server/mcp/memex-proposal-transport.ts", "src/server/memory/memex-proposal-service.ts", "src/app/api/memory/proposals/route.ts", "src/app/api/memory/proposals/handlers.ts"],
+  },
+  {
+    id: "joris_public_inventory_sync",
+    label: "Joris / Sales · synchronisation d'inventaire public",
+    executorKey: "syncPublicInventory",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Télécharge les pages d'inventaire Buckingham allowlistées. Joris peut le déclencher depuis le chat, tout comme la route propriétaire du Sales Desk.",
+    evidence: {
+      path: "src/server/inventory/public-inventory-sync.ts",
+      mustContain: "fetchImpl(url,",
+      because:
+        "The sync service performs the injected-or-global fetch. Its callers are owner-authenticated routes and Joris intents behind the owner chat session.",
+    },
+    covers: [
+      "src/app/api/inventory/sync/route.ts",
+      "src/server/joris/inventory-market-intent.ts",
+      "src/server/joris/marketplace-listing-intent.ts",
+      "src/server/joris/sales-marketing-intent.ts",
+    ],
+  },
+  {
+    id: "joris_market_advantage_brief",
+    label: "Joris / Sales · comparables AutoTrader",
+    executorKey: "fetchMarketAdvantageBrief",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Télécharge une recherche AutoTrader allowlistée pour produire un brief marché. Un message Joris ciblé ou la route propriétaire peut lancer cet appel.",
+    evidence: {
+      path: "src/server/market/fetch-market-comps.ts",
+      mustContain: "fetchImpl(url,",
+      because:
+        "The market brief service performs the injected-or-global fetch and is called directly by the owner route and by Joris inventory-market intents.",
+    },
+    covers: [
+      "src/app/api/sales/market-brief/route.ts",
+      "src/server/joris/inventory-market-intent.ts",
+    ],
+  },
+  {
+    id: "joris_marketplace_vdp_enrichment",
+    label: "Joris / Marketplace · enrichissement photo VDP",
+    executorKey: "prepareMarketplaceListing",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "La préparation d'une fiche Marketplace télécharge par défaut la VDP allowlistée pour compléter ses photos. Joris peut déclencher cette préparation depuis le chat.",
+    evidence: {
+      path: "src/server/inventory/vdp-photo-enrich.ts",
+      mustContain: "fetchImpl(check.normalizedUrl,",
+      because:
+        "prepareMarketplaceListing calls this injected-or-global fetch by default. Both the API route and the Joris listing intent require the owner session.",
+    },
+    covers: [
+      "src/app/api/marketplace/listings/route.ts",
+      "src/server/joris/marketplace-listing-intent.ts",
+      "src/server/marketplace-listings/prepare-listing.ts",
+    ],
+  },
+  {
+    id: "marketplace_photo_pack_download",
+    label: "Marketplace · téléchargement du pack photo",
+    executorKey: "/api/marketplace/listings/photo-pack",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Télécharge jusqu'à 20 images allowlistées et construit un ZIP pour publication manuelle. La route exige la session propriétaire.",
+    evidence: {
+      path: "src/server/marketplace-listings/build-photo-pack.ts",
+      mustContain: "fetchImpl(check.normalizedUrl,",
+      because:
+        "The photo-pack builder performs one injected-or-global fetch per image and is reached only through the owner-authenticated photo-pack route.",
+    },
+    covers: ["src/app/api/marketplace/listings/photo-pack/route.ts"],
+  },
+  {
+    id: "local_runtime_status_probe",
+    label: "Command Tower · sondes CLI locales",
+    executorKey: "probeLocalRuntimes",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Sur une machine locale autorisée, le rendu Command Tower exécute des commandes de version et de statut d'authentification strictement allowlistées.",
+    evidence: {
+      path: "src/server/agents/runtimes/local-runtime-probe.ts",
+      mustContain: "execFile(",
+      because:
+        "The owner-only Command Tower source calls probeLocalRuntimes, whose frozen runner invokes these local CLI subprocesses through execFile.",
+    },
+    covers: ["src/features/hq/command-tower/runtime-status-source.ts"],
+  },
+  {
+    id: "validation_report_generation",
+    label: "Validation · génération du rapport",
+    executorKey: "/api/michael-hq/validation/propose",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Une session propriétaire demande un rapport de validation marché. Le service appelle un fournisseur de modèle, puis écrit seulement une intention en attente d'approbation CEO ; l'ingénierie reste séparée.",
+    evidence: {
+      path: "src/server/agents/validation-agent.ts",
+      mustContain: "generateStructuredJson",
+      because:
+        "The validation proposal path calls a model provider to draft the demand-check report, then queues an execution intent rather than starting engineering.",
+    },
+    covers: [
+      "src/app/api/michael-hq/validation/propose/route.ts",
+      "src/server/agents/validation-agent.ts",
+    ],
+  },
+  {
+    id: "validation_report_delivery",
+    label: "Validation · livraison du rapport approuvé",
+    executorKey: "validation_report_deliver",
+    effect: "internal_write",
+    gate: "ceo_approval",
+    detail:
+      "Après approbation CEO d'une intention exacte, persiste le rapport de validation marché dans le store interne. Ne lance pas l'ingénierie automatiquement.",
+    evidence: {
+      path: "src/server/agents/tools/validation-report-deliver.ts",
+      mustContain: "saveValidationReport",
+      because:
+        "The registered MCP tool persists a previously approved validation report; the approve route is the only dispatcher for MCP tools.",
+    },
+    covers: ["src/server/agents/validation-report-store.ts"],
+  },
+  {
+    id: "engineering_package_generation",
+    label: "Ingénierie · génération de paquet",
+    executorKey: "/api/michael-hq/engineering/propose",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Une session propriétaire demande un paquet d'ingénierie portable. Le service appelle un fournisseur de modèle, puis écrit seulement une intention en attente d'approbation CEO ; aucun déploiement autonome.",
+    evidence: {
+      path: "src/server/agents/engineering-agent.ts",
+      mustContain: "generateStructuredJson",
+      because:
+        "The engineering proposal path calls a model provider to draft package files, then queues an execution intent rather than delivering or deploying immediately.",
+    },
+    covers: [
+      "src/app/api/michael-hq/engineering/propose/route.ts",
+      "src/server/agents/engineering-agent.ts",
+    ],
+  },
+  {
+    id: "engineering_package_delivery",
+    label: "Ingénierie · livraison du paquet approuvé",
+    executorKey: "engineering_package_deliver",
+    effect: "internal_write",
+    gate: "ceo_approval",
+    detail:
+      "Après approbation CEO d'une intention exacte, matérialise le paquet d'ingénierie dans le store interne pour téléchargement ou export manuel. Aucun déploiement autonome.",
+    evidence: {
+      path: "src/server/agents/tools/engineering-package-deliver.ts",
+      mustContain: "saveInfrastructurePackage",
+      because:
+        "The registered MCP tool persists a previously approved package into the infrastructure store; the approve route is the only dispatcher for MCP tools.",
+    },
+    covers: ["src/server/agents/engineering-package-store.ts"],
+  },
+  {
+    id: "green_lane_content_generate",
+    label: "Voie verte · content.generate",
+    executorKey: "content.generate",
+    effect: "external_call",
+    gate: "sentinelle_green_lane",
+    detail:
+      "Handler in-process appelant une API de modèle (Anthropic/OpenAI). Passe par la Sentinelle et le ledger, pas par le rail d'approbation.",
+    evidence: {
+      path: "src/server/runtime/skill-dispatcher.ts",
+      mustContain: 'fetch("https://api.anthropic.com/v1/messages"',
+      because:
+        "The registered content.generate handler reaches this direct model-provider fetch instead of returning the inert dry-run preview.",
+    },
+  },
+  {
+    id: "shadow_pass_scoring",
+    label: "Mode Ombre · scoring planifié",
+    executorKey: "shadow_pass",
+    effect: "external_call",
+    gate: "scheduled_pass",
+    detail:
+      "Chaque passe appelle un fournisseur IA (coût par exécution) puis vérifie les URLs citées sur le réseau. N'agit pas sur les ventures : la sortie est une proposition écrite au ledger.",
+    evidence: {
+      path: "src/server/ventures/venture-score-shadow-runner.ts",
+      mustContain: "generateStructuredJson",
+      because:
+        "The pass calls a model provider on every run, then fetches the cited URLs. Its writes are internal; its calls are not.",
+    },
+    covers: ["src/server/ventures/venture-score-shadow-runner.ts"],
+  },
+  {
+    id: "mission_execution_approval_decision",
+    label: "Mission · décision d'approbation d'exécution",
+    executorKey: "/api/missions/approval",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail:
+      "Le propriétaire approuve ou rejette une revue exacte, ou révoque une décision identifiée. La transaction persiste décision et journal ; rejet et révocation invalident la version de mission. Aucun lancement ni appel modèle.",
+    evidence: {
+      path: "src/server/missions/approval-record-repository.ts",
+      mustContain: '.rpc("commit_mission_approval_decision",',
+      because:
+        "The owner-only, same-origin approval handler delegates a hash-bound decision or ID-bound revocation to the atomic decision/ledger RPC, with no local fallback for this commit.",
+    },
+    covers: [
+      "src/app/api/missions/approval/route.ts",
+      "src/app/api/missions/approval/handler.ts",
+      "src/server/missions/mission-approval-service.ts",
+    ],
+  },
+  {
+    id: "openhands_tool_decision",
+    label: "OpenHands · décision ponctuelle sur un outil",
+    executorKey: "/api/orchestration/openhands/tools/[launchId]",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail:
+      "Désactivée par défaut. Une session propriétaire choisit une option pour une demande exacte et active ; décision et consommation unique sont journalisées. L’exécution de l’outil reste une preuve distincte.",
+    evidence: {
+      path: "src/server/missions/openhands-tool-decision-store.ts",
+      mustContain: "mission.openhands_tool_decision",
+      because:
+        "The owner review service persists a bound per-call decision; the host consumes it once through the lifecycle service. Neither record proves tool execution.",
+    },
+    covers: ["src/server/missions/openhands-tool-decision-store.ts"],
+  },
+  {
+    id: "openhands_launch_claim",
+    label: "OpenHands · confirmer la configuration de lancement",
+    executorKey: "/api/orchestration/openhands",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail: "Désactivée par défaut. Confirme une configuration serveur exacte et réserve une tentative ; ne lance pas de conteneur.",
+    evidence: {
+      path: "src/server/missions/openhands-launch-store.ts",
+      mustContain: "mission.openhands_launch_authorization",
+      because: "The owner-confirmed launch persists authority and a canonical claim before any separate host dispatch.",
+    },
+    covers: ["src/server/missions/openhands-launch-store.ts"],
+  },
+  {
+    id: "calendar_event_write",
+    label: "Calendrier · création d'événement",
+    executorKey: "/api/calendar/events",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail:
+      "Écriture persistante d'un événement. Session propriétaire plus un drapeau de confirmation explicite ; le ledger est écrit avant et après.",
+    evidence: {
+      path: "src/server/calendar/calendar-service.ts",
+      mustContain: "calendarRepository.create(",
+      because:
+        "The service persists the event through the repository. The write is internal, and its precondition is a confirmed owner request.",
+    },
+    covers: ["src/server/calendar/calendar-repository.ts"],
+  },
+  {
+    id: "joris_reply_generation",
+    label: "Joris · génération de réponse",
+    executorKey: "/api/joris/chat",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Chaque message envoyé appelle un fournisseur de modèle. Coût par échange ; le contenu du message part chez le fournisseur.",
+    evidence: {
+      path: "src/server/joris/joris-reply-generator.ts",
+      mustContain: "generateStructuredJson",
+      because:
+        "The reply generator calls a model provider on every turn. An owner session is the only gate on the chat route.",
+    },
+  },
+  {
+    id: "daily_direction_generation",
+    label: "Cockpit · direction du jour",
+    executorKey: "generateDailyDirectionAction",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Action serveur déclenchée par le propriétaire. Un appel de modèle par génération.",
+    evidence: {
+      path: "src/server/joris/daily-direction-generator.ts",
+      mustContain: "generateStructuredJson",
+      because:
+        "The generator calls a model provider; the server action gates on an owner session and nothing further.",
+    },
+    covers: ["src/features/cockpit/events/generate-daily-direction-action.ts"],
+  },
+  {
+    id: "paperclip_backlog_read",
+    label: "Paperclip · lire le backlog",
+    executorKey: "/api/orchestration/missions",
+    effect: "external_call",
+    gate: "owner_session",
+    detail: "Lecture bornée du backlog externe lié au workspace ; aucune mutation ni exécution.",
+    evidence: {
+      path: "src/server/orchestration/paperclip-client.ts",
+      mustContain: "await fetcher(",
+      because: "The owner-authenticated projection uses the bounded external Paperclip reader.",
+    },
+  },
+  {
+    id: "paperclip_backlog_dispatch",
+    label: "Paperclip · transmettre au backlog",
+    executorKey: "/api/orchestration/missions/dispatch",
+    effect: "external_call",
+    gate: "owner_confirmed",
+    detail:
+      "Désactivé par défaut. Après confirmation du propriétaire, crée une issue externe non assignée au backlog ; ne démarre aucun agent ni exécution.",
+    evidence: {
+      path: "src/server/orchestration/paperclip-dispatch.ts",
+      mustContain: "await fetcher(",
+      because: "The confirmed, feature-gated dispatch sends a backlog issue with assigneeAgentId null.",
+    },
+    covers: ["src/server/orchestration/paperclip-dispatch-store.ts"],
+  },
+  {
+    id: "green_lane_dry_run_preview",
+    label: "Voie verte · aperçu dry-run",
+    executorKey: null,
+    effect: "none",
+    gate: "sentinelle_green_lane",
+    detail:
+      "Toute compétence sans handler in-process retourne un aperçu. Aucun effet, aucun appel sortant.",
+    evidence: {
+      path: "src/server/runtime/skill-dispatcher.ts",
+      mustContain: 'strategy: "dry-run"',
+      because:
+        "The fallback strategy keeps an unimplemented skill inert rather than erroring or improvising.",
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Derived posture
+// ---------------------------------------------------------------------------
+
+/**
+ * How much the runtime can do without a human decision per action.
+ *
+ *   locked  — nothing reachable produces an effect.
+ *   gated   — effects exist, and every one waits for a CEO approval.
+ *   bounded — an effect can occur without traversing the approval rail.
+ */
+export type RuntimePostureState = "locked" | "gated" | "bounded";
+
+export type RuntimePosture = {
+  state: RuntimePostureState;
+  /** Short label for the cockpit pill. */
+  meta: string;
+  /** One sentence naming what produced the state. */
+  detail: string;
+  /** Capabilities that produce an effect. */
+  effectful: readonly RuntimeCapability[];
+  /** Effectful capabilities that do NOT traverse the approval rail. */
+  ungatedEffects: readonly RuntimeCapability[];
+};
+
+/** Whether a gate routes the action through the approval rail. */
+export function isApprovalRailGate(gate: RuntimeGate): boolean {
+  return APPROVAL_RAIL_GATES.includes(gate);
+}
+
+/**
+ * Derives the runtime posture from the inventory. Pure and total: it reports
+ * what the entries say and cannot express a state they do not support.
+ */
+export function deriveRuntimePosture(
+  capabilities: readonly RuntimeCapability[] = RUNTIME_CAPABILITIES,
+): RuntimePosture {
+  const effectful = capabilities.filter((capability) => capability.effect !== "none");
+  const ungatedEffects = effectful.filter((capability) => !isApprovalRailGate(capability.gate));
+
+  if (effectful.length === 0) {
+    return {
+      state: "locked",
+      meta: "Verrouillé",
+      detail: "Aucun exécuteur inventorié ne produit d'effet.",
+      effectful,
+      ungatedEffects,
+    };
+  }
+
+  if (ungatedEffects.length === 0) {
+    return {
+      state: "gated",
+      meta: "Sous approbation",
+      detail: `${effectful.length} exécuteur(s) à effet, tous derrière une approbation CEO explicite.`,
+      effectful,
+      ungatedEffects,
+    };
+  }
+
+  return {
+    state: "bounded",
+    meta: "Borné",
+    detail:
+      `${ungatedEffects.length} exécuteur(s) sur ${effectful.length} produisent un effet hors du rail d'approbation ` +
+      `(${ungatedEffects.map((capability) => capability.label).join(", ")}).`,
+    effectful,
+    ungatedEffects,
+  };
+}

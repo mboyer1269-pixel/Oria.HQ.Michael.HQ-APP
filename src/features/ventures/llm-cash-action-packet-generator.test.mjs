@@ -163,30 +163,44 @@ await test("llm-cash-action-packet-generator", async (t) => {
   });
 
   // -------------------------------------------------------------------------
-  // Auto fallback: Anthropic → OpenAI
+  // Auto does not climb to a second paid provider. The generator has no
+  // authorization argument, so this path must not invent one.
   // -------------------------------------------------------------------------
 
-  await t.test("auto: Anthropic fails → falls back to OpenAI, source=openai", async () => {
+  await t.test("auto without authorization calls Anthropic once and does not call OpenAI", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    let anthropicCalls = 0;
+    let openaiCalls = 0;
     const mod = await loadGenerator();
     const result = await mod.generateLlmCashActionPacketsFromVentures({
       ventures: mod.ORYA_VENTURES,
       fallbackItems,
       createdAt,
       fetchFns: {
-        anthropic: makeErrorFetch(503),
-        openai: makeOpenAiFetch([validRawPacket()]),
+        anthropic: async () => {
+          anthropicCalls += 1;
+          return makeErrorFetch(503)();
+        },
+        openai: async () => {
+          openaiCalls += 1;
+          return makeOpenAiFetch([validRawPacket()])();
+        },
       },
     });
-    assert.equal(result.source, "openai");
-    assert.equal(result.providerFallbackUsed, true);
+    assert.equal(anthropicCalls, 1);
+    assert.equal(openaiCalls, 0);
+    assert.equal(result.source, "fallback_seed");
+    assert.notEqual(result.providerFallbackUsed, true);
+    assert.equal(result.failureChain.length, 1);
+    assert.ok(result.failureChain[0].startsWith("anthropic:"));
     assert.ok(result.packets.length > 0);
   });
 
-  await t.test("auto: both fail → fallback_seed with failureChain", async () => {
+  await t.test("auto does not record an OpenAI failure that was never attempted", async () => {
     process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
     process.env.OPENAI_API_KEY = OPENAI_KEY;
+    let openaiCalls = 0;
     const mod = await loadGenerator();
     const result = await mod.generateLlmCashActionPacketsFromVentures({
       ventures: mod.ORYA_VENTURES,
@@ -194,12 +208,58 @@ await test("llm-cash-action-packet-generator", async (t) => {
       createdAt,
       fetchFns: {
         anthropic: makeErrorFetch(500),
-        openai: makeErrorFetch(500),
+        openai: async () => {
+          openaiCalls += 1;
+          throw new Error("OpenAI must not be called without authorization");
+        },
       },
     });
+    assert.equal(openaiCalls, 0);
     assert.equal(result.source, "fallback_seed");
-    assert.ok(Array.isArray(result.failureChain) && result.failureChain.length >= 2);
+    assert.equal(result.failureChain.length, 1);
+    assert.ok(result.failureChain[0].startsWith("anthropic:"));
+    assert.equal(result.failureChain.some((entry) => entry.startsWith("openai:")), false);
     assert.ok(result.packets.length > 0);
+  });
+
+  await t.test("a second paid provider runs only when the same workspace authorizes it", async () => {
+    process.env.ANTHROPIC_API_KEY = ANTHROPIC_KEY;
+    process.env.OPENAI_API_KEY = OPENAI_KEY;
+    const { generateStructuredJson } = await jiti.import(
+      path.join(projectRoot, "src/server/ai/llm-json-provider.ts"),
+    );
+    let openaiCalls = 0;
+    const fetchFns = {
+      anthropic: makeErrorFetch(503),
+      openai: async () => {
+        openaiCalls += 1;
+        return makeOpenAiFetch([validRawPacket()])();
+      },
+    };
+    const blocked = await generateStructuredJson({
+      providerPreference: "auto",
+      workspaceId: "ws-cash-b",
+      paidFallback: { authorized: true, workspaceId: "ws-cash-a" },
+      systemPrompt: "sys",
+      userPrompt: "user",
+      fetchFns,
+    });
+    assert.equal(blocked.ok, false);
+    assert.equal(openaiCalls, 0);
+    assert.equal(blocked.executedModelId, null);
+
+    const allowed = await generateStructuredJson({
+      providerPreference: "auto",
+      workspaceId: "ws-cash-a",
+      paidFallback: { authorized: true, workspaceId: "ws-cash-a" },
+      systemPrompt: "sys",
+      userPrompt: "user",
+      fetchFns,
+    });
+    assert.equal(allowed.ok, true);
+    assert.equal(allowed.providerUsed, "openai");
+    assert.equal(allowed.fallbackUsed, true);
+    assert.equal(openaiCalls, 1);
   });
 
   // -------------------------------------------------------------------------

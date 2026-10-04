@@ -1,6 +1,21 @@
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
 import type { MissionApprovalRecord } from "./approval-record";
+import type { Mission } from "@/core/types";
+
+/** Durable decision + ledger transaction. No in-memory approval for real launch. */
+export async function commitMissionApprovalDecision(mission: Mission, previousId: string | null, record: MissionApprovalRecord): Promise<boolean> {
+  const supabase = createOptionalSupabaseAdminClient();
+  if (!supabase) throw new Error("mission_approval_store_unavailable");
+  // New RPC is deliberately unavailable until the operator applies migration 0030.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc("commit_mission_approval_decision", {
+    p_workspace_id: mission.workspaceId, p_mission_id: mission.id, p_expected_updated_at: mission.updatedAt,
+    p_previous_id: previousId, p_record: record,
+  });
+  if (error) throw new Error("mission_approval_commit_unavailable");
+  return data === true;
+}
 
 // In-memory fallback array for local development without Supabase
 const mockApprovalRecords: MissionApprovalRecord[] = [];
@@ -20,6 +35,7 @@ export async function insertMissionApprovalRecord(record: MissionApprovalRecord)
       expires_at: record.expiresAt ?? null,
       reason: record.reason ?? null,
       created_at: record.createdAt,
+      binding: record.binding ?? null,
     });
 
     if (error) {
@@ -44,6 +60,7 @@ export async function getMissionApprovalRecord(missionId: string): Promise<Missi
     const { data, error } = await (supabase.from("mission_approvals") as any)
       .select()
       .eq("mission_id", missionId)
+      .order("decision_sequence", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
@@ -65,6 +82,7 @@ export async function getMissionApprovalRecord(missionId: string): Promise<Missi
       expiresAt: data.expires_at ?? undefined,
       reason: data.reason ?? undefined,
       createdAt: data.created_at,
+      binding: data.binding ?? undefined,
     };
   }
 

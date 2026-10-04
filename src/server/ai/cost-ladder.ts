@@ -18,11 +18,12 @@ import type { ModelProfile } from "@/core/types";
 //   2. NO LOCK-IN — the free rung is config-driven: only models flagged
 //      `enabled && recommended` in config/openrouter.free-models.json are
 //      eligible. Promotion into the ladder is a deliberate flag flip (CEO),
-//      never code. Demotion is handled upstream via the router's unavailable
-//      set, so a vanished free model falls back to paid with no edit here.
+//      never code. An unavailable free model is not replaced by a paid model
+//      in this module. The router refuses it instead of climbing a paid chain.
 //
-// Pure + deterministic: no clock, no I/O, no module state. The caller reads the
-// agent's current spend and commits the new spend; this module only decides.
+// Pure + deterministic: no clock, no I/O, no module state. estimatedCost is a
+// relative weight (0, 1 or 5), not dollars. This module does not commit spend.
+// A durable budget is not implemented here.
 // ---------------------------------------------------------------------------
 
 /** Ordered cheapest → dearest. The ladder never picks below a task's floor. */
@@ -68,7 +69,10 @@ export const TASK_CLASS_HARD_FLOOR: Record<TaskClass, CostRung> = {
   general: "free",
 };
 
-/** Estimated relative cost of one call at each rung (no live billing yet). */
+/**
+ * Relative weight of a rung. These integers are not dollars and must not be
+ * added to a spend store from model selection.
+ */
 export const RUNG_COST_WEIGHT: Record<CostRung, number> = {
   free: 0,
   economy: 1,
@@ -164,7 +168,7 @@ export function freeModelProfile(entry: FreeModelEntry): ModelProfile {
     provider: "openrouter",
     defaultUse: "Cost Ladder — étage gratuit (OpenRouter), plancher de qualité respecté.",
     costTier: "low",
-    strengths: ["coût zéro", "free-first", "sans lock-in"],
+    strengths: ["poids relatif 0, pas un dollar", "free-first", "sans lock-in"],
   };
 }
 
@@ -199,6 +203,11 @@ export type LadderDecision = {
   floorBound: boolean;
   /** Estimated cost of this call at the chosen rung. */
   estimatedCost: number;
+  /**
+   * The free rung had no eligible model. The rung stays free and nothing
+   * paid is selected in its place.
+   */
+  block?: "free_unavailable";
   reason: string;
 };
 
@@ -219,7 +228,7 @@ export function decideLadder(input: LadderInput): LadderDecision {
   // Budget pressure pulls all the way to free; otherwise honor the target.
   const desiredRung: CostRung = overBudget ? "free" : targetRung;
   // The hard floor wins last — only the client audit actually has one.
-  let rung = higherRung(desiredRung, hardFloor);
+  const rung = higherRung(desiredRung, hardFloor);
 
   const budgetBound = overBudget && RUNG_ORDER[rung] < RUNG_ORDER[targetRung];
   const floorBound = RUNG_ORDER[rung] > RUNG_ORDER[desiredRung];
@@ -229,8 +238,6 @@ export function decideLadder(input: LadderInput): LadderDecision {
   if (rung === "free") {
     freeModel = selectFreeModel(input.freeCatalog);
     if (!freeModel) {
-      // Honest fallback: a free rung with no eligible model becomes economy.
-      rung = "economy";
       noFreeAvailable = true;
     }
   }
@@ -251,6 +258,7 @@ export function decideLadder(input: LadderInput): LadderDecision {
     budgetBound,
     floorBound,
     estimatedCost: RUNG_COST_WEIGHT[rung],
+    ...(noFreeAvailable ? { block: "free_unavailable" as const } : {}),
     reason,
   };
 }
@@ -269,10 +277,10 @@ function buildReason(args: {
     return "Budget agent du jour atteint: routage rétrogradé vers l'étage gratuit.";
   }
   if (args.rung === "free" && args.freeModel) {
-    return `Étage gratuit visé par la tâche: ${args.freeModel.name} (OpenRouter), zéro coût.`;
+    return `Étage gratuit visé par la tâche: ${args.freeModel.name} (OpenRouter). Poids relatif 0, qui n'est pas un montant en dollars ni un coût observé.`;
   }
   if (args.noFreeAvailable) {
-    return "Étage gratuit visé mais aucun modèle free éligible (enabled+recommended): repli économie.";
+    return "Étage gratuit visé mais aucun modèle free éligible (enabled+recommended): aucune descente payante.";
   }
   return "Routage de base conservé sous le plafond de budget.";
 }

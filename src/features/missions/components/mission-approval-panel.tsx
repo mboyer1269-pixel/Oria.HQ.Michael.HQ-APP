@@ -1,3 +1,4 @@
+import { MissionApprovalControls } from "./mission-approval-controls";
 import type { Mission } from "@/core/types";
 import { getAgentDisplayName } from "@/features/agents/naming";
 import { evaluateMissionApproval } from "@/server/missions";
@@ -53,35 +54,7 @@ function ApprovalCard({ mission }: { mission: Mission }) {
         </div>
       </dl>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          className="inline-flex min-h-9 cursor-not-allowed items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-600 opacity-50"
-        >
-          Approve
-        </button>
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          className="inline-flex min-h-9 cursor-not-allowed items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 px-4 text-sm font-semibold text-red-600 opacity-50"
-        >
-          Reject
-        </button>
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          className="inline-flex min-h-9 cursor-not-allowed items-center justify-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-600 opacity-50"
-        >
-          Request changes
-        </button>
-        <span className="ml-auto rounded-md border border-neutral-800 bg-neutral-900 px-2 py-1 text-[10px] font-medium text-neutral-500">
-          Mock only — no action is executed
-        </span>
-      </div>
+      <MissionApprovalControls missionId={mission.id} />
     </article>
   );
 }
@@ -93,8 +66,7 @@ interface MissionApprovalPanelProps {
 /**
  * Displays missions requiring human review.
  * Approval evaluation delegated to evaluateMissionApproval() — no inline logic.
- * All action buttons are disabled — read-only visualization of the future approval gate.
- * No writes, no AI calls, no state mutations.
+ * Owner controls prepare an exact review before recording a decision. No model call.
  */
 export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
   const gated = missions.filter((m) => evaluateMissionApproval(m).required);
@@ -106,19 +78,17 @@ export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">
-            Approbation exécuteur (Phase 2 — mock)
+            Approbation des missions
           </p>
           <h2 className="mt-2 text-xl font-semibold text-white">
-            {gated.length} mission{gated.length > 1 ? "s" : ""} seed en attente (exécuteur futur)
+            {gated.length} mission{gated.length > 1 ? "s" : ""} de cette page {gated.length > 1 ? "nécessitent" : "nécessite"} une revue
           </h2>
           <p className="mt-1 text-sm text-neutral-400">
-            Distinct du gate calendrier Joris : les rendez-vous pending se confirment sur{" "}
-            <strong className="font-medium text-amber-200">Michael HQ</strong> (#mission-draft-pending).
-            Ici : preview Phase 2 — boutons désactivés, aucune exécution.
+            Examinez le dossier, le compte et les limites avant de décider. Le lancement reste distinct.
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-neutral-700 px-3 py-1 text-[11px] font-medium text-neutral-500">
-          Mock only
+          Décision du propriétaire
         </span>
       </div>
 
@@ -128,14 +98,6 @@ export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
         ))}
       </div>
 
-      <div className="mt-5 rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-        <p className="text-xs leading-5 text-neutral-600">
-          <span className="font-medium text-neutral-500">Phase 2 — </span>
-          Approbation avant exécution autonome du Mission Executor. Le gate{" "}
-          <span className="text-neutral-400">calendar.book</span> (mission draft + confirm) est déjà live sur{" "}
-          <span className="text-neutral-400">/hq</span>, pas dans ce panneau.
-        </p>
-      </div>
     </section>
   );
 }

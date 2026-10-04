@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { AgendaPanel } from "@/features/hq/components/agenda-panel";
 import { CommandCenter } from "@/features/hq/components/command-center";
 import { CommandTower } from "@/features/hq/components/command-tower";
@@ -123,6 +124,8 @@ export default async function HqPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
+  const { activeWorkspace } = getActiveWorkspaceContext();
+
   return (
     <CockpitShell active="hq" crumb="HQ">
       <HqPageHeader
@@ -228,7 +231,7 @@ export default async function HqPage() {
       <MissionDraftPendingPanel variant="banner" />
 
       <HqWidgetGrid className="lg:grid-cols-[1.15fr_0.85fr]">
-        <CommandCenter />
+        <CommandCenter workspaceId={activeWorkspace.id} />
         <AgendaPanel />
       </HqWidgetGrid>
 

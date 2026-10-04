@@ -46,7 +46,10 @@ export type AnthropicJsonSuccess = {
   ok: true;
   json: unknown;
   rawText: string;
+  /** Id placed in the request. Not an observation of the model that ran. */
   modelId: string;
+  /** `model` from the response body. Null when the body does not say. */
+  observedModelId: string | null;
   tokenUsage?: { input: number; output: number };
 };
 
@@ -104,6 +107,7 @@ export async function generateJsonWithAnthropic(
   const timeoutMs = input.timeoutMs ?? ANTHROPIC_JSON_DEFAULT_TIMEOUT_MS;
   const temperature = input.temperature ?? ANTHROPIC_JSON_DEFAULT_TEMPERATURE;
 
+  // Armed through response.json(). Clearing after headers leaves a stalled body unbounded.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -125,8 +129,6 @@ export async function generateJsonWithAnthropic(
       }),
     });
 
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
       return {
         ok: false,
@@ -137,9 +139,12 @@ export async function generateJsonWithAnthropic(
     }
 
     const data = (await response.json()) as {
+      model?: string;
       content?: Array<{ type: string; text?: string }>;
       usage?: { input_tokens?: number; output_tokens?: number };
     };
+    const observedModelId =
+      typeof data.model === "string" && data.model.length > 0 ? data.model : null;
 
     const rawText = data?.content?.[0]?.text ?? "";
 
@@ -171,11 +176,9 @@ export async function generateJsonWithAnthropic(
         ? { input: data.usage.input_tokens, output: data.usage.output_tokens }
         : undefined;
 
-    return { ok: true, json, rawText, modelId, tokenUsage };
+    return { ok: true, json, rawText, modelId, observedModelId, tokenUsage };
   } catch (err) {
-    clearTimeout(timeoutId);
-
-    if (err instanceof Error && err.name === "AbortError") {
+    if (isAbortError(err)) {
       return {
         ok: false,
         errorCode: "timeout",
@@ -190,5 +193,16 @@ export async function generateJsonWithAnthropic(
       fallbackReason: "Unexpected error contacting Anthropic",
       modelId,
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const name = "name" in err ? err.name : undefined;
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const cause = "cause" in err ? err.cause : undefined;
+  if (!cause || typeof cause !== "object" || !("name" in cause)) return false;
+  return cause.name === "AbortError" || cause.name === "TimeoutError";
 }

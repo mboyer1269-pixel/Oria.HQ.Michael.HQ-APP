@@ -12,6 +12,8 @@
 // Transport is injectable — tests use fakes; production may use controlled
 // stdio (see memex-stdio-transport.ts) when env + local gate allow.
 
+import { createHash } from "node:crypto";
+
 import {
   MEMEX_V1_FORBIDDEN_TOOLS,
   MEMEX_V1_READ_ALLOWLIST,
@@ -158,20 +160,8 @@ export function validateMemexToolDiscovery(
   if (allowedAvailable.length === 0) {
     errors.push("no allowlisted read tool discovered — handshake cannot proceed");
   }
-  for (const tool of names) {
-    if (
-      !MEMEX_V1_READ_ALLOWLIST.includes(tool as MemexToolName) &&
-      !isWildcardTool(tool) &&
-      typeof tool === "string" &&
-      (tool.includes("write") ||
-        tool.includes("delete") ||
-        tool.includes("propose") ||
-        tool.includes("consolidate") ||
-        tool.includes("deprecate"))
-    ) {
-      errors.push(`destructive-sounding tool "${tool}" observed — v1 never calls it`);
-    }
-  }
+  // Listing a server capability is not authorization to invoke it. The call
+  // boundary still rejects everything outside the exact read allowlist.
   return errors.length === 0
     ? { ok: true, allowedAvailable }
     : { ok: false, errors };
@@ -238,6 +228,9 @@ export async function callMemexReadTool(
   if (!policy.toolAllowlist.includes(toolName)) {
     return { ok: false, reason: `tool "${toolName}" is not on this policy allowlist` };
   }
+  if (args.namespace !== policy.namespace) {
+    return { ok: false, reason: "requested namespace does not match the bridge policy" };
+  }
   const timeoutMs = options?.timeoutMs ?? policy.timeoutMs ?? MEMEX_DEFAULT_TIMEOUT_MS;
   try {
     const raw = await withTimeout(
@@ -248,8 +241,8 @@ export async function callMemexReadTool(
     if (typeof raw !== "string") {
       return { ok: false, reason: "MCP tool returned non-text payload" };
     }
-    const bounded =
-      raw.length > MEMEX_MAX_OUTPUT_CHARS ? `${raw.slice(0, MEMEX_MAX_OUTPUT_CHARS)}…` : raw;
+    if (raw.length > MEMEX_MAX_OUTPUT_CHARS) return { ok: false, reason: "MCP output exceeds the safe parsing budget" };
+    const bounded = raw;
     const { text, redactions } = redactMemoryText(bounded);
     return { ok: true, text, redactionsApplied: redactions };
   } catch (error) {
@@ -265,12 +258,8 @@ export async function callMemexReadTool(
 // ---------------------------------------------------------------------------
 
 export function workspaceIdToMemexNamespace(workspaceId: string): string {
-  const normalized = workspaceId.trim().toLowerCase().replace(/-/g, ".");
-  if (/^[a-z][a-z0-9._-]{0,63}$/.test(normalized)) {
-    return normalized;
-  }
-  const prefixed = `w.${normalized.replace(/[^a-z0-9._-]/g, "")}`;
-  return prefixed.slice(0, 64).replace(/\.+$/, "") || "w.unknown";
+  if (/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,110}$/.test(workspaceId)) return `org:workspace:${workspaceId}`;
+  return `org:workspace-sha256:${createHash("sha256").update(workspaceId).digest("hex")}`;
 }
 
 export function defaultMemexBridgePolicy(namespace: string): MemexBridgePolicy {
@@ -293,24 +282,35 @@ export function librarianBriefToContextItems(
   policy: MemexBridgePolicy,
   retrievedAtIso: string,
 ): MemexContextItem[] {
-  const trimmed = text.trim();
-  if (trimmed.length === 0) {
-    return [];
+  // A prose brief contains no trustworthy item-level identity or zone.
+  void text; void policy; void retrievedAtIso;
+  return [];
+}
+
+export function graphRowsToContextItems(text: string, policy: MemexBridgePolicy, retrievedAtIso: string): MemexContextItem[] {
+  let rows: unknown;
+  try { rows = JSON.parse(text); } catch { return []; }
+  if (!Array.isArray(rows)) return [];
+  const items: MemexContextItem[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const props = row.properties;
+    const stamp = row.updatedAt || row.createdAt;
+    if (typeof row.id !== "string" || seen.has(row.id) || row.namespace !== policy.namespace ||
+      typeof row.source !== "string" || !row.source.trim() || typeof stamp !== "string" || !Number.isFinite(Date.parse(stamp)) ||
+      !props || !["verified", "active"].includes(props.status)) continue;
+    if (row.validFrom && (!Number.isFinite(Date.parse(row.validFrom)) || Date.parse(row.validFrom) > Date.parse(retrievedAtIso))) continue;
+    if (row.validTo && (!Number.isFinite(Date.parse(row.validTo)) || Date.parse(row.validTo) <= Date.parse(retrievedAtIso))) continue;
+    seen.add(row.id);
+    // Status/zone inside properties may originate from a proposal. They do not
+    // certify authorship or trust. This is a system read of advisory evidence.
+    items.push({ id: row.id, zone: "system", deprecated: false,
+      content: JSON.stringify({ id: row.id, type: row.type, name: row.name, properties: props, source: row.source }),
+      observedAtIso: stamp,
+      provenance: { sourceTool: "agentmemory_graph_query", namespace: row.namespace, retrievedAtIso, memexVersion: null } });
   }
-  return [
-    {
-      id: "memex-librarian-brief",
-      zone: "human",
-      deprecated: false,
-      content: trimmed,
-      provenance: {
-        sourceTool: "agentmemory_librarian_brief",
-        namespace: policy.namespace,
-        retrievedAtIso,
-        memexVersion: null,
-      },
-    },
-  ];
+  return items;
 }
 
 export function buildMemoryEvidencePackFromSelection(input: {
@@ -333,13 +333,16 @@ export function buildMemoryEvidencePackFromSelection(input: {
     source: "memex",
     sourceTool: input.sourceTool,
     namespace: input.policy.namespace,
-    zone: "human",
-    agentZonePolicyReference: null,
+    zone: input.selection.injectable.some(item => item.zone === "system") ? "system" : input.selection.injectable.some(item => item.zone === "agent") ? "agent" : "human",
+    agentZonePolicyReference: input.policy.allowAgentZone ? "memex-bridge-explicit-agent-zone" : null,
     memoryIds,
     provenance,
     deprecatedExcluded: true,
     trustLevel: input.trustLevel ?? "active",
-    freshness: { oldestIso: input.nowIso, newestIso: input.nowIso },
+    freshness: {
+      oldestIso: input.selection.injectable.map(item => item.observedAtIso ?? input.nowIso).sort()[0] ?? input.nowIso,
+      newestIso: input.selection.injectable.map(item => item.observedAtIso ?? input.nowIso).sort().at(-1) ?? input.nowIso,
+    },
     conflictPolicy: "exclude_conflicts",
     conflicts: [],
     contextBudget: input.policy.maxContextChars,
@@ -368,14 +371,15 @@ export function buildMemexContextInjection(
   retrievedAtIso: string,
   redactionsApplied: number,
 ): MemexContextInjectionResult | null {
-  const items = librarianBriefToContextItems(briefText, policy, retrievedAtIso);
+  const items = graphRowsToContextItems(briefText, policy, retrievedAtIso);
   const selection = selectInjectableMemexItems(items, policy);
   if (selection.injectable.length === 0) {
     return null;
   }
   const evidencePack = buildMemoryEvidencePackFromSelection({
     policy,
-    sourceTool: "agentmemory_librarian_brief",
+    sourceTool: "agentmemory_graph_query",
+    trustLevel: "untrusted",
     selection,
     nowIso: retrievedAtIso,
     redactionsApplied,

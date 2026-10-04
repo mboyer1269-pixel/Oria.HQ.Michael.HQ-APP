@@ -33,7 +33,12 @@ test("Joris brain — conversational LLM wiring", async (t) => {
     assert.equal(result.generation, "llm");
     assert.equal(result.summary, "REPONSE_LLM_MOCK");
     assert.equal(result.modelId, "mock-model-x");
-    assert.equal(result.costMode, "economy");
+    assert.equal(result.executedModelId, "mock-model-x");
+    assert.ok(result.chosenModelId);
+    assert.notEqual(result.chosenModelId, result.executedModelId);
+    assert.equal(result.costMode, undefined);
+    assert.equal(result.costAccounting.kind, "unknown_cost");
+    assert.equal(result.costAccounting.monetaryUsd, null);
   });
 
   await t.test("falls back to a deterministic summary when the LLM is unavailable (no silent AI mode)", async () => {
@@ -75,6 +80,8 @@ test("Joris brain — conversational LLM wiring", async (t) => {
       result.summary.includes("VERIFIED_MEMORY_LESSONS_FOR_JORIS"),
       "verified-lessons rail preserved verbatim",
     );
-    assert.equal(result.costMode, "economy");
+    assert.equal(result.executedModelId, "mock-model");
+    assert.equal(result.costMode, undefined);
+    assert.equal(result.costAccounting.monetaryUsd, null);
   });
 });

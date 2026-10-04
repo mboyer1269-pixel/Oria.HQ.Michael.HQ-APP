@@ -128,6 +128,18 @@ describe("n8n_webhook_trigger tool", () => {
     assert.equal(fetchImpl.calls.length, 0);
   });
 
+  test("plaintext non-loopback destinations are refused before fetch", async () => {
+    process.env.N8N_WEBHOOK_URL = "http://hooks.n8n.cloud/webhook/abc";
+    const fetchImpl = makeFetch(okResponse);
+    const res = await n8nWebhookTriggerTool.handler(
+      PAYLOAD,
+      ctx({ fetchImpl, isAllowed: async () => true }),
+    );
+    assert.equal(res.ok, false);
+    assert.match(res.error, /valid URL or protocol/);
+    assert.equal(fetchImpl.calls.length, 0);
+  });
+
   test("agent/skill with no approved binding is refused", async () => {
     const fetchImpl = makeFetch(okResponse);
     const res = await n8nWebhookTriggerTool.handler(

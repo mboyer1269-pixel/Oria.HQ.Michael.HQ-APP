@@ -92,14 +92,30 @@ export async function requireOwnerAccess(nextPath = "/hq"): Promise<OwnerAccess>
   };
 }
 
-/** Pour les Route Handlers : même barrière que le HQ, sans redirect HTML. */
+/**
+ * Pour les Route Handlers : même barrière que le HQ, sans redirect HTML.
+ *
+ * `__ownerApiSessionTestResult` est un point d'injection de test documenté
+ * (`src/server/agents/execution-intent-rail-api.test.mjs`,
+ * `src/server/orchestration/paperclip-read.test.mjs`) : la propriété présente
+ * vaut « réponse imposée », et `null` vaut « autorisé ».
+ *
+ * Elle n'est lue **qu'hors production** — même garde explicite que
+ * `src/server/arena/get-arena-service.ts`. En production la dérivation
+ * n'existe pas : aucune propriété posée sur `globalThis` côté serveur ne peut
+ * court-circuiter la vérification de session et d'appartenance ci-dessous.
+ * Cette garde est de la défense en profondeur ; aucun module de production ne
+ * pose cette propriété aujourd'hui.
+ */
 export async function requireOwnerApiSession(): Promise<NextResponse | null> {
-  const globals = globalThis as typeof globalThis & {
-    __ownerApiSessionTestResult?: NextResponse | null;
-  };
+  if (process.env.NODE_ENV !== "production") {
+    const globals = globalThis as typeof globalThis & {
+      __ownerApiSessionTestResult?: NextResponse | null;
+    };
 
-  if (Object.prototype.hasOwnProperty.call(globals, "__ownerApiSessionTestResult")) {
-    return globals.__ownerApiSessionTestResult ?? null;
+    if (Object.prototype.hasOwnProperty.call(globals, "__ownerApiSessionTestResult")) {
+      return globals.__ownerApiSessionTestResult ?? null;
+    }
   }
 
   const user = await getCurrentAuthUser();

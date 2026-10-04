@@ -1,0 +1,18 @@
+# OpenHands owner confirmation endpoint (disabled by default)
+
+`POST /api/orchestration/openhands` is implemented but not activated. `ORIA_ENABLE_OPENHANDS_CONFIRMATION` must equal the exact string1 in server process configuration; absent/other values disable the endpoint. No environment file or production setting was changed. A subsequent minimal mission dossier UI is documented in OPENHANDS_PREPARATION_UI.md. No model launch, OpenHands HTTP adapter or deployment is included.
+
+A single Supabase User lookup establishes both owner authorization and actual actorId. Workspace comes from server configuration. A strict exact Origin check uses ORIA_HQ_PUBLIC_ORIGIN when configured, otherwise request URL origin; forwarded/Host headers are not an authority. Body is JSON bounded to8192bytes/5seconds. Client actor/workspace/authority fields are rejected. Replies are private/no-store.
+
+Actions:
+
+- prepare: exact submission fields (missionId, expectedUpdatedAt, commitSha, executorVersion, budget), returns a freshly rebuilt dossier. No authority/reservation write. An existing matching reservation returns already_reserved or reconciliation_required explicitly, not a new prepared dossier.
+- confirm: the same fields plus expectedPayloadHash and confirm:true. The current dossier is rebuilt and compared; reservation reloads/rebuilds again before resolving authority, protecting against a change between preview and confirmation. All responses keep externalEffectAllowed:false.
+
+The dedicated authority store reuses action_ledger because its generic record() always generates a fresh ID and cannot alone deduplicate concurrent confirmations. No schema migration: the existing UUID primary key accepts a deterministic RFC9562 UUIDv8 derived from workspace/key/payload hash/actual actor. Insert-or-ignore then scoped canonical reread verifies user, workspace, mission, action/event type, full dossier payload and strict authority metadata. JSON object key order does not affect this comparison. Only the record actually persisted is passed to the reservation resolver. No in-memory bool is accepted as proof.
+
+The decision stores the whole reviewed dossier and binds key/hash/version/actor. Its lifetime is10minutes. Repeated or concurrent same-dossier confirmations retain the original decision/expiry; they never extend it. A confirmed reservation returns its existing receipt without another authorization insert or reservation audit. An expired decision is reported as authorization_expired; renewal is not implemented and must not be automatic. A persistence response lost before canonical reread is authorization_outcome_unknown; no reservation follows until a later explicit reconciliation/retry can recover the same canonical record. The deterministic key prevents that retry from creating another decision. Dossier changes conflict; no external action occurs on any path.
+
+The runtime inventory lists these stores as owner-driven application persistence, not as a connected execution capability. This endpoint creates a narrowly bound submission decision; it does not authorize arbitrary tools, network access, credentials, deployment or spend. The existing executor remains dry-run-only.
+
+Tests use real Supabase query serialization with synthetic fetch and deterministic CAS fixtures. They do not prove SQL concurrency or deployed owner-session integration. Before enabling: qualify actual ledger uniqueness/readback and CAS on an isolated database, exercise real authenticated request boundaries, provide a user review interface that displays the full dossier, implement reconciliation and explicit renewal policy, and separately establish enforceable executor capabilities. No rollout is claimed.

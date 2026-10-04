@@ -429,13 +429,48 @@ export type GovernanceAuditExport = {
   noExecutionAuthorized: true;
 };
 
+/**
+ * Accounting kinds for one model decision or one provider attempt.
+ * Relative weights 0/1/5 are not dollars. `monetaryUsd: null` means unknown
+ * or not applicable — it is not a zero-dollar observation.
+ */
+export type RoutingCostKind =
+  | "estimation"
+  | "reservation"
+  | "observed_usage"
+  | "unknown_cost"
+  | "failed_maybe_billed"
+  | "refused";
+
+export type RoutingCostAssessment = {
+  kind: RoutingCostKind;
+  /** No price table in this build. Null is never a claimed spend of zero dollars. */
+  monetaryUsd: null;
+  /** Ladder weight when kind is estimation. Not a currency amount. */
+  relativeWeight?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  networkRequestSent: boolean;
+};
+
 // --- Command result (assistant turn output) ----------------------------------
 
 export type CommandResult = {
   intent: JorisIntent;
   summary: string;
+  /**
+   * On `generation: "llm"`, the id actually placed in the provider request.
+   * On `generation: "fallback"`, absent — the summary was not produced by a model.
+   * On rules results, the chosen route id, not an executed call. See `executedModelId`.
+   */
   modelId?: string;
+  /** Model the router selected. Present even when nothing was called. */
+  chosenModelId?: string;
+  /** Id sent to a provider. Null when no request carried a model id. */
+  executedModelId?: string | null;
   costMode?: ModelMode;
+  /** Selection estimate or attempt outcome. `monetaryUsd` stays null. */
+  costAccounting?: RoutingCostAssessment;
   workspaceId?: string;
   modeId?: string;
   assistantId?: string;

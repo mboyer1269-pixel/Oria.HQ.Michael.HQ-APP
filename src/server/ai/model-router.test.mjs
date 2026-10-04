@@ -64,7 +64,7 @@ test("economy mode routes to economy brain", () => {
   assert.equal(decision.via, "keyword");
 });
 
-test("unavailable primary model falls back to next candidate", () => {
+test("unavailable primary model is refused without a paid substitution", () => {
   clearBrainRouteLog();
 
   const decision = chooseModel({
@@ -72,9 +72,13 @@ test("unavailable primary model falls back to next candidate", () => {
     unavailableModelIds: [PREMIUM_MODEL_ID],
   });
 
-  assert.notEqual(decision.modelId, PREMIUM_MODEL_ID);
-  assert.equal(decision.modelId, "gpt-4o");
+  assert.equal(decision.modelId, PREMIUM_MODEL_ID);
+  assert.equal(decision.chosenModelId, PREMIUM_MODEL_ID);
+  assert.equal(decision.executedModelId, null);
+  assert.equal(decision.execution, "refused");
+  assert.notEqual(decision.modelId, "gpt-4o");
   assert.match(decision.reason, /indisponible/i);
+  assert.equal(decision.accountingEffect, "none");
 
   clearBrainRouteLog();
 
@@ -84,7 +88,9 @@ test("unavailable primary model falls back to next candidate", () => {
     unavailableModelIds: [ECONOMY_MODEL_ID],
   });
 
-  assert.notEqual(economyFallback.modelId, ECONOMY_MODEL_ID);
+  assert.equal(economyFallback.modelId, ECONOMY_MODEL_ID);
+  assert.equal(economyFallback.execution, "refused");
+  assert.equal(economyFallback.executedModelId, null);
 });
 
 test("ambiguous message uses semantic fallback classifier", () => {
@@ -156,10 +162,10 @@ test("cost ladder routes a free-eligible class to the free model, overriding key
   assert.equal(decision.via, "cost-ladder");
 });
 
-test("cost ladder budget guard downgrades general to free once the budget is spent", () => {
+test("choosing a model does not spend the budget, so a second selection is not downgraded", () => {
   resetLadderBudget();
   const base = {
-    message: "Prépare le comité pour la négociation.", // strategic → base premium (cost 5)
+    message: "Prépare le comité pour la négociation.", // strategic → base premium (weight 5)
     taskClass: "general",
     agentId: "relay",
     freeCatalog: [FREE_MODEL],
@@ -167,11 +173,15 @@ test("cost ladder budget guard downgrades general to free once the budget is spe
     nowMs: FIXED_NOW,
   };
   const first = chooseModel(base);
-  assert.equal(first.modelId, PREMIUM_MODEL_ID); // budget not yet spent
+  assert.equal(first.modelId, PREMIUM_MODEL_ID);
+  assert.equal(first.accountingEffect, "none");
+  assert.equal(first.estimate.monetaryUsd, null);
+  assert.equal(first.estimate.relativeWeight, 5);
+  assert.equal(first.estimate.unit, "relative_weight_not_dollars");
 
-  const second = chooseModel(base); // now over budget
-  assert.equal(second.modelId, FREE_MODEL.id);
-  assert.equal(second.via, "cost-ladder");
+  const second = chooseModel(base);
+  assert.equal(second.modelId, PREMIUM_MODEL_ID);
+  assert.notEqual(second.modelId, FREE_MODEL.id);
 });
 
 test("budget pressure never lowers client_audit below premium", () => {
@@ -188,18 +198,21 @@ test("budget pressure never lowers client_audit below premium", () => {
   assert.equal(second.modelId, PREMIUM_MODEL_ID); // floor beats budget
 });
 
-test("shadow tagging does not force a free model when the catalog has no eligible entry", () => {
+test("shadow tagging does not emit a paid model when the free catalog is empty", () => {
   resetLadderBudget();
-  // Shadow-tagging default: a free-targeting class is supplied WITHOUT a
-  // freeCatalog (exactly how the brain call sites tag in this phase). The ladder
-  // must honestly degrade free → economy rather than invent a free model.
   const decision = chooseModel({
     message: "Reformule cette phrase simplement.",
     taskClass: "classification",
     agentId: "joris",
     nowMs: FIXED_NOW,
   });
-  assert.equal(decision.modelId, ECONOMY_MODEL_ID);
+  assert.equal(decision.execution, "refused");
+  assert.equal(decision.refusalReason, "free_unavailable");
+  assert.equal(decision.executedModelId, null);
+  assert.equal(decision.estimate.kind, "estimation");
+  assert.equal(decision.estimate.relativeWeight, 0);
+  assert.equal(decision.estimate.monetaryUsd, null);
+  assert.match(decision.reason, /aucune descente payante/);
   assert.equal(decision.via, "cost-ladder");
   assert.notEqual(decision.modelId, FREE_MODEL.id);
 });

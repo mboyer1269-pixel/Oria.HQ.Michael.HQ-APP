@@ -3,6 +3,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import {
   Bot,
+  BookOpen,
   Building2,
   CircleDot,
   FileText,
@@ -43,9 +44,10 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { key: "hq", label: "HQ", href: "/hq", icon: Home, group: "Pilotage", tipTitle: "HQ", tipDetail: "Command surface privée — workspace overview, CEO brief, ledger, modules." },
+  { key: "hq", label: "HQ", href: "/hq", icon: Home, group: "Pilotage", tipTitle: "HQ", tipDetail: "Objectif, missions et dernières décisions de votre espace." },
   { key: "cockpit", label: "Cockpit", href: "/hq/cockpit", icon: LayoutDashboard, group: "Pilotage", tipTitle: "Cockpit", tipDetail: "Tout ce qui requiert ton attention aujourd'hui, en un écran." },
   { key: "missions", label: "Missions", href: "/hq/missions", icon: ListChecks, group: "Pilotage", tipTitle: "Missions", tipDetail: "Drafts, approbations et suivi d'exécution contrôlée." },
+  { key: "memory", label: "Mémoire", href: "/hq/memory", icon: BookOpen, group: "Pilotage", tipTitle: "Mémoire du projet", tipDetail: "Consulter les connaissances, leur source et leurs limites de conservation." },
   { key: "agents", label: "Agents", href: "/hq/agents", icon: Bot, group: "Pilotage", tipTitle: "Agents · gouvernance", tipDetail: "Autonomie, knowledge packs, scorecards et file de revue." },
   { key: "workflows", label: "Workflows", href: "/hq/workflows", icon: Workflow, group: "Pilotage", tipTitle: "Workflows live", tipDetail: "Runs multi-agents en direct, lignes d'étapes et KPIs mesurés sur observations réelles." },
   { key: "skills", label: "Skills", href: "/hq/skills", icon: Sparkles, group: "Pilotage", tipTitle: "Skills", tipDetail: "Catalogue des compétences gouvernées." },
@@ -90,7 +92,7 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
     : "border-transparent text-[#98a1c4] hover:border-white/10 hover:bg-white/[0.04] hover:text-[#eff1fb]";
   return (
     <Tooltip title={item.tipTitle} detail={item.tipDetail} meta={item.tipMeta} align="left" className="w-full">
-      <Link href={item.href as Route} className={`${base} ${state} w-full`}>
+      <Link href={item.href as Route} aria-label={item.label} aria-current={active ? "page" : undefined} className={`${base} ${state} w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400`}>
         {active ? (
           <span className="absolute -left-3.5 top-2 bottom-2 w-[3px] rounded bg-gradient-to-b from-violet-400 to-cyan-400" />
         ) : null}
@@ -117,6 +119,7 @@ export function CockpitShell({
 
   return (
     <div className="grid min-h-screen grid-cols-[64px_1fr] bg-[#080a16] md:grid-cols-[250px_1fr]">
+      <a href="#hq-main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:p-3 focus:text-black">Aller au contenu</a>
       {/* Sidebar */}
       <aside className="sticky top-0 flex h-screen flex-col gap-1.5 overflow-auto border-r border-white/[0.06] bg-gradient-to-b from-[#0c1020]/95 to-[#080b18]/95 p-3.5 backdrop-blur-xl">
         <div className="flex items-center gap-3 px-2 pb-4 pt-1.5">
@@ -173,7 +176,7 @@ export function CockpitShell({
         {/* Read-only activity rail (no fabricated events, no ledger writes). */}
         <ActivityRail />
 
-        <main className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
+        <main id="hq-main" tabIndex={-1} className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
           {children}
         </main>
       </div>

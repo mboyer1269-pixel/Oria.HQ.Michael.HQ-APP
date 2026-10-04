@@ -14,31 +14,31 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 495 |
-| TEST_ONLY | 3 |
-| INCUBATION | 44 |
-| **Total source** | **542** |
+| LIVE | 596 |
+| TEST_ONLY | 5 |
+| INCUBATION | 46 |
+| **Total source** | **647** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
-| server/agents | 12 |
+| server/agents | 9 |
 | features/cockpit | 7 |
 | features/memory | 7 |
-| features/ventures | 3 |
-| server/missions | 3 |
+| features/ventures | 5 |
+| features/missions | 3 |
+| features/hq | 2 |
 | server/arena | 2 |
+| server/missions | 2 |
+| server/ventures | 2 |
 | features/agents | 1 |
-| features/hq | 1 |
 | features/outbound | 1 |
 | features/skills | 1 |
 | lib/cn.ts | 1 |
 | scripts/check-supabase-config.ts | 1 |
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
-| server/ai | 1 |
-| server/ventures | 1 |
 
 ## Incubation files (full list)
 
@@ -53,6 +53,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/cockpit/components/venture-suggestions.tsx`
 - `src/features/cockpit/widgets/widget-manifest.ts`
 - `src/features/hq/capability-status.ts`
+- `src/features/hq/components/home-mission-overview.tsx`
 - `src/features/memory/components/agent-leaderboard.tsx`
 - `src/features/memory/components/daily-log-card.tsx`
 - `src/features/memory/components/memory-subject-card.tsx`
@@ -60,20 +61,22 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/memory/components/venture-progress-panel.tsx`
 - `src/features/memory/seed.ts`
 - `src/features/memory/types.ts`
+- `src/features/missions/components/mission-calendar-flow-section.tsx`
+- `src/features/missions/components/mission-flow-legend.tsx`
+- `src/features/missions/components/mission-system-status.tsx`
 - `src/features/outbound/components/outbound-batch-panel.tsx`
 - `src/features/skills/skill-governance.ts`
+- `src/features/ventures/cash-action-packet-generator.ts`
 - `src/features/ventures/executive-selection-index.ts`
 - `src/features/ventures/hermes-prep-plan.ts`
+- `src/features/ventures/llm-cash-action-packet-generator.ts`
 - `src/features/ventures/venture-cash-score.ts`
 - `src/lib/cn.ts`
 - `src/scripts/check-supabase-config.ts`
 - `src/scripts/mcl-archive-dir.ts`
 - `src/scripts/process-document.ts`
 - `src/server/agents/evidence/runtime-evidence-pack.ts`
-- `src/server/agents/models/agent-model-profile-contract.ts`
-- `src/server/agents/models/model-provider-contract.ts`
-- `src/server/agents/models/model-selection-policy.ts`
-- `src/server/agents/models/provider-registry-contract.ts`
+- `src/server/agents/models/hermes-codex-connection-probe.ts`
 - `src/server/agents/providers/adapter-provider-contract.ts`
 - `src/server/agents/providers/cli-runtime-provider-contract.ts`
 - `src/server/agents/providers/mailbox-provider-contract.ts`
@@ -81,10 +84,9 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/agents/providers/web-automation-provider-contract.ts`
 - `src/server/agents/providers/workflow-runtime-provider-contract.ts`
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
-- `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
-- `src/server/missions/approval-record-repository.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
+- `src/server/ventures/active-venture-contexts.ts`
 - `src/server/ventures/hermes-prep-tick.ts`

@@ -6,11 +6,20 @@ import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
 import { logger } from "@/lib/logger";
+import { chatModelOptions, chatModelSelectionSchema, loadChatCapabilityCatalog, resolveChatModelBinding } from "@/server/joris/chat-model-binding";
 
 const requestSchema = z.object({
   message: z.string().min(1).max(4000),
   locale: z.literal("fr-CA").default("fr-CA"),
-});
+  modelSelection: chatModelSelectionSchema.optional(),
+}).strict();
+
+export async function GET() {
+  const authResponse=await requireOwnerApiSession();if(authResponse)return authResponse;
+  const ctx=getActiveWorkspaceContext();
+  const catalog=await loadChatCapabilityCatalog();
+  return NextResponse.json({options:chatModelOptions(catalog,ctx.workspace.id),status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
+}
 
 export async function POST(request: Request) {
   const authResponse = await requireOwnerApiSession();
@@ -28,7 +37,9 @@ export async function POST(request: Request) {
 
   try {
     const workspaceContext = getActiveWorkspaceContext();
-    const result = await runJorisCommand(parsed.data.message, workspaceContext);
+    const catalog=await loadChatCapabilityCatalog();
+    const binding=resolveChatModelBinding(catalog,workspaceContext.workspace.id,parsed.data.modelSelection);
+    const result = await runJorisCommand(parsed.data.message, workspaceContext, undefined, binding);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof CalendarServiceError) {

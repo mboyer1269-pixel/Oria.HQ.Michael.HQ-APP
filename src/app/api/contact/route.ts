@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createContactLead } from "@/server/contact/contact-lead-service";
-import { isAllowed } from "@/lib/rate-limit";
+import { isAllowedForPolicy, RATE_LIMIT_POLICIES } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { contactRequestSchema, mapContactApiError } from "@/server/contact/contact-request";
 
@@ -16,9 +16,8 @@ function toApiError(error: unknown) {
   return NextResponse.json(mapped.body, { status: mapped.status });
 }
 
-/** 5 requests per hour per IP address. */
-const RATE_LIMIT = 5;
-const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+// The shared registry supplies this surface's limit and window.
+const CONTACT_POLICY = RATE_LIMIT_POLICIES.contact_form;
 
 export async function POST(request: Request) {
   // ---- Rate limiting ----
@@ -27,7 +26,7 @@ export async function POST(request: Request) {
     request.headers.get("x-real-ip") ??
     "unknown";
 
-  if (!(await isAllowed(ip, RATE_LIMIT, RATE_WINDOW_MS))) {
+  if (!(await isAllowedForPolicy(CONTACT_POLICY, ip))) {
     return NextResponse.json(
       { error: "Trop de messages envoyes. Reessaie dans une heure." },
       { status: 429 },

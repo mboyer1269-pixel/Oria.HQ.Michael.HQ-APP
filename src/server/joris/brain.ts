@@ -24,7 +24,8 @@ import { handleMarketplaceListingIntent } from "@/server/joris/marketplace-listi
 import { handleInventoryMarketIntent } from "@/server/joris/inventory-market-intent";
 import { handleSalesAppointmentLivreIntent } from "@/server/joris/sales-appointment-intent";
 import { handleSalesMarketingPrepareIntent } from "@/server/joris/sales-marketing-intent";
-import { generateJorisReply, type JorisReplyResult } from "@/server/joris/joris-reply-generator";
+import { generateJorisReply, type JorisReplyResult, type JorisReplyInput } from "@/server/joris/joris-reply-generator";
+import type { ChatBindingResolution, ChatExecutionReport } from "./chat-model-binding";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
 import { buildJorisGovernanceBundlePreview } from "@/server/joris/governance-bundle-preview";
@@ -72,9 +73,9 @@ const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
  * intents carry the premium-mandatory `client_audit` floor (never downgraded,
  * even in economy mode or under budget pressure). Every other intent is
  * `general`, which defers to the base router — so the displayed model is
- * unchanged and the ladder simply becomes observable (`via: "cost-ladder"` plus
- * a recorded cost event). No free model is ever forced here: the free rung
- * stays config-gated and empty until a later (dispatch) phase.
+ * unchanged and the ladder stays observable (`via: "cost-ladder"`). Selection
+ * does not debit. No free model is forced here: the free rung stays
+ * config-gated, and an unsupported id is refused instead of being called.
  *
  * `client_audit` is reused as the only existing premium-floor class; the tag is
  * a routing-tier signal, not a claim that these intents are literal audits.
@@ -100,6 +101,22 @@ const INTENT_TASK_CLASS: Record<JorisIntent, TaskClass> = {
 /** Conservative, pure mapping from a detected intent to its shadow task class. */
 export function taskClassForIntent(intent: JorisIntent): TaskClass {
   return INTENT_TASK_CLASS[intent] ?? "general";
+}
+
+/** Rules path: the route id is chosen, not executed. The weight is not a debit. */
+function unexecutedRouteFields(route: ReturnType<typeof chooseModel>) {
+  return {
+    modelId: route.modelId,
+    chosenModelId: route.chosenModelId,
+    executedModelId: null as null,
+    costMode: route.mode,
+    costAccounting: {
+      kind: "estimation" as const,
+      monetaryUsd: null as null,
+      relativeWeight: route.estimate.relativeWeight,
+      networkRequestSent: false,
+    },
+  };
 }
 
 /**
@@ -145,8 +162,7 @@ async function handleMissionDraftReply(
         intent: "mission.draft",
         summary:
           "Ta réponse mélange confirmation et nouvelle demande calendrier. Réponds seulement « confirme », « oui » ou « go » pour booker la mission draft en cours, ou « annule » pour abandonner.",
-        modelId: route.model.id,
-        costMode: route.mode,
+        ...unexecutedRouteFields(route),
         ...workspaceMeta,
         missionDraftPreview: pending.preview,
         pendingDraftId: pending.pendingDraftId,
@@ -261,8 +277,7 @@ async function handleGovernanceReviewReply(
   return {
     intent: "opportunity.score",
     summary,
-    modelId: route.model.id,
-    costMode: route.mode,
+    ...unexecutedRouteFields(route),
     ...workspaceMeta,
     requiresConfirmation: false,
   };
@@ -270,7 +285,7 @@ async function handleGovernanceReviewReply(
 
 /** Injectable dependencies — lets tests supply a mock LLM reply / vault (no network). */
 export type RunJorisCommandDeps = {
-  generateReply: (input: { message: string; memoryContext?: string | null }) => Promise<JorisReplyResult>;
+  generateReply: (input: JorisReplyInput) => Promise<JorisReplyResult>;
   /** Verified-vault reader; defaults to the real one. Injectable for tests. */
   readVerifiedVault?: (workspaceId: string) => MemoryVaultReadResult;
   /** Optional Memex read-only enrichment — defaults to env-gated stdio client. */
@@ -291,50 +306,9 @@ export async function runJorisCommand(
   message: string,
   workspaceContext: WorkspaceContext = getActiveWorkspaceContext(),
   deps: RunJorisCommandDeps = defaultRunJorisCommandDeps,
-): Promise<CommandResult> {
+  chatBinding?: ChatBindingResolution,
+): Promise<CommandResult & { chatExecution?: ChatExecutionReport; chatBindingStatus?: string }> {
   const ctx = workspaceContext;
-
-  // Memory Vault — read verified entries at the start of every brain invocation.
-  // Workspace-scoped, verified only, max 20 entries (contract §Joris read rules).
-  // This context is available to all downstream handlers in this invocation.
-  const vaultContext = (deps.readVerifiedVault ?? readVerifiedVaultContext)(ctx.workspace.id);
-  const vaultNote = buildVaultContextNote(vaultContext);
-
-  // Verified lessons rail — advisory block composed from the same verified
-  // read, filtered to lessons concerning the active agent, capped and
-  // sanitized. Subordinate to system rules by construction; the trace is
-  // non-sensitive (ids and counts only, never lesson content).
-  const lessonsRail = composeVerifiedLessonsContext({
-    entries: vaultContext.entries,
-    agentId: ctx.activeAgentProfile.id,
-  });
-  if (lessonsRail.block) {
-    logger.info("joris.memory.lessons.rail", { ...lessonsRail.trace });
-  }
-  let memoryContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
-
-  const memexEnrichment = await (deps.enrichMemexContext ?? enrichJorisMemoryContextWithMemex)({
-    existingContext: memoryContext,
-    taskIntent: message,
-    workspaceId: ctx.workspace.id,
-  });
-  if (memexEnrichment.trace.status === "enriched" && memexEnrichment.memoryContext !== null) {
-    memoryContext = memexEnrichment.memoryContext;
-  }
-  logger.info(
-    MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
-    buildMemexMemoryEvidenceObservabilityPayload({
-      summary: memexEnrichment.evidenceSummary,
-      evidencePackValid: memexEnrichment.trace.evidencePackValid ?? false,
-    }),
-  );
-
-  const attachMemexPreview = (summaryText: string, intent: JorisIntent) =>
-    withMemexEvidencePreview(summaryText, {
-      intent,
-      memoryContext,
-      evidenceSummary: memexEnrichment.evidenceSummary,
-    });
 
   const route = chooseModel({
     message,
@@ -343,9 +317,10 @@ export async function runJorisCommand(
     // (governance / mission-draft confirmations) is always tagged conservatively
     // `general` — a confirmation reply must never inherit a premium or free tag
     // from its own keywords. `general` defers to the base router, so the
-    // displayed model is unchanged; only `via` + the cost event become observable.
+    // displayed model is unchanged. Selection does not debit.
     taskClass: "general",
     agentId: ctx.activeAgentProfile.id,
+    workspaceId: ctx.workspace.id,
   });
 
   const workspaceMeta = {
@@ -353,6 +328,60 @@ export async function runJorisCommand(
     modeId: ctx.activeMode.id,
     assistantId: ctx.activeAgentProfile.id,
   };
+
+  // Vault and Memex context are only consumed by brief generation and the
+  // conversational path below. Keep this request-scoped and lazy so structured
+  // intents and pending-reply handlers avoid an unrelated memory round trip.
+  let memoryContextPromise:
+    | Promise<{ memoryContext: string | null; enrichment: MemexContextEnrichmentResult }>
+    | undefined;
+  const getMemoryContext = () => {
+    memoryContextPromise ??= (async () => {
+      // Workspace-scoped, verified only, max 20 entries (contract §Joris read rules).
+      const vaultContext = (deps.readVerifiedVault ?? readVerifiedVaultContext)(ctx.workspace.id);
+      const vaultNote = buildVaultContextNote(vaultContext);
+
+      // The lessons rail uses the same verified read, scoped to this agent,
+      // capped and sanitized. Its trace contains ids and counts only.
+      const lessonsRail = composeVerifiedLessonsContext({
+        entries: vaultContext.entries,
+        agentId: ctx.activeAgentProfile.id,
+      });
+      if (lessonsRail.block) {
+        logger.info("joris.memory.lessons.rail", { ...lessonsRail.trace });
+      }
+      const existingContext = [vaultNote, lessonsRail.block].filter(Boolean).join("\n\n") || null;
+      const enrichment = await (deps.enrichMemexContext ?? enrichJorisMemoryContextWithMemex)({
+        existingContext,
+        taskIntent: message,
+        workspaceId: ctx.workspace.id,
+      });
+      const memoryContext =
+        enrichment.trace.status === "enriched" && enrichment.memoryContext !== null
+          ? enrichment.memoryContext
+          : existingContext;
+      logger.info(
+        MEMEX_EVIDENCE_OBSERVABILITY_LOG_EVENT,
+        buildMemexMemoryEvidenceObservabilityPayload({
+          summary: enrichment.evidenceSummary,
+          evidencePackValid: enrichment.trace.evidencePackValid ?? false,
+        }),
+      );
+      return { memoryContext, enrichment };
+    })();
+    return memoryContextPromise;
+  };
+
+  const attachMemexPreview = (
+    summaryText: string,
+    intent: JorisIntent,
+    context: Awaited<ReturnType<typeof getMemoryContext>>,
+  ) =>
+    withMemexEvidencePreview(summaryText, {
+      intent,
+      memoryContext: context.memoryContext,
+      evidenceSummary: context.enrichment.evidenceSummary,
+    });
 
   // Governance review reply runs before the mission-draft reply so that, when
   // only a governance bundle is pending, review verbs ("approuve", "rejette",
@@ -379,6 +408,7 @@ export async function runJorisCommand(
     // forced — the free rung stays config-gated/empty in this phase.
     taskClass: taskClassForIntent(intent),
     agentId: ctx.activeAgentProfile.id,
+    workspaceId: ctx.workspace.id,
   });
 
   if (intent === "governance.audit") {
@@ -406,8 +436,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
       auditExport: {
@@ -461,24 +490,23 @@ export async function runJorisCommand(
     return {
       intent,
       summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
   }
 
   if (intent === "brief.generate") {
+    const memory = await getMemoryContext();
     const brief = await buildCeoBriefSnapshot();
-    const briefSummary = memoryContext
-      ? `${brief.headline} ${brief.focusLine}\n\n${memoryContext}`
+    const briefSummary = memory.memoryContext
+      ? `${brief.headline} ${brief.focusLine}\n\n${memory.memoryContext}`
       : `${brief.headline} ${brief.focusLine}`;
 
     return {
       intent,
-      summary: attachMemexPreview(briefSummary, "brief.generate"),
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      summary: attachMemexPreview(briefSummary, "brief.generate", memory),
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -492,8 +520,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: listing.summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -507,8 +534,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: market.summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -523,8 +549,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: livre.summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -538,8 +563,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: marketing.summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -553,8 +577,7 @@ export async function runJorisCommand(
       return {
         intent,
         summary: `Je ne peux pas exécuter cette action sans confirmation: ${permission.reason}`,
-        modelId: routedModel.model.id,
-        costMode: routedModel.mode,
+        ...unexecutedRouteFields(routedModel),
         ...workspaceMeta,
         requiresConfirmation: true,
       };
@@ -565,15 +588,13 @@ export async function runJorisCommand(
         workspaceId: ctx.workspace.id,
         userId: ctx.userId,
         calendarIntent,
-        modelId: routedModel.model.id,
-        costMode: routedModel.mode,
+        ...unexecutedRouteFields(routedModel),
       });
 
       return {
         intent: "mission.draft",
         summary: formatMissionDraftProposalSummary(pending.preview),
-        modelId: routedModel.model.id,
-        costMode: routedModel.mode,
+        ...unexecutedRouteFields(routedModel),
         ...workspaceMeta,
         calendarIntent,
         missionDraftPreview: pending.preview,
@@ -585,8 +606,7 @@ export async function runJorisCommand(
     return {
       intent,
       summary: "Il me manque l’heure ou la date pour booker ça proprement. Donne-moi au moins l’heure, puis je le crée sans friction.",
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: false,
     };
@@ -606,8 +626,7 @@ export async function runJorisCommand(
         return {
           intent,
           summary: `Plusieurs missions correspondent. Précise laquelle :\n${list}`,
-          modelId: routedModel.model.id,
-          costMode: routedModel.mode,
+          ...unexecutedRouteFields(routedModel),
           ...workspaceMeta,
           requiresConfirmation: false,
         };
@@ -620,8 +639,7 @@ export async function runJorisCommand(
         summary: available
           ? `Aucune mission trouvée pour ta demande. Missions disponibles :\n${available}`
           : "Aucune mission active dans ce workspace.",
-        modelId: routedModel.model.id,
-        costMode: routedModel.mode,
+        ...unexecutedRouteFields(routedModel),
         ...workspaceMeta,
         requiresConfirmation: false,
       };
@@ -667,53 +685,83 @@ export async function runJorisCommand(
     return {
       intent,
       summary,
-      modelId: routedModel.model.id,
-      costMode: routedModel.mode,
+      ...unexecutedRouteFields(routedModel),
       ...workspaceMeta,
       requiresConfirmation: true,
       missionPlanResult,
     };
   }
 
-  // Conversational catch-all (chat / board.consult / reminders). Attempt a real
-  // LLM reply via the shared provider; when no provider is configured (no API
-  // keys) or the call fails, fall back to a deterministic summary. The result is
-  // labelled (`generation`) so nothing claims "AI mode" when rules produced it.
-  const llmReply = await deps.generateReply({ message, memoryContext });
+  // Conversational catch-all (chat / board.consult / reminders). A provider
+  // request is sent only when the chosen id is supported. A template summary
+  // does not publish that id as an executed model.
+  const memory = await getMemoryContext();
+  const fallbackSummary = buildFallbackSummary(intent, message);
+  const finalSummary =
+    intent === "board.consult" && memory.memoryContext
+      ? `${fallbackSummary}\n\n${memory.memoryContext}`
+      : fallbackSummary;
+  const template = {
+    intent,
+    summary: attachMemexPreview(finalSummary, intent, memory),
+    chosenModelId: routedModel.chosenModelId,
+    executedModelId: null as null,
+    ...workspaceMeta,
+    requiresConfirmation: false as const,
+    generation: "fallback" as const,
+  };
+
+  if (chatBinding?.status === "blocked" || (!chatBinding && routedModel.execution === "refused")) {
+    return {
+      ...template,
+      ...(chatBinding?.status === "blocked" ? {chatBindingStatus:chatBinding.reason} : {}),
+      costAccounting: { kind: "refused", monetaryUsd: null, networkRequestSent: false },
+    };
+  }
+
+  const llmReply = await deps.generateReply({
+    message,
+    memoryContext: memory.memoryContext,
+    chosenModelId: chatBinding?.status === "ready" ? chatBinding.binding.approved.modelId : routedModel.chosenModelId,
+    workspaceId: ctx.workspace.id,
+    ...(chatBinding?.status === "ready" ? {hqBinding:chatBinding.binding} : {}),
+  });
   if (llmReply.ok) {
     // Preserve the deterministic verified-memory/lessons rail verbatim by
     // appending it OUTSIDE the LLM (board.consult), so the audit block is
     // guaranteed in the summary rather than left to the model to reproduce.
     const summary =
-      intent === "board.consult" && memoryContext
-        ? `${llmReply.text}\n\n${memoryContext}`
+      intent === "board.consult" && memory.memoryContext
+        ? `${llmReply.text}\n\n${memory.memoryContext}`
         : llmReply.text;
+    const executedModelId = llmReply.execution ? llmReply.execution.executedModelId : llmReply.modelId;
     return {
       intent,
-      summary: attachMemexPreview(summary, intent),
+      summary: attachMemexPreview(summary, intent, memory),
       modelId: llmReply.modelId,
-      // The shared provider uses a low-cost default model; report an honest
-      // conservative cost mode rather than the routed (possibly premium) one.
-      costMode: "economy",
+      chosenModelId: chatBinding?.status === "ready" ? chatBinding.binding.approved.modelId : routedModel.chosenModelId,
+      executedModelId,
+      ...(llmReply.execution ? {chatExecution:llmReply.execution} : {}),
+      ...(executedModelId === routedModel.chosenModelId ? { costMode: routedModel.mode } : {}),
+      costAccounting: llmReply.cost ?? {
+        kind: "unknown_cost",
+        monetaryUsd: null,
+        networkRequestSent: true,
+      },
       ...workspaceMeta,
       requiresConfirmation: false,
       generation: "llm",
     };
   }
 
-  const fallbackSummary = buildFallbackSummary(intent, message);
-  const finalSummary =
-    intent === "board.consult" && memoryContext
-      ? `${fallbackSummary}\n\n${memoryContext}`
-      : fallbackSummary;
-
   return {
-    intent,
-    summary: attachMemexPreview(finalSummary, intent),
-    modelId: routedModel.model.id,
-    costMode: routedModel.mode,
-    ...workspaceMeta,
-    requiresConfirmation: false,
-    generation: "fallback",
+    ...template,
+    ...(llmReply.execution ? {chatExecution:llmReply.execution} : {}),
+    ...(chatBinding ? {chatBindingStatus:"generation_refused_or_failed"} : {}),
+    costAccounting: llmReply.cost ?? {
+      kind: "refused",
+      monetaryUsd: null,
+      networkRequestSent: false,
+    },
   };
 }

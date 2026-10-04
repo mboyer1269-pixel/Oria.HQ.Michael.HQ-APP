@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "Envoie-nous un message. Réponse humaine en 24-48h.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function ContactPage() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 px-4 py-10 md:px-8 md:py-16">

@@ -23,7 +23,7 @@ function createLocalId(): string {
   return `mem_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-const ISO_NOW = new Date().toISOString();
+
 
 /**
  * Seed entries for the default workspace.
@@ -43,7 +43,7 @@ const seedEntries: MemoryVaultEntry[] = [
     author: "human",
     trustLevel: "verified",
     createdAt: "2026-05-20T00:00:00.000Z",
-    updatedAt: ISO_NOW,
+    updatedAt: "2026-05-20T00:00:00.000Z",
     sourceRef: "AGENTS.md#what-remains-to-build",
   },
   {
@@ -57,7 +57,7 @@ const seedEntries: MemoryVaultEntry[] = [
     author: "human",
     trustLevel: "verified",
     createdAt: "2026-05-22T00:00:00.000Z",
-    updatedAt: ISO_NOW,
+    updatedAt: "2026-05-22T00:00:00.000Z",
     sourceRef: "src/server/runtime/execution-guard.ts",
   },
   {
@@ -66,12 +66,12 @@ const seedEntries: MemoryVaultEntry[] = [
     type: "decision",
     title: "Local persistence fallback is allowed in dev, blocked in prod",
     content:
-      "isLocalPersistenceFallbackAllowed() returns true only when NODE_ENV !== 'production'. Calendar, ledger, and memory vault all follow this pattern. In production, Supabase is required; failing silently is never acceptable.",
+      "isLocalPersistenceFallbackAllowed() returns true only when NODE_ENV !== 'production'. Calendar and ledger require durable persistence in production. The HQ Memory Vault is a temporary in-process store, lost on restart; its production write API is disabled until durable persistence is implemented.",
     tags: ["persistence", "supabase", "local-fallback", "production"],
     author: "human",
     trustLevel: "verified",
     createdAt: "2026-05-21T00:00:00.000Z",
-    updatedAt: ISO_NOW,
+    updatedAt: "2026-05-21T00:00:00.000Z",
     sourceRef: "src/lib/server-env.ts",
   },
   {
@@ -80,12 +80,12 @@ const seedEntries: MemoryVaultEntry[] = [
     type: "sop",
     title: "Agent validation before PR: typecheck + lint + build + smoke:joris",
     content:
-      "Before any PR is opened from an agent branch: (1) npm run typecheck — 0 errors. (2) npm run lint — 0 errors. (3) npm run build — passes. (4) npm run smoke:joris — PASS (18/18). All four checks must pass. Failing any check blocks the PR.",
+      "Before any PR is opened from an agent branch: (1) npm run typecheck — 0 errors. (2) npm run lint — 0 errors. (3) npm run build — passes. (4) npm run smoke:joris — PASS. All four checks must pass. Failing any check blocks the PR.",
     tags: ["pr", "validation", "typecheck", "lint", "smoke"],
     author: "human",
     trustLevel: "verified",
     createdAt: "2026-05-20T00:00:00.000Z",
-    updatedAt: ISO_NOW,
+    updatedAt: "2026-05-20T00:00:00.000Z",
     sourceRef: "AGENTS.md#validation-before-completion",
   },
   {
@@ -99,7 +99,7 @@ const seedEntries: MemoryVaultEntry[] = [
     author: "human",
     trustLevel: "verified",
     createdAt: "2026-06-03T00:00:00.000Z",
-    updatedAt: ISO_NOW,
+    updatedAt: "2026-06-03T00:00:00.000Z",
     sourceRef: "docs/MEMORY_VAULT_CONTRACT.md",
   },
 ];

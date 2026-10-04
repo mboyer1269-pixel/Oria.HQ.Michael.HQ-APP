@@ -1,5 +1,6 @@
 import type { ModelProfile } from "@/core/types";
 import { modelProfiles } from "@/features/hq/seed";
+import type { consultHqModelCatalog } from "@/server/ai/model-catalog-consultation";
 
 /**
  * OpenRouter gateway — unified access to 200+ models via a single API key.
@@ -34,23 +35,25 @@ export function resolveModelProfileOrFallback(
   return resolveModelProfile(modelId) ?? resolveModelProfile(fallbackId) ?? modelProfiles[0];
 }
 
-/** Ordered fallback when a target model is unavailable. */
-export function fallbackModelIds(primaryId: string): readonly string[] {
-  switch (primaryId) {
-    case PREMIUM_MODEL_ID:
-      return [PREMIUM_MODEL_ID, "gpt-4o", ECONOMY_MODEL_ID];
-    case LONG_CONTEXT_MODEL_ID:
-      return [LONG_CONTEXT_MODEL_ID, ECONOMY_MODEL_ID, PREMIUM_MODEL_ID];
-    case ECONOMY_MODEL_ID:
-    default:
-      return [ECONOMY_MODEL_ID, LONG_CONTEXT_MODEL_ID, PREMIUM_MODEL_ID];
-  }
+/**
+ * Availability is a yes/no on the requested id. An unavailable model is not
+ * replaced by another paid model.
+ */
+/**
+ * Read-only catalog of the model service. Loaded only when a caller asks for
+ * the catalog. `chooseModel` does not call this and does not execute the rows.
+ */
+export async function readServerModelCatalog(
+  input: Parameters<typeof consultHqModelCatalog>[0],
+): Promise<Awaited<ReturnType<typeof consultHqModelCatalog>>> {
+  const { consultHqModelCatalog: consult } = await import("@/server/ai/model-catalog-consultation");
+  return consult(input);
 }
 
 export function pickAvailableModelId(
   primaryId: string,
   unavailableModelIds: ReadonlySet<string> = new Set(),
-): string {
-  const chain = fallbackModelIds(primaryId);
-  return chain.find((id) => !unavailableModelIds.has(id)) ?? ECONOMY_MODEL_ID;
+): string | null {
+  if (unavailableModelIds.has(primaryId)) return null;
+  return primaryId;
 }

@@ -456,6 +456,22 @@ export type ProbedRuntimeEntry = {
   probedAtIso: string;
   /** Contract-shaped result (null for runtimes outside the #325 contract). */
   contract: LocalRuntimeProbeResult | null;
+  /**
+   * A safe, opaque, STABLE attestation of which specific USER/ACCOUNT this
+   * probe observed — never the raw value it came from, never an email,
+   * never a credential, and critically never an ORGANIZATION identifier
+   * either: an org and the account connected under it are different axes,
+   * and an org-level value (e.g. orgId) can never satisfy this field no
+   * matter how it is encoded (hashing does not change what it identifies).
+   * Present ONLY when a real, officially documented, per-USER field exists
+   * to derive it from. Absent today for every runtime this module probes —
+   * correction after independent review found the previous orgId-derived
+   * value was org-scoped, not user-scoped (see classifyClaudeCodeProbe's
+   * own comment). Absence must never be read by a caller as "same account
+   * as before", and must never be papered over with a profile/org/provider
+   * id instead.
+   */
+  accountId?: string;
 };
 
 function parseVersionLine(stdout: string): string | null {
@@ -610,6 +626,24 @@ export function classifyClaudeCodeProbe(
   const authEvidence = `claude auth status --json → ${authFacts || "aucun champ attendu"}`;
 
   if (parsed.loggedIn === true) {
+    // CORRECTED after independent review (caught before activation): orgId
+    // identifies the ORGANIZATION, never the specific USER/account. Two
+    // different people under the same organization share the same orgId —
+    // hashing it does not change that scope, it only makes the same scope
+    // error opaque instead of visible. accountId must be a USER-level
+    // identity or it must stay absent; orgId can never satisfy that, so it
+    // is read into evidence-whitelist comparisons only (never into
+    // evidence text — test "6." enforces that separately) and NEVER used
+    // to derive accountId. No other field in this JSON output
+    // (loggedIn/authMethod/apiProvider/subscriptionType/analyticsDisabled/
+    // projectsDirectory) is user-identifying either; email is, but is
+    // deliberately never read for this purpose (a personal, low-entropy
+    // identifier is not safely one-way hashable — unlike a high-entropy
+    // UUID, it can be dictionary/rainbow-table reversed). So accountId
+    // stays absent here, honestly, until an officially documented
+    // per-USER (not per-organization) stable field exists. Callers must
+    // refuse explicitly (account_identity_unverifiable) on this absence,
+    // never substitute orgId, a profile id, or any other proxy.
     return {
       id,
       status: "ready",
@@ -842,6 +876,9 @@ export function sanitizeProbedEntry(entry: ProbedRuntimeEntry): ProbedRuntimeEnt
     reason: `Déclassé : statut « ${entry.status} » réclamé sans preuve valide.`,
     contract:
       entry.contract === null ? null : { ...entry.contract, available: false, authMode: "unknown" },
+    // A downgraded claim's attested identity is no more trustworthy than
+    // the claim itself — never carried through a demotion.
+    accountId: undefined,
   };
 }
 

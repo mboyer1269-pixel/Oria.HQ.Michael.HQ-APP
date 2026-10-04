@@ -28,6 +28,21 @@ const projectRoot = path.resolve(__dirname, "..", "..", "..");
 //     (the venture's user-visible `name` is already "Oria HQ").
 const FROZEN_TOKENS = ["originalorya", "original orya", "x-orya-", "orya_ventures", "orya-hq"];
 
+function containsAlternateBrand(line) {
+  // Split identifier words before checking: MemoryAttachment is not a brand.
+  const words = line.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  return /(?:^|[^a-z])orya(?:$|[^a-z])/i.test(words);
+}
+
+test("brand detector distinguishes identifier words from accidental substrings", () => {
+  for (const line of ["OpenHandsMemoryAttachment", "memoryAttachment", "MEMORYATTACHMENT", "Oria HQ"]) {
+    assert.equal(containsAlternateBrand(line), false, line);
+  }
+  for (const line of ["Orya HQ", "orya-hq", "myOryaLabel", "ORYA_VENTURES", "OryaHQ"]) {
+    assert.equal(containsAlternateBrand(line), true, line);
+  }
+});
+
 async function collectSourceFiles() {
   const files = [];
   for (const pattern of ["src/**/*.ts", "src/**/*.tsx"]) {
@@ -45,13 +60,12 @@ test("brand naming guardrail", async (t) => {
   assert.ok(files.length > 0, "expected to scan source files");
 
   await t.test("frozen alternate spelling appears only inside documented contract tokens", async () => {
-    const needle = ["O", "r", "y", "a"].join("");
     const violations = [];
     for (const file of files) {
       const content = await readFile(path.join(projectRoot, file), "utf-8");
       content.split(/\r?\n/).forEach((line, index) => {
         const lower = line.toLowerCase();
-        if (!lower.includes(needle.toLowerCase())) return;
+        if (!containsAlternateBrand(line)) return;
         if (FROZEN_TOKENS.some((token) => lower.includes(token))) return;
         violations.push(`${file}:${index + 1}: ${line.trim()}`);
       });

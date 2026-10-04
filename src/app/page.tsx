@@ -12,6 +12,8 @@ import {
   UsersRound,
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 const pillars = [
   {
     icon: Bot,

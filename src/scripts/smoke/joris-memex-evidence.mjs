@@ -148,7 +148,7 @@ function runGoldenScenario(name, fn) {
 
 const mockOkTransport = {
   listTools: async () => [...MEMEX_V1_READ_ALLOWLIST],
-  callTool: async () => RAW_BRIEF_TEXT,
+  callTool: async (...args) => JSON.stringify([{ id: RAW_MEMORY_ID, namespace: args[1].namespace, type: "Decision", name: RAW_BRIEF_TEXT, source: "synthetic-review", createdAt: NOW_ISO, properties: { status: "active" } }]),
   close: async () => {},
 };
 
@@ -203,7 +203,7 @@ const scenarios = [
     return (
       out !== base &&
       out.includes("Memex Evidence Preview") &&
-      out.includes("confidence: medium") &&
+      out.includes("confidence: low") &&
       out.includes("no execution authorized")
     );
   }),

@@ -23,6 +23,9 @@ test("checkExecutionAttempt fails fast in production", async () => {
   process.env.MICHAEL_HQ_OWNER_ID = "test-owner";
   process.env.MICHAEL_HQ_OWNER_EMAIL = "test@example.com";
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
+  // The anon key joined the critical set once it became clear that production
+  // without it boots clean and then 401s every authenticated route.
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
 
   const { createJiti } = await import("jiti");
@@ -50,6 +53,7 @@ test("checkExecutionAttempt fails fast in production", async () => {
   delete process.env.MICHAEL_HQ_OWNER_ID;
   delete process.env.MICHAEL_HQ_OWNER_EMAIL;
   delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
 

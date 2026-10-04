@@ -191,6 +191,76 @@ test("Local Runtime Probe v1 contract", async (t) => {
     assert.match(allText, /subscriptionType: pro/);
   });
 
+  await t.test("6b. CORRECTION (independent review): orgId is an ORGANIZATION identifier, never a USER/account one — never attested as accountId, hashed or not", () => {
+    const entry = classifyClaudeCodeProbe(claudeVersionOk, claudeAuthLoggedIn, NOW);
+    assert.equal(entry.status, "ready");
+    // The earlier (incorrect) implementation hashed orgId into accountId.
+    // That is exactly the scope bug caught in review: an org identifier
+    // does not prove user identity, and hashing it does not change that
+    // scope. accountId must be ABSENT here, not a disguised org id.
+    assert.equal("accountId" in entry, false, "orgId must never become accountId, hashed or raw");
+  });
+
+  await t.test("6c. two DIFFERENT users under the SAME organization must never be conflated — neither attests an accountId, so neither can collide", () => {
+    // Same orgId, different people (represented here by different emails —
+    // the only per-user field this CLI exposes, and one this probe never
+    // reads for identity purposes either, see 6. above). If accountId were
+    // ever derived from orgId again, these two would wrongly attest the
+    // SAME accountId despite being different users — the exact bug this
+    // correction closes.
+    const userA = ok(JSON.stringify({ loggedIn: true, authMethod: "claude.ai", apiProvider: "firstParty", email: "alice@example.com", orgId: "06e7421e-6478-4124-b2fa-3aff4368260a", orgName: "Shared Org", subscriptionType: "pro" }));
+    const userB = ok(JSON.stringify({ loggedIn: true, authMethod: "claude.ai", apiProvider: "firstParty", email: "bob@example.com", orgId: "06e7421e-6478-4124-b2fa-3aff4368260a", orgName: "Shared Org", subscriptionType: "pro" }));
+    const entryA = classifyClaudeCodeProbe(claudeVersionOk, userA, NOW);
+    const entryB = classifyClaudeCodeProbe(claudeVersionOk, userB, NOW);
+    assert.equal(entryA.status, "ready");
+    assert.equal(entryB.status, "ready");
+    assert.equal("accountId" in entryA, false);
+    assert.equal("accountId" in entryB, false);
+    // Neither entry claims an identity, so there is nothing for a caller to
+    // wrongly treat as "the same account" — the only safe outcome until a
+    // real per-user field exists.
+  });
+
+  await t.test("6d. a user change under the SAME profile/org is never silently authorized: no accountId ever exists to compare, so the caller's own refusal (account_identity_unverifiable) is what protects this, not a false match here", () => {
+    // Same org, same profile/policy identity would be used downstream —
+    // only the person actually logged in differs between these two reads.
+    const before = ok(JSON.stringify({ loggedIn: true, orgId: "06e7421e-6478-4124-b2fa-3aff4368260a", email: "alice@example.com", subscriptionType: "pro" }));
+    const after = ok(JSON.stringify({ loggedIn: true, orgId: "06e7421e-6478-4124-b2fa-3aff4368260a", email: "mallory@example.com", subscriptionType: "pro" }));
+    const beforeEntry = classifyClaudeCodeProbe(claudeVersionOk, before, NOW);
+    const afterEntry = classifyClaudeCodeProbe(claudeVersionOk, after, NOW);
+    // Both report "ready" (connected) — this module only classifies
+    // connection, never account identity equality. Neither carries an
+    // accountId, so a caller comparing identities across two reads (the
+    // actual user-change detector) finds nothing to compare and must
+    // refuse explicitly — it can never be tricked into "looks unchanged".
+    assert.equal(beforeEntry.status, "ready");
+    assert.equal(afterEntry.status, "ready");
+    assert.equal("accountId" in beforeEntry, false);
+    assert.equal("accountId" in afterEntry, false);
+  });
+
+  await t.test("6e. no orgId, not logged in, or malformed output: never an accountId, never fabricated", () => {
+    assert.equal("accountId" in classifyClaudeCodeProbe(claudeVersionOk, ok(JSON.stringify({ loggedIn: false })), NOW), false);
+    assert.equal("accountId" in classifyClaudeCodeProbe(claudeVersionOk, ok(JSON.stringify({ loggedIn: true })), NOW), false, "loggedIn alone, with no orgId at all, must never attest an identity");
+    assert.equal("accountId" in classifyClaudeCodeProbe(claudeVersionOk, ok(JSON.stringify({ loggedIn: true, orgId: "" })), NOW), false, "an empty orgId must never attest an identity");
+    assert.equal("accountId" in classifyClaudeCodeProbe(claudeVersionOk, ok("not json"), NOW), false);
+    // A dishonest hand-built "ready" entry with a forged accountId is
+    // downgraded and loses that identity along with its status — an
+    // untrusted claim's attestation is no more trustworthy than the claim.
+    const dishonest = sanitizeProbedEntry({
+      id: "claude_code_cli",
+      status: "ready",
+      version: "9.9.9",
+      reason: "fake",
+      evidence: [],
+      probedAtIso: NOW,
+      contract: null,
+      accountId: "forged",
+    });
+    assert.equal(dishonest.status, "unavailable");
+    assert.equal(dishonest.accountId, undefined);
+  });
+
   await t.test("7. no cookie/session/reverse-proxy fields accepted", async () => {
     const offender = {
       status: "ready",

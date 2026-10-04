@@ -98,7 +98,8 @@ export type MemoryEvidencePack = {
 // Guards
 // ---------------------------------------------------------------------------
 
-const NAMESPACE_PATTERN = /^[a-z][a-z0-9._-]{0,63}$/;
+// Legacy local/session evidence remains readable; Memex project names use org:.
+const NAMESPACE_PATTERN = /^(?:[a-z][a-z0-9._-]{0,63}|org:[a-zA-Z0-9][a-zA-Z0-9:_.-]{0,127})$/;
 
 export function isValidMemoryNamespace(value: unknown): value is string {
   return typeof value === "string" && NAMESPACE_PATTERN.test(value);

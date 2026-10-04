@@ -2,6 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import type { Mission } from "@/core/types";
 import { isConfirmedCalendarDraftMission } from "@/features/missions/mission-display";
+import { missionDossierSummary } from "@/features/missions/mission-dossier";
 
 const riskColors: Record<Mission["riskLevel"], string> = {
   low: "text-emerald-300 border-emerald-500/20 bg-emerald-500/10",
@@ -38,7 +39,7 @@ function AutonomyBar({ level }: { level: Mission["autonomyLevel"] }) {
 }
 
 export function MissionCard({ mission }: { mission: Mission }) {
-  const agentLabel = mission.assignedAgentId === "joris" ? "Joris" : mission.assignedAgentId;
+  const agentLabel = missionDossierSummary(mission).owner;
   const calendarDraft = isConfirmedCalendarDraftMission(mission);
 
   return (
@@ -53,7 +54,7 @@ export function MissionCard({ mission }: { mission: Mission }) {
           ) : null}
           {mission.requiresApproval && !calendarDraft ? (
             <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
-              Mock exécuteur
+              Approbation requise
             </span>
           ) : null}
         </div>

@@ -67,6 +67,7 @@ export function formatLedgerActivityTimestamp(iso: string): string {
   const date = new Date(iso);
 
   return new Intl.DateTimeFormat("fr-CA", {
+    timeZone: "America/Toronto",
     month: "short",
     day: "numeric",
     hour: "2-digit",

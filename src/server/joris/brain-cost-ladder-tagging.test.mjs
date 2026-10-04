@@ -89,8 +89,8 @@ test("a non-critical intent defers to the base router but the ladder is observab
 
 test("board.consult through the brain stays premium end-to-end (fallback path, no network)", async () => {
   resetLadderBudget();
-  // The fallback path (no provider) surfaces the routed model in the result.
   // No network: the reply generator is injected and returns ok:false.
+  // The template must not publish the routed premium id as an executed model.
   const deps = { generateReply: async () => ({ ok: false, reason: "no provider configured" }) };
 
   const result = await runJorisCommand(
@@ -101,7 +101,11 @@ test("board.consult through the brain stays premium end-to-end (fallback path, n
 
   assert.equal(result.intent, "board.consult");
   assert.equal(result.generation, "fallback");
-  assert.equal(result.modelId, PREMIUM_MODEL_ID);
+  assert.equal(result.modelId, undefined);
+  assert.equal(result.chosenModelId, PREMIUM_MODEL_ID);
+  assert.equal(result.executedModelId, null);
+  assert.equal(result.costAccounting.monetaryUsd, null);
+  assert.notEqual(result.costAccounting.kind, "observed_usage");
 });
 
 test("a structured intent stays deterministic and the rails are unchanged (no LLM, no network)", async () => {

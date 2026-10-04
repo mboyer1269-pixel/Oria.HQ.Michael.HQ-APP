@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 /** A1 — this reads proof and records a measurement. It executes nothing. */
 const SNAPSHOT_AUTONOMY_LEVEL = 1;
 
-export const AGENT_SCORE_SNAPSHOT_ACTION_TYPE = "ventures.agent_scores.manual_snapshot";
+const AGENT_SCORE_SNAPSHOT_ACTION_TYPE = "ventures.agent_scores.manual_snapshot";
 
 export async function POST() {
   const authResponse = await requireOwnerApiSession();
