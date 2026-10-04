@@ -14,23 +14,23 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 593 |
+| LIVE | 596 |
 | TEST_ONLY | 5 |
-| INCUBATION | 49 |
+| INCUBATION | 46 |
 | **Total source** | **647** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
-| server/agents | 11 |
+| server/agents | 9 |
 | features/cockpit | 7 |
 | features/memory | 7 |
 | features/ventures | 5 |
 | features/missions | 3 |
-| server/missions | 3 |
 | features/hq | 2 |
 | server/arena | 2 |
+| server/missions | 2 |
 | server/ventures | 2 |
 | features/agents | 1 |
 | features/outbound | 1 |
@@ -76,9 +76,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/mcl-archive-dir.ts`
 - `src/scripts/process-document.ts`
 - `src/server/agents/evidence/runtime-evidence-pack.ts`
-- `src/server/agents/models/agent-model-profile-contract.ts`
 - `src/server/agents/models/hermes-codex-connection-probe.ts`
-- `src/server/agents/models/model-selection-policy.ts`
 - `src/server/agents/providers/adapter-provider-contract.ts`
 - `src/server/agents/providers/cli-runtime-provider-contract.ts`
 - `src/server/agents/providers/mailbox-provider-contract.ts`
@@ -90,6 +88,5 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/arena/arena-wra-evidence.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
-- `src/server/missions/openhands-model-execution-receipt.ts`
 - `src/server/ventures/active-venture-contexts.ts`
 - `src/server/ventures/hermes-prep-tick.ts`
