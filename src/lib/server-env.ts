@@ -107,6 +107,7 @@ const serverEnvSchema = z.object({
   // Flags read through a name constant (env[CONSTANT]) rather than a literal
   // property access. Each parses as truthy on "1"/"true"/"yes"/"on".
   LEDGER_HASH_CHAIN_WRITE: z.string().min(1).optional(),
+  LEDGER_HMAC_KEY: z.string().min(1).optional(),
   MISSION_DURABLE_DRAFTS: z.string().min(1).optional(),
   ENABLE_STAGING_RUNTIME_DIAGNOSTIC: z.string().min(1).optional(),
   // Explicit opt-in for the manual Joris booking smoke to retain configured

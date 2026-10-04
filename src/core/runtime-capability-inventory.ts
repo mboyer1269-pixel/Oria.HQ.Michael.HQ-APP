@@ -435,6 +435,76 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
     covers: ["src/features/hq/command-tower/runtime-status-source.ts"],
   },
   {
+    id: "validation_report_generation",
+    label: "Validation · génération du rapport",
+    executorKey: "/api/michael-hq/validation/propose",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Une session propriétaire demande un rapport de validation marché. Le service appelle un fournisseur de modèle, puis écrit seulement une intention en attente d'approbation CEO ; l'ingénierie reste séparée.",
+    evidence: {
+      path: "src/server/agents/validation-agent.ts",
+      mustContain: "generateStructuredJson",
+      because:
+        "The validation proposal path calls a model provider to draft the demand-check report, then queues an execution intent rather than starting engineering.",
+    },
+    covers: [
+      "src/app/api/michael-hq/validation/propose/route.ts",
+      "src/server/agents/validation-agent.ts",
+    ],
+  },
+  {
+    id: "validation_report_delivery",
+    label: "Validation · livraison du rapport approuvé",
+    executorKey: "validation_report_deliver",
+    effect: "internal_write",
+    gate: "ceo_approval",
+    detail:
+      "Après approbation CEO d'une intention exacte, persiste le rapport de validation marché dans le store interne. Ne lance pas l'ingénierie automatiquement.",
+    evidence: {
+      path: "src/server/agents/tools/validation-report-deliver.ts",
+      mustContain: "saveValidationReport",
+      because:
+        "The registered MCP tool persists a previously approved validation report; the approve route is the only dispatcher for MCP tools.",
+    },
+    covers: ["src/server/agents/validation-report-store.ts"],
+  },
+  {
+    id: "engineering_package_generation",
+    label: "Ingénierie · génération de paquet",
+    executorKey: "/api/michael-hq/engineering/propose",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Une session propriétaire demande un paquet d'ingénierie portable. Le service appelle un fournisseur de modèle, puis écrit seulement une intention en attente d'approbation CEO ; aucun déploiement autonome.",
+    evidence: {
+      path: "src/server/agents/engineering-agent.ts",
+      mustContain: "generateStructuredJson",
+      because:
+        "The engineering proposal path calls a model provider to draft package files, then queues an execution intent rather than delivering or deploying immediately.",
+    },
+    covers: [
+      "src/app/api/michael-hq/engineering/propose/route.ts",
+      "src/server/agents/engineering-agent.ts",
+    ],
+  },
+  {
+    id: "engineering_package_delivery",
+    label: "Ingénierie · livraison du paquet approuvé",
+    executorKey: "engineering_package_deliver",
+    effect: "internal_write",
+    gate: "ceo_approval",
+    detail:
+      "Après approbation CEO d'une intention exacte, matérialise le paquet d'ingénierie dans le store interne pour téléchargement ou export manuel. Aucun déploiement autonome.",
+    evidence: {
+      path: "src/server/agents/tools/engineering-package-deliver.ts",
+      mustContain: "saveInfrastructurePackage",
+      because:
+        "The registered MCP tool persists a previously approved package into the infrastructure store; the approve route is the only dispatcher for MCP tools.",
+    },
+    covers: ["src/server/agents/engineering-package-store.ts"],
+  },
+  {
     id: "green_lane_content_generate",
     label: "Voie verte · content.generate",
     executorKey: "content.generate",
