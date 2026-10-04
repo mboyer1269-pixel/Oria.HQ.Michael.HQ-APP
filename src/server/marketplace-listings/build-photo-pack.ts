@@ -107,9 +107,33 @@ export async function buildMarketplacePhotoPack(input: {
     return { ok: false, errors: ["no photo URLs to pack"], skipped };
   }
 
-  let index = 0;
+  const CONCURRENCY_LIMIT = 5;
+  const fetchPromises: Promise<{
+    url: string;
+    fetched: { ok: true; data: Uint8Array; contentType: string } | { ok: false; reason: string };
+  }>[] = [];
+  const executing = new Set<Promise<void>>();
+
   for (const url of unique) {
-    const fetched = await fetchPhotoBytes(url, fetchImpl);
+    const p = fetchPhotoBytes(url, fetchImpl).then((fetched) => ({ url, fetched }));
+    fetchPromises.push(p);
+
+    const e: Promise<void> = p.then(() => {
+      executing.delete(e);
+    }).catch(() => {
+      executing.delete(e);
+    });
+    executing.add(e);
+
+    if (executing.size >= CONCURRENCY_LIMIT) {
+      await Promise.race(executing);
+    }
+  }
+
+  const results = await Promise.all(fetchPromises);
+
+  let index = 0;
+  for (const { url, fetched } of results) {
     if (!fetched.ok) {
       skipped.push({ url, reason: fetched.reason });
       continue;
