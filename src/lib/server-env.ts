@@ -112,6 +112,10 @@ const serverEnvSchema = z.object({
   // Explicit opt-in for the manual Joris booking smoke to retain configured
   // Supabase credentials and exercise its write path.
   SMOKE_WRITE: z.enum(["0", "1"]).optional(),
+// Michael HQ ethical billing (optional — local wallet works without Stripe)
+  STRIPE_SECRET_KEY: z.string().min(1).optional(),
+  STRIPE_CUSTOMER_ID: z.string().min(1).optional(),
+  STRIPE_METER_EVENT_NAME: z.string().min(1).optional(),
 });
 
 type ParsedEnv = z.infer<typeof serverEnvSchema>;
@@ -190,6 +194,9 @@ export const serverEnv = {
   paperclipWorkspaceId: _parsed.PAPERCLIP_HQ_WORKSPACE_ID,
   paperclipCompanyId: _parsed.PAPERCLIP_COMPANY_ID,
   mclArchiveDir: _parsed.MCL_ARCHIVE_DIR,
+stripeSecretKey: _parsed.STRIPE_SECRET_KEY,
+  stripeCustomerId: _parsed.STRIPE_CUSTOMER_ID,
+  stripeMeterEventName: _parsed.STRIPE_METER_EVENT_NAME,
 };
 
 /** A production configuration gap that degrades a subsystem without stopping the boot. */

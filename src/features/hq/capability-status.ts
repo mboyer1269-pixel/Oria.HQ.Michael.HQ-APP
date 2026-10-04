@@ -102,11 +102,11 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
   {
     id: "ledger_hash_chain",
     label: "Ledger integrity hash-chain",
-    status: "shadow",
-    surface: null,
+    status: "live",
+    surface: "/hq#ledger-health",
     evidence:
-      "src/server/ledger/hash-chain-write-flag.ts (LEDGER_HASH_CHAIN_WRITE off par défaut)",
-    note: "Vérificateur + sealer prêts ; écriture live mandate-gated (migration Phase 1 + LEDGER_HMAC_KEY).",
+      "src/server/actions/action-ledger-repository.ts (sealNewLedgerRow on append) + hash-chain-write-flag.ts (ON by default)",
+    note: "Chaque écriture ledger est scellée (prev_hash, entry_hash, hmac). Migration 0022/0023 + LEDGER_HMAC_KEY requis en production.",
   },
   {
     id: "sales_lead_bank",

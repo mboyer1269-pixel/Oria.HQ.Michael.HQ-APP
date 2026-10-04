@@ -33,6 +33,9 @@ const FROZEN_AGENT_IDS = [
   // frozen list; existing ids still never rename.
   "support",
   "quality",
+  // Michael HQ sovereign pipeline — demand-check then portable IaC.
+  "validation",
+  "engineering",
 ];
 
 const RETIRED_MYTHOLOGICAL_NAMES = [
@@ -100,6 +103,8 @@ test("Agent naming contract (naming v1)", async (t) => {
     assert.equal(getAgentDisplayName("closer"), "Closer");
     assert.equal(getAgentDisplayName("marketing"), "Studio");
     assert.equal(getAgentDisplayName("inventor"), "Lab");
+    assert.equal(getAgentDisplayName("validation"), "Validation");
+    assert.equal(getAgentDisplayName("engineering"), "Engineering");
   });
 
   await t.test("ledger/writer aliases resolve to the canonical agent", () => {

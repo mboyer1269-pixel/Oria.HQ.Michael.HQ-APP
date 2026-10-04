@@ -14,24 +14,23 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 538 |
-| TEST_ONLY | 13 |
-| INCUBATION | 62 |
-| **Total source** | **613** |
+| LIVE | 593 |
+| TEST_ONLY | 5 |
+| INCUBATION | 49 |
+| **Total source** | **647** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
-| features/hq | 13 |
 | server/agents | 11 |
 | features/cockpit | 7 |
 | features/memory | 7 |
 | features/ventures | 5 |
 | features/missions | 3 |
 | server/missions | 3 |
+| features/hq | 2 |
 | server/arena | 2 |
-| server/decision-spine | 2 |
 | server/ventures | 2 |
 | features/agents | 1 |
 | features/outbound | 1 |
@@ -54,18 +53,7 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/cockpit/components/venture-suggestions.tsx`
 - `src/features/cockpit/widgets/widget-manifest.ts`
 - `src/features/hq/capability-status.ts`
-- `src/features/hq/command-tower/command-tower-model.ts`
-- `src/features/hq/command-tower/dispatch-corridor-source.ts`
-- `src/features/hq/command-tower/runtime-status-source.ts`
-- `src/features/hq/components/agentic-factory-status.tsx`
-- `src/features/hq/components/ceo-brief-panel.tsx`
-- `src/features/hq/components/ceo-brief-section.tsx`
-- `src/features/hq/components/command-tower.tsx`
-- `src/features/hq/components/hq-overview-widgets.tsx`
-- `src/features/hq/components/module-card.tsx`
-- `src/features/hq/components/operator-snapshot.tsx`
-- `src/features/hq/components/private-hq-overview.tsx`
-- `src/features/hq/operator-snapshot.ts`
+- `src/features/hq/components/home-mission-overview.tsx`
 - `src/features/memory/components/agent-leaderboard.tsx`
 - `src/features/memory/components/daily-log-card.tsx`
 - `src/features/memory/components/memory-subject-card.tsx`
@@ -100,8 +88,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
-- `src/server/decision-spine/collect-decision-signals.ts`
-- `src/server/decision-spine/next-best-action.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
 - `src/server/missions/openhands-model-execution-receipt.ts`

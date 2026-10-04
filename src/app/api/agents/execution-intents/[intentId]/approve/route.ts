@@ -10,6 +10,7 @@ import {
   transitionAgentExecutionIntent,
 } from "@/server/agents/execution-intent-repository";
 import { approveAndDispatchExecutionIntent } from "@/server/agents/execution-intent-approval-service";
+import { billApprovedIntentUsage } from "@/server/michael-hq/billing-on-approve";
 import { logger } from "@/lib/logger";
 
 /**
@@ -148,11 +149,30 @@ export async function POST(
         skillId: intent.skillId,
         workspaceId: ctx.workspace.id,
       });
+
+      // Ethical usage billing — only AFTER CEO approval + successful dispatch.
+      // Never takes a percentage of end-user project revenue.
+      const billing = await billApprovedIntentUsage({ ctx, intent, actorId }).catch((err) => {
+        logger.warn("michael-hq.billing_on_approve.failed", {
+          intentId,
+          reason: err instanceof Error ? err.message : "unknown",
+        });
+        return null;
+      });
+
       return NextResponse.json({
         intentId,
         status: result.status,
         actionRef: result.actionRef,
         output: result.output,
+        billing: billing
+          ? {
+              amountCents: billing.walletEntry.amountCents,
+              stripeSynced: billing.stripeSynced,
+              billingModel: billing.billingModel,
+              revenueSharePercent: billing.revenueSharePercent,
+            }
+          : null,
       });
     }
 
