@@ -38,12 +38,22 @@ export function isLocalDraftVentureCard(card: VentureCard): boolean {
 }
 
 function generateDraftId(): string {
-  const hasRandomUuid =
+  let suffix: string;
+  if (
     typeof globalThis.crypto !== "undefined" &&
-    typeof globalThis.crypto.randomUUID === "function";
-  const suffix = hasRandomUuid
-    ? globalThis.crypto.randomUUID()
-    : `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    suffix = globalThis.crypto.randomUUID();
+  } else if (
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.getRandomValues === "function"
+  ) {
+    const array = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(array);
+    suffix = `${Date.now()}-${array[0]}`;
+  } else {
+    throw new Error("Secure random number generation is not supported in this environment.");
+  }
   return `${LOCAL_DRAFT_VENTURE_ID_PREFIX}${suffix}`;
 }
 
