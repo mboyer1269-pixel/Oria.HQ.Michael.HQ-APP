@@ -98,8 +98,14 @@ export async function collectDecisionSignalSnapshot(
   //    recorded outcome is `sent`.
   const candidates = await deps.listCandidates(input.workspaceId);
   const queuedActionIds: string[] = [];
-  for (const candidate of candidates) {
-    const outcome = await deps.getOutcome(candidate.action.idempotencyKey);
+
+  const outcomes = await Promise.all(
+    candidates.map((candidate) => deps.getOutcome(candidate.action.idempotencyKey))
+  );
+
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    const outcome = outcomes[i];
     if (!outcome || outcome.status !== "sent") {
       queuedActionIds.push(candidate.action.id);
     }
