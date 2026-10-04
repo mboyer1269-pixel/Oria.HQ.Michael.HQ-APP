@@ -9,7 +9,7 @@
 // into a guard over nothing.
 
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, mkdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -100,6 +100,13 @@ test("Env scanner — every form it claims to resolve", async (t) => {
       names.has("FIXTURE_ALIAS_ASSIGNED"),
       "an alias bound to process.env must be recognised whatever it is called",
     );
+  });
+
+  await t.test("an injected environment with a process.env fallback", async () => {
+    const { names } = await scanWithFixtures({
+      "a.ts": `export function read(options) { const bag = options?.env ?? process.env; return bag.FIXTURE_FALLBACK; }`,
+    });
+    assert.ok(names.has("FIXTURE_FALLBACK"));
   });
 
   await t.test("a bag typed as a ProcessEnv record, under any parameter name", async () => {
@@ -201,6 +208,18 @@ test("Env scanner — what it must NOT match", async (t) => {
   });
 });
 
+test("HQ catalog dynamic secret lookup stays allowlisted and declared", async () => {
+  const source = await readFile(path.join(projectRoot, "src/server/ai/hq-model-catalog.ts"), "utf8");
+  const schema = await readFile(path.join(projectRoot, "src/lib/server-env.ts"), "utf8");
+  const gateway = await readFile(path.join(projectRoot, "src/server/ai/gateway-catalog.ts"), "utf8");
+  assert.match(source, /const SERVER_SECRET_NAMES = new Set<string>\(\[OPENROUTER_API_KEY_ENV, NARA_API_KEY_ENV\]\)/);
+  assert.match(source, /if \(!SERVER_SECRET_NAMES\.has\(envName\)\) return undefined;\s*const value = process\.env\[envName\]/);
+  for (const name of ["OPENROUTER_API_KEY", "NARA_API_KEY"]) {
+    assert.ok(gateway.includes(`export const ${name}_ENV = "${name}";`));
+    assert.ok(schema.includes(`${name}: z.string()`));
+  }
+});
+
 test("Env scanner — unresolvable subscripts are reported, never dropped", async (t) => {
   await t.test("a subscript it cannot resolve appears in dynamicReads", async () => {
     const { dynamicReads } = await scanWithFixtures({
@@ -233,6 +252,8 @@ test("Env scanner — unresolvable subscripts are reported, never dropped", asyn
       actual,
       [
         { file: "src/scripts/check-supabase-config.ts", expression: "key", count: 1 },
+        // readServerSecret rejects names outside SERVER_SECRET_NAMES before lookup.
+        { file: "src/server/ai/hq-model-catalog.ts", expression: "envName", count: 1 },
         {
           file: "src/server/runtime/webhook-registry.ts",
           expression: "binding.destinationEnvKey",

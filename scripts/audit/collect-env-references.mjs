@@ -273,7 +273,9 @@ function analyseFile({ sourceFile, filePath, root, imports, exportedByFile, reco
 
   /** True when this expression denotes an environment bag. */
   const isEnvBag = (scope, node) =>
-    isProcessEnv(node) || (ts.isIdentifier(node) && scope.isEnvBag(node.text));
+    isProcessEnv(node) || (ts.isIdentifier(node) && scope.isEnvBag(node.text)) ||
+    (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken &&
+      (isEnvBag(scope, node.left) || isEnvBag(scope, node.right)));
 
   // A descriptor list only counts in a file that actually reads an env bag,
   // so a `key: "SOME_STRING"` elsewhere is never mistaken for a variable.

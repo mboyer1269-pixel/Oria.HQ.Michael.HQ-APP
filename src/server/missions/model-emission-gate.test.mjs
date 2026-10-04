@@ -98,8 +98,23 @@ test("Model emission gate tests", async (t) => {
     connectionSnapshot: codexConnectedSnapshot,
     authorization: authorized,
     tariff: null,
+    // ApprovedServerBinding axes (server-capability-catalog.ts): real,
+    // already-qualified identities a caller would actually have, not
+    // fabricated per-test. accountId mirrors a qualified providerProfile.id;
+    // catalogRevision mirrors its policySha256.
+    accountId: "codex-default",
+    catalogRevision: "a".repeat(64),
     nowMs,
   };
+
+  await t.test("missing accountId or catalogRevision (ApprovedServerBinding axes) is invalid_request, never silently omitted", () => {
+    const { accountId: _drop1, ...withoutAccountId } = baseRequest;
+    void _drop1;
+    assert.equal(evaluateModelEmissionGate(withoutAccountId).status, "invalid_request");
+    const { catalogRevision: _drop2, ...withoutRevision } = baseRequest;
+    void _drop2;
+    assert.equal(evaluateModelEmissionGate(withoutRevision).status, "invalid_request");
+  });
 
   await t.test("cross-workspace request is refused before the catalog is even built", () => {
     const result = evaluateModelEmissionGate({ ...baseRequest, requestingWorkspaceId: "workspace-b" });
@@ -127,14 +142,22 @@ test("Model emission gate tests", async (t) => {
     assert.deepEqual(result, { status: "authorization_missing" });
   });
 
-  await t.test("a subscription-connected, authorized model emits WITHOUT any tariff — none is required or asked for", () => {
+  await t.test("a subscription-connected, authorized model is non_api-authorized WITHOUT any tariff — never emit:true for a subscription", () => {
+    // Cursor's assessServerEmission refuses to EMIT (metered-call) a
+    // subscription/verified_free capability: disposition:"non_api" is the
+    // correct outcome, not a failure. Callers whose own execution path IS
+    // the subscription (an OpenHands launch, never a JSON API call) must
+    // read this disposition as their own success condition - this module
+    // itself still just forwards assessServerEmission's verdict unmodified.
     const result = evaluateModelEmissionGate(baseRequest); // tariff: null in baseRequest
     assert.equal(result.status, "ok");
-    assert.equal(result.assessment.emit, true);
+    assert.equal(result.assessment.emit, false);
+    assert.equal(result.assessment.disposition, "non_api");
     assert.equal(result.assessment.billingKind, "subscription");
     assert.equal("notToExceedCents" in result.assessment, false);
     assert.equal(result.assessment.capability.billingKind, "subscription");
     assert.equal(result.assessment.capability.tariff, null);
+    assert.equal(result.assessment.capability.accountId, baseRequest.accountId);
     // The catalog's model pricing says "premium" — proof billingKind came from
     // the connection evidence, not from the model's own pricing descriptor.
   });
@@ -185,7 +208,8 @@ test("Model emission gate tests", async (t) => {
     });
     assert.notEqual(freeResult.status, "budget_missing");
     assert.equal(freeResult.status, "ok");
-    assert.equal(freeResult.assessment.emit, true);
+    assert.equal(freeResult.assessment.emit, false);
+    assert.equal(freeResult.assessment.disposition, "non_api");
     assert.equal(freeResult.assessment.billingKind, "verified_free");
     assert.equal(freeResult.assessment.capability.tariff, null);
   });
@@ -268,10 +292,12 @@ test("Model emission gate tests", async (t) => {
     assert.deepEqual(result.assessment, { emit: false, block: "provider_mismatch", requestedModelId: "codex/gpt-codex" });
   });
 
-  await t.test("invokedProviderId matching the entry's provider still emits normally", () => {
+  await t.test("invokedProviderId matching the entry's provider still resolves to non_api-authorized (subscription), not provider_mismatch", () => {
     const result = evaluateModelEmissionGate({ ...baseRequest, invokedProviderId: "openai-codex" });
     assert.equal(result.status, "ok");
-    assert.equal(result.assessment.emit, true);
+    assert.equal(result.assessment.emit, false);
+    assert.equal(result.assessment.disposition, "non_api");
+    assert.equal(result.assessment.billingKind, "subscription");
   });
 
   await t.test("requiresTools true against a tool-incapable model is blocked by Cursor's own gate, unchanged by this caller", () => {

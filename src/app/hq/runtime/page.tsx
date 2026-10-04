@@ -1,4 +1,5 @@
 import type { Route } from "next";
+import Link from "next/link";
 import {
   Activity,
   CheckCircle2,
@@ -23,6 +24,7 @@ import { AgentFlowMap, type AgentFlowData } from "@/features/runtime/components/
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import { getCostLadderSnapshot } from "@/server/ai/cost-ladder";
+import { loadHqModelCatalog, type HqCatalogLine } from "@/server/ai/hq-model-catalog";
 import { Network } from "lucide-react";
 import {
   HqMetric,
@@ -74,6 +76,40 @@ const DEPLOYMENT_PHASES = [
   { phase: "6", label: "Live unlock (par skill)", done: false },
 ];
 
+const CATALOG_LINK = "rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300";
+
+function catalogHref(options: {
+  refresh?: boolean;
+  fournisseur?: "openrouter" | "nara";
+  page?: number;
+}): Route {
+  const query = new URLSearchParams();
+  if (options.refresh) query.set("catalog", "refresh");
+  if (options.fournisseur === "openrouter" || options.fournisseur === "nara") {
+    query.set("fournisseur", options.fournisseur);
+  }
+  if (options.fournisseur && options.page && options.page > 1) query.set("page", String(options.page));
+  const text = query.toString();
+  return (`/hq/runtime${text ? `?${text}` : ""}`) as Route;
+}
+
+function catalogProvider(value: string | string[] | undefined): "openrouter" | "nara" | undefined {
+  return value === "openrouter" || value === "nara" ? value : undefined;
+}
+
+function catalogPage(value: string | string[] | undefined): number {
+  return typeof value === "string" && /^[1-9][0-9]{0,3}$/.test(value) ? Number(value) : 1;
+}
+
+function catalogUnitLabel(units: HqCatalogLine["units"]): string {
+  const name = {
+    usd_per_million_tokens: "USD / million",
+    usd_per_request: "USD / requête",
+    unknown: "inconnu",
+  } as const;
+  return `${name[units.prompt]} · ${name[units.completion]} · ${name[units.request]}`;
+}
+
 function runCanaryCheck() {
   try {
     const now = new Date();
@@ -95,12 +131,25 @@ function runCanaryCheck() {
   }
 }
 
-export default async function RuntimePage() {
+export default async function RuntimePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const access = await requireOwnerAccess("/hq/runtime");
 
   if (access.status === "forbidden") {
     return <OwnerAccessDenied email={access.user.email} />;
   }
+
+  const params = await searchParams;
+  const fournisseur = catalogProvider(params.fournisseur);
+  const pageNumber = catalogPage(params.page);
+  const catalog = await loadHqModelCatalog({
+    nowMs: Date.now(),
+    refresh: params.catalog === "refresh" ? "now" : "if-stale",
+    ...(fournisseur ? { provider: fournisseur, page: pageNumber } : {}),
+  });
 
   const canary = runCanaryCheck();
 
@@ -349,6 +398,102 @@ export default async function RuntimePage() {
             )}
           </div>
         </HqWidgetGrid>
+      </HqWidget>
+
+      <HqWidget
+        title="Catalogue modèles"
+        eyebrow="Consultation — non exécutable"
+        icon={Server}
+        tone="sky"
+        action={
+          <Link
+            href={catalogHref({ refresh: true, fournisseur, page: pageNumber })}
+            className={CATALOG_LINK}
+          >
+            Actualiser
+          </Link>
+        }
+      >
+        <p className="text-xs leading-5 text-neutral-400">
+          La présence dans le catalogue n&apos;autorise pas un envoi. Accès et quota : inconnus.
+          {catalog.ok && catalog.stale ? " État : périmé." : ""}
+        </p>
+        {catalog.ok ? (
+          <>
+            {catalog.failures.map((failure) => (
+              <p key={failure.provider} className="mt-2 text-xs text-neutral-500">
+                {failure.provider} · indisponible · {failure.reason}
+              </p>
+            ))}
+            <div className="mt-3 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/70">
+              <div className="grid gap-1 border-b border-neutral-800 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500 sm:grid-cols-[7rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem]">
+                <span>Fournisseur</span>
+                <span>Modèle</span>
+                <span>Tarif</span>
+                <span>Unité</span>
+                <span>Vérifié</span>
+                <span>État</span>
+              </div>
+              {catalog.sections.length === 0 ? (
+                <p className="px-4 py-3 text-xs text-neutral-500">inconnu</p>
+              ) : (
+                catalog.sections.map((section) => (
+                  <div key={section.provider}>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 px-4 py-2">
+                      <p className="text-xs text-neutral-400">
+                        {section.provider} · {section.page}/{section.pageCount}
+                      </p>
+                      <span className="flex flex-wrap gap-2">
+                        {fournisseur ? (
+                          <Link href={catalogHref({})} className={CATALOG_LINK}>Tous</Link>
+                        ) : (
+                          <Link href={catalogHref({ fournisseur: section.provider })} className={CATALOG_LINK}>
+                            {section.provider}
+                          </Link>
+                        )}
+                        {section.page > 1 ? (
+                          <Link
+                            href={catalogHref({ fournisseur: section.provider, page: section.page - 1 })}
+                            className={CATALOG_LINK}
+                          >
+                            Précédent
+                          </Link>
+                        ) : null}
+                        {section.page < section.pageCount ? (
+                          <Link
+                            href={catalogHref({ fournisseur: section.provider, page: section.page + 1 })}
+                            className={CATALOG_LINK}
+                          >
+                            Suite
+                          </Link>
+                        ) : null}
+                      </span>
+                    </div>
+                    {section.lines.length === 0 ? (
+                      <p className="border-b border-neutral-800 px-4 py-3 text-xs text-neutral-500">inconnu</p>
+                    ) : (
+                      section.lines.map((line, index) => (
+                        <div
+                          key={`${section.provider}:${line.modelId}:${index}`}
+                          className="grid gap-1 border-b border-neutral-800 px-4 py-2.5 text-xs last:border-b-0 sm:grid-cols-[7rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem]"
+                        >
+                          <span className="text-neutral-300">{line.provider}</span>
+                          <span className="truncate font-mono text-neutral-200">{line.modelId}</span>
+                          <span className="font-mono text-neutral-300">{line.tariff}</span>
+                          <span className="text-neutral-500">{catalogUnitLabel(line.units)}</span>
+                          <span className="truncate font-mono text-neutral-500">{line.observedAt ?? "inconnu"}</span>
+                          <span className="text-neutral-300">{line.status}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="mt-3 text-xs text-neutral-400">indisponible · {catalog.reason}</p>
+        )}
       </HqWidget>
 
       <HqWidget title="État du runtime" eyebrow="Guarded systems" icon={Server}>

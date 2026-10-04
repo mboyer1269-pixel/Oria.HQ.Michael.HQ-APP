@@ -3,14 +3,23 @@ import { buildOpenHandsSubmission, type OpenHandsSubmissionRequest } from "./ope
 import { createOpenHandsReservationService, OPENHANDS_RESERVATION_KEY, openHandsReceiptSchema, type OpenHandsReservationStore, type OpenHandsReservationReceipt } from "./openhands-reservation";
 import { createOpenHandsReservationStore } from "./openhands-reservation-store";
 import { createOpenHandsAuthorityStore, OpenHandsAuthorityError, type OpenHandsAuthorityStore } from "./openhands-authority-store";
+import { defaultLoadLaunchConfig } from "./model-emission-launch-gate";
+import type { LaunchConfig } from "@/core/openhands-launch-contract";
 
 export function createOpenHandsConfirmationService(deps: { store?: () => OpenHandsReservationStore | null;
-  authority?: () => OpenHandsAuthorityStore | null; now?: () => number } = {}) {
+  authority?: () => OpenHandsAuthorityStore | null; now?: () => number; configuration?: () => LaunchConfig | null } = {}) {
   return async (context: { workspaceId: string; actorId: string }, request: OpenHandsSubmissionRequest,
     confirmation?: { expectedPayloadHash: string; confirm: true }) => {
     let persistAttempted = false;
     let authorityFailure: "expired" | "conflict" | undefined;
     try {
+      const configuration = (deps.configuration ?? defaultLoadLaunchConfig)();
+      if (configuration?.providerProfile) {
+        if (!configuration.foundationModelId) return {status:"model_selection_required",externalEffectAllowed:false};
+        if (request.foundationModelId !== undefined && request.foundationModelId !== configuration.foundationModelId)
+          return {status:"model_selection_changed",externalEffectAllowed:false};
+        request = {...request, foundationModelId:configuration.foundationModelId};
+      }
       const store = (deps.store ?? createOpenHandsReservationStore)();
       if (!store) return { status: "unavailable", externalEffectAllowed: false };
       const mission = await store.load(context.workspaceId, request.missionId);

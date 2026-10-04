@@ -260,6 +260,12 @@ export async function authorizeCallAttempt(input: {
   maxTokens: number;
   inputBytes: number;
   hasApiKey: boolean;
+  /**
+   * Positive USD cents from the server capability catalog. When set, a hold
+   * above this cap is released before mark and does not open a socket.
+   * This is not a client price and not an observed spend of zero.
+   */
+  catalogCeilingCents?: number;
 }): Promise<AttemptAuthorization> {
   if (!input.configured) {
     return {
@@ -326,6 +332,19 @@ export async function authorizeCallAttempt(input: {
     };
   }
 
+  if (
+    input.catalogCeilingCents !== undefined
+    && (!Number.isSafeInteger(input.catalogCeilingCents) || input.catalogCeilingCents < 1)
+  ) {
+    return {
+      emit: false,
+      reservation: {
+        ...emptyHold("refused", true, "catalog_ceiling"),
+        accessClass,
+      },
+    };
+  }
+
   const reserved = await readGate(() => gate.reserve({
     ...identity,
     accessClass,
@@ -335,6 +354,36 @@ export async function authorizeCallAttempt(input: {
   }));
   if (reserved.status !== "held" || reserved.currency !== "USD" || reserved.reservedCents === null) {
     return { emit: false, reservation: { ...reserved, configured: true, accessClass } };
+  }
+
+  if (
+    input.catalogCeilingCents !== undefined
+    && reserved.reservedCents > input.catalogCeilingCents
+  ) {
+    const released = await readGate(() => gate.release(identity));
+    if (
+      released.status === "released"
+      && released.networkEmitted === false
+      && released.reconciliationRequired === false
+    ) {
+      return {
+        emit: false,
+        reservation: { ...released, configured: true, accessClass, reason: "catalog_ceiling" },
+      };
+    }
+    return {
+      emit: false,
+      reservation: {
+        configured: true,
+        accessClass,
+        status: "held",
+        currency: "USD",
+        reservedCents: reserved.reservedCents,
+        networkEmitted: false,
+        reconciliationRequired: true,
+        reason: "catalog_ceiling",
+      },
+    };
   }
 
   const emitted = await readGate(() => gate.markEmitted(identity));

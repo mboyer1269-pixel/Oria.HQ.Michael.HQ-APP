@@ -1,10 +1,15 @@
 import "server-only";
 import { z } from "zod";
+import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
+import { OPENHANDS_RESULT_KEY, openHandsResultSchema, openHandsResultReceiptSchema } from "@/core/openhands-result-contract";
 import { launchBinding, launchClaimSchema, OPENHANDS_LAUNCH_KEY, validateLaunchAuthority, type LaunchStore } from "./openhands-launch";
 
 const transitionSchema=z.discriminatedUnion("next",[
   z.object({next:z.literal("read")}).strict(),
   z.object({next:z.literal("prepare")}).strict(),
+  z.object({next:z.literal("result_received"),expected:z.literal("execution_finished"),
+    containerId:z.string().regex(/^[a-f0-9]{64}$/),result:openHandsResultSchema}).strict(),
   z.object({next:z.literal("creation_requested"),expected:z.literal("claimed")}).strict(),
   z.object({next:z.literal("container_created"),expected:z.literal("creation_requested"),containerId:z.string().regex(/^[a-f0-9]{64}$/)}).strict(),
   z.object({next:z.literal("start_requested"),expected:z.literal("container_created"),containerId:z.string().regex(/^[a-f0-9]{64}$/)}).strict(),
@@ -45,7 +50,16 @@ export function createOpenHandsLifecycleService(deps:{store:()=>LaunchStore|null
         || claim.launchHash!==binding.launchHash || claim.payloadHash!==binding.payloadHash || claim.reservationId!==binding.reservationId
         || claim.commitSha!==binding.commitSha || claim.imageDigest!==binding.config.imageDigest
         || claim.containerName!==`hq-openhands-${claim.launchId}`)return {status:"binding_mismatch"};
-      if(t.data.next==="read")return {status:"observed",claim,config:binding.config};
+      if(t.data.next==="read"){
+        const receipt=mission.result?.[OPENHANDS_RESULT_KEY]===undefined?undefined:
+          openHandsResultReceiptSchema.parse(mission.result[OPENHANDS_RESULT_KEY]);
+        if(receipt && (receipt.report.launchId!==claim.launchId || receipt.report.workspaceId!==claim.workspaceId
+          || receipt.report.missionId!==claim.missionId || receipt.report.payloadHash!==claim.payloadHash
+          || receipt.report.commitSha!==claim.commitSha || claim.state!=="execution_finished" || !claim.process?.containerStopped
+          || receipt.contentHash!==createHash("sha256").update(JSON.stringify(receipt.report)).digest("hex")))return {status:"binding_mismatch"};
+        return {status:"observed",claim,config:binding.config,resultBinding:{idempotencyKey:dossier!.idempotencyKey},
+          ...(receipt?{result:receipt}:{})};
+      }
       if(t.data.next==="prepare"){
         if(claim.state!=="claimed")return {status:"conflict"};
         const authority=validateLaunchAuthority(await store.readAuthority(binding,context.actorId),binding,context.actorId,(deps.now??Date.now)());
@@ -54,6 +68,28 @@ export function createOpenHandsLifecycleService(deps:{store:()=>LaunchStore|null
       }
       if(claim.state!==t.data.expected)return {status:"conflict"};
       if("containerId" in t.data && t.data.next!=="container_created" && claim.containerId!==t.data.containerId)return {status:"binding_mismatch"};
+      if(t.data.next==="result_received"){
+        const report=t.data.result;
+        if(binding.config.foundationModelId && (report.modelExecution?.requestedModelId!==binding.config.foundationModelId
+          || (report.executionState==="agent_returned" && report.modelExecution.acpConfirmedModelId!==binding.config.foundationModelId)))
+          return {status:"binding_mismatch"};
+        if(!claim.process?.containerStopped || report.launchId!==claim.launchId || report.workspaceId!==claim.workspaceId
+          || report.missionId!==claim.missionId || report.payloadHash!==claim.payloadHash || report.commitSha!==claim.commitSha)
+          return {status:"binding_mismatch"};
+        if(report.summary.status==="present" && createHash("sha256").update(report.summary.text,"utf8").digest("hex")!==report.summary.sha256)
+          return {status:"invalid_transition"};
+        const contentHash=createHash("sha256").update(JSON.stringify(report)).digest("hex");
+        const priorRaw=mission.result?.[OPENHANDS_RESULT_KEY];
+        if(priorRaw!==undefined){
+          const prior=openHandsResultReceiptSchema.safeParse(priorRaw);
+          return prior.success && prior.data.contentHash===contentHash && isDeepStrictEqual(prior.data.report,report)
+            ? {status:"recorded",claim,result:prior.data,independentValidationPassed:false}
+            : {status:"conflict"};
+        }
+        const receipt={version:1 as const,receivedAt:new Date((deps.now??Date.now)()).toISOString(),contentHash,report};
+        const saved=await store.compareAndSwap(mission,claim,receipt);
+        return saved?{status:"recorded",claim,result:receipt,independentValidationPassed:false}:{status:"conflict"};
+      }
       if(t.data.next==="cancelled"){
         // The closure must name exactly the container identity the claim holds.
         if((claim.containerId??null)!==(t.data.containerId??null))return {status:"binding_mismatch"};

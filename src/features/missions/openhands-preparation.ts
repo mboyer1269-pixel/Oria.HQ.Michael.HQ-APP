@@ -8,7 +8,7 @@ const memorySchema = z.object({ contractVersion: z.literal(1), sourceTool: z.lit
   workspaceId: id, projectId: id, namespace: z.string().min(1).max(256), centerEntityId: id,
   retrievedAtIso: date, content: z.string().min(1).max(4000), contentChars: z.number().int().min(1).max(4000),
   redactionsApplied: z.number().int().nonnegative(), snapshotHash: hash }).strict();
-const dossierSchema = z.object({ contractVersion: z.union([z.literal(1), z.literal(2)]), executor: z.literal("openhands"), executorVersion: z.string().max(64),
+const dossierSchema = z.object({ contractVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]), executor: z.literal("openhands"), executorVersion: z.string().max(64), foundationModelId: z.string().min(1).max(200).optional(),
   mission: z.object({ id: z.uuid(), workspaceId: id, modeId: id, version: date, title: z.string().min(1).max(200), objective: z.string().min(1).max(4000), scope: z.string().min(1).max(1000), acceptanceCriteria: z.string().min(1).max(2000), expectedOutput: z.string().min(1).max(4000), createdBy: id }).strict(),
   source: z.object({ commitSha: z.string(), commitVerification: z.literal("not_verified") }).strict(), budget,
   approvalRequired: z.literal(true), executionRequested: z.literal(false), idempotencyKey: key, payloadHash: hash,

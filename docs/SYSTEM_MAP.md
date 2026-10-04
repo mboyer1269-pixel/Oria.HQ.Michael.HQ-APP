@@ -14,31 +14,32 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 460 |
-| TEST_ONLY | 9 |
-| INCUBATION | 44 |
-| **Total source** | **513** |
+| LIVE | 538 |
+| TEST_ONLY | 13 |
+| INCUBATION | 62 |
+| **Total source** | **613** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
-| server/agents | 12 |
+| features/hq | 13 |
+| server/agents | 11 |
 | features/cockpit | 7 |
 | features/memory | 7 |
-| features/ventures | 3 |
+| features/ventures | 5 |
+| features/missions | 3 |
 | server/missions | 3 |
 | server/arena | 2 |
+| server/decision-spine | 2 |
+| server/ventures | 2 |
 | features/agents | 1 |
-| features/hq | 1 |
 | features/outbound | 1 |
 | features/skills | 1 |
 | lib/cn.ts | 1 |
 | scripts/check-supabase-config.ts | 1 |
 | scripts/mcl-archive-dir.ts | 1 |
 | scripts/process-document.ts | 1 |
-| server/ai | 1 |
-| server/ventures | 1 |
 
 ## Incubation files (full list)
 
@@ -53,6 +54,18 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/cockpit/components/venture-suggestions.tsx`
 - `src/features/cockpit/widgets/widget-manifest.ts`
 - `src/features/hq/capability-status.ts`
+- `src/features/hq/command-tower/command-tower-model.ts`
+- `src/features/hq/command-tower/dispatch-corridor-source.ts`
+- `src/features/hq/command-tower/runtime-status-source.ts`
+- `src/features/hq/components/agentic-factory-status.tsx`
+- `src/features/hq/components/ceo-brief-panel.tsx`
+- `src/features/hq/components/ceo-brief-section.tsx`
+- `src/features/hq/components/command-tower.tsx`
+- `src/features/hq/components/hq-overview-widgets.tsx`
+- `src/features/hq/components/module-card.tsx`
+- `src/features/hq/components/operator-snapshot.tsx`
+- `src/features/hq/components/private-hq-overview.tsx`
+- `src/features/hq/operator-snapshot.ts`
 - `src/features/memory/components/agent-leaderboard.tsx`
 - `src/features/memory/components/daily-log-card.tsx`
 - `src/features/memory/components/memory-subject-card.tsx`
@@ -60,10 +73,15 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/memory/components/venture-progress-panel.tsx`
 - `src/features/memory/seed.ts`
 - `src/features/memory/types.ts`
+- `src/features/missions/components/mission-calendar-flow-section.tsx`
+- `src/features/missions/components/mission-flow-legend.tsx`
+- `src/features/missions/components/mission-system-status.tsx`
 - `src/features/outbound/components/outbound-batch-panel.tsx`
 - `src/features/skills/skill-governance.ts`
+- `src/features/ventures/cash-action-packet-generator.ts`
 - `src/features/ventures/executive-selection-index.ts`
 - `src/features/ventures/hermes-prep-plan.ts`
+- `src/features/ventures/llm-cash-action-packet-generator.ts`
 - `src/features/ventures/venture-cash-score.ts`
 - `src/lib/cn.ts`
 - `src/scripts/check-supabase-config.ts`
@@ -71,9 +89,8 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/process-document.ts`
 - `src/server/agents/evidence/runtime-evidence-pack.ts`
 - `src/server/agents/models/agent-model-profile-contract.ts`
-- `src/server/agents/models/model-provider-contract.ts`
+- `src/server/agents/models/hermes-codex-connection-probe.ts`
 - `src/server/agents/models/model-selection-policy.ts`
-- `src/server/agents/models/provider-registry-contract.ts`
 - `src/server/agents/providers/adapter-provider-contract.ts`
 - `src/server/agents/providers/cli-runtime-provider-contract.ts`
 - `src/server/agents/providers/mailbox-provider-contract.ts`
@@ -81,10 +98,12 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/server/agents/providers/web-automation-provider-contract.ts`
 - `src/server/agents/providers/workflow-runtime-provider-contract.ts`
 - `src/server/agents/work-order-autonomy-envelope-response.ts`
-- `src/server/ai/free-model-catalog.ts`
 - `src/server/arena/arena-wra-buckets.ts`
 - `src/server/arena/arena-wra-evidence.ts`
-- `src/server/missions/approval-record-repository.ts`
+- `src/server/decision-spine/collect-decision-signals.ts`
+- `src/server/decision-spine/next-best-action.ts`
 - `src/server/missions/draft-to-queued-contract.ts`
 - `src/server/missions/mission-persistence-mode.ts`
+- `src/server/missions/openhands-model-execution-receipt.ts`
+- `src/server/ventures/active-venture-contexts.ts`
 - `src/server/ventures/hermes-prep-tick.ts`

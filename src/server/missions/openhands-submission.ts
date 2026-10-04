@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Mission } from "@/core/types";
+import { foundationModelIdSchema } from "@/core/openhands-launch-contract";
 import { createDevelopmentStore, developmentInputSchema, developmentMissionId, type DevelopmentStore } from "./development-mission";
 import { evaluateMissionApproval } from "./approval-service";
 import { validateOpenHandsMemorySnapshot, type OpenHandsMemoryContextSnapshot } from "./openhands-memory-context";
@@ -11,6 +12,7 @@ export const OPENHANDS_MEMORY_KEY = "_openhandsMemory";
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const boundedId = z.string().trim().min(1).max(160);
 export const openHandsSubmissionRequestSchema = z.object({
+  foundationModelId: foundationModelIdSchema.optional(),
   missionId: z.uuid(), expectedUpdatedAt: z.iso.datetime({ offset: true }),
   commitSha: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/).refine((value) => !/^0+$/.test(value)),
   executorVersion: z.string().regex(/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/).max(64),
@@ -22,7 +24,8 @@ const metadataSchema = z.object({ version: z.literal(1), requestId: z.uuid(),
   createdBy: boundedId, payloadHash: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
 export type OpenHandsSubmissionRequest = z.infer<typeof openHandsSubmissionRequestSchema>;
 export type OpenHandsSubmissionDossier = Readonly<{
-  contractVersion: 1 | 2; executor: "openhands"; executorVersion: string;
+  contractVersion: 1 | 2 | 3; executor: "openhands"; executorVersion: string;
+  foundationModelId?: string;
   memory?: OpenHandsMemoryContextSnapshot;
   mission: Readonly<{ id: string; workspaceId: string; modeId: string; version: string; title: string; objective: string;
     scope: string; acceptanceCriteria: string; expectedOutput: string; createdBy: string }>;
@@ -66,7 +69,9 @@ export function buildOpenHandsSubmission(mission: Mission, workspaceId: string, 
     return { status: "ineligible_mission" };
   }
   const payload = {
-    contractVersion: memory ? 2 as const : 1 as const, executor: "openhands" as const, executorVersion: input.executorVersion,
+    contractVersion: input.foundationModelId ? 3 as const : memory ? 2 as const : 1 as const,
+    executor: "openhands" as const, executorVersion: input.executorVersion,
+    ...(input.foundationModelId ? { foundationModelId: input.foundationModelId } : {}),
     mission: Object.freeze({ id: mission.id, workspaceId, modeId: mission.modeId, version: mission.updatedAt,
       title: mission.title, objective: mission.objective, scope: development.scope, acceptanceCriteria: development.acceptanceCriteria,
       expectedOutput: mission.expectedOutput, createdBy: development.createdBy }),

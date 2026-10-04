@@ -9,7 +9,7 @@ export function createConfiguredOpenHandsLaunch(deps: {
 } = {}) {
   const service = createOpenHandsLaunchService({store:deps.store ?? createOpenHandsLaunchStore});
   return async (context: {workspaceId:string;actorId:string}, missionId:string,
-    confirmation?: {expectedLaunchHash:string;confirm:true}) => {
+    confirmation?: {expectedLaunchHash:string;confirm:true;approvalRecordId?:string}) => {
     if (!(deps.enabled ?? (() => process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"))())
       return {status:"disabled",externalEffectAllowed:false};
     try {
@@ -17,6 +17,7 @@ export function createConfiguredOpenHandsLaunch(deps: {
       if (!raw || Buffer.byteLength(raw,"utf8") > 4096) return {status:"unavailable",externalEffectAllowed:false};
       const config = launchConfigSchema.safeParse(JSON.parse(raw));
       if (!config.success) return {status:"unavailable",externalEffectAllowed:false};
+      if (config.data.providerProfile && !config.data.foundationModelId) return {status:"model_selection_required",externalEffectAllowed:false};
       return await service(context,{missionId,config:config.data},confirmation);
     } catch { return {status:confirmation ? "reconciliation_required" : "unavailable",externalEffectAllowed:false}; }
   };

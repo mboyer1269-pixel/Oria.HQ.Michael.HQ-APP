@@ -6,6 +6,7 @@ import { buildOpenHandsSubmission, type OpenHandsSubmissionDossier } from "./ope
 import type { Mission } from "@/core/types";
 import { openHandsReceiptSchema, OPENHANDS_RESERVATION_KEY } from "./openhands-reservation";
 import { launchConfigSchema, type LaunchBinding } from "@/core/openhands-launch-contract";
+import type { OpenHandsResultReceipt } from "@/core/openhands-result-contract";
 export { launchConfigSchema, type LaunchConfig, type LaunchBinding } from "@/core/openhands-launch-contract";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -17,6 +18,8 @@ export const launchAuthoritySchema = z.object({ version: z.literal(1), id: z.uui
   actorId: id, approvedAt: z.iso.datetime({ offset: true }), expiresAt: z.iso.datetime({ offset: true }) }).strict();
 export type LaunchAuthority = z.infer<typeof launchAuthoritySchema>;
 export const launchClaimSchema = z.object({ version: z.literal(1), launchId: z.uuid(), authorizationId: z.uuid(),
+  /** Server verified decision; never accepted from the browser. Required by the DB for effectful claims. */
+  approvalRecordId: z.uuid().optional(),
   workspaceId: id, missionId: z.uuid(), reservationId: z.uuid(), payloadHash: digest, launchHash: digest,
   actorId: id, runnerId: id, imageDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   commitSha: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
@@ -33,7 +36,7 @@ export const launchClaimSchema = z.object({ version: z.literal(1), launchId: z.u
 export type LaunchClaim = z.infer<typeof launchClaimSchema>;
 export type LaunchStore = { load(workspaceId: string, missionId: string): Promise<Mission | null>;
   readSubmission(mission: Mission, actorId: string): Promise<OpenHandsSubmissionDossier | null>;
-  compareAndSwap(mission: Mission, claim: LaunchClaim): Promise<Mission | null>;
+  compareAndSwap(mission: Mission, claim: LaunchClaim, result?: OpenHandsResultReceipt): Promise<Mission | null>;
   /** Persist then canonically reread a decision at an authenticated owner boundary. */
   persistAuthority(binding: LaunchBinding, actorId: string, now: number): Promise<unknown>;
   readAuthority(binding: LaunchBinding, actorId: string): Promise<unknown> };
@@ -45,13 +48,23 @@ export function launchBinding(mission: Mission, actorId: string, rawConfig: unkn
     || receipt.data.workspaceId !== mission.workspaceId || receipt.data.missionId !== mission.id || mission.status !== "draft") return null;
   if (!canonical) return null;
   const candidate={...mission,input:{...mission.input},updatedAt:receipt.data.missionVersion};
+  // A stopped, already-claimed launch may subsequently receive result evidence.
+  // Results are not submission inputs; preserve them in storage while rebuilding
+  // the original approved dossier. Initial submissions still reject any result.
+  const existingClaim = launchClaimSchema.safeParse(mission.input[OPENHANDS_LAUNCH_KEY]);
+  if (existingClaim.success && existingClaim.data.state === "execution_finished"
+    && existingClaim.data.missionId === mission.id && existingClaim.data.workspaceId === mission.workspaceId
+    && existingClaim.data.actorId === actorId && existingClaim.data.payloadHash === receipt.data.payloadHash
+    && existingClaim.data.reservationId === receipt.data.reservationId) candidate.result = undefined;
   delete candidate.input[OPENHANDS_RESERVATION_KEY];
   delete candidate.input[OPENHANDS_LAUNCH_KEY];
   const rebuilt=buildOpenHandsSubmission(candidate,mission.workspaceId,{missionId:mission.id,expectedUpdatedAt:receipt.data.missionVersion,
-    commitSha:canonical.source.commitSha,executorVersion:canonical.executorVersion,budget:canonical.budget});
+    commitSha:canonical.source.commitSha,executorVersion:canonical.executorVersion,budget:canonical.budget,
+    ...(canonical.foundationModelId ? {foundationModelId:canonical.foundationModelId} : {})});
   if(rebuilt.status!=="prepared" || !isDeepStrictEqual(rebuilt.dossier,canonical)
     || canonical.payloadHash!==receipt.data.payloadHash || canonical.idempotencyKey!==receipt.data.idempotencyKey
     || config.data.executorVersion!==canonical.executorVersion
+    || config.data.foundationModelId!==canonical.foundationModelId
     || config.data.maxCostCents!==canonical.budget.maxCostCents || config.data.maxTokens!==canonical.budget.maxTokens
     || config.data.maxIterations!==canonical.budget.maxIterations || config.data.timeoutSeconds!==canonical.budget.timeoutSeconds) return null;
   const payload = { workspaceId: mission.workspaceId, missionId: mission.id, reservationId: receipt.data.reservationId,
@@ -73,7 +86,7 @@ export function validateLaunchAuthority(raw: unknown, binding: LaunchBinding, ac
  * This tranche reserves only: no Docker, scheduler, lease takeover or execution. */
 export function createOpenHandsLaunchService(deps: { store: () => LaunchStore | null; now?: () => number }) {
   return async (context: { workspaceId: string; actorId: string }, request: { missionId: string; config: unknown },
-    confirmation?: { confirm: true; expectedLaunchHash: string }) => {
+    confirmation?: { confirm: true; expectedLaunchHash: string; approvalRecordId?: string }) => {
     const closed = (status: string) => ({ status, externalEffectAllowed: false as const });
     let attempted = false;
     try {
@@ -99,7 +112,8 @@ export function createOpenHandsLaunchService(deps: { store: () => LaunchStore | 
       const authority = validateLaunchAuthority(await store.readAuthority(binding, context.actorId), binding, context.actorId, now());
       if (!authority) return closed("authorization_denied");
       const launchId = randomUUID();
-      const claim: LaunchClaim = { version: 1, launchId, authorizationId: authority.id, workspaceId: binding.workspaceId,
+      const claim: LaunchClaim = { version: 1, launchId, authorizationId: authority.id,
+        ...(confirmation.approvalRecordId ? { approvalRecordId: confirmation.approvalRecordId } : {}), workspaceId: binding.workspaceId,
         missionId: binding.missionId, reservationId: binding.reservationId, payloadHash: binding.payloadHash, launchHash: binding.launchHash,
         actorId: context.actorId, runnerId: binding.config.runnerId, imageDigest: binding.config.imageDigest,commitSha:binding.commitSha,
         containerName: `hq-openhands-${launchId}`, state: "claimed", claimedAt: new Date(now()).toISOString(), authorizationExpiresAt: authority.expiresAt };

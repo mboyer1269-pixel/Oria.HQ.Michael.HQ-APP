@@ -24,7 +24,8 @@ import { handleMarketplaceListingIntent } from "@/server/joris/marketplace-listi
 import { handleInventoryMarketIntent } from "@/server/joris/inventory-market-intent";
 import { handleSalesAppointmentLivreIntent } from "@/server/joris/sales-appointment-intent";
 import { handleSalesMarketingPrepareIntent } from "@/server/joris/sales-marketing-intent";
-import { generateJorisReply, type JorisReplyResult } from "@/server/joris/joris-reply-generator";
+import { generateJorisReply, type JorisReplyResult, type JorisReplyInput } from "@/server/joris/joris-reply-generator";
+import type { ChatBindingResolution, ChatExecutionReport } from "./chat-model-binding";
 import { routeMissionRequest } from "@/server/joris/mission-router";
 import { formatMissionRouterResponse } from "@/server/joris/mission-router-response";
 import { buildJorisGovernanceBundlePreview } from "@/server/joris/governance-bundle-preview";
@@ -284,12 +285,7 @@ async function handleGovernanceReviewReply(
 
 /** Injectable dependencies — lets tests supply a mock LLM reply / vault (no network). */
 export type RunJorisCommandDeps = {
-  generateReply: (input: {
-    message: string;
-    memoryContext?: string | null;
-    chosenModelId?: string;
-    workspaceId?: string;
-  }) => Promise<JorisReplyResult>;
+  generateReply: (input: JorisReplyInput) => Promise<JorisReplyResult>;
   /** Verified-vault reader; defaults to the real one. Injectable for tests. */
   readVerifiedVault?: (workspaceId: string) => MemoryVaultReadResult;
   /** Optional Memex read-only enrichment — defaults to env-gated stdio client. */
@@ -310,7 +306,8 @@ export async function runJorisCommand(
   message: string,
   workspaceContext: WorkspaceContext = getActiveWorkspaceContext(),
   deps: RunJorisCommandDeps = defaultRunJorisCommandDeps,
-): Promise<CommandResult> {
+  chatBinding?: ChatBindingResolution,
+): Promise<CommandResult & { chatExecution?: ChatExecutionReport; chatBindingStatus?: string }> {
   const ctx = workspaceContext;
 
   const route = chooseModel({
@@ -714,9 +711,10 @@ export async function runJorisCommand(
     generation: "fallback" as const,
   };
 
-  if (routedModel.execution === "refused") {
+  if (chatBinding?.status === "blocked" || (!chatBinding && routedModel.execution === "refused")) {
     return {
       ...template,
+      ...(chatBinding?.status === "blocked" ? {chatBindingStatus:chatBinding.reason} : {}),
       costAccounting: { kind: "refused", monetaryUsd: null, networkRequestSent: false },
     };
   }
@@ -724,8 +722,9 @@ export async function runJorisCommand(
   const llmReply = await deps.generateReply({
     message,
     memoryContext: memory.memoryContext,
-    chosenModelId: routedModel.chosenModelId,
+    chosenModelId: chatBinding?.status === "ready" ? chatBinding.binding.approved.modelId : routedModel.chosenModelId,
     workspaceId: ctx.workspace.id,
+    ...(chatBinding?.status === "ready" ? {hqBinding:chatBinding.binding} : {}),
   });
   if (llmReply.ok) {
     // Preserve the deterministic verified-memory/lessons rail verbatim by
@@ -735,13 +734,14 @@ export async function runJorisCommand(
       intent === "board.consult" && memory.memoryContext
         ? `${llmReply.text}\n\n${memory.memoryContext}`
         : llmReply.text;
-    const executedModelId = llmReply.modelId;
+    const executedModelId = llmReply.execution ? llmReply.execution.executedModelId : llmReply.modelId;
     return {
       intent,
       summary: attachMemexPreview(summary, intent, memory),
-      modelId: executedModelId,
-      chosenModelId: routedModel.chosenModelId,
+      modelId: llmReply.modelId,
+      chosenModelId: chatBinding?.status === "ready" ? chatBinding.binding.approved.modelId : routedModel.chosenModelId,
       executedModelId,
+      ...(llmReply.execution ? {chatExecution:llmReply.execution} : {}),
       ...(executedModelId === routedModel.chosenModelId ? { costMode: routedModel.mode } : {}),
       costAccounting: llmReply.cost ?? {
         kind: "unknown_cost",
@@ -756,6 +756,8 @@ export async function runJorisCommand(
 
   return {
     ...template,
+    ...(llmReply.execution ? {chatExecution:llmReply.execution} : {}),
+    ...(chatBinding ? {chatBindingStatus:"generation_refused_or_failed"} : {}),
     costAccounting: llmReply.cost ?? {
       kind: "refused",
       monetaryUsd: null,

@@ -47,7 +47,10 @@ export type OpenAiJsonSuccess = {
   ok: true;
   json: unknown;
   rawText: string;
+  /** Id placed in the request. Not an observation of the model that ran. */
   modelId: string;
+  /** `model` from the response body. Null when the body does not say. */
+  observedModelId: string | null;
   tokenUsage?: { input: number; output: number };
 };
 
@@ -135,9 +138,12 @@ export async function generateJsonWithOpenAI(
     }
 
     const data = (await response.json()) as {
+      model?: string;
       choices?: Array<{ message?: { content?: string } }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
+    const observedModelId =
+      typeof data.model === "string" && data.model.length > 0 ? data.model : null;
 
     const rawText = data?.choices?.[0]?.message?.content ?? "";
 
@@ -169,7 +175,7 @@ export async function generateJsonWithOpenAI(
         ? { input: data.usage.prompt_tokens, output: data.usage.completion_tokens }
         : undefined;
 
-    return { ok: true, json, rawText, modelId, tokenUsage };
+    return { ok: true, json, rawText, modelId, observedModelId, tokenUsage };
   } catch (err) {
     if (isAbortError(err)) {
       return {

@@ -1,4 +1,8 @@
 import { DevelopmentMissionForm } from "@/features/missions/components/development-mission-form";
+import { missionDossierId } from "@/features/missions/development-mission-handoff";
+import { createDevelopmentStore } from "@/server/missions/development-mission";
+import { listMissionsForWorkspace } from "@/server/missions";
+import type { Mission } from "@/core/types";
 import type { Route } from "next";
 import Link from "next/link";
 import { Bot, LayoutDashboard, ShieldAlert } from "lucide-react";
@@ -31,11 +35,26 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
   }
 
   const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
-  const filter = parseMissionPageFilter(await searchParams);
+  const params = await searchParams;
+  const filter = parseMissionPageFilter(params);
   const { missions, source, summary, filteredTotal, reviewTotal, pageNumber } = await listMissionPage({
     workspaceId: activeWorkspace.id,
     modeId: activeMode.id,
   }, filter);
+
+  // An explicit receipt opens its exact mission, even outside the current page.
+  // Workspace and mode are derived from the owner session, never from the link.
+  const requestedId = missionDossierId(params.mission);
+  let requestedMission: Mission | null = null;
+  let requestedReadFailed = false;
+  if (requestedId) {
+    try {
+      const candidate = source === "supabase"
+        ? await createDevelopmentStore()?.load(activeWorkspace.id, requestedId)
+        : (await listMissionsForWorkspace({ workspaceId: activeWorkspace.id, modeId: activeMode.id })).missions.find(mission => mission.id === requestedId);
+      if (candidate?.workspaceId === activeWorkspace.id && candidate.modeId === activeMode.id) requestedMission = candidate;
+    } catch { requestedReadFailed = true; }
+  }
 
   const pageRecovered = pageNumber !== filter.page;
   filter.page = pageNumber;
@@ -76,6 +95,10 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
       </HqPageHeader>
 
       <DevelopmentMissionForm workspaceId={activeWorkspace.id} />
+      {params.mission !== undefined && <section id="requested-mission" aria-label="Mission demandée">
+        {requestedMission ? <MissionDossier key={requestedMission.id} missions={[requestedMission]} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
+          : <p role="status" className="rounded-xl border border-amber-500/30 p-4 text-sm text-amber-200">{requestedReadFailed ? "Lecture de cette mission indisponible. Actualise pour réessayer." : "Cette mission est introuvable dans le projet et le mode actifs."}</p>}
+      </section>}
       <section aria-label="Recherche dans toutes les missions" className="rounded-2xl border border-neutral-800 p-4">
         {pageRecovered && <p role="status" className="mb-3 text-sm text-amber-200">La page demandée n’existe plus. La première page est affichée.</p>}
         <form key={missionPageHref(filter)} action="/hq/missions" className="flex flex-wrap items-end gap-3">

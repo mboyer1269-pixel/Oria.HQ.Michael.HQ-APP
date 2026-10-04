@@ -11,6 +11,20 @@ const service=createDevelopmentService({enabled:()=>true,store:()=>({save:async(
 await service.create({requestId:'4fd96fc8-8194-4d49-852a-8a7420ad2f53',title:'Synthetic bounded improvement',objective:'Improve one measured operation',scope:'One UI component',acceptanceCriteria:'Existing regression suite passes'},{workspaceId:'synthetic-a',modeId:'hq',actorId:'real-session-subject'});
 const request={missionId:mission.id,expectedUpdatedAt:mission.updatedAt,commitSha:'a'.repeat(40),executorVersion:'1.2.3',budget:{maxCostCents:100,maxTokens:10000,maxIterations:10,timeoutSeconds:120}};
 
+test('native model is explicit in dossier v3 and changes its approval hash without a silent alias',()=>{
+ const legacy=buildOpenHandsSubmission(mission,'synthetic-a',request).dossier;
+ const native=buildOpenHandsSubmission(mission,'synthetic-a',{...request,foundationModelId:'claude-fixture-1'}).dossier;
+ const acpDefault=buildOpenHandsSubmission(mission,'synthetic-a',{...request,foundationModelId:'default'}).dossier;
+ const changed=buildOpenHandsSubmission(mission,'synthetic-a',{...request,foundationModelId:'claude-fixture-2'}).dossier;
+ assert.equal(native.contractVersion,3);assert.equal(native.foundationModelId,'claude-fixture-1');
+ assert.equal(acpDefault.contractVersion,3);assert.equal(acpDefault.foundationModelId,'default');
+ assert.notEqual(native.payloadHash,legacy.payloadHash);assert.notEqual(native.payloadHash,changed.payloadHash);
+ assert.notEqual(acpDefault.payloadHash,legacy.payloadHash);assert.notEqual(acpDefault.payloadHash,native.payloadHash);
+ assert.equal(native.idempotencyKey,legacy.idempotencyKey,'changed model cannot hide under a new reservation identity');
+ for(const foundationModelId of ['sonnet','claude-latest-4','claude-4:latest',' model-4','model-4\n'])
+  assert.equal(buildOpenHandsSubmission(mission,'synthetic-a',{...request,foundationModelId}).status,'invalid_request',foundationModelId);
+});
+
 test('persisted project memory is included in the exact approved payload; browser injection and tampering rejected',async()=>{
  const entity={id:'anchor',namespace:'org:project-a',type:'Project',name:'Décision 🧪',source:'reviewed',properties:{status:'verified'}};
  const result=await prepareOpenHandsMemoryContext({workspaceId:'synthetic-a',projectId:'project-a',
@@ -21,6 +35,9 @@ test('persisted project memory is included in the exact approved payload; browse
  const prepared=buildOpenHandsSubmission(withMemory,'synthetic-a',request);
  assert.equal(prepared.status,'prepared');assert.equal(prepared.dossier.contractVersion,2);
  assert.deepEqual(prepared.dossier.memory,result.snapshot);assert.ok(Object.isFrozen(prepared.dossier.memory));
+ const native=buildOpenHandsSubmission(withMemory,'synthetic-a',{...request,foundationModelId:'claude-fixture-1'});
+ assert.equal(native.dossier.contractVersion,3);assert.deepEqual(native.dossier.memory,result.snapshot);
+ assert.equal(native.dossier.foundationModelId,'claude-fixture-1');assert.notEqual(native.dossier.payloadHash,prepared.dossier.payloadHash);
  assert.notEqual(prepared.dossier.payloadHash,buildOpenHandsSubmission(mission,'synthetic-a',request).dossier.payloadHash);
  assert.deepEqual(buildOpenHandsSubmission(structuredClone(withMemory),'synthetic-a',request).dossier,prepared.dossier);
  assert.equal(buildOpenHandsSubmission(mission,'synthetic-a',{...request,memory:result.snapshot}).status,'invalid_request');

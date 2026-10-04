@@ -111,7 +111,15 @@ const EFFECT_SINKS = [
   },
 ];
 
+// This exact client transport targets our own API. Strip only the verified call
+// expression, never a whole file: any new fetch/process sink remains detectable.
 function detectedEffectSinks(rel, source) {
+  if (rel === "src/features/missions/development-mission-session.ts") {
+    source = source.replace(
+      /input\.fetchImpl\(\s*readOnly \? developmentReceiptUrl\(input\.requestId\) : DEVELOPMENT_MISSION_ENDPOINT,/,
+      "internalMissionTransport(",
+    );
+  }
   return EFFECT_SINKS.filter((sink) => {
     if (
       sink.name === "direct external fetch" &&
@@ -280,6 +288,40 @@ test("Capability inventory — every claim carries proof that still holds", asyn
 });
 
 test("Capability inventory — no live executor escapes it", async (t) => {
+  await t.test("mission approval preparation and decision writes have distinct gates", async () => {
+    const route = "src/app/api/missions/approval/route.ts";
+    const service = "src/server/missions/mission-approval-service.ts";
+    const reached = await reachableSourceFiles(route, await sourceFiles());
+    for (const rel of [service, "src/server/missions/approval-record-repository.ts",
+      "src/server/agents/models/runner-executor-connection-probe.ts",
+      "src/server/agents/models/account-identity-repository.ts"]) {
+      assert.ok(reached.has(rel), `${rel} no longer belongs to the approval path — re-audit its effects`);
+    }
+    for (const id of ["runner_connection_status_probe", "runner_account_identity_persistence"]) {
+      assert.equal(RUNTIME_CAPABILITIES.find((entry) => entry.id === id)?.gate, "owner_session",
+        "prepare can probe and persist identity before a per-decision confirmation");
+    }
+    const decision = RUNTIME_CAPABILITIES.find((entry) => entry.executorKey === "/api/missions/approval");
+    assert.equal(decision?.effect, "internal_write");
+    assert.equal(decision?.gate, "owner_confirmed");
+    assert.ok(capabilityFiles.has(route));
+    assert.ok(capabilityFiles.has(service));
+    assert.ok(!outOfScopeFiles.has("src/server/missions/approval-record-repository.ts"));
+    const source = await read(service);
+    const probeOffset = source.indexOf("await resolveProviderConnectionDiscovery(");
+    const prepareOffset = source.indexOf('request.data.action === "prepare"');
+    assert.ok(probeOffset >= 0 && prepareOffset > probeOffset,
+      "approval preparation must be reclassified if its probe ordering changes");
+    assert.ok(source.includes("request.data.expectedReviewHash !== reviewHash"));
+    assert.ok(source.includes("previous.id !== request.data.expectedApprovalId"));
+    const routeSource = await read(route);
+    assert.ok(routeSource.includes("if (!isOwnerUser(user))"));
+    const handler = await read("src/app/api/missions/approval/handler.ts");
+    assert.ok(handler.includes('request.headers.get("origin") !== origin'));
+    const migration = await read("db/migrations/0030_mission_approval_binding.sql");
+    for (const effect of ["insert into public.mission_approvals", "insert into public.action_ledger",
+      "update public.missions set updated_at"]) assert.ok(migration.includes(effect));
+  });
   await t.test("the reachability detector includes every import form", () => {
     assert.deepEqual(
       importedSourceSpecifiers(`
@@ -309,6 +351,28 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       false,
       "the browser-to-own-route transport is counted at its server effect",
     );
+  });
+
+  await t.test("the mission client transport remains confined to its own API", async () => {
+    const rel = "src/features/missions/development-mission-session.ts";
+    const { DEVELOPMENT_MISSION_ENDPOINT, developmentReceiptUrl } = await jiti.import("@/features/missions/development-mission-session");
+    assert.equal(DEVELOPMENT_MISSION_ENDPOINT, "/api/missions/development");
+    assert.equal(developmentReceiptUrl("https://outside.invalid/?x=1"), "/api/missions/development?requestId=https%3A%2F%2Foutside.invalid%2F%3Fx%3D1");
+    const source = await read(rel);
+    assert.equal(detectedEffectSinks(rel, source).length, 0);
+    assert.ok(detectedEffectSinks(rel, source + '\ninput.fetchImpl("https://outside.invalid")').some((sink) => sink.name === "injected external fetch"));
+  });
+
+  await t.test("Hermes qualification has no deployed caller", async () => {
+    const files = await sourceFiles();
+    const target = "src/server/agents/models/hermes-codex-connection-probe.ts";
+    const knownFiles = new Set(files.map((file) => toPosix(path.relative(projectRoot, file))));
+    for (const file of files) {
+      const rel = toPosix(path.relative(projectRoot, file));
+      for (const specifier of importedSourceSpecifiers(await read(rel))) {
+        assert.notEqual(resolveSourceSpecifier(rel, specifier, knownFiles), target, `${rel} now imports the operator-only Hermes probe — reclassify its gate`);
+      }
+    }
   });
 
   await t.test("every built-in skill handler is inventoried", async () => {

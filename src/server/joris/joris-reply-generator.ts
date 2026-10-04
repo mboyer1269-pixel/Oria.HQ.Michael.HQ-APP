@@ -18,9 +18,12 @@ import { z } from "zod";
 import type { RoutingCostAssessment } from "@/core/types";
 import {
   generateStructuredJson,
+  generateHqStructuredJson,
   type PaidFallbackAuthorization,
 } from "@/server/ai/llm-json-provider";
 import { buildJorisSystemPrompt } from "@/server/joris/joris-prompt";
+import { projectChatExecution, type ChatBinding, type ChatExecutionReport } from "./chat-model-binding";
+import type { CallReservationGate } from "@/server/ai/call-reservation";
 
 export type JorisReplyInput = {
   message: string;
@@ -33,11 +36,13 @@ export type JorisReplyInput = {
   workspaceId?: string;
   /** Off unless the caller sets an explicit same-workspace authorization. */
   paidFallback?: PaidFallbackAuthorization;
+  hqBinding?: ChatBinding;
+  reservationGate?: CallReservationGate;
 };
 
 export type JorisReplyResult =
-  | { ok: true; text: string; modelId: string; cost?: RoutingCostAssessment }
-  | { ok: false; reason: string; cost?: RoutingCostAssessment; executedModelId?: null };
+  | { ok: true; text: string; modelId: string; cost?: RoutingCostAssessment; execution?: ChatExecutionReport }
+  | { ok: false; reason: string; cost?: RoutingCostAssessment; executedModelId?: null; execution?: ChatExecutionReport };
 
 const replySchema = z.object({ reply: z.string().trim().min(1) });
 
@@ -56,8 +61,8 @@ Réponds en tant que Joris. Retourne UNIQUEMENT du JSON valide, sans markdown, a
  * the response is malformed, so the caller can fall back explicitly.
  */
 export async function generateJorisReply(input: JorisReplyInput): Promise<JorisReplyResult> {
-  const result = await generateStructuredJson({
-    providerPreference: "auto",
+  const request = {
+    providerPreference: "auto" as const,
     systemPrompt: buildJorisSystemPrompt(),
     userPrompt: buildUserPrompt(input),
     maxTokens: 1024,
@@ -67,10 +72,17 @@ export async function generateJorisReply(input: JorisReplyInput): Promise<JorisR
     ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
     ...(input.paidFallback ? { paidFallback: input.paidFallback } : {}),
     fetchFns: input.fetchFn ? { anthropic: input.fetchFn, openai: input.fetchFn } : undefined,
-  });
+  };
+  const result = input.hqBinding
+    ? await generateHqStructuredJson({ ...request, paidFallback: undefined, serverCatalog: input.hqBinding.catalog,
+      approved: input.hqBinding.approved, workspaceId: input.hqBinding.approved.workspaceId,
+      modelId: input.hqBinding.approved.modelId, callSubjectId: input.hqBinding.callSubjectId,
+      reservationGate: input.reservationGate })
+    : await generateStructuredJson(request);
+  const execution = projectChatExecution(result);
 
   if (!result.ok) {
-    return { ok: false, reason: result.fallbackReason, executedModelId: null, cost: result.cost };
+    return { ok: false, reason: result.fallbackReason, executedModelId: null, cost: result.cost, execution };
   }
 
   const parsed = replySchema.safeParse(result.json);
@@ -80,8 +92,9 @@ export async function generateJorisReply(input: JorisReplyInput): Promise<JorisR
       reason: "LLM reply did not match the expected { reply } shape",
       executedModelId: null,
       cost: result.cost,
+      execution,
     };
   }
 
-  return { ok: true, text: parsed.data.reply, modelId: result.modelId, cost: result.cost };
+  return { ok: true, text: parsed.data.reply, modelId: result.modelId, cost: result.cost, execution };
 }

@@ -159,17 +159,19 @@ test("general follows the base route, but budget pressure pulls it to free", () 
   assert.equal(over.freeModel.id, "qwen/qwen3-coder:free");
 });
 
-test("a free target with no eligible model degrades honestly to economy", () => {
+test("a free target with no eligible model does not descend to a paid rung", () => {
   const d = decideLadder({
     taskClass: "draft",
     baseRung: "economy",
     freeCatalog: [],
     currentSpend: 0,
   });
-  assert.equal(d.rung, "economy");
+  assert.equal(d.rung, "free");
+  assert.equal(d.block, "free_unavailable");
   assert.equal(d.freeModel, undefined);
-  assert.equal(d.estimatedCost, RUNG_COST_WEIGHT.economy);
-  assert.match(d.reason, /aucun modèle free/i);
+  assert.equal(d.estimatedCost, RUNG_COST_WEIGHT.free);
+  assert.match(d.reason, /aucune descente payante/);
+  assert.doesNotMatch(d.reason, /repli économie/);
 });
 
 test("task class floor maps lock the profit lever", () => {

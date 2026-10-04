@@ -1,5 +1,6 @@
 import type { ModelProfile } from "@/core/types";
 import { modelProfiles } from "@/features/hq/seed";
+import type { consultHqModelCatalog } from "@/server/ai/model-catalog-consultation";
 
 /**
  * OpenRouter gateway — unified access to 200+ models via a single API key.
@@ -38,6 +39,17 @@ export function resolveModelProfileOrFallback(
  * Availability is a yes/no on the requested id. An unavailable model is not
  * replaced by another paid model.
  */
+/**
+ * Read-only catalog of the model service. Loaded only when a caller asks for
+ * the catalog. `chooseModel` does not call this and does not execute the rows.
+ */
+export async function readServerModelCatalog(
+  input: Parameters<typeof consultHqModelCatalog>[0],
+): Promise<Awaited<ReturnType<typeof consultHqModelCatalog>>> {
+  const { consultHqModelCatalog: consult } = await import("@/server/ai/model-catalog-consultation");
+  return consult(input);
+}
+
 export function pickAvailableModelId(
   primaryId: string,
   unavailableModelIds: ReadonlySet<string> = new Set(),

@@ -1,7 +1,11 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { developmentHandoffKey, encodeDevelopmentHandoff, missionDossierHref } from "@/features/missions/development-mission-handoff";
+import { clearSentChatInputDraft, readChatInputDraft, saveChatInputDraft, type ChatInputDraft } from "../chat-input-draft";
+import type { ChatExecutionReport } from "@/server/joris/chat-model-binding";
 import {
   AlertCircle,
   Bell,
@@ -23,6 +27,8 @@ import {
 } from "@/features/hq/mission-draft-format";
 
 type ChatResponse = {
+  chatExecution?: ChatExecutionReport;
+  chatBindingStatus?: string;
   summary: string;
   intent?: string;
   modelId?: string;
@@ -42,11 +48,14 @@ type ChatResponse = {
   };
   pendingDraftId?: string;
   missionId?: string;
+  missionPlanResult?: { missionId?: unknown };
 };
 
 type ErrorResponse = {
   error?: string;
 };
+type ChatModelOption={accountId:string;modelId:string;catalogRevision:string;provider:string;billingKind:string;executable:boolean;reason:string|null};
+const modelOptionKey=(option:ChatModelOption)=>JSON.stringify([option.accountId,option.modelId,option.catalogRevision]);
 
 function formatReminderLabel(remindersMinutes: number[]) {
   return remindersMinutes.map((minutes) => `${minutes} min`).join(" + ");
@@ -126,26 +135,95 @@ function MissionDraftProposalHint({ preview }: { preview: MissionDraftPreview })
   );
 }
 
-export function CommandCenter() {
+export function CommandCenter({ workspaceId }: { workspaceId: string }) {
+  return <CommandCenterInstance key={workspaceId} workspaceId={workspaceId} />;
+}
+
+function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
+  const router = useRouter();
   const [command, setCommand] = useState("");
+  const draftRef = useRef<ChatInputDraft | null>(null);
+  const sending = useRef(false);
+  const generation = useRef(0);
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
+  const [modelOptions,setModelOptions]=useState<ChatModelOption[]>([]);
+  const [modelSelection,setModelSelection]=useState("");
+  const [modelsLoaded,setModelsLoaded]=useState(false);
+  const [submittedCommand, setSubmittedCommand] = useState("");
+  const [handoffError, setHandoffError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ChatResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const preparationText = command.trim() || submittedCommand;
+  const dossierHref = missionDossierHref(result?.missionPlanResult?.missionId);
+
+  useEffect(()=>{
+    const controller=new AbortController();
+    void fetch("/api/joris/chat",{cache:"no-store",signal:controller.signal}).then(async response=>{
+      if(!response.ok)throw Error("unavailable");
+      const data=await response.json();
+      if(!Array.isArray(data.options))throw Error("invalid");
+      if(!controller.signal.aborted){setModelOptions(data.options);setModelsLoaded(true);}
+    }).catch(()=>{if(!controller.signal.aborted){setModelOptions([]);setModelsLoaded(true);}});
+    return ()=>controller.abort();
+  },[workspaceId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (draftRef.current || sending.current) return;
+      try {
+        const stored = readChatInputDraft(sessionStorage, workspaceId);
+        if (stored.status === "ready") {
+          draftRef.current = stored.draft;
+          setCommand(stored.draft.text);
+        } else if (stored.status === "unavailable") setDraftNotice("Conservation de la saisie indisponible dans cet onglet.");
+      } catch { setDraftNotice("Conservation de la saisie indisponible dans cet onglet."); }
+    }, 0);
+    return () => { clearTimeout(timer); generation.current += 1; };
+  }, [workspaceId]);
+
+  function editCommand(text: string) {
+    const draft = { id: crypto.randomUUID(), text };
+    draftRef.current = draft;
+    setCommand(text);
+    try {
+      setDraftNotice(saveChatInputDraft(sessionStorage, workspaceId, draft) ? null : "Conservation de la saisie indisponible. Garde cet écran ouvert pour ne pas la perdre.");
+    } catch { setDraftNotice("Conservation de la saisie indisponible. Garde cet écran ouvert pour ne pas la perdre."); }
+  }
+
+  function prepareDevelopmentMission() {
+    const encoded = encodeDevelopmentHandoff(workspaceId, preparationText);
+    if (!encoded) return;
+    try {
+      sessionStorage.setItem(developmentHandoffKey(workspaceId), encoded);
+      setHandoffError(null);
+      router.push("/hq/missions#development-mission");
+    } catch {
+      setHandoffError("Le transfert de cette session est indisponible. Copie ton objectif dans le formulaire Missions.");
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = command.trim();
-    if (!text || loading) return;
+    if (!text || sending.current) return;
+    const sentDraft = draftRef.current;
+    const ticket = generation.current;
+    sending.current = true;
 
     setLoading(true);
     setError(null);
     setResult(null);
+    setSubmittedCommand(text);
 
     try {
       const response = await fetch("/api/joris/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, locale: "fr-CA" }),
+        body: JSON.stringify({ message: text, locale: "fr-CA", ...(()=>{
+          const selected=modelOptions.find(option=>option.executable&&modelOptionKey(option)===modelSelection);
+          return selected?{modelSelection:{accountId:selected.accountId,modelId:selected.modelId,catalogRevision:selected.catalogRevision}}:{};
+        })() }),
       });
 
       const data = (await response.json()) as ChatResponse & ErrorResponse;
@@ -154,16 +232,29 @@ export function CommandCenter() {
         throw new Error(data.error ?? `Joris API ${response.status}`);
       }
 
+      if (typeof data.summary !== "string") throw new Error("La réponse reçue est illisible. Ta saisie est conservée.");
+      let cleared = true;
+      if (sentDraft) {
+        try { cleared = clearSentChatInputDraft(sessionStorage, workspaceId, sentDraft.id); }
+        catch { cleared = false; }
+      }
+      if (ticket !== generation.current) return;
+
       setResult(data);
       notifyMissionDraftChanged(data);
       if (data.calendarEvent) {
         window.dispatchEvent(new CustomEvent("michael-hq:calendar-changed"));
       }
-      setCommand("");
+      if (draftRef.current?.id === sentDraft?.id) {
+        draftRef.current = null;
+        setCommand("");
+      }
+      if (!cleared) setDraftNotice("Message envoyé, mais la copie locale de la saisie n’a pas pu être effacée. Elle peut réapparaître au retour.");
     } catch (err) {
-      setError(toUserError(err));
+      if (ticket === generation.current) setError(toUserError(err));
     } finally {
-      setLoading(false);
+      sending.current = false;
+      if (ticket === generation.current) setLoading(false);
     }
   }
 
@@ -188,12 +279,20 @@ export function CommandCenter() {
         </div>
       </div>
 
+      <label className="mb-3 block text-sm text-neutral-300">Compte et modèle pour la réponse IA
+        <select value={modelSelection} onChange={event=>setModelSelection(event.target.value)} disabled={loading||!modelOptions.some(option=>option.executable)} className="mt-2 min-h-11 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-sm text-white disabled:opacity-60">
+          <option value="">Sans appel IA — commandes déterministes disponibles</option>
+          {modelOptions.map(option=><option key={modelOptionKey(option)} value={modelOptionKey(option)} disabled={!option.executable}>{option.provider} · {option.modelId} · compte {option.accountId}{option.executable?"":` — indisponible (${option.reason})`}</option>)}
+        </select>
+      </label>
+      <p className="mb-3 text-xs text-neutral-400">{!modelsLoaded?"Lecture des qualifications serveur…":!modelOptions.some(option=>option.executable)?"Aucun accès compte/modèle admissible pour ce chat. Les commandes calendrier et missions restent disponibles.":"Choisis explicitement un accès qualifié. Le serveur revérifie le compte, le modèle, la révision et le budget à l’envoi. Aucun repli payant automatique."} Les quotas disponibles ne sont pas mesurés ici.</p>
       <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row">
         <div className="flex min-h-14 flex-1 items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 transition focus-within:border-amber-500/60 focus-within:ring-2 focus-within:ring-amber-500/10">
           <MessageSquare aria-hidden="true" className="h-5 w-5 shrink-0 text-neutral-500" />
           <input
+            maxLength={4000}
             value={command}
-            onChange={(event) => setCommand(event.target.value)}
+            onChange={(event) => editCommand(event.target.value)}
             className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-neutral-600"
             placeholder="Quel résultat veux-tu obtenir pour ton projet ?"
             aria-label="Commande pour Joris"
@@ -208,8 +307,15 @@ export function CommandCenter() {
           {loading ? "Joris traite..." : "Envoyer"}
         </button>
       </form>
+      <p className="mt-2 text-xs text-neutral-500">La saisie non envoyée reste dans cet onglet, par projet, pendant 24 heures après modification. Elle n’est jamais envoyée automatiquement.</p>
+      {draftNotice && <p role="status" className="mt-2 text-sm text-amber-200">{draftNotice}</p>}
 
-      <p className="mt-3 text-xs leading-5 text-neutral-400">L’envoi peut utiliser un fournisseur IA configuré par API. Les abonnements CLI ne sont pas automatiquement utilisés ; la consommation n’est pas encore mesurée dans cette vue.</p>
+      <button type="button" disabled={loading || !preparationText || preparationText.length > 4000} onClick={prepareDevelopmentMission}
+        className="mt-3 min-h-11 rounded-lg border border-amber-500/40 px-4 text-sm font-semibold text-amber-200 disabled:opacity-50">Préparer une mission de développement</button>
+      <p className="mt-2 text-xs text-neutral-400">Transfère ton texte vers l’objectif du formulaire dans cet onglet ; ce transfert expire après 15 minutes. Complète ensuite le titre, le périmètre et les critères avant d’enregistrer.</p>
+      {handoffError && <p role="alert" className="mt-2 text-sm text-amber-200">{handoffError} <Link href="/hq/missions#development-mission" className="underline">Ouvrir le formulaire</Link></p>}
+
+      <p className="mt-3 text-xs leading-5 text-neutral-400">Une réponse IA exige un compte et un modèle qualifiés. Les abonnements CLI ne sont pas automatiquement utilisés. Le modèle exécuté et les tokens sont affichés lorsqu’ils sont fournis ; le coût reste inconnu sans mesure.</p>
 
       {!result && !error && (
         <div className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4">
@@ -229,7 +335,7 @@ export function CommandCenter() {
               <button
                 key={example}
                 type="button"
-                onClick={() => setCommand(example)}
+                onClick={() => editCommand(example)}
                 className="group inline-flex min-h-10 items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 text-left text-sm text-neutral-300 transition hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-200"
               >
                 <Sparkles className="h-3.5 w-3.5 shrink-0 text-neutral-500 transition group-hover:text-amber-400" />
@@ -257,6 +363,17 @@ export function CommandCenter() {
           {result.missionDraftPreview && result.requiresConfirmation ? (
             <MissionDraftProposalHint preview={result.missionDraftPreview} />
           ) : null}
+
+          {dossierHref && <Link href={dossierHref} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-amber-200 underline">Ouvrir le dossier de cette mission</Link>}
+          {result.chatBindingStatus&&<p className="mt-3 text-sm text-amber-200">Réponse IA non disponible : {result.chatBindingStatus}. Aucun autre compte ou modèle n’a été choisi automatiquement.</p>}
+          {result.chatExecution&&<dl className="mt-3 grid gap-2 text-xs text-neutral-300 sm:grid-cols-2">
+            <div><dt>Compte demandé</dt><dd className="break-all">{result.chatExecution.accountId??"Non lié"}</dd></div>
+            <div><dt>Modèle demandé</dt><dd>{result.chatExecution.requestedModelId??"Inconnu"}</dd></div>
+            <div><dt>Modèle rapporté par le fournisseur</dt><dd>{result.chatExecution.executedModelId??"Non observé"}</dd></div>
+            <div><dt>Tokens observés (entrée / sortie)</dt><dd>{result.chatExecution.usage?`${result.chatExecution.usage.input} / ${result.chatExecution.usage.output}`:"Non disponibles"}</dd></div>
+            <div><dt>Coût monétaire observé</dt><dd>Non disponible</dd></div>
+            <div><dt>Réservation budget</dt><dd>{result.chatExecution.reservationStatus}</dd></div>
+          </dl>}
 
           {result.auditExport ? (
             <button
@@ -321,7 +438,7 @@ export function CommandCenter() {
             </div>
           )}
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-500">
-            {result.modelId && <span>Modèle: {result.modelId}</span>}
+            {result.modelId && <span>Modèle de routage : {result.modelId}</span>}
             {result.costMode && <span>Mode: {result.costMode}</span>}
             {result.storageMode && <span>Stockage: {formatStorageLabel(result.storageMode)}</span>}
             {result.ledgerStatus && (

@@ -8,6 +8,7 @@ import { OPENHANDS_LAUNCH_KEY, launchAuthoritySchema, type LaunchBinding, type L
 import { OPENHANDS_RESERVATION_KEY, openHandsReceiptSchema, validateOpenHandsAuthorization } from "./openhands-reservation";
 import { openHandsAuthorizationId } from "./openhands-authority-store";
 import type { OpenHandsSubmissionDossier } from "./openhands-submission";
+import { OPENHANDS_RESULT_KEY, openHandsResultReceiptSchema } from "@/core/openhands-result-contract";
 
 function authorityId(binding: LaunchBinding, actor: string) {
   const bytes = createHash("sha256").update(JSON.stringify(["openhands.launch.v1", binding.launchHash, actor])).digest().subarray(0,16);
@@ -47,11 +48,25 @@ export function createOpenHandsLaunchStore(client = createOptionalSupabaseAdminC
       const {data,error}=await client.from("missions").select().eq("workspace_id",workspaceId).eq("id",missionId).maybeSingle();
       if(error) throw Error("launch_store_unavailable"); return data ? mapMissionRow(data) : null;
     },
-    async compareAndSwap(mission,claim) {
+    async compareAndSwap(mission,claim,result) {
       const input={...mission.input,[OPENHANDS_LAUNCH_KEY]:claim};
-      const {data,error}=await client.from("missions").update({input:input as unknown as Json,updated_at:new Date().toISOString()})
+      const receipt=result===undefined?undefined:openHandsResultReceiptSchema.parse(result);
+      if(receipt && (claim.state!=="execution_finished" || !claim.process?.containerStopped
+        || receipt.report.missionId!==mission.id || receipt.report.workspaceId!==mission.workspaceId
+        || receipt.report.launchId!==claim.launchId || receipt.report.missionId!==claim.missionId
+        || receipt.report.workspaceId!==claim.workspaceId || receipt.report.commitSha!==claim.commitSha
+        || receipt.report.payloadHash!==claim.payloadHash
+        || receipt.contentHash!==createHash("sha256").update(JSON.stringify(receipt.report)).digest("hex")))
+        throw Error("result_binding_mismatch");
+      const mergedResult=receipt===undefined?undefined:{...mission.result,[OPENHANDS_RESULT_KEY]:receipt};
+      let query=client.from("missions").update({input:input as unknown as Json,updated_at:new Date().toISOString(),
+        ...(mergedResult===undefined?{}:{result:mergedResult as unknown as Json})})
         .eq("workspace_id",mission.workspaceId).eq("id",mission.id).eq("status",mission.status)
-        .eq("updated_at",mission.updatedAt).eq("input",JSON.stringify(mission.input)).select().maybeSingle();
+        .eq("updated_at",mission.updatedAt).eq("input",JSON.stringify(mission.input));
+      // Include the previous result in CAS so another writer's evidence cannot
+      // be overwritten even if it did not advance updated_at.
+      if(receipt!==undefined) query=mission.result===undefined?query.is("result",null):query.eq("result",JSON.stringify(mission.result));
+      const {data,error}=await query.select().maybeSingle();
       if(error) throw Error("launch_claim_unknown"); return data ? mapMissionRow(data) : null;
     },
     async persistAuthority(binding,actor,now) {

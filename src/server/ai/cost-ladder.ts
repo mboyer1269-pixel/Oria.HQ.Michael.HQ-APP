@@ -203,6 +203,11 @@ export type LadderDecision = {
   floorBound: boolean;
   /** Estimated cost of this call at the chosen rung. */
   estimatedCost: number;
+  /**
+   * The free rung had no eligible model. The rung stays free and nothing
+   * paid is selected in its place.
+   */
+  block?: "free_unavailable";
   reason: string;
 };
 
@@ -223,7 +228,7 @@ export function decideLadder(input: LadderInput): LadderDecision {
   // Budget pressure pulls all the way to free; otherwise honor the target.
   const desiredRung: CostRung = overBudget ? "free" : targetRung;
   // The hard floor wins last — only the client audit actually has one.
-  let rung = higherRung(desiredRung, hardFloor);
+  const rung = higherRung(desiredRung, hardFloor);
 
   const budgetBound = overBudget && RUNG_ORDER[rung] < RUNG_ORDER[targetRung];
   const floorBound = RUNG_ORDER[rung] > RUNG_ORDER[desiredRung];
@@ -233,8 +238,6 @@ export function decideLadder(input: LadderInput): LadderDecision {
   if (rung === "free") {
     freeModel = selectFreeModel(input.freeCatalog);
     if (!freeModel) {
-      // Honest fallback: a free rung with no eligible model becomes economy.
-      rung = "economy";
       noFreeAvailable = true;
     }
   }
@@ -255,6 +258,7 @@ export function decideLadder(input: LadderInput): LadderDecision {
     budgetBound,
     floorBound,
     estimatedCost: RUNG_COST_WEIGHT[rung],
+    ...(noFreeAvailable ? { block: "free_unavailable" as const } : {}),
     reason,
   };
 }
@@ -276,7 +280,7 @@ function buildReason(args: {
     return `Étage gratuit visé par la tâche: ${args.freeModel.name} (OpenRouter). Poids relatif 0, qui n'est pas un montant en dollars ni un coût observé.`;
   }
   if (args.noFreeAvailable) {
-    return "Étage gratuit visé mais aucun modèle free éligible (enabled+recommended): repli économie.";
+    return "Étage gratuit visé mais aucun modèle free éligible (enabled+recommended): aucune descente payante.";
   }
   return "Routage de base conservé sous le plafond de budget.";
 }

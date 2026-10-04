@@ -17,20 +17,11 @@ export const dynamic = "force-dynamic";
  * fails "unavailable" exactly as it always has (no behavior change on an
  * absent store).
  *
- * No `connectionProbe` is passed here deliberately: the real executor named
- * by ORIA_OPENHANDS_LAUNCH_CONFIG's providerProfile is "claude" (a Claude
- * Code CLI subscription on the OpenHands runner host), and no code in this
- * repository verifies that account's live connection state yet —
- * local-runtime-probe.ts checks Michael's own laptop, a different host, and
- * the Hermes/Codex SSH probe checks an entirely unrelated account that no
- * LaunchConfig can name. Wiring either of those in here would silently
- * authorize a "claude" launch off the wrong account's connection — exactly
- * the bug this gate exists to refuse. Until a real probe against the
- * runner's own Claude Code CLI login exists, every confirm_launch is
- * honestly blocked ("model_emission_blocked", block "public_catalog_only")
- * by the gate's own default. See
- * docs/CLAUDE-COMPTE-ET-MISSION-RESULTAT-2026-10-02.md for the full proof
- * and the exact missing probe this still needs.
+ * No `connectionProbe` override is passed here. The gate reads a strict,
+ * workspace-bound operator configuration naming the approved runner host and
+ * qualified Docker container, then probes that executor's own CLI status.
+ * No laptop or unrelated Hermes account substitutes for this evidence. Missing
+ * or revoked configuration stays closed; this route never supplies approval.
  */
 const gatedOpenHandsLaunch = createGatedOpenHandsLaunch({
   launch: createConfiguredOpenHandsLaunch(),

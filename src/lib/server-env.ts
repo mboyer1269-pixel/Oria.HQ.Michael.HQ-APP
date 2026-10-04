@@ -86,6 +86,19 @@ const serverEnvSchema = z.object({
   PAPERCLIP_COMPANY_ID: z.string().optional(),
   MEMEX_CORE_ROOT: z.string().min(1).optional(),
   ORIA_ENABLE_LOCAL_RUNTIME_PROBE: z.enum(["0", "1"]).optional(),
+  // Probe opt-ins never replace written subprocess approval or cloud-host refusal.
+  ORIA_ENABLE_HERMES_SSH_PROBE: z.enum(["0", "1"]).optional(),
+  ORIA_ENABLE_OPENHANDS_RUNNER_PROBE: z.enum(["0", "1"]).optional(),
+  ORIA_HERMES_SSH_HOST: z.string().optional(),
+  ORIA_HERMES_SSH_IDENTITY_FILE: z.string().optional(),
+  ORIA_OPENHANDS_RUNNER_PROBE_CONFIG_FILE: z.string().optional(),
+  ORIA_OPENHANDS_RUNNER_SSH_HOST: z.string().optional(),
+  ORIA_OPENHANDS_RUNNER_SSH_IDENTITY_FILE: z.string().optional(),
+  // Reservation ledger opt-in and qualified server catalog path; no execution grant.
+  HQ_CALL_RESERVATION: z.enum(["0", "1"]).optional(),
+  ORIA_HQ_CHAT_CAPABILITIES_FILE: z.string().optional(),
+  // Read only through the HQ catalog's fixed secret-name allowlist.
+  NARA_API_KEY: z.string().min(1).optional(),
   ORIA_ALLOW_DEV_USER_FALLBACK: z.enum(["true", "false"]).optional(),
   ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD: z.enum(["true", "false"]).optional(),
   // Durable archive directory for the document-processing CLI. Fails closed in

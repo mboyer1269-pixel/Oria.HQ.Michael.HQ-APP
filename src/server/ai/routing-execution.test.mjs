@@ -11,12 +11,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
 
 const { createJiti } = await import("jiti");
-const jiti = createJiti(import.meta.url, {
+const jitiOptions = {
   alias: {
     "@": path.join(projectRoot, "src"),
     "server-only": path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs"),
   },
-});
+};
+const jiti = createJiti(import.meta.url, jitiOptions);
 
 const { chooseModel, resetLadderBudget } = await jiti.import(
   path.join(projectRoot, "src/server/ai/model-router.ts"),
@@ -294,7 +295,7 @@ test("observed usage keeps token counts and a null monetary amount", async () =>
   assert.notEqual(result.cost.monetaryUsd, 0);
 });
 
-test("the executed model id is the id placed in the request, not the client default", async () => {
+test("the request id is sent, and an absent response model stays unknown", async () => {
   process.env.ANTHROPIC_API_KEY = "synthetic";
   let sentModel = null;
   const result = await generateStructuredJson({
@@ -324,8 +325,8 @@ test("the executed model id is the id placed in the request, not the client defa
   assert.equal(result.ok, true);
   assert.equal(sentModel, PREMIUM_MODEL_ID);
   assert.equal(result.modelId, PREMIUM_MODEL_ID);
-  assert.equal(result.executedModelId, PREMIUM_MODEL_ID);
-  assert.notEqual(result.executedModelId, "claude-haiku-4-5-20251001");
+  assert.equal(result.requestedModelId, PREMIUM_MODEL_ID);
+  assert.equal(result.executedModelId, null);
   assert.equal(result.fallbackUsed, false);
 });
 
@@ -371,6 +372,7 @@ test("an economy selection stays on gpt-4o-mini and can be executed as that id",
           ok: true,
           status: 200,
           json: async () => ({
+            model: ECONOMY_MODEL_ID,
             choices: [{ message: { content: JSON.stringify({ reply: "ok" }) } }],
             usage: { prompt_tokens: 3, completion_tokens: 4 },
           }),
@@ -381,7 +383,9 @@ test("an economy selection stays on gpt-4o-mini and can be executed as that id",
   delete process.env.OPENAI_API_KEY;
   assert.equal(anthropicCalls, 0);
   assert.equal(sent, ECONOMY_MODEL_ID);
+  assert.equal(result.requestedModelId, ECONOMY_MODEL_ID);
   assert.equal(result.executedModelId, ECONOMY_MODEL_ID);
+  assert.equal(result.provider, "openai");
   assert.equal(result.providerUsed, "openai");
 });
 
@@ -584,4 +588,25 @@ test("when every authorized attempt fails, none is recorded as zero dollars", as
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
   }
+});
+
+test("a second jiti evaluation shares the accounting journal", async () => {
+  const reloaded = createJiti(import.meta.url, { ...jitiOptions, moduleCache: false });
+  const viaAlias = await reloaded.import("@/server/ai/call-accounting.ts");
+  const viaPath = await reloaded.import(path.join(projectRoot, "src/server/ai/call-accounting.ts"));
+  viaAlias.clearCallAccountingLog();
+  const event = {
+    kind: "estimation",
+    monetaryUsd: null,
+    networkRequestSent: false,
+    note: "same process journal",
+  };
+  viaAlias.recordCallAccounting({ ...event, workspaceId: "ws-a", agentId: "a" });
+  viaAlias.recordCallAccounting({ ...event, workspaceId: "ws-b", agentId: "b" });
+  assert.notEqual(viaAlias.recordCallAccounting, viaPath.recordCallAccounting);
+  assert.equal(viaPath.getCallAccountingLog("ws-a").length, 1);
+  assert.equal(viaPath.getCallAccountingLog("ws-b").length, 1);
+  assert.equal(viaPath.getCallAccountingLog("ws-a")[0].agentId, "a");
+  viaPath.clearCallAccountingLog();
+  assert.equal(viaAlias.getCallAccountingLog().length, 0);
 });

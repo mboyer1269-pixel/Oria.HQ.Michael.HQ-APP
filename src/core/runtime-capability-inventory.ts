@@ -123,7 +123,6 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
       "src/server/auth/actions.ts",
       "src/server/arena/arena-verdict-repository.ts",
       "src/server/joris/governance-decision-repository.ts",
-      "src/server/missions/approval-record-repository.ts",
       "src/server/missions/mission-draft-durable-repository.ts",
       "src/server/missions/openhands-authority-store.ts",
       "src/server/missions/openhands-reservation-store.ts",
@@ -174,6 +173,11 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
       "Smoke n8n manuel : il vérifie une URL fournie par l'opérateur et ne fait pas partie du runtime servi par Next.js.",
     paths: ["src/scripts/smoke/n8n-execution-slice.mjs"],
   },
+  {
+    reason:
+      "Sonde SSH Hermes de qualification opérateur : aucune route ni page applicative ne l'importe. Commande de statut seule, approbation écrite et environnement local requis ; aucun prompt modèle.",
+    paths: ["src/server/agents/models/hermes-codex-connection-probe.ts"],
+  },
 ];
 
 /**
@@ -181,6 +185,66 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
  * consequence.
  */
 export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
+  {
+    id: "runner_connection_status_probe",
+    label: "Runner · statut de connexion",
+    executorKey: "createRunnerClaudeCliConnectionProbe",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "La préparation d'une approbation ou la confirmation de lancement propriétaire peut sonder le statut CLI par SSH. Le transport reste fermé sans approbation opérateur liée au workspace, environnement autorisé, hôte et identité SSH ; aucune inférence modèle.",
+    evidence: {
+      path: "src/server/agents/models/runner-executor-connection-probe.ts",
+      mustContain: "execFile(",
+      because:
+        "Owner-authenticated approval preparation and confirm_launch invoke this Docker CLI status probe only with a workspace-bound operator approval; the unconfigured default remains not_approved.",
+    },
+  },
+  {
+    id: "runner_account_identity_persistence",
+    label: "Runner · identité opaque de compte",
+    executorKey: "resolveOpaqueAccountId",
+    effect: "internal_write",
+    gate: "owner_session",
+    detail:
+      "Après attestation CLI valide, associe le compte à un UUID par fournisseur et workspace dans account_identities. Persistance serveur ; repli process-local uniquement hors production.",
+    evidence: {
+      path: "src/server/agents/models/account-identity-repository.ts",
+      mustContain: 'onConflict: "provider,workspace_id,email", ignoreDuplicates: true',
+      because:
+        "The runner connection probe can persist a surrogate identity while an owner prepares an approval, before a decision is confirmed; this write does not grant model execution rights.",
+    },
+  },
+  {
+    id: "model_catalog_consultation",
+    label: "Catalogue · consultation des modèles",
+    executorKey: "consultModelCatalog",
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Après vérification de la session propriétaire, consulte les catalogues allowlistés par GET borné. Les prix et modèles publics ne prouvent ni accès au compte ni autorisation d'exécution.",
+    evidence: {
+      path: "src/server/ai/model-catalog-consultation.ts",
+      mustContain: "fetchImpl(url,",
+      because:
+        "consultModelCatalog checks requireOwnerApiSession before resolving an allowlisted gateway and invoking its bounded catalog transport.",
+    },
+  },
+  {
+    id: "gateway_catalog_read",
+    label: "Catalogue · lecture de la passerelle",
+    executorKey: null,
+    effect: "external_call",
+    gate: "owner_session",
+    detail:
+      "Transport de catalogue utilisé par la consultation propriétaire : GET vers la source vérifiée, redirections refusées et délai borné ; aucun appel de génération.",
+    evidence: {
+      path: "src/server/ai/gateway-catalog.ts",
+      mustContain: "request.fetch(request.sourceUrl,",
+      because:
+        "The catalog consultation's owner gate precedes this injected gateway GET; public listing does not authorize model execution.",
+    },
+  },
   {
     id: "contact_form_email",
     label: "Formulaire de contact · courriel Resend",
@@ -400,6 +464,26 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
         "The pass calls a model provider on every run, then fetches the cited URLs. Its writes are internal; its calls are not.",
     },
     covers: ["src/server/ventures/venture-score-shadow-runner.ts"],
+  },
+  {
+    id: "mission_execution_approval_decision",
+    label: "Mission · décision d'approbation d'exécution",
+    executorKey: "/api/missions/approval",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail:
+      "Le propriétaire approuve ou rejette une revue exacte, ou révoque une décision identifiée. La transaction persiste décision et journal ; rejet et révocation invalident la version de mission. Aucun lancement ni appel modèle.",
+    evidence: {
+      path: "src/server/missions/approval-record-repository.ts",
+      mustContain: '.rpc("commit_mission_approval_decision",',
+      because:
+        "The owner-only, same-origin approval handler delegates a hash-bound decision or ID-bound revocation to the atomic decision/ledger RPC, with no local fallback for this commit.",
+    },
+    covers: [
+      "src/app/api/missions/approval/route.ts",
+      "src/app/api/missions/approval/handler.ts",
+      "src/server/missions/mission-approval-service.ts",
+    ],
   },
   {
     id: "openhands_tool_decision",

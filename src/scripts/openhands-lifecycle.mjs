@@ -17,8 +17,11 @@ try {
   const configuration=z.object({context:contextSchema,missionId:z.uuid(),launchId:z.uuid(),config:z.unknown()}).strict()
     .parse(JSON.parse(await fs.readFile(filename,'utf8')));
   const chunks=[];let bytes=0;
-  for await (const chunk of process.stdin) {bytes+=chunk.length;if(bytes>65536)throw Error('oversized_request');chunks.push(chunk);}
+  // One bounded result plus the small lifecycle envelope; other operations keep
+  // their original limit below. This channel remains privileged host stdin.
+  for await (const chunk of process.stdin) {bytes+=chunk.length;if(bytes>1024*1024+16384)throw Error('oversized_request');chunks.push(chunk);}
   const transition=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  if(transition?.next!=='result_received' && bytes>65536)throw Error('oversized_request');
   const root=path.resolve(import.meta.dirname,'../..');
   const jiti=createJiti(import.meta.url,{alias:{'@':path.join(root,'src'),'server-only':path.join(root,'src/scripts/smoke/server-only-stub.mjs')}});
   const {createOpenHandsLifecycleService}=await jiti.import('../server/missions/openhands-lifecycle.ts');

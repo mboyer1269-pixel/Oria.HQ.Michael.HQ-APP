@@ -1,4 +1,5 @@
 import type { Mission } from "@/core/types";
+import type { MissionApprovalBinding } from "./mission-approval-binding";
 
 // ---------------------------------------------------------------------------
 // Approval record status — tracks the lifecycle of a single approval decision.
@@ -8,6 +9,7 @@ export type MissionApprovalRecordStatus =
   | "pending"             // awaiting human decision
   | "approved"            // explicitly approved
   | "rejected"            // explicitly rejected
+  | "revoked"             // owner withdrew a previous decision
   | "changes_requested"   // approved conditionally pending revisions
   | "expired";            // expiresAt is in the past
 
@@ -41,6 +43,8 @@ export type MissionApprovalRecord = {
   reason?: string;
   /** ISO timestamp when this record was first created. */
   createdAt: string;
+  /** Required for model execution; legacy display records may omit it. */
+  binding?: MissionApprovalBinding;
 };
 
 // ---------------------------------------------------------------------------

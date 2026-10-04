@@ -27,20 +27,36 @@ export type CallAccountingEvent = {
   note: string;
 };
 
-const log: CallAccountingEvent[] = [];
+/**
+ * One journal per process. Jiti can evaluate this file twice when the alias
+ * path and the absolute path differ, which Windows does not collapse.
+ * Both evaluations must read and clear the same array.
+ */
+const JOURNAL = Symbol.for("oria.hq.callAccountingJournal");
+
+function journal(): CallAccountingEvent[] {
+  const host = globalThis as typeof globalThis & { [JOURNAL]?: CallAccountingEvent[] };
+  const existing = host[JOURNAL];
+  if (existing) return existing;
+  const created: CallAccountingEvent[] = [];
+  host[JOURNAL] = created;
+  return created;
+}
 
 export function recordCallAccounting(event: CallAccountingEvent): CallAccountingEvent {
+  const log = journal();
   log.push(event);
   return event;
 }
 
 export function getCallAccountingLog(workspaceId?: string): readonly CallAccountingEvent[] {
+  const log = journal();
   if (!workspaceId) return log.slice();
   return log.filter((event) => event.workspaceId === workspaceId);
 }
 
 export function clearCallAccountingLog(): void {
-  log.length = 0;
+  journal().length = 0;
 }
 
 /** No hold. Selection and refusal do not reserve money. */

@@ -23,7 +23,13 @@
 //   - Workspace isolation: a discovery answer for workspace A can never be
 //     returned to a caller authenticated as workspace B.
 //   - No secret value ever enters this module's output — a probe may report
-//     only enum states and short, pre-redacted evidence strings.
+//     only enum states, short, pre-redacted evidence strings, and (if it has
+//     genuine per-account evidence) a safe accountId — never a raw
+//     identifier. A profile/config identity (e.g. a policy id) is NEVER a
+//     substitute for an attested accountId: a profile names a POLICY, not
+//     the account actually connected behind it. Absence of an attested
+//     accountId must be refused explicitly by callers that need one, never
+//     inferred or defaulted.
 //
 // Pure where it can be: resolution takes an injected probe (the I/O boundary)
 // and an injected clock; this module itself never calls fetch, reads
@@ -86,6 +92,17 @@ export type ProviderConnectionProbeOutcome = {
   requiredAction?: string;
   /** Short, already-redacted evidence lines. Never a secret value or full payload. */
   evidence?: readonly string[];
+  /**
+   * A safe, non-raw ATTESTATION of which specific account the probe
+   * observed — never an email, token, org name, or other raw identifier.
+   * Present ONLY when the probe has genuine, per-account evidence; absent
+   * when it does not (e.g. a probe that can only prove "a subscription is
+   * logged in", not "which one"). Absence is never read by any caller as
+   * "same account as a previous observation" — callers that need an
+   * account identity must refuse explicitly on absence, never infer one or
+   * fall back to a profile/config identity instead.
+   */
+  accountId?: string;
 };
 
 export type ProviderConnectionProbe = (
@@ -104,6 +121,8 @@ export type ProviderConnectionEntry = {
   checkedAtIso: string;
   requiredAction?: string;
   evidence: readonly string[];
+  /** See ProviderConnectionProbeOutcome.accountId — same doctrine, carried through unmodified. */
+  accountId?: string;
 };
 
 export type ProviderConnectionSnapshot = {
@@ -177,6 +196,10 @@ export async function resolveProviderConnectionDiscovery(
           checkedAtIso,
           requiredAction: state === "connected" ? undefined : outcome?.requiredAction,
           evidence: clampEvidence(outcome?.evidence),
+          // A malformed or absent accountId is dropped, never coerced or
+          // guessed — same validation already used for every other id in
+          // this module, not a new check invented for this field alone.
+          accountId: isNonEmptyId(outcome?.accountId) ? outcome.accountId : undefined,
         };
       } catch {
         return {

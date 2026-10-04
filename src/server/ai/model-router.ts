@@ -3,6 +3,7 @@ import {
   ECONOMY_MODEL_ID,
   LONG_CONTEXT_MODEL_ID,
   PREMIUM_MODEL_ID,
+  readServerModelCatalog,
   resolveModelProfile,
 } from "@/server/ai/model-config";
 import {
@@ -18,6 +19,11 @@ import {
 } from "@/server/ai/cost-ladder";
 import { recordCallAccounting } from "@/server/ai/call-accounting";
 import { executionTargetForModel } from "@/server/ai/execution-models";
+import {
+  assessServerEmission,
+  type ServerCapabilityCatalog,
+  type ServerEmissionAssessment,
+} from "@/server/ai/server-capability-catalog";
 
 export type ModelRouteInput = {
   message: string;
@@ -40,6 +46,16 @@ export type ModelRouteInput = {
   budgetStore?: BudgetStore;
   /** Journal scope only. Selection does not bill this workspace. */
   workspaceId?: string;
+  /**
+   * Capabilities verified on the server. When present, a callable static id
+   * still has to be authorized for this workspace. Absent: the four API ids
+   * keep the existing path. This object is not a browser price list.
+   */
+  serverCatalog?: ServerCapabilityCatalog;
+  /** Server account. Required when the catalog lists more than one for the model. */
+  accountId?: string;
+  /** A tools-required call cannot select an entry whose tools flag is false. */
+  requiresTools?: boolean;
 };
 
 export type BrainRouteVia = "keyword" | "semantic-fallback" | "default" | "cost-ladder";
@@ -315,7 +331,15 @@ function applyCostLadder(
   let profile: ModelProfile | undefined;
   const relativeWeight = decision.estimatedCost;
 
-  if (decision.rung === "free" && decision.freeModel && unavailable.has(decision.freeModel.id)) {
+  if (decision.block === "free_unavailable") {
+    candidate = {
+      modelId: baseCandidate.modelId,
+      mode: resolveMode(requested, "economy"),
+      reason: decision.reason,
+      via: "cost-ladder",
+      refused: "free_unavailable",
+    };
+  } else if (decision.rung === "free" && decision.freeModel && unavailable.has(decision.freeModel.id)) {
     candidate = {
       modelId: decision.freeModel.id,
       mode: resolveMode(requested, "economy"),
@@ -407,6 +431,22 @@ export function recordBrainRoute(
   return record;
 }
 
+function isNonApiRefusal(
+  assessment: Extract<ServerEmissionAssessment, { emit: false }>,
+): assessment is Extract<ServerEmissionAssessment, { disposition: "non_api" }> {
+  return "disposition" in assessment && assessment.disposition === "non_api";
+}
+
+/**
+ * Catalog read for the existing model service. Selection does not call this.
+ * Rows stay non-executable; this function does not send a model request.
+ */
+export function readRouterModelCatalog(
+  input: Parameters<typeof readServerModelCatalog>[0],
+): ReturnType<typeof readServerModelCatalog> {
+  return readServerModelCatalog(input);
+}
+
 export function chooseModel(input: ModelRouteInput): ModelRouteDecision {
   const unavailable = new Set(input.unavailableModelIds ?? []);
   const keywordRoute = routeByKeywords(input);
@@ -448,6 +488,20 @@ export function chooseModel(input: ModelRouteInput): ModelRouteDecision {
   } else if (!target.callable) {
     execution = "refused";
     refusalReason = target.reason;
+  } else if (input.serverCatalog) {
+    const assessment = assessServerEmission({
+      catalog: input.serverCatalog,
+      modelId: model.id,
+      workspaceId: input.workspaceId ?? "",
+      requiresTools: input.requiresTools === true,
+      nowMs: input.nowMs ?? Date.now(),
+      invokedProvider: target.provider,
+      ...(input.accountId ? { accountId: input.accountId } : {}),
+    });
+    if (!assessment.emit) {
+      execution = "refused";
+      refusalReason = isNonApiRefusal(assessment) ? assessment.billingKind : assessment.block;
+    }
   }
 
   const relativeWeight =

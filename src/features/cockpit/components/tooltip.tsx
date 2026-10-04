@@ -1,14 +1,15 @@
 "use client";
 
 import {
+  Children,
   cloneElement,
+  isValidElement,
   useId,
   useState,
   type FocusEvent,
   type FocusEventHandler,
   type KeyboardEventHandler,
   type MouseEventHandler,
-  type ReactElement,
   type ReactNode,
 } from "react";
 
@@ -62,14 +63,14 @@ function hasFocusWithin(event: FocusEvent<HTMLElement>): boolean {
 }
 
 export function Tooltip({
-  children,
+  children: childNodes,
   title,
   detail,
   meta,
   align = "center",
   className = "",
 }: {
-  children: ReactElement<TooltipTriggerProps>;
+  children: ReactNode;
   title: string;
   detail: string;
   meta?: ReactNode;
@@ -81,6 +82,14 @@ export function Tooltip({
   const [focused, setFocused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const isOpen = !dismissed && (hovered || focused);
+
+  // Server Component slots can arrive as deferred React children, without props.
+  // Let React resolve them (or suspend) before inspecting or cloning the trigger.
+  const resolvedChildren = Children.toArray(childNodes);
+  const children = resolvedChildren[0];
+  if (resolvedChildren.length !== 1 || !isValidElement<TooltipTriggerProps>(children)) {
+    throw new Error("Tooltip requires exactly one React element as its trigger.");
+  }
 
   const nativeType = typeof children.type === "string" ? children.type : null;
   const isInteractive =

@@ -387,6 +387,24 @@ export type HqCallReservationRow = {
 export type MichaelHqDatabase = {
   public: {
     Tables: {
+      account_identities: {
+        Row: {
+          account_id: string;
+          provider: string;
+          workspace_id: string;
+          email: string;
+          created_at: string;
+        };
+        Insert: {
+          account_id: string;
+          provider: string;
+          workspace_id: string;
+          email: string;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       calendar_events: {
         Row: CalendarEventRow;
         Insert: CalendarEventInsert;

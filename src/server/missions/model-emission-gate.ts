@@ -45,6 +45,26 @@
 //     not only against the two request-side ids)
 //   - a missing connection snapshot or authorization decision
 //   - a missing tariff, but ONLY when the resolved billing kind is "api"
+//
+// accountId/catalogRevision (ApprovedServerBinding axes, server-capability-
+// catalog.ts): required inputs now, forwarded unmodified to
+// assessServerEmission's own accountId filter and stamped onto the one
+// capability/catalog this module builds. Never invented here - the caller
+// supplies whatever real, already-established identity it has.
+//
+// CALLERS MUST READ gate.assessment.disposition, not only gate.assessment.emit:
+// Cursor's assessServerEmission refuses emission (emit:false) for an
+// "authorized, connected, billingKind !== api" capability too, tagged
+// disposition:"non_api" - correct for Cursor's own JSON-generation call path
+// (a subscription model structurally cannot flow through a metered API
+// call), but NOT the same thing as "this capability is unusable everywhere".
+// A caller whose own execution path legitimately IS the subscription itself
+// (model-emission-launch-gate.ts's OpenHands launch, never a JSON API call)
+// must treat disposition:"non_api" with billingKind:"subscription" as ITS
+// success condition, after independently verifying the returned capability's
+// accountId/workspaceId/modelId/billingKind match what it asked for - this
+// module does not do that verification for the caller, same as it has never
+// re-derived authorization or connection state for the caller.
 
 import {
   assessServerEmission,
@@ -84,6 +104,25 @@ export type ModelEmissionGateRequest = {
   tariff: ServerTariff | null;
   /** The adapter/provider that would actually be invoked, forwarded to assessServerEmission's invokedProvider match. */
   invokedProviderId?: string;
+  /**
+   * Cursor's ApprovedServerBinding account axis (server-capability-catalog.ts).
+   * Never a secret, never an email/orgId — the caller supplies whatever real,
+   * already-established identity it has for "whose capability this is" (the
+   * launch gate uses the qualified providerProfile.id: the one concrete
+   * identity that already flows through the whole confirmed LaunchConfig,
+   * since the connection probe deliberately never exposes a stronger one -
+   * see runner-executor-connection-probe.ts). Forwarded to
+   * assessServerEmission's own accountId filter and stamped onto the single
+   * capability entry this module builds. Never invented per-request.
+   */
+  accountId: string;
+  /**
+   * Cursor's ApprovedServerBinding catalogRevision axis. The caller supplies
+   * a real, already-qualified revision identity - the launch gate uses
+   * providerProfile.policySha256, the digest its own policy was already
+   * verified against, never a freshly-minted value.
+   */
+  catalogRevision: string;
   nowMs: number;
 };
 
@@ -136,6 +175,8 @@ export function evaluateModelEmissionGate(request: ModelEmissionGateRequest): Mo
     !isNonEmptyId(request?.workspaceId) ||
     !isNonEmptyId(request?.requestingWorkspaceId) ||
     !isNonEmptyId(request?.modelId) ||
+    !isNonEmptyId(request?.accountId) ||
+    !isNonEmptyId(request?.catalogRevision) ||
     typeof request?.requiresTools !== "boolean" ||
     !request?.registry ||
     !Number.isFinite(request?.nowMs)
@@ -179,6 +220,7 @@ export function evaluateModelEmissionGate(request: ModelEmissionGateRequest): Mo
     }
 
     entry = {
+      accountId: request.accountId,
       modelId: model.id,
       provider: model.providerId,
       state,
@@ -197,6 +239,7 @@ export function evaluateModelEmissionGate(request: ModelEmissionGateRequest): Mo
   const catalog: ServerCapabilityCatalog = {
     source: "hq-model-emission-gate-v1",
     observedAt: nowIso,
+    revision: request.catalogRevision,
     entries: entry ? [entry] : [],
   };
 
@@ -206,6 +249,7 @@ export function evaluateModelEmissionGate(request: ModelEmissionGateRequest): Mo
     workspaceId: request.workspaceId,
     requiresTools: request.requiresTools,
     nowMs: request.nowMs,
+    accountId: request.accountId,
     invokedProvider: request.invokedProviderId,
   });
 

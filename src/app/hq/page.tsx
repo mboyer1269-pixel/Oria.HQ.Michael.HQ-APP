@@ -38,7 +38,7 @@ export default async function HqPage() {
           </button>
         </form>
       </HqPageHeader>
-      <CommandCenter />
+      <CommandCenter workspaceId={activeWorkspace.id} />
       <MissionDraftPendingPanel />
       <HomeMissionOverview
         missions={missions.map(({ id, title, objective, status, updatedAt }) => ({ id, title, objective, status, updatedAt }))}
