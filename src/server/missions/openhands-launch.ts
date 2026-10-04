@@ -3,6 +3,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { isDeepStrictEqual } from "node:util";
 import { buildOpenHandsSubmission, type OpenHandsSubmissionDossier } from "./openhands-submission";
+import { buildModelExecutionReceipt } from "./openhands-model-execution-receipt";
+import { deriveUnavailableModelIds, resolveProviderConnectionDiscovery, type ProviderConnectionProbe } from "../agents/models/provider-connection-discovery";
+import type { ProviderRegistry } from "../agents/models/provider-registry-contract";
 import type { Mission } from "@/core/types";
 import { openHandsReceiptSchema, OPENHANDS_RESERVATION_KEY } from "./openhands-reservation";
 import { launchConfigSchema, type LaunchBinding } from "@/core/openhands-launch-contract";
@@ -25,6 +28,7 @@ export const launchClaimSchema = z.object({ version: z.literal(1), launchId: z.u
   commitSha: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
   containerName: z.string().regex(/^hq-openhands-[a-f0-9-]{36}$/),
   state: z.enum(["claimed", "creation_requested", "container_created", "start_requested", "execution_finished", "running", "succeeded", "failed", "cancelled", "reconciliation_required"]),
+  modelExecutionReceipt: z.unknown().optional(),
   containerId: digest.optional(),
   sessionId: id.optional(),
   startRequestedAt: z.iso.datetime({offset:true}).optional(),
@@ -84,7 +88,7 @@ export function validateLaunchAuthority(raw: unknown, binding: LaunchBinding, ac
 
 /** No browser authority/receipt parameter. Context must be authenticated upstream.
  * This tranche reserves only: no Docker, scheduler, lease takeover or execution. */
-export function createOpenHandsLaunchService(deps: { store: () => LaunchStore | null; now?: () => number }) {
+export function createOpenHandsLaunchService(deps: { store: () => LaunchStore | null; now?: () => number; connectionDiscovery?: { registry: ProviderRegistry; probe: ProviderConnectionProbe } }) {
   return async (context: { workspaceId: string; actorId: string }, request: { missionId: string; config: unknown },
     confirmation?: { confirm: true; expectedLaunchHash: string; approvalRecordId?: string }) => {
     const closed = (status: string) => ({ status, externalEffectAllowed: false as const });
@@ -107,12 +111,39 @@ export function createOpenHandsLaunchService(deps: { store: () => LaunchStore | 
       if (!confirmation) return { ...closed("prepared"), binding };
       if (confirmation.confirm !== true || confirmation.expectedLaunchHash !== binding.launchHash) return closed("dossier_changed");
       const now = deps.now ?? Date.now;
+      if (deps.connectionDiscovery) {
+        const discovery = await resolveProviderConnectionDiscovery(deps.connectionDiscovery.registry, {
+          workspaceId: binding.workspaceId,
+          requestingWorkspaceId: context.workspaceId,
+          probe: deps.connectionDiscovery.probe,
+          nowIso: new Date(now()).toISOString(),
+        });
+        if (discovery.status !== "ok") return closed("connection_required");
+        const unavailableModelIds = deriveUnavailableModelIds(deps.connectionDiscovery.registry, discovery.snapshot);
+        if (binding.config.foundationModelId && unavailableModelIds.includes(binding.config.foundationModelId)) {
+          return closed("connection_required");
+        }
+      }
       attempted = true;
       await store.persistAuthority(binding, context.actorId, now());
       const authority = validateLaunchAuthority(await store.readAuthority(binding, context.actorId), binding, context.actorId, now());
       if (!authority) return closed("authorization_denied");
       const launchId = randomUUID();
-      const claim: LaunchClaim = { version: 1, launchId, authorizationId: authority.id,
+      const requestedModelId = binding.config.foundationModelId ?? "default";
+      const modelExecutionReceipt = buildModelExecutionReceipt({
+        eligible: true,
+        modelId: requestedModelId,
+        providerId: "openhands-acp",
+        runtimeAdapterId: binding.config.runnerId,
+        sentinelle: { defaultZone: "red", requiresApprovalForToolUse: true },
+        sentinelleRequired: true,
+        ledgerRequired: true,
+        pinned: true,
+        reason: "OpenHands ACP model approved for launch",
+        skipped: [],
+      }, launchId, null);
+      if (modelExecutionReceipt.status !== "ok") return closed("reconciliation_required");
+      const claim: LaunchClaim = { version: 1, launchId, authorizationId: authority.id, modelExecutionReceipt: modelExecutionReceipt.receipt,
         ...(confirmation.approvalRecordId ? { approvalRecordId: confirmation.approvalRecordId } : {}), workspaceId: binding.workspaceId,
         missionId: binding.missionId, reservationId: binding.reservationId, payloadHash: binding.payloadHash, launchHash: binding.launchHash,
         actorId: context.actorId, runnerId: binding.config.runnerId, imageDigest: binding.config.imageDigest,commitSha:binding.commitSha,

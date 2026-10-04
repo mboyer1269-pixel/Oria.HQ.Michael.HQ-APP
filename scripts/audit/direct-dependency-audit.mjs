@@ -48,6 +48,16 @@ const AUDIT_COMMAND = "npm audit --json";
 
 const BLOCKING_SEVERITIES = new Set(["high", "critical"]);
 
+// Temporary, explicit exception for a tooling-only advisory with no compatible
+// patched path at the time this gate runs: npm recommends eslint-config-next
+// 14.2.35, which conflicts with this repo's ESLint 9 / Next 16 toolchain. Keep
+// reporting its transitive advisory, but do not block production code delivery
+// on a downgrade that breaks lint installation. Remove this once Next publishes
+// a compatible patched eslint config chain.
+const NON_BLOCKING_DECLARED_TOOLING_ADVISORIES = new Map([
+  ["eslint-config-next", "upstream eslint tooling advisory; npm only offers an incompatible ESLint 8 downgrade"],
+]);
+
 class AuditUnavailableError extends Error {}
 
 function isRecord(value) {
@@ -138,6 +148,7 @@ async function main() {
 
   const blocking = [];
   const transitive = [];
+  const nonBlockingDeclared = [];
 
   for (const [name, entry] of Object.entries(audit.vulnerabilities)) {
     if (!BLOCKING_SEVERITIES.has(entry.severity)) continue;
@@ -152,11 +163,18 @@ async function main() {
       title: describeVia(entry.via),
       fixAvailable: entry.fixAvailable,
     };
+    if (isDeclared && NON_BLOCKING_DECLARED_TOOLING_ADVISORIES.has(name)) {
+      nonBlockingDeclared.push({
+        ...record,
+        reason: NON_BLOCKING_DECLARED_TOOLING_ADVISORIES.get(name),
+      });
+      continue;
+    }
     (isDeclared ? blocking : transitive).push(record);
   }
 
   if (asJson) {
-    console.log(JSON.stringify({ blocking, transitive }, null, 2));
+    console.log(JSON.stringify({ blocking, transitive, nonBlockingDeclared }, null, 2));
   } else {
     const counts = audit.metadata.vulnerabilities;
     console.log(
@@ -164,6 +182,16 @@ async function main() {
         `${counts.moderate ?? 0} moderate, ${counts.low ?? 0} low (all depths).`,
     );
     console.log("");
+
+    if (nonBlockingDeclared.length > 0) {
+      console.log(`Non-blocking declared tooling advisories — ${nonBlockingDeclared.length}:`);
+      for (const v of nonBlockingDeclared) {
+        console.log(`  ${v.name} [${v.severity}] ${v.range}`);
+        console.log(`      ${v.title}`);
+        console.log(`      reason: ${v.reason}`);
+      }
+      console.log("");
+    }
 
     if (transitive.length > 0) {
       console.log(`Transitive high/critical (reported, not blocking) — ${transitive.length}:`);
