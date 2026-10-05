@@ -145,6 +145,11 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
       "Proposition en ajout seul : la ligne enregistre une intention et n'exécute jamais.",
     paths: ["src/server/ventures/prepared-action-repository.ts"],
   },
+  {
+    reason:
+      "Écriture d'évidence de connexion déclenchée uniquement par un script opérateur hors application (runner-connection-evidence-record.mjs) ; aucune route ni page applicative n'importe recordRunnerConnectionEvidence. La même garde d'environnement opérateur/non-cloud que la sonde SSH (resolveRunnerProbeEnvironment) s'applique avant toute écriture. La lecture correspondante ne mute rien et reste consultée seulement par confirm_launch quand le transport persisté est explicitement choisi.",
+    paths: ["src/server/agents/models/runner-connection-evidence.ts"],
+  },
 ];
 
 /**

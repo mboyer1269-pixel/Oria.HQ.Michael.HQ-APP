@@ -94,6 +94,13 @@ const serverEnvSchema = z.object({
   ORIA_OPENHANDS_RUNNER_PROBE_CONFIG_FILE: z.string().optional(),
   ORIA_OPENHANDS_RUNNER_SSH_HOST: z.string().optional(),
   ORIA_OPENHANDS_RUNNER_SSH_IDENTITY_FILE: z.string().optional(),
+  // Explicit, closed-by-default connection-evidence transport selection for
+  // the OpenHands launch gate (model-emission-launch-gate.ts). Unset keeps
+  // the SSH-only probe unchanged; "persisted" switches to reading an
+  // operator-recorded attestation instead (runner-connection-evidence.ts).
+  // Never a fallback between the two — see that module's own doc comment.
+  ORIA_OPENHANDS_CONNECTION_EVIDENCE_TRANSPORT: z.enum(["ssh", "persisted"]).optional(),
+  ORIA_OPENHANDS_CONNECTION_EVIDENCE_BINDING: z.string().max(4096).optional(),
   // Reservation ledger opt-in and qualified server catalog path; no execution grant.
   HQ_CALL_RESERVATION: z.enum(["0", "1"]).optional(),
   ORIA_HQ_CHAT_CAPABILITIES_FILE: z.string().optional(),
