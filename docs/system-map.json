@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 647,
-    "live": 596,
+    "sourceFiles": 648,
+    "live": 597,
     "testOnly": 5,
     "incubation": 46
   },
@@ -380,6 +380,7 @@
     "src/server/agents/models/model-selection-policy.ts",
     "src/server/agents/models/provider-connection-discovery.ts",
     "src/server/agents/models/provider-registry-contract.ts",
+    "src/server/agents/models/runner-connection-evidence.ts",
     "src/server/agents/models/runner-executor-connection-probe.ts",
     "src/server/agents/money-strategy-routing-graph-contract.ts",
     "src/server/agents/next-action-mandate-contract.ts",
