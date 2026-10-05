@@ -16,16 +16,16 @@
 |---|---|
 | LIVE | 597 |
 | TEST_ONLY | 5 |
-| INCUBATION | 46 |
-| **Total source** | **648** |
+| INCUBATION | 45 |
+| **Total source** | **647** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
 | server/agents | 9 |
-| features/cockpit | 7 |
 | features/memory | 7 |
+| features/cockpit | 6 |
 | features/ventures | 5 |
 | features/missions | 3 |
 | features/hq | 2 |
@@ -50,7 +50,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/features/cockpit/components/cockpit-review-queue.tsx`
 - `src/features/cockpit/components/joris-dock.tsx`
 - `src/features/cockpit/components/morning-readiness-panel.tsx`
-- `src/features/cockpit/components/venture-suggestions.tsx`
 - `src/features/cockpit/widgets/widget-manifest.ts`
 - `src/features/hq/capability-status.ts`
 - `src/features/hq/components/home-mission-overview.tsx`
