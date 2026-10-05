@@ -219,9 +219,11 @@ export async function performDevelopmentRequest(input: {
   signal?: AbortSignal;
 }): Promise<DevelopmentOutcome> {
   const readOnly = input.method === "GET";
+  // Native browser fetch cannot use the transport input as its receiver.
+  const fetchImpl = input.fetchImpl;
 
   try {
-    const response = await input.fetchImpl(
+    const response = await fetchImpl(
       readOnly ? developmentReceiptUrl(input.requestId) : DEVELOPMENT_MISSION_ENDPOINT,
       {
         method: input.method,

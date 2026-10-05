@@ -116,7 +116,7 @@ const EFFECT_SINKS = [
 function detectedEffectSinks(rel, source) {
   if (rel === "src/features/missions/development-mission-session.ts") {
     source = source.replace(
-      /input\.fetchImpl\(\s*readOnly \? developmentReceiptUrl\(input\.requestId\) : DEVELOPMENT_MISSION_ENDPOINT,/,
+      /\bfetchImpl\(\s*readOnly \? developmentReceiptUrl\(input\.requestId\) : DEVELOPMENT_MISSION_ENDPOINT,/,
       "internalMissionTransport(",
     );
   }
@@ -361,6 +361,7 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     const source = await read(rel);
     assert.equal(detectedEffectSinks(rel, source).length, 0);
     assert.ok(detectedEffectSinks(rel, source + '\ninput.fetchImpl("https://outside.invalid")').some((sink) => sink.name === "injected external fetch"));
+    assert.ok(detectedEffectSinks(rel, source + '\nfetchImpl("https://outside.invalid")').some((sink) => sink.name === "injected external fetch"));
   });
 
   await t.test("Hermes qualification has no deployed caller", async () => {

@@ -55,6 +55,29 @@ const base = {
 
 const state = (patch) => ({ ...base, ...patch });
 
+test("native-compatible fetch is called independently for creation and receipt lookup", async () => {
+  const calls = [];
+  const saved = {
+    status: "saved", missionId: ID_B, title: "Persisted mission",
+    missionStatus: "draft", updatedAt: "2026-10-04T00:00:00Z", executionRequested: false,
+  };
+  async function browserFetch(url, options) {
+    // Browsers throw Illegal invocation when fetch receives an arbitrary object.
+    assert.equal(this, undefined);
+    calls.push({ url, options });
+    return Response.json(saved);
+  }
+  const payload = { requestId: ID_A, title: "Persisted mission", objective: "Bounded proof", scope: "One file", acceptanceCriteria: "File exists" };
+  for (const method of ["POST", "GET"]) {
+    assert.deepEqual(await performDevelopmentRequest({method, requestId: ID_A, payload, fetchImpl: browserFetch}), saved);
+  }
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, "/api/missions/development");
+  assert.deepEqual(JSON.parse(calls[0].options.body), payload);
+  assert.equal(calls[1].url, developmentReceiptUrl(ID_A));
+  assert.equal(calls[1].options.body, undefined);
+});
+
 // ---------------------------------------------------------------------------
 // Rechargement — le défaut d'origine
 // ---------------------------------------------------------------------------
