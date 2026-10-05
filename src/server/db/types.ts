@@ -409,6 +409,42 @@ export type MichaelHqDatabase = {
         Update: never;
         Relationships: [];
       };
+      provider_connection_evidence: {
+        Row: {
+          workspace_id: string;
+          provider_id: string;
+          runner_id: string;
+          container: string;
+          contract_version: number;
+          policy_sha256: string;
+          connection_state: string;
+          source: string;
+          account_id: string | null;
+          evidence: string[];
+          required_action: string | null;
+          checked_at: string;
+          recorded_at: string;
+          recorded_by: string;
+        };
+        Insert: {
+          workspace_id: string;
+          provider_id: string;
+          runner_id: string;
+          container: string;
+          contract_version: number;
+          policy_sha256: string;
+          connection_state: string;
+          source: string;
+          account_id?: string | null;
+          evidence?: string[];
+          required_action?: string | null;
+          checked_at: string;
+          recorded_at?: string;
+          recorded_by: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       calendar_events: {
         Row: CalendarEventRow;
         Insert: CalendarEventInsert;

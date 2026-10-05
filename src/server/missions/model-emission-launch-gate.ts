@@ -25,6 +25,7 @@ import {
   type ProviderConnectionProbe,
 } from "../agents/models/provider-connection-discovery";
 import { createConfiguredRunnerConnectionProbe } from "../agents/models/runner-executor-connection-probe";
+import { createPersistedRunnerConnectionProbe } from "../agents/models/runner-connection-evidence";
 import type { ProviderRegistry } from "../agents/models/provider-registry-contract";
 
 // ---------------------------------------------------------------------------
@@ -121,10 +122,40 @@ if (!EXECUTOR_PROVIDER_REGISTRY_RESULT.ok) {
  * literal providerProfileSchema already allows and nothing else. */
 export const DEFAULT_EXECUTOR_PROVIDER_REGISTRY: ProviderRegistry = EXECUTOR_PROVIDER_REGISTRY_RESULT.registry;
 
-/** Re-read the operator's workspace-bound SSH/container approval on every probe.
- * No configured approval means no subprocess. Account identity still comes only
- * from the executor CLI's actual response and the server identity repository. */
+/** Which connection-evidence transport this server process uses for
+ * confirm_launch's account/capability check. Explicit and closed by
+ * default: unset (or any value other than exactly "persisted") keeps
+ * today's SSH-only behavior byte-for-byte unchanged, including its refusal
+ * under a cloud marker. This is never inferred from a probe's own refusal
+ * — see createDefaultConnectionProbe's comment for why a prior draft that
+ * tried that was wrong. */
+export const CONNECTION_EVIDENCE_TRANSPORT_ENV_VAR = "ORIA_OPENHANDS_CONNECTION_EVIDENCE_TRANSPORT";
+
+/**
+ * Re-read the operator's workspace-bound SSH/container approval on every
+ * probe. No configured approval means no subprocess. Account identity still
+ * comes only from the executor CLI's actual response and the server
+ * identity repository.
+ *
+ * Transport selection is explicit, not a fallback chain: this does NOT try
+ * the SSH probe and fall through to persisted evidence on failure. Doing so
+ * was tried and rejected in review — the SSH probe's one generic refusal
+ * message ("operator binding absent, unapproved, invalid, forbidden or
+ * workspace-mismatched") is produced both by a genuinely revoked operator
+ * approval and by simply running under a cloud marker, so matching on it
+ * would let a revoked approval silently fall through to a stale persisted
+ * "connected" claim instead of staying refused. Instead the server names
+ * its transport once, via CONNECTION_EVIDENCE_TRANSPORT_ENV_VAR: SSH unless
+ * that variable is exactly "persisted". The persisted transport has its own
+ * independent, explicitly approved consumption binding
+ * (runner-connection-evidence.ts's loadConnectionEvidenceBinding) and never
+ * accepts evidence for a workspace/provider/runner/container it was not
+ * configured to trust.
+ */
 export function createDefaultConnectionProbe(workspaceId: string): ProviderConnectionProbe {
+  if (process.env[CONNECTION_EVIDENCE_TRANSPORT_ENV_VAR] === "persisted") {
+    return createPersistedRunnerConnectionProbe(workspaceId);
+  }
   return createConfiguredRunnerConnectionProbe(workspaceId);
 }
 

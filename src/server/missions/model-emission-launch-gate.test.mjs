@@ -19,10 +19,12 @@ test("Gated OpenHands launch tests", async (t) => {
 
   const {
     createGatedOpenHandsLaunch,
+    createDefaultConnectionProbe,
     resolveExecutorProviderBinding,
     approvalStillAuthorizes,
     attestedAccountStillMatches,
     DEFAULT_EXECUTOR_PROVIDER_REGISTRY,
+    CONNECTION_EVIDENCE_TRANSPORT_ENV_VAR,
   } = await jiti.import(path.join(__dirname, "model-emission-launch-gate.ts"));
   const { createStaticProviderRegistry } = await jiti.import(
     path.join(__dirname, "..", "agents", "models", "provider-registry-contract.ts"),
@@ -791,5 +793,65 @@ test("Gated OpenHands launch tests", async (t) => {
   await t.test("attestedAccountStillMatches: concurrency — two reads of the SAME stable attestation both still match (no gate-level lock needed)", () => {
     assert.equal(attestedAccountStillMatches(ACCOUNT_ID, readyEntry(ACCOUNT_ID)), true);
     assert.equal(attestedAccountStillMatches(ACCOUNT_ID, readyEntry(ACCOUNT_ID)), true);
+  });
+
+  // ---------------------------------------------------------------------
+  // createDefaultConnectionProbe — explicit, closed-by-default transport
+  // selection. No fallback chain: a prior draft fell back to persisted
+  // evidence whenever the SSH probe returned its generic "operator binding
+  // absent/unapproved/invalid/forbidden/workspace-mismatched" refusal, which
+  // conflates a revoked approval with simply running on a cloud host. That
+  // draft was rejected in review; these tests guard against reintroducing it.
+  // ---------------------------------------------------------------------
+
+  const CLAUDE_PROVIDER_DESCRIPTOR = { id: "claude-code-cli", label: "x", kind: "api", trustLevel: "reviewed", supportsMcp: false, supportsToolUse: true };
+
+  async function withEnv(overrides, run) {
+    const keys = ["VERCEL", CONNECTION_EVIDENCE_TRANSPORT_ENV_VAR, "ORIA_OPENHANDS_CONNECTION_EVIDENCE_BINDING", "ORIA_OPENHANDS_RUNNER_PROBE_CONFIG_FILE"];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      for (const key of keys) delete process.env[key];
+      Object.assign(process.env, overrides);
+      await run();
+    } finally {
+      for (const key of keys) delete process.env[key];
+      for (const [key, value] of Object.entries(saved)) if (value !== undefined) process.env[key] = value;
+    }
+  }
+
+  await t.test("REGRESSION: transport unset + cloud marker present -> still the unmodified SSH probe, still refused", async () => {
+    await withEnv({ VERCEL: "1" }, async () => {
+      const probe = createDefaultConnectionProbe("workspace-a");
+      const outcome = await probe(CLAUDE_PROVIDER_DESCRIPTOR, []);
+      assert.equal(outcome.connectionState, "unknown");
+      assert.match(outcome.requiredAction, /runner probe operator binding absent, unapproved, invalid, forbidden or workspace-mismatched/);
+    });
+  });
+
+  await t.test("transport unset, no cloud marker: still the SSH probe (same refusal shape, proving no silent transport switch)", async () => {
+    await withEnv({}, async () => {
+      const probe = createDefaultConnectionProbe("workspace-a");
+      const outcome = await probe(CLAUDE_PROVIDER_DESCRIPTOR, []);
+      assert.equal(outcome.connectionState, "unknown");
+      assert.match(outcome.requiredAction, /runner probe operator binding absent, unapproved, invalid, forbidden or workspace-mismatched/);
+    });
+  });
+
+  await t.test("explicit cloud persisted: transport=persisted under a cloud marker reaches the persisted-evidence path, not SSH's refusal", async () => {
+    await withEnv({ VERCEL: "1", [CONNECTION_EVIDENCE_TRANSPORT_ENV_VAR]: "persisted" }, async () => {
+      const probe = createDefaultConnectionProbe("workspace-a");
+      const outcome = await probe(CLAUDE_PROVIDER_DESCRIPTOR, []);
+      assert.equal(outcome.connectionState, "unknown");
+      assert.match(outcome.requiredAction, /no approved persisted-evidence consumption binding/);
+      assert.doesNotMatch(outcome.requiredAction, /runner probe operator binding absent/);
+    });
+  });
+
+  await t.test("an unrecognized transport value is treated the same as unset — closed to SSH, never persisted by accident", async () => {
+    await withEnv({ [CONNECTION_EVIDENCE_TRANSPORT_ENV_VAR]: "ssh-ish-typo" }, async () => {
+      const probe = createDefaultConnectionProbe("workspace-a");
+      const outcome = await probe(CLAUDE_PROVIDER_DESCRIPTOR, []);
+      assert.match(outcome.requiredAction, /runner probe operator binding absent, unapproved, invalid, forbidden or workspace-mismatched/);
+    });
   });
 });
