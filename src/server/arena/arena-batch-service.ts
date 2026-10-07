@@ -111,9 +111,11 @@ export async function evaluateBatchAndMaybeStore(
   const storeResults = input.storeResults ?? true;
 
   if (storeResults) {
-    for (const candidate of normalizedCandidates) {
-      await evaluationService.evaluateAndStore(candidate, input.context);
-    }
+    await Promise.all(
+      normalizedCandidates.map((candidate) =>
+        evaluationService.evaluateAndStore(candidate, input.context)
+      )
+    );
   }
 
   const verdicts = rankCandidates(normalizedCandidates, input.context);
