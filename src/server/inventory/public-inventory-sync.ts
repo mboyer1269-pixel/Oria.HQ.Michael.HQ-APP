@@ -119,19 +119,29 @@ export async function syncPublicInventory(
   const batches: VehicleStock[][] = [];
   const fetchedUrls: string[] = [];
 
-  for (const url of urls) {
-    const fetched = await fetchHtml(url, fetchImpl, userAgent);
-    if (!fetched.ok) {
-      errors.push(fetched.error);
-      continue;
+  const CONCURRENCY_LIMIT = 5;
+  for (let i = 0; i < urls.length; i += CONCURRENCY_LIMIT) {
+    const chunk = urls.slice(i, i + CONCURRENCY_LIMIT);
+    const chunkResults = await Promise.all(
+      chunk.map(async (url) => {
+        const fetched = await fetchHtml(url, fetchImpl, userAgent);
+        return { url, fetched };
+      })
+    );
+
+    for (const { url, fetched } of chunkResults) {
+      if (!fetched.ok) {
+        errors.push(fetched.error);
+        continue;
+      }
+      fetchedUrls.push(url);
+      const parsed = parseBuckinghamInventoryHtml(fetched.html, url);
+      warnings.push(...parsed.parseWarnings.map((w) => `${url}: ${w}`));
+      if (parsed.vehicles.length === 0) {
+        warnings.push(`${url}: 0 vehicles parsed (cards=${parsed.cardCount})`);
+      }
+      batches.push(parsed.vehicles);
     }
-    fetchedUrls.push(url);
-    const parsed = parseBuckinghamInventoryHtml(fetched.html, url);
-    warnings.push(...parsed.parseWarnings.map((w) => `${url}: ${w}`));
-    if (parsed.vehicles.length === 0) {
-      warnings.push(`${url}: 0 vehicles parsed (cards=${parsed.cardCount})`);
-    }
-    batches.push(parsed.vehicles);
   }
 
   const vehicles = mergeVehicles(batches);
