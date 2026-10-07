@@ -7,6 +7,7 @@ import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
 import { logger } from "@/lib/logger";
 import { chatModelOptions, chatModelSelectionSchema, loadChatCapabilityCatalog, resolveChatModelBinding } from "@/server/joris/chat-model-binding";
+import { detectIntent } from "@/server/joris/detect-intent";
 
 const requestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -38,7 +39,8 @@ export async function POST(request: Request) {
   try {
     const workspaceContext = getActiveWorkspaceContext();
     const catalog=await loadChatCapabilityCatalog();
-    const binding=resolveChatModelBinding(catalog,workspaceContext.workspace.id,parsed.data.modelSelection);
+    const intent=detectIntent(parsed.data.message);
+    const binding=resolveChatModelBinding(catalog,workspaceContext.workspace.id,parsed.data.modelSelection,undefined,undefined,workspaceContext.activeAgentProfile.id,intent);
     const result = await runJorisCommand(parsed.data.message, workspaceContext, undefined, binding);
     return NextResponse.json(result);
   } catch (error) {
