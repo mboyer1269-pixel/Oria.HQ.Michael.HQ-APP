@@ -104,7 +104,20 @@ export function taskClassForIntent(intent: JorisIntent): TaskClass {
 }
 
 /** Rules path: the route id is chosen, not executed. The weight is not a debit. */
-function unexecutedRouteFields(route: ReturnType<typeof chooseModel>) {
+type JorisSelectionRoute = Pick<ReturnType<typeof chooseModel>, "modelId" | "chosenModelId" | "executedModelId" | "execution" | "mode" | "estimate">;
+
+/** Project an existing policy decision. Never invoke the legacy selector here. */
+function boundChatRoute(binding: ChatBindingResolution): JorisSelectionRoute {
+  const selected = binding.status === "ready" ? binding.binding.selection : null;
+  const compatible = selected?.eligible === true && binding.status === "ready"
+    && selected.modelId === binding.binding.approved.modelId
+    && selected.runtimeAdapterId === `${selected.providerId}-http-json`;
+  return { modelId: selected?.modelId ?? "", chosenModelId: selected?.modelId ?? "",
+    executedModelId: null, execution: compatible ? "callable" : "refused", mode: "manual",
+    estimate: { kind: "estimation", relativeWeight: 0, unit: "relative_weight_not_dollars", monetaryUsd: null } };
+}
+
+function unexecutedRouteFields(route: JorisSelectionRoute) {
   return {
     modelId: route.modelId,
     chosenModelId: route.chosenModelId,
@@ -145,7 +158,7 @@ function buildFallbackSummary(intent: JorisIntent, message: string) {
 async function handleMissionDraftReply(
   message: string,
   ctx: WorkspaceContext,
-  route: ReturnType<typeof chooseModel>,
+  route: JorisSelectionRoute,
   workspaceMeta: Pick<CommandResult, "workspaceId" | "modeId" | "assistantId">,
 ): Promise<CommandResult | null> {
   const replyKind = classifyMissionDraftReply(message);
@@ -206,7 +219,7 @@ const GOVERNANCE_AUDIT_UNPERSISTED_NOTICE =
 async function handleGovernanceReviewReply(
   message: string,
   ctx: WorkspaceContext,
-  route: ReturnType<typeof chooseModel>,
+  route: JorisSelectionRoute,
   workspaceMeta: Pick<CommandResult, "workspaceId" | "modeId" | "assistantId">,
 ): Promise<CommandResult | null> {
   // Booking precedence: defer to the mission-draft confirmation path when a
@@ -310,7 +323,7 @@ export async function runJorisCommand(
 ): Promise<CommandResult & { chatExecution?: ChatExecutionReport; chatBindingStatus?: string }> {
   const ctx = workspaceContext;
 
-  const route = chooseModel({
+  const route = chatBinding ? boundChatRoute(chatBinding) : chooseModel({
     message,
     highImpact: false,
     // Shadow tagging (Cost Ladder, display_only): the pre-intent reply route
@@ -398,7 +411,7 @@ export async function runJorisCommand(
   }
 
   const intent = detectIntent(message);
-  const routedModel = chooseModel({
+  const routedModel = chatBinding ? route : chooseModel({
     message,
     highImpact: intent === "board.consult" || intent === "opportunity.score",
     // Shadow tagging (Cost Ladder, display_only): map the detected intent to a
@@ -711,7 +724,7 @@ export async function runJorisCommand(
     generation: "fallback" as const,
   };
 
-  if (chatBinding?.status === "blocked" || (!chatBinding && routedModel.execution === "refused")) {
+  if (chatBinding?.status === "blocked" || routedModel.execution === "refused") {
     return {
       ...template,
       ...(chatBinding?.status === "blocked" ? {chatBindingStatus:chatBinding.reason} : {}),
@@ -722,7 +735,7 @@ export async function runJorisCommand(
   const llmReply = await deps.generateReply({
     message,
     memoryContext: memory.memoryContext,
-    chosenModelId: chatBinding?.status === "ready" ? chatBinding.binding.approved.modelId : routedModel.chosenModelId,
+    chosenModelId: routedModel.chosenModelId,
     workspaceId: ctx.workspace.id,
     ...(chatBinding?.status === "ready" ? {hqBinding:chatBinding.binding} : {}),
   });
@@ -739,7 +752,7 @@ export async function runJorisCommand(
       intent,
       summary: attachMemexPreview(summary, intent, memory),
       modelId: llmReply.modelId,
-      chosenModelId: chatBinding?.status === "ready" ? chatBinding.binding.approved.modelId : routedModel.chosenModelId,
+      chosenModelId: routedModel.chosenModelId,
       executedModelId,
       ...(llmReply.execution ? {chatExecution:llmReply.execution} : {}),
       ...(executedModelId === routedModel.chosenModelId ? { costMode: routedModel.mode } : {}),
