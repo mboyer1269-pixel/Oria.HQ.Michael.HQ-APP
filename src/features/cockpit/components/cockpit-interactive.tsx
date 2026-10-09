@@ -867,6 +867,7 @@ export function CockpitInteractive({
       <div style={{ marginBottom: 6 }}>
         <button
           type="button"
+          aria-label="Ouvrir la recherche"
           onClick={() => setCmdOpen(true)}
           style={{
             display: "flex",
