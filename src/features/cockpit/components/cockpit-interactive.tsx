@@ -868,6 +868,7 @@ export function CockpitInteractive({
         <button
           type="button"
           onClick={() => setCmdOpen(true)}
+          aria-label="Rechercher"
           style={{
             display: "flex",
             alignItems: "center",
