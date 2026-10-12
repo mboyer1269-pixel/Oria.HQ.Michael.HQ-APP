@@ -163,6 +163,7 @@ export function VentureAssetPanel({
             <select
               value={kind}
               onChange={(event) => setKind(event.target.value as VentureAssetKind)}
+              aria-label="Type d'actif"
               className="rounded-lg border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-xs text-neutral-200"
             >
               {KIND_OPTIONS.map(([optionKind, optionLabel]) => (
@@ -175,12 +176,14 @@ export function VentureAssetPanel({
               value={label}
               onChange={(event) => setLabel(event.target.value)}
               placeholder="Libellé (ex. Courriel support clients)"
+              aria-label="Libellé de l'actif"
               className="rounded-lg border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-xs text-neutral-200 placeholder:text-neutral-600"
             />
             <input
               value={value}
               onChange={(event) => setValue(event.target.value)}
               placeholder="Valeur (ex. support@maboutique.com)"
+              aria-label="Valeur de l'actif"
               className="rounded-lg border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-xs text-neutral-200 placeholder:text-neutral-600 sm:col-span-2"
             />
           </div>
@@ -241,6 +244,7 @@ export function VentureAssetPanel({
                 onClick={() => retire(record.id)}
                 disabled={isPending}
                 title="Retirer (conservé dans l'historique)"
+                aria-label={"Retirer l'actif " + record.label}
                 className="rounded-lg border border-neutral-800 p-1.5 text-neutral-500 transition hover:border-rose-500/40 hover:text-rose-400"
               >
                 <Trash2 className="h-3.5 w-3.5" />
