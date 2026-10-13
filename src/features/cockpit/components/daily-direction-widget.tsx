@@ -104,7 +104,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
           <button
             type="button"
             onClick={onRetry}
-            className="mt-3 text-xs font-semibold text-rose-300 underline underline-offset-2 hover:text-rose-200"
+            className="mt-3 text-xs font-semibold text-rose-300 underline underline-offset-2 hover:text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent rounded-sm"
           >
             Réessayer
           </button>
@@ -257,7 +257,7 @@ export function DailyDirectionWidget({
             onClick={runGeneration}
             disabled={isPending}
             aria-label="Régénérer la direction du jour"
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-[11.5px] font-semibold text-[#8791b7] transition hover:border-violet-500/30 hover:text-violet-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-[11.5px] font-semibold text-[#8791b7] transition hover:border-violet-500/30 hover:text-violet-300 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:border-transparent focus-visible:text-violet-300"
           >
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             Régénérer
