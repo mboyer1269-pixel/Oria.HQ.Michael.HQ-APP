@@ -95,7 +95,7 @@ export function VentureIntakeForm({
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 transition hover:border-neutral-600 hover:text-neutral-200"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 transition hover:border-neutral-600 hover:text-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
           aria-label="Fermer le formulaire"
         >
           <X className="h-4 w-4" />
@@ -249,13 +249,13 @@ export function VentureIntakeForm({
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:bg-neutral-900"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
         >
           Annuler
         </button>
         <button
           type="submit"
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
         >
           <Sparkles className="h-4 w-4" />
           Créer le brouillon local
