@@ -1,5 +1,7 @@
 # Provider profile binding — local implementation, 2026-09-30
 
+Historical implementation record. For the current runner support boundary and personal-account integration milestones, see [Personal agent connections](PERSONAL_AGENT_CONNECTIONS.md). The schema now preserves Claude and Codex profile identities; only the Claude runner path is implemented. A configured profile does not prove a live connection or qualified mission.
+
 The optional `config.providerProfile` is public policy metadata, not an active provider connection. The current host cannot execute a profile-bearing job. The preview displays that limitation and disables confirmation in the UI; the host independently refuses it before checkout preparation and again before socket/container creation. A direct API caller cannot bypass those execution guards.
 
 The strict profile schema accepts only `id` (lowercase slug, max 80 characters), `policySha256` (64 lowercase hexadecimal characters), `provider: "claude"`, `authentication: "subscription"`, `network: "restricted-proxy"`, and `accountConnectors: "disabled"`. These are requested policy attributes, not a claim that a proxy or subscription connection exists. No credential, host path, arbitrary connector, or unknown property is accepted.

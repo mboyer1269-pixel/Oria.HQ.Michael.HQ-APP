@@ -229,7 +229,7 @@ export function isProviderConnectionSnapshotStale(
 ): boolean {
   const checked = Date.parse(snapshot?.checkedAtIso ?? "");
   const now = Date.parse(nowIso);
-  if (!Number.isFinite(checked) || !Number.isFinite(now)) return true;
+  if (!Number.isFinite(checked) || !Number.isFinite(now) || !Number.isFinite(maxAgeMs) || maxAgeMs < 0 || checked > now) return true;
   return now - checked > maxAgeMs;
 }
 

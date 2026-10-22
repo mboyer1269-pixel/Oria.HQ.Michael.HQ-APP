@@ -201,6 +201,19 @@ test("Provider Connection Discovery tests", async (t) => {
     assert.equal(isProviderConnectionSnapshotStale(null, "2026-10-02T12:00:00.000Z", 5 * 60_000), true);
   });
 
+  await t.test("future observations and invalid freshness windows cannot attest a current connection", () => {
+    const now = "2026-10-02T12:00:00.000Z";
+    assert.equal(isProviderConnectionSnapshotStale({ checkedAtIso: "2026-10-02T12:00:00.001Z" }, now, 300_000), true);
+    for (const maxAge of [NaN, Infinity, -Infinity, -1]) {
+      assert.equal(isProviderConnectionSnapshotStale({ checkedAtIso: now }, now, maxAge), true);
+    }
+    assert.equal(isProviderConnectionSnapshotStale({ checkedAtIso: now }, now, 0), false);
+    assert.equal(isProviderConnectionSnapshotStale({ checkedAtIso: now }, "2026-10-02T12:00:00.001Z", 0), true);
+    assert.equal(isProviderConnectionSnapshotStale({ checkedAtIso: now }, "invalid", 300_000), true);
+    assert.equal(isProviderConnectionSnapshotStale({ checkedAtIso: now }, "2026-10-02T12:05:00.000Z", 300_000), false);
+    assert.equal(isProviderConnectionSnapshotStale({ checkedAtIso: now }, "2026-10-02T12:05:00.001Z", 300_000), true);
+  });
+
   await t.test("a declared-only capability is never execution-ready, even when connected", () => {
     assert.equal(isExecutionReady({ connectionState: "connected", source: "declared-capability" }), false);
     assert.equal(isExecutionReady({ connectionState: "connected", source: "exercised-capability" }), true);

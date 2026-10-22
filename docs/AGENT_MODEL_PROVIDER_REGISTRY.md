@@ -1,5 +1,7 @@
 # Agent Model Provider Registry — Foundation Contracts
 
+This document describes the original pure registry foundation. For the current distinction between catalog entries, implemented runner adapters and observed personal-account connections, see [Personal agent connections](PERSONAL_AGENT_CONNECTIONS.md). A catalog entry never enables a missing execution adapter.
+
 **Status:** contracts only. No runtime wiring, no network calls, no SDKs, no
 secrets, no DB. This document describes the foundation shipped in
 `src/server/agents/models/` and the doctrine it enforces.

@@ -10,10 +10,10 @@ export const observedProviderModelIdSchema = z.string().min(3).max(132)
  * literal ACP value when ACP confirms that same value before the prompt. */
 export const foundationModelIdSchema = z.union([observedProviderModelIdSchema, z.literal("default")]);
 /**
- * One explicit, fully-spelled schema per supported provider — never a single
- * shared shape with `provider` loosened to an open enum. Supporting a new
- * provider means adding a new variant here, mirroring
- * integrations/openhands-runner/provider_policy.py's PROVIDER_POLICIES. A
+ * One explicit schema per catalog-compatible provider - never a shared shape
+ * with `provider` loosened to an open enum. A schema variant does not imply
+ * that the runner implements the provider: launch separately checks adapter
+ * availability, account evidence and authorization. A
  * discriminated union means a profile is only ever checked against the one
  * variant named by its own `provider`, so a Codex profile can never be
  * satisfied by Claude's variant (or vice versa) regardless of how its other
