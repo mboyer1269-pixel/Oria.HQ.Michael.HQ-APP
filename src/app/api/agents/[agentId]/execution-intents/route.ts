@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedActorId, requireOwnerApiSession } from "@/server/auth/owner";
@@ -95,7 +96,7 @@ export async function POST(
   }
 
   const createdAt = new Date().toISOString();
-  const intentId = `intent_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const intentId = `intent_${Date.now()}_${randomUUID().slice(0, 8)}`;
 
   const { payload: telemetryPayload } = applyTelemetryToIntent({
     payload: payloadCheck.data,
