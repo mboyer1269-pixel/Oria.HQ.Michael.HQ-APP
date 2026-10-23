@@ -1,17 +1,51 @@
 ---
 name: Create Skill
 description: >
-  Crée un `SKILL.md` projet dans `.claude/skills/` à partir d'un workflow.
+  Creates a project SKILL.md under .agents/skills/ from a workflow using the
+  multi-agent orchestration pipeline (researcher → designer → writer → reviewer).
 ---
 
 # Create Skill
 
-Ce skill aide à générer un `SKILL.md` projet réutilisable.
+## Purpose
+
+Generate a reusable project `SKILL.md` from a stated workflow, following Orya
+skill conventions and the multi-agent orchestration pipeline.
+
+## When to Use
+
+- You have a clear workflow and want it captured as a discoverable skill.
+- You are converting tribal process into a version-controlled skill file.
+
+## When NOT to Use
+
+- Product feature implementation (use the delivery loop / builder skills).
+- Broad refactors of the agent fleet without an explicit mandate.
 
 ## Quick Start
-1. Fournis l'objectif et un exemple de résultat.
-2. Exécute le pipeline researcher→designer→writer→reviewer.
-3. Sauvegarde le fichier sous `.claude/skills/<name>/SKILL.md`.
 
-## Exemple de prompt
-"Crée un `SKILL.md` pour décrire la procédure de déploiement de ce projet."
+1. Provide the objective and one example of the expected result.
+2. Follow [multi-agent-orchestration](../multi-agent-orchestration/SKILL.md):
+   researcher → designer → writer → reviewer.
+3. Save the file at `.agents/skills/<name>/SKILL.md` (canonical).
+4. Stage with `git add -f .agents/skills/<name>/SKILL.md` (`.agents/` is gitignored) and verify it is tracked.
+5. Optionally mirror under `.claude/skills/<name>/SKILL.md` when dual-home is desired.
+6. Pass the orchestration Checklist before publishing.
+
+## Examples
+
+**Prompt:**
+> Create a `SKILL.md` that describes the local validation procedure for this project
+> (`typecheck`, `lint`, `build`, `smoke:joris`) and when to run it before a PR.
+
+**Expected result:**
+`.agents/skills/<name>/SKILL.md` with Purpose, When to Use, Quick Start, Examples, and Checklist.
+
+## Checklist
+
+- [ ] Frontmatter `name` and `description` present
+- [ ] Quick Start, Examples, and Checklist sections included
+- [ ] Canonical path under `.agents/skills/`
+- [ ] New `.agents/skills/` files force-added (`git add -f`) and verified tracked
+- [ ] No secrets or credential material
+- [ ] Cross-link to multi-agent-orchestration when the pipeline is used
