@@ -69,12 +69,13 @@ export async function snapshotWorkspaceAgentScores(
   const signals = await deps.listSignals(input.workspaceId);
   const scores = scoreAllAgentOperatorsFromSignals(signals);
 
-  const snapshots: AgentScoreSnapshot[] = [];
-  for (const score of scores) {
+  const snapshotPromises = scores.map(async (score) => {
     const outcomeCount = signals.filter((s) => s.sourceAgentId === score.agentId).length;
     const snapshot = buildAgentScoreSnapshot({ score, scoredAt, outcomeCount });
-    snapshots.push(await deps.persistSnapshot(input.workspaceId, input.userId, snapshot));
-  }
+    return deps.persistSnapshot(input.workspaceId, input.userId, snapshot);
+  });
+
+  const snapshots = await Promise.all(snapshotPromises);
 
   return {
     snapshots,
