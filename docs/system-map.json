@@ -1,9 +1,9 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 652,
+    "sourceFiles": 653,
     "live": 600,
-    "testOnly": 6,
+    "testOnly": 7,
     "incubation": 46
   },
   "incubationByArea": {
@@ -628,6 +628,7 @@
   ],
   "testOnly": [
     "src/server/agents/models/local-claude-connection.ts",
+    "src/server/agents/models/personal-connection-selection.ts",
     "src/server/ledger/hash-chain-test-fixtures.ts",
     "src/server/missions/openhands-lifecycle.ts",
     "src/server/missions/openhands-pending-launches.ts",
