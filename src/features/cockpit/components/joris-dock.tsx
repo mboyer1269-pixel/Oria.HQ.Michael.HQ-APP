@@ -133,7 +133,7 @@ export function JorisDock() {
         <button
           type="submit"
           disabled={loading || !command.trim()}
-          className="grid h-[38px] w-[38px] place-items-center rounded-[10px] bg-gradient-to-br from-violet-500 to-indigo-500 text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="grid h-[38px] w-[38px] place-items-center rounded-[10px] bg-gradient-to-br from-violet-500 to-indigo-500 text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black/35"
           aria-label="Envoyer"
         >
           <Send className="h-4 w-4" aria-hidden="true" />
