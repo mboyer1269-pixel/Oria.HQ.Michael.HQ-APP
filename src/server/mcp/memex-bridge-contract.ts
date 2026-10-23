@@ -43,19 +43,6 @@ export type MemexToolName =
   | "agentmemory_write_vault_file"
   | "agentmemory_search_vault";
 
-const ALL_MEMEX_TOOLS = Object.keys({
-  agentmemory_graph_query: true,
-  agentmemory_context_pack: true,
-  agentmemory_librarian_brief: true,
-  agentmemory_latest_updates: true,
-  agentmemory_project_state: true,
-  agentmemory_tool_catalog_search: true,
-  agentmemory_submit_proposal: true,
-  agentmemory_read_vault_file: true,
-  agentmemory_write_vault_file: true,
-  agentmemory_search_vault: true,
-} satisfies Record<MemexToolName, true>) as readonly MemexToolName[];
-
 /**
  * The ONLY tools a v1 bridge policy may allowlist: pure context reads.
  * Vault file reads are deliberately excluded in v1 — file paths are a
@@ -354,6 +341,7 @@ export function mergeMemexContext(
  */
 export function applyMemexRoutingHint(
   decision: OriaModelDecision,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _hint: MemexRoutingHint | null,
 ): OriaModelDecision {
   return { modelId: decision.modelId, decidedBy: "oria_model_policy" };
