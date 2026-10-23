@@ -1,0 +1,647 @@
+# Instincts generated from https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+# Generated: 2026-07-02T07:26:19.819Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: Oria.HQ.Michael.HQ-APP-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat, chore, fix, refactor, ci
+
+## Evidence
+
+- 11 commits analyzed
+- Detected conventional commit pattern
+- Examples: feat(agents): MCP foundation and manual n8n execution rail, fix(n8n): task-runner-safe workflow, verified on real n8n 2.26.6
+
+---
+id: Oria.HQ.Michael.HQ-APP-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Commit Length
+
+## Action
+
+Write moderate-length commit messages (~72 characters)
+
+## Evidence
+
+- Average commit message length: 72 chars
+- Based on 11 commits
+
+---
+id: Oria.HQ.Michael.HQ-APP-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Naming Files
+
+## Action
+
+Use kebab-case naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: kebab-case
+
+---
+id: Oria.HQ.Michael.HQ-APP-import-alias
+trigger: "when importing modules"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Import Alias
+
+## Action
+
+Use path aliases (@/, ~/) instead of relative imports
+
+## Evidence
+
+- Import analysis shows alias pattern
+- Example: import { x } from '@/lib/x'
+
+---
+id: Oria.HQ.Michael.HQ-APP-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: Oria.HQ.Michael.HQ-APP-arch-feature-based
+trigger: "when adding a new feature"
+confidence: 0.85
+domain: architecture
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Arch Feature Based
+
+## Action
+
+Create a new folder in src/features/ with all related code colocated
+
+## Evidence
+
+- Feature-based module organization detected
+- Structure: src/features/[feature-name]/
+
+---
+id: Oria.HQ.Michael.HQ-APP-test-colocate
+trigger: "when writing tests"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Test Colocate
+
+## Action
+
+Place test file next to the source file (e.g., Button.test.tsx next to Button.tsx)
+
+## Evidence
+
+- Colocated test pattern detected
+- Tests live alongside source files
+
+---
+id: Oria.HQ.Michael.HQ-APP-test-framework
+trigger: "when writing tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Test Framework
+
+## Action
+
+Use vitest as the test framework
+
+## Evidence
+
+- Test framework detected: vitest
+- File pattern: *.test.ts
+
+---
+id: Oria.HQ.Michael.HQ-APP-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: Oria.HQ.Michael.HQ-APP-test-types
+trigger: "when planning tests for a feature"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Test Types
+
+## Action
+
+Write unit, integration tests to match project standards
+
+## Evidence
+
+- Test types detected: unit, integration
+- Coverage config: no
+
+---
+id: Oria.HQ.Michael.HQ-APP-workflow-database-migration
+trigger: "when modifying the database schema or adding tables"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Workflow Database Migration
+
+## Action
+
+Follow the database-migration workflow:
+1. Create migration file
+2. Update schema definitions
+3. Generate/update types
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~11x per month
+- Files: migrations/*, **/types.ts
+
+---
+id: Oria.HQ.Michael.HQ-APP-workflow-feature-development
+trigger: "when implementing a new feature"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Workflow Feature Development
+
+## Action
+
+Follow the feature-development workflow:
+1. Add feature implementation
+2. Add tests for feature
+3. Update documentation
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~16x per month
+- Files: src/app/api/agents/[agentid]/execute/*, src/app/api/agents/[agentid]/execution-intents/*, src/app/api/agents/execution-intents/[intentid]/approve/*
+
+---
+id: Oria.HQ.Michael.HQ-APP-workflow-database-migration-workflow
+trigger: "when doing database migration workflow"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Workflow Database Migration Workflow
+
+## Action
+
+Follow the database-migration-workflow workflow:
+1. Author new migration SQL file(s) in db/migrations/
+2. Optionally add verify and revert SQL scripts for the migration
+3. Update related docs to reflect the schema or policy change
+4. Reference migration status and live-apply in documentation
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: db/migrations/*.sql, db/migrations/*_verify.sql, db/migrations/*_revert.sql
+
+---
+id: Oria.HQ.Michael.HQ-APP-workflow-api-endpoint-addition-workflow
+trigger: "when doing api endpoint addition workflow"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Workflow Api Endpoint Addition Workflow
+
+## Action
+
+Follow the api-endpoint-addition-workflow workflow:
+1. Create or update route handler in src/app/api/...
+2. Implement or update related service/repository logic in src/server/...
+3. Write or update tests for the new endpoint and logic
+4. Update type definitions if needed
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: src/app/api/**/*.ts, src/server/**/*.ts, src/server/**/*.test.mjs
+
+---
+id: Oria.HQ.Michael.HQ-APP-workflow-documentation-and-system-map-update-workflow
+trigger: "when doing documentation and system map update workflow"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Workflow Documentation And System Map Update Workflow
+
+## Action
+
+Follow the documentation-and-system-map-update-workflow workflow:
+1. Update ARCHITECTURE.md with new or changed structure
+2. Regenerate docs/SYSTEM_MAP.md and docs/system-map.json using scripts
+3. Update or add related scripts in scripts/architecture/
+4. Update package.json scripts if needed
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: ARCHITECTURE.md, docs/SYSTEM_MAP.md, docs/system-map.json
+
+---
+id: Oria.HQ.Michael.HQ-APP-workflow-type-relocation-and-layering-enforcement-workflow
+trigger: "when doing type relocation and layering enforcement workflow"
+confidence: 0.55
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.HQ.Michael.HQ APP Workflow Type Relocation And Layering Enforcement Workflow
+
+## Action
+
+Follow the type-relocation-and-layering-enforcement-workflow workflow:
+1. Move or consolidate type definitions into src/core/types.ts
+2. Update all import paths in server and feature files
+3. Update or add CI scripts to enforce layering rules
+4. Document changes in ARCHITECTURE.md
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~1x per month
+- Files: src/core/types.ts, src/features/*/types.ts, src/server/**/*.ts
+
+---
+id: oria.hq.michael.hq-app-instinct-file-naming
+trigger: "When creating or renaming a file"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct File Naming
+
+## Action
+
+Use kebab-case for file names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.files
+- Consistent kebab-case in src/ and features/
+
+---
+id: oria.hq.michael.hq-app-instinct-function-naming
+trigger: "When defining a function"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Function Naming
+
+## Action
+
+Use camelCase for function names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.functions
+
+---
+id: oria.hq.michael.hq-app-instinct-class-naming
+trigger: "When defining a class"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Class Naming
+
+## Action
+
+Use PascalCase for class names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.classes
+
+---
+id: oria.hq.michael.hq-app-instinct-constant-naming
+trigger: "When defining a constant"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Constant Naming
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for constants
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.constants
+
+---
+id: oria.hq.michael.hq-app-instinct-import-style
+trigger: "When importing modules"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Import Style
+
+## Action
+
+Use alias import style
+
+## Evidence
+
+- Pattern in codeStyle.importStyle
+
+---
+id: oria.hq.michael.hq-app-instinct-export-style
+trigger: "When exporting from a module"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in codeStyle.exportStyle
+
+---
+id: oria.hq.michael.hq-app-instinct-test-file-pattern
+trigger: "When creating a test file"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Test File Pattern
+
+## Action
+
+Name the file with the pattern *.test.ts and colocate near the code
+
+## Evidence
+
+- Pattern in testing.filePattern
+- Pattern in architecture.folderStructure.testLocation
+
+---
+id: oria.hq.michael.hq-app-instinct-test-framework
+trigger: "When writing tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Test Framework
+
+## Action
+
+Use vitest as the testing framework
+
+## Evidence
+
+- Pattern in testing.framework
+
+---
+id: oria.hq.michael.hq-app-instinct-test-types
+trigger: "When designing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Test Types
+
+## Action
+
+Write both unit and integration tests as needed
+
+## Evidence
+
+- Pattern in testing.testTypes
+
+---
+id: oria.hq.michael.hq-app-instinct-commit-format
+trigger: "When writing a commit message"
+confidence: 0.95
+domain: git
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Commit Format
+
+## Action
+
+Use Conventional Commits format with prefixes: feat, fix, chore, refactor, ci, merge, docs
+
+## Evidence
+
+- Pattern in commits.prefixes
+- Examples: 'feat(agents): MCP foundation...', 'fix(n8n): task-runner-safe workflow...'
+
+---
+id: oria.hq.michael.hq-app-instinct-commit-length
+trigger: "When writing a commit message"
+confidence: 0.8
+domain: git
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Commit Length
+
+## Action
+
+Keep commit message subject under 72 characters on average
+
+## Evidence
+
+- Pattern in commits.averageLength
+
+---
+id: oria.hq.michael.hq-app-instinct-database-migration-workflow
+trigger: "When introducing a new database table, changing schema, or hardening security policies"
+confidence: 0.95
+domain: workflow
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Database Migration Workflow
+
+## Action
+
+Author migration SQL in db/migrations/, optionally add verify/revert scripts, update related docs, and reference migration status in documentation
+
+## Evidence
+
+- Workflow: database-migration-workflow
+- Example: 'feat(security): harden pre-existing RLS/function advisories (migration 0025)'
+
+---
+id: oria.hq.michael.hq-app-instinct-api-endpoint-addition-workflow
+trigger: "When adding a new API endpoint or execution path"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Api Endpoint Addition Workflow
+
+## Action
+
+Create or update route handler in src/app/api/, implement related logic in src/server/, write/update tests, and update type definitions if needed
+
+## Evidence
+
+- Workflow: api-endpoint-addition-workflow
+- Example: 'feat(agents): MCP foundation and manual n8n execution rail'
+
+---
+id: oria.hq.michael.hq-app-instinct-documentation-system-map-update-workflow
+trigger: "When changing core architecture, merging major branches, or refactoring dependencies"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Documentation System Map Update Workflow
+
+## Action
+
+Update ARCHITECTURE.md, regenerate docs/SYSTEM_MAP.md and docs/system-map.json, update/add scripts in scripts/architecture/, and update package.json scripts if needed
+
+## Evidence
+
+- Workflow: documentation-and-system-map-update-workflow
+- Example: 'chore(architecture): add honest system map, canonical ARCHITECTURE, branch inventory'
+
+---
+id: oria.hq.michael.hq-app-instinct-type-relocation-layering-enforcement-workflow
+trigger: "When cleaning up type dependencies or enforcing architectural layering"
+confidence: 0.85
+domain: workflow
+source: repo-analysis
+source_repo: mboyer1269-pixel/Oria.HQ.Michael.HQ-APP
+---
+
+# Oria.hq.michael.hq App Instinct Type Relocation Layering Enforcement Workflow
+
+## Action
+
+Move/consolidate type definitions into src/core/types.ts, update imports, update/add CI scripts to enforce layering, and document changes in ARCHITECTURE.md
+
+## Evidence
+
+- Workflow: type-relocation-and-layering-enforcement-workflow
+- Example: 'refactor(types): relocate shared domain types to core, fix server->feature dependency arrow'
+
