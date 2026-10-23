@@ -58,6 +58,22 @@ test('disconnected, revoked and refused server responses never become a claimed 
   }
 });
 
+test('a confirmed missing adapter is explained without a claimed launch, retry or provider fallback',async()=>{
+  let calls=0;
+  const result=await requestLaunch(context,profiled('codex'),async()=>{
+    calls++;return Response.json({status:'runner_adapter_unavailable',externalEffectAllowed:false},{status:409});
+  });
+  assert.equal(calls,1);assert.equal(result.kind,'blocked');
+  assert.match(result.message,/pas encore d'adaptateur exécutable/);
+  assert.match(result.message,/Aucun lancement accepté/);
+  assert.equal(canConfirmOpenHandsLaunch({...state(profiled('codex')),attempted:true}),false);
+  for(const [httpStatus,externalEffectAllowed] of [[200,false],[503,false],[409,true]]){
+    const ambiguous=await requestLaunch(context,profiled('codex'),async()=>Response.json(
+      {status:'runner_adapter_unavailable',externalEffectAllowed},{status:httpStatus}));
+    assert.equal(ambiguous.kind,'uncertain');
+  }
+});
+
 test('screen describes queued intent without asserting the host service is active or the agent started',()=>{
   const html=renderToStaticMarkup(createElement(OpenHandsLaunch,{mission:{id:context.missionId,workspaceId:context.workspaceId,input:{}},onRefresh(){}}));
   assert.match(html,/Si le serveur l’accepte/);assert.match(html,/en attente de prise en charge/);

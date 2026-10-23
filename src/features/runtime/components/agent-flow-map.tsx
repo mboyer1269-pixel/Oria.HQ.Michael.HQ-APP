@@ -37,6 +37,14 @@ export type AgentFlowData = {
 
 const STAGE_X = { agents: 90, governance: 320, surfaces: 550, ledger: 780 } as const;
 
+function formatEventTime(createdAt: string): string {
+  // The initial server and browser renders must not depend on their local zones.
+  if (!/(?:Z|[+-]\d{2}:\d{2})$/i.test(createdAt)) return "Heure inconnue";
+  const date = new Date(createdAt);
+  if (!Number.isFinite(date.getTime())) return "Heure inconnue";
+  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")} UTC`;
+}
+
 function surfaceForActionType(actionType: string): "sendDesk" | "calendar" | "missions" {
   if (actionType.startsWith("outbound.")) return "sendDesk";
   if (actionType.includes("calendar")) return "calendar";
@@ -303,10 +311,7 @@ export function AgentFlowMap({ data }: { data: AgentFlowData }) {
                 <p className="mt-1 truncate text-[11px] text-neutral-400">{event.summary}</p>
                 <p className="mt-0.5 text-[10px] tabular-nums text-neutral-600">
                   {event.actionType} ·{" "}
-                  {new Date(event.createdAt).toLocaleTimeString("fr-CA", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatEventTime(event.createdAt)}
                 </p>
               </button>
             );

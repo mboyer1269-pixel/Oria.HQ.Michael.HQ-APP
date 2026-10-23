@@ -86,6 +86,7 @@ const serverEnvSchema = z.object({
   PAPERCLIP_COMPANY_ID: z.string().optional(),
   MEMEX_CORE_ROOT: z.string().min(1).optional(),
   ORIA_ENABLE_LOCAL_RUNTIME_PROBE: z.enum(["0", "1"]).optional(),
+  ORIA_ENABLE_LOCAL_CLAUDE_ATTESTATION: z.enum(["0", "1"]).optional(),
   // Probe opt-ins never replace written subprocess approval or cloud-host refusal.
   ORIA_ENABLE_HERMES_SSH_PROBE: z.enum(["0", "1"]).optional(),
   ORIA_ENABLE_OPENHANDS_RUNNER_PROBE: z.enum(["0", "1"]).optional(),

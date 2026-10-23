@@ -33,15 +33,11 @@ import type { ProviderRegistry } from "../agents/models/provider-registry-contra
 // ---------------------------------------------------------------------------
 //
 // providerProfileSchema.provider is a discriminated union of explicit
-// literals ("claude" | "codex" — see core/openhands-launch-contract.ts),
-// never an open enum. This map and the registry below carry one explicit,
-// fully-spelled entry per literal, mirroring
-// integrations/openhands-runner/provider_policy.py's PROVIDER_POLICIES dict
-// on the Orchestrator side. Adding a third literal to that schema is the
-// only reason to add a third entry here too; nothing here invents a
-// provider the schema does not already allow, and nothing here collapses
-// the two into a shared/generic entry — each is independently real-plan-
-// aligned, same as the schema itself.
+// literals ("claude" | "codex" - see core/openhands-launch-contract.ts).
+// These are catalog identities, not proof of an implemented runner adapter.
+// The current Orchestrator runner launches Claude ACP only. Keep Codex's
+// catalog identity for existing plans, but refuse it before any account probe
+// or dispatch until its own execution path is implemented and qualified.
 
 const PROVIDER_PROFILE_TO_REGISTRY_PROVIDER_ID: Readonly<Record<string, string>> = {
   claude: "claude-code-cli",
@@ -117,10 +113,26 @@ if (!EXECUTOR_PROVIDER_REGISTRY_RESULT.ok) {
   );
 }
 
-/** The known-verifiable executor providers today: "claude-code-cli" and
- * "codex-acp-cli". Not a general catalog — every entry here corresponds to a
- * literal providerProfileSchema already allows and nothing else. */
+/** Plan-compatible catalog. Entries alone never establish runner support. */
 export const DEFAULT_EXECUTOR_PROVIDER_REGISTRY: ProviderRegistry = EXECUTOR_PROVIDER_REGISTRY_RESULT.registry;
+
+export type RunnerAdapterAvailability =
+  | { status: "implemented"; adapterId: string; transport: "acp" }
+  | { status: "unavailable"; requiredAction: string };
+
+/** Code support only, never account access, authorization or a live qualification.
+ * This boundary is independent of caller-supplied catalogs and login evidence.
+ * Existing opaque account identities remain owned by the connection repository.
+ */
+export function resolveRunnerAdapterAvailability(providerId: string): RunnerAdapterAvailability {
+  if (providerId === "claude-code-cli") {
+    return { status: "implemented", adapterId: "claude-code-cli-subscription", transport: "acp" };
+  }
+  return {
+    status: "unavailable",
+    requiredAction: "Implement and qualify this provider's own runner adapter and official account connection before launch. A catalog entry or login cannot enable the Claude-only runner for another provider.",
+  };
+}
 
 /** Which connection-evidence transport this server process uses for
  * confirm_launch's account/capability check. Explicit and closed by
@@ -276,6 +288,7 @@ export type GatedOpenHandsLaunchDeps = {
 export type GatedOpenHandsLaunchBlockedResult =
   | { status: "no_provider_binding"; externalEffectAllowed: false }
   | { status: "plan_executor_mismatch"; externalEffectAllowed: false; registryProviderId: string }
+  | { status: "runner_adapter_unavailable"; externalEffectAllowed: false; providerId: string; requiredAction: string }
   | {
       status: "account_identity_unverifiable";
       externalEffectAllowed: false;
@@ -382,6 +395,20 @@ export function createGatedOpenHandsLaunch(deps: GatedOpenHandsLaunchDeps): Open
         externalEffectAllowed: false,
         registryProviderId: binding.registryProviderId,
       };
+    }
+
+    const availability = resolveRunnerAdapterAvailability(binding.registryProviderId);
+    if (availability.status === "unavailable") {
+      return {
+        status: "runner_adapter_unavailable",
+        externalEffectAllowed: false,
+        providerId: binding.registryProviderId,
+        requiredAction: availability.requiredAction,
+      };
+    }
+    const adapter = registry.getAdapter(availability.adapterId);
+    if (adapter?.providerId !== binding.registryProviderId || adapter.kind !== "cli-subscription") {
+      return { status: "plan_executor_mismatch", externalEffectAllowed: false, registryProviderId: binding.registryProviderId };
     }
 
     // The model id is derived from the registry's own binding, never

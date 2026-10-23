@@ -21,6 +21,7 @@ test("Gated OpenHands launch tests", async (t) => {
     createGatedOpenHandsLaunch,
     createDefaultConnectionProbe,
     resolveExecutorProviderBinding,
+    resolveRunnerAdapterAvailability,
     approvalStillAuthorizes,
     attestedAccountStillMatches,
     DEFAULT_EXECUTOR_PROVIDER_REGISTRY,
@@ -52,8 +53,8 @@ test("Gated OpenHands launch tests", async (t) => {
     createdAt: "2026-10-02T10:00:00.000Z",
   };
 
-  // The real, confirmed plan this codebase can actually produce today:
-  // providerProfile.provider is a schema-fixed literal "claude".
+  // A plan for the runner's implemented Claude path. A catalog-compatible
+  // Codex plan below must remain unavailable even with positive login data.
   const claudeLaunchConfig = {
     foundationModelId: "claude-fixture-1",
     imageDigest: `sha256:${"a".repeat(64)}`,
@@ -353,20 +354,26 @@ test("Gated OpenHands launch tests", async (t) => {
     assert.equal(spy.callCount(), 0);
   });
 
-  await t.test("DEFAULT_EXECUTOR_PROVIDER_REGISTRY is two real-plan-aligned DTOs (Claude, Codex), not a general catalog", () => {
+  await t.test("the catalog preserves both plan identities without promising both runner adapters", () => {
     assert.equal(DEFAULT_EXECUTOR_PROVIDER_REGISTRY.listProviders().length, 2);
     assert.equal(DEFAULT_EXECUTOR_PROVIDER_REGISTRY.listModels().length, 2);
     assert.equal(DEFAULT_EXECUTOR_PROVIDER_REGISTRY.getProvider("claude-code-cli")?.id, "claude-code-cli");
     assert.equal(DEFAULT_EXECUTOR_PROVIDER_REGISTRY.getProvider("codex-acp-cli")?.id, "codex-acp-cli");
+    assert.deepEqual(resolveRunnerAdapterAvailability("claude-code-cli"), {
+      status: "implemented", adapterId: "claude-code-cli-subscription", transport: "acp",
+    });
+    for (const provider of ["codex-acp-cli", "gemini-cli", "cursor-agent", "unknown"]) {
+      assert.equal(resolveRunnerAdapterAvailability(provider).status, "unavailable");
+    }
   });
 
   // ---------------------------------------------------------------------
-  // Codex variant — the schema/policy now allow it; the gate must bind it
-  // exactly as strictly as Claude's, never through a shared/generic path.
+  // Codex is schema-compatible but has no implemented path in this runner.
   // ---------------------------------------------------------------------
 
   const codexLaunchConfig = {
     ...claudeLaunchConfig,
+    foundationModelId: "codex-fixture-1",
     providerProfile: {
       id: "codex-default",
       policySha256: "c".repeat(64),
@@ -382,19 +389,25 @@ test("Gated OpenHands launch tests", async (t) => {
     assert.deepEqual(result, { status: "bound", providerId: "codex", registryProviderId: "codex-acp-cli" });
   });
 
-  await t.test("with the REAL default registry: a Codex-profiled plan is honestly blocked too (no probe surface yet), never defaulted to Claude's", async () => {
+  await t.test("a Codex-profiled plan is blocked before probing accounts or loading approval", async () => {
     const spy = makeRealLaunchSpy();
+    const probe = countingProbe(connectedWithAccount());
+    let approvalReads = 0;
     const gated = createGatedOpenHandsLaunch({
       launch: spy.fn,
       loadMission: async () => baseMission,
-      loadApprovalRecord: async () => approvedRecord,
+      loadApprovalRecord: async () => { approvalReads += 1; return approvedRecord; },
       loadLaunchConfig: () => codexLaunchConfig,
+      connectionProbe: probe.fn,
       now: () => FIXED_NOW_MS,
     });
     const result = await gated(CONTEXT, MISSION_ID, CONFIRMATION);
-    // No real probe attests any account for codex-acp-cli either — blocked
-    // on the same account-identity axis, before Cursor's emission gate.
-    assertAccountUnverifiable(result, "codex-acp-cli");
+    assert.equal(result.status, "runner_adapter_unavailable");
+    assert.equal(result.externalEffectAllowed, false);
+    assert.equal(result.providerId, "codex-acp-cli");
+    assert.match(result.requiredAction, /own runner adapter/);
+    assert.equal(probe.callCount(), 0, "positive account evidence cannot implement an adapter");
+    assert.equal(approvalReads, 0, "approval cannot enable missing code support");
     assert.equal(spy.callCount(), 0);
   });
 
@@ -418,6 +431,55 @@ test("Gated OpenHands launch tests", async (t) => {
     assert.equal(claudeBinding.registryProviderId, "claude-code-cli");
     assert.equal(codexBinding.registryProviderId, "codex-acp-cli");
     assert.notEqual(claudeBinding.registryProviderId, codexBinding.registryProviderId);
+  });
+
+  await t.test("an injected catalog cannot enable Codex by declaring it reviewed and connected", async () => {
+    const spy = makeRealLaunchSpy();
+    const probe = countingProbe(connectedWithAccount());
+    const codexApproval = {
+      ...approvedRecord,
+      binding: {
+        ...approvedRecord.binding,
+        launch: { ...approvedRecord.binding.launch, config: codexLaunchConfig },
+        access: { ...approvedRecord.binding.access, providerId: "codex-acp-cli",
+          modelId: "openhands-executor/codex-acp-cli", catalogRevision: codexLaunchConfig.providerProfile.policySha256 },
+      },
+    };
+    const catalog = {
+      ...DEFAULT_EXECUTOR_PROVIDER_REGISTRY,
+      getProvider: (id) => ({ ...DEFAULT_EXECUTOR_PROVIDER_REGISTRY.getProvider(id), trustLevel: "reviewed" }),
+    };
+    const gated = createGatedOpenHandsLaunch({
+      launch: spy.fn,
+      loadMission: async () => baseMission,
+      loadApprovalRecord: async () => codexApproval,
+      loadLaunchConfig: () => codexLaunchConfig,
+      registry: catalog,
+      connectionProbe: probe.fn,
+      now: () => FIXED_NOW_MS,
+    });
+    assert.equal((await gated(CONTEXT, MISSION_ID, CONFIRMATION)).status, "runner_adapter_unavailable");
+    assert.equal(probe.callCount(), 0);
+    assert.equal(spy.callCount(), 0);
+  });
+
+  await t.test("Claude requires its matching subscription adapter, not just a provider/model entry", async () => {
+    for (const adapter of [undefined, { providerId: "codex-acp-cli", kind: "cli-subscription" }, { providerId: "claude-code-cli", kind: "http-api" }]) {
+      const spy = makeRealLaunchSpy();
+      const probe = countingProbe(connectedWithAccount());
+      const gated = createGatedOpenHandsLaunch({
+        launch: spy.fn,
+        loadMission: async () => baseMission,
+        loadApprovalRecord: async () => approvedRecord,
+        loadLaunchConfig: () => claudeLaunchConfig,
+        registry: { ...DEFAULT_EXECUTOR_PROVIDER_REGISTRY, getAdapter: () => adapter },
+        connectionProbe: probe.fn,
+        now: () => FIXED_NOW_MS,
+      });
+      assert.equal((await gated(CONTEXT, MISSION_ID, CONFIRMATION)).status, "plan_executor_mismatch");
+      assert.equal(probe.callCount(), 0);
+      assert.equal(spy.callCount(), 0);
+    }
   });
 
   // ---------------------------------------------------------------------

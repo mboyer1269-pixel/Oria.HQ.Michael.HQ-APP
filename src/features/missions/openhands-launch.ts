@@ -21,6 +21,9 @@ export async function requestLaunch(context:{workspaceId:string;missionId:string
     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
     const raw=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
     if(!raw||raw.externalEffectAllowed!==false)return uncertain();
+    if(binding&&response.status===409&&raw.status==='runner_adapter_unavailable'){
+      return {kind:'blocked',message:"Ce fournisseur n'a pas encore d'adaptateur exécutable dans ce runner. Aucun lancement accepté. Consultez le suivi serveur avant toute nouvelle demande."};
+    }
     if(!binding&&response.ok&&raw.status==='prepared'){
       const parsed=launchBindingSchema.safeParse(raw.binding);
       if(!parsed.success||parsed.data.workspaceId!==context.workspaceId||parsed.data.missionId!==context.missionId)return uncertain();
