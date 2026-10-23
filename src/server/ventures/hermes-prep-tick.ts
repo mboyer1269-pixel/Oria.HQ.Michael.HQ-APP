@@ -138,10 +138,9 @@ export async function runHermesPrepTick(
 
   const plan = computeHermesPrepPlan({ candidates, existing, createdAt });
 
-  const enqueued: PreparedAction[] = [];
-  for (const entry of plan.toEnqueue) {
-    enqueued.push(await deps.enqueue(input.workspaceId, input.userId, entry.action));
-  }
+  const enqueued = await Promise.all(
+    plan.toEnqueue.map(entry => deps.enqueue(input.workspaceId, input.userId, entry.action))
+  );
 
   // Best-effort: refresh the agent performance curve from captured proof. This
   // must never break preparation, so a failure is swallowed and reported as 0.
