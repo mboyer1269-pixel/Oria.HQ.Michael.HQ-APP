@@ -19,7 +19,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-amber-400 px-4 text-sm font-bold text-[#15110b] transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-55"
+      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-amber-400 px-4 text-sm font-bold text-[#15110b] transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080b16]"
     >
       {pending ? (
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
