@@ -1,0 +1,3 @@
+## 2024-05-14 - Keyboard accessibility in Cockpit topbar components
+**Learning:** Custom interactive elements (like the search bar trigger and system popover in the topbar) built with Tailwind often lack visual focus indicators. This makes keyboard navigation impossible for users who rely on tabbing through the interface. The search button and system popover button were both missing focus rings.
+**Action:** Added `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color]` to these buttons to provide clear visual feedback when focused via keyboard, aligning with the existing accessible `LanguageToggle` implementation.
