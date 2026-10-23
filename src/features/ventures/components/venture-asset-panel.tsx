@@ -241,7 +241,8 @@ export function VentureAssetPanel({
                 onClick={() => retire(record.id)}
                 disabled={isPending}
                 title="Retirer (conservé dans l'historique)"
-                className="rounded-lg border border-neutral-800 p-1.5 text-neutral-500 transition hover:border-rose-500/40 hover:text-rose-400"
+                aria-label="Retirer l'actif"
+                className="rounded-lg border border-neutral-800 p-1.5 text-neutral-500 transition hover:border-rose-500/40 hover:text-rose-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
