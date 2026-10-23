@@ -43,13 +43,13 @@ test('owner reviews persisted dossier and exact account before approve; approve 
  const launched=await f.gated(context,f.row.id,{confirm:true,expectedLaunchHash:review.binding.launch.launchHash});
  assert.equal(launched.status,'claimed');assert.equal(f.launchCalls(),1);
 });
-test('configured subscription preparation injects exact model, rejects mismatch and refuses an unspecified model',async()=>{
+test('configured subscription preparation refuses unsupported runner contract, mismatch and unspecified model',async()=>{
  const f=await fixture();delete f.row.input._openhandsReservation;
  const req={missionId:f.row.id,expectedUpdatedAt:f.row.updatedAt,commitSha:'a'.repeat(40),executorVersion:'1.50.0',
   budget:{maxCostCents:100,maxTokens:1000,maxIterations:2,timeoutSeconds:30}};
  const prepare=createOpenHandsConfirmationService({store:()=>({load:async()=>f.row}),configuration:()=>config});
- const result=await prepare(context,req);assert.equal(result.status,'prepared');assert.equal(result.dossier.contractVersion,3);
- assert.equal(result.dossier.foundationModelId,config.foundationModelId);
+ const result=await prepare(context,req);assert.equal(result.status,'unsupported_execution_contract');
+ assert.equal(result.externalEffectAllowed,false);
  assert.equal((await prepare(context,{...req,foundationModelId:'claude-fixture-2'})).status,'model_selection_changed');
  const unspecified={...config};delete unspecified.foundationModelId;
  assert.equal((await createOpenHandsConfirmationService({configuration:()=>unspecified})(context,req)).status,'model_selection_required');
