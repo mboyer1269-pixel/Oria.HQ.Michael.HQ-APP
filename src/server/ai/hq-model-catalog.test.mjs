@@ -137,12 +137,12 @@ test("a failed account read keeps fresh public rows with unknown access", async 
     },
   });
   assert.equal(view.ok, true);
-  assert.deepEqual(calls.map((call) => call.url), [
+  assert.deepEqual(calls.map((call) => call.url).sort(), [
     OPENROUTER_PUBLIC_MODELS_URL,
     OPENROUTER_ACCOUNT_MODELS_URL,
     NARA_PUBLIC_PLANS_URL,
     NARA_ACCOUNT_MODELS_URL,
-  ]);
+  ].sort());
   assert.equal(calls.every((call) => call.method === "GET" && call.redirect === "manual"), true);
   const live = view.lines.find((line) => line.modelId === "openai/live");
   const nara = view.lines.find((line) => line.modelId === "auto/bynara");
@@ -252,10 +252,10 @@ test("concurrent loads share one pass across the two allowlisted providers", asy
   const first = loadHqModelCatalog({ nowMs: NOW, authorize, readCache, transport });
   const second = loadHqModelCatalog({ nowMs: NOW, authorize, readCache, transport });
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   release();
   const [left, right] = await Promise.all([first, second]);
-  assert.deepEqual(calls, [OPENROUTER_PUBLIC_MODELS_URL, NARA_PUBLIC_PLANS_URL]);
+  assert.deepEqual(calls.slice().sort(), [OPENROUTER_PUBLIC_MODELS_URL, NARA_PUBLIC_PLANS_URL].sort());
   assert.equal(left.ok, true);
   assert.equal(right.ok, true);
   assert.deepEqual(left.lines, right.lines);

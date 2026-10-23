@@ -323,11 +323,12 @@ async function loadAuthorized(
   refresh: "if-stale" | "now",
 ): Promise<readonly { provider: ProviderId; result: CatalogConsultation }[]> {
   const serverDefaults = usesServerDefaults(input);
-  const parts = [];
-  for (const provider of PROVIDERS) {
-    parts.push({ provider, result: await loadProvider(provider, input, refresh, serverDefaults) });
-  }
-  return parts;
+  return Promise.all(
+    PROVIDERS.map(async (provider) => ({
+      provider,
+      result: await loadProvider(provider, input, refresh, serverDefaults),
+    }))
+  );
 }
 
 /**
