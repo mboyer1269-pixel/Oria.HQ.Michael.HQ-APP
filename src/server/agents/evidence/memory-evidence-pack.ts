@@ -465,6 +465,7 @@ export type MemoryRoutingHint = {
  */
 export function applyMemoryRoutingHint(
   decision: OriaModelDecision,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _hint: MemoryRoutingHint | null,
 ): OriaModelDecision {
   return { modelId: decision.modelId, decidedBy: "oria_model_policy" };

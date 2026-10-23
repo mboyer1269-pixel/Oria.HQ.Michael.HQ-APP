@@ -83,7 +83,8 @@ test("no profile can satisfy a provider other than the one it declares", () => {
 test("unknown or missing fields are refused under either variant", () => {
   assert.throws(() => providerProfileSchema.parse({ ...claudeProfile, extra: "nope" }));
   assert.throws(() => providerProfileSchema.parse({ ...codexProfile, extra: "nope" }));
-  const { authentication: _drop, ...incomplete } = claudeProfile;
+  const incomplete = { ...claudeProfile };
+  delete incomplete.authentication;
   assert.throws(() => providerProfileSchema.parse(incomplete));
 });
 

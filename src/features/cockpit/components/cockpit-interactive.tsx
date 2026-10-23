@@ -409,7 +409,7 @@ function SortableWidget({
       {/* Drag handle */}
       <button
         type="button"
-        className="cockpit-drag-handle"
+        className="cockpit-drag-handle focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
         aria-label="Déplacer le widget"
         style={{
           position: "absolute",
@@ -881,7 +881,7 @@ export function CockpitInteractive({
             cursor: "text",
             transition: "border-color 0.15s, background 0.15s",
           }}
-          className="cmdk-trigger"
+          className="cmdk-trigger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
         >
           <Search size={13} color="#505878" aria-hidden="true" />
           <span style={{ flex: 1, textAlign: "left", fontSize: 13, color: "#505878", fontFamily: "var(--font-sans)" }}>
