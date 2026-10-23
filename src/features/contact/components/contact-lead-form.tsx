@@ -84,9 +84,10 @@ export function ContactLeadForm() {
 
       <form onSubmit={submit} className="space-y-4">
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="space-y-2 text-sm font-medium text-neutral-200">
+          <label htmlFor="name" className="space-y-2 text-sm font-medium text-neutral-200">
             Nom
             <input
+              id="name"
               name="name"
               required
               minLength={2}
@@ -96,9 +97,10 @@ export function ContactLeadForm() {
               placeholder="Ton nom"
             />
           </label>
-          <label className="space-y-2 text-sm font-medium text-neutral-200">
+          <label htmlFor="email" className="space-y-2 text-sm font-medium text-neutral-200">
             Courriel
             <input
+              id="email"
               name="email"
               required
               type="email"
@@ -111,9 +113,10 @@ export function ContactLeadForm() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="space-y-2 text-sm font-medium text-neutral-200">
+          <label htmlFor="phone" className="space-y-2 text-sm font-medium text-neutral-200">
             Téléphone <span className="text-neutral-500">(optionnel)</span>
             <input
+              id="phone"
               name="phone"
               maxLength={40}
               autoComplete="tel"
@@ -121,9 +124,10 @@ export function ContactLeadForm() {
               placeholder="+1 514 ..."
             />
           </label>
-          <label className="space-y-2 text-sm font-medium text-neutral-200">
+          <label htmlFor="company" className="space-y-2 text-sm font-medium text-neutral-200">
             Entreprise <span className="text-neutral-500">(optionnel)</span>
             <input
+              id="company"
               name="company"
               maxLength={160}
               autoComplete="organization"
@@ -133,9 +137,10 @@ export function ContactLeadForm() {
           </label>
         </div>
 
-        <label className="space-y-2 text-sm font-medium text-neutral-200">
+        <label htmlFor="message" className="space-y-2 text-sm font-medium text-neutral-200">
           Message
           <textarea
+            id="message"
             name="message"
             required
             minLength={10}
@@ -147,9 +152,9 @@ export function ContactLeadForm() {
         </label>
 
         <div className="hidden" aria-hidden="true">
-          <label>
+          <label htmlFor="website">
             Site web
-            <input name="website" tabIndex={-1} autoComplete="off" />
+            <input id="website" name="website" tabIndex={-1} autoComplete="off" />
           </label>
         </div>
 
