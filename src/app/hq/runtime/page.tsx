@@ -22,6 +22,8 @@ import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied"
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { AgentFlowMap, type AgentFlowData } from "@/features/runtime/components/agent-flow-map";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
+import { getPersonalConnectionStatus } from "@/server/agents/models/personal-connection-status";
+import { PersonalConnectionStatusPanel } from "@/features/runtime/components/personal-connection-status";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import { getCostLadderSnapshot } from "@/server/ai/cost-ladder";
 import { loadHqModelCatalog, type HqCatalogLine } from "@/server/ai/hq-model-catalog";
@@ -168,6 +170,7 @@ export default async function RuntimePage({
 
   // Agent Flow Map — live data from the Action Ledger (read-only).
   const { activeWorkspace } = getActiveWorkspaceContext();
+  const personalConnectionStatus = await getPersonalConnectionStatus({ workspaceId: activeWorkspace.id, access });
   let flowData: AgentFlowData = {
     agents: [],
     decisions: 0,
@@ -277,8 +280,8 @@ export default async function RuntimePage({
         title="Runtime Oria"
         description={
           <>
-            Statut du plan d&apos;exécution agent. Phase 1 — prototype local actif. L&apos;exécuteur
-            live reste verrouillé jusqu&apos;au Red Team pass (Phase 5).
+            État du prototype local et du raccordement des comptes personnels. Les observations
+            de connexion et les résultats des missions sont vérifiés séparément.
           </>
         }
       >
@@ -300,6 +303,8 @@ export default async function RuntimePage({
           </div>
         </HqSummaryRail>
       </HqPageHeader>
+
+      <PersonalConnectionStatusPanel status={personalConnectionStatus} />
 
       <HqWidget
         title="Chemin d'exécution des agents"
@@ -496,7 +501,11 @@ export default async function RuntimePage({
         )}
       </HqWidget>
 
-      <HqWidget title="État du runtime" eyebrow="Guarded systems" icon={Server}>
+      <HqWidget title="Prototype local — état de référence" eyebrow="Prototype uniquement" icon={Server}>
+        <p className="mb-4 text-sm leading-6 text-neutral-400">
+          Ces repères décrivent le prototype local et son plan de déploiement. Ils ne constituent
+          pas un relevé de l’état actuel du VPS ou des comptes fournisseurs.
+        </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {statusItems.map((item) => {
             const styles = LEVEL_STYLES[item.level];

@@ -1,9 +1,9 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 648,
-    "live": 597,
-    "testOnly": 5,
+    "sourceFiles": 652,
+    "live": 600,
+    "testOnly": 6,
     "incubation": 46
   },
   "incubationByArea": {
@@ -120,6 +120,7 @@
     "src/config/workspaces/michael-hq.config.ts",
     "src/core/openhands-launch-contract.ts",
     "src/core/openhands-result-contract.ts",
+    "src/core/personal-connection-status.ts",
     "src/core/runtime-capability-inventory.ts",
     "src/core/types.ts",
     "src/core/ventures/build-outreach-email.ts",
@@ -250,6 +251,7 @@
     "src/features/notes/components/notes-workspace.tsx",
     "src/features/notes/note-action.ts",
     "src/features/runtime/components/agent-flow-map.tsx",
+    "src/features/runtime/components/personal-connection-status.tsx",
     "src/features/sales/appointment-book.ts",
     "src/features/sales/components/appointment-livre-panel.tsx",
     "src/features/sales/components/content-calendar-panel.tsx",
@@ -378,6 +380,7 @@
     "src/server/agents/models/agent-model-profile-contract.ts",
     "src/server/agents/models/model-provider-contract.ts",
     "src/server/agents/models/model-selection-policy.ts",
+    "src/server/agents/models/personal-connection-status.ts",
     "src/server/agents/models/provider-connection-discovery.ts",
     "src/server/agents/models/provider-registry-contract.ts",
     "src/server/agents/models/runner-connection-evidence.ts",
@@ -624,6 +627,7 @@
     "src/server/ventures/venture-score-shadow-runner.ts"
   ],
   "testOnly": [
+    "src/server/agents/models/local-claude-connection.ts",
     "src/server/ledger/hash-chain-test-fixtures.ts",
     "src/server/missions/openhands-lifecycle.ts",
     "src/server/missions/openhands-pending-launches.ts",

@@ -183,6 +183,11 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
       "Sonde SSH Hermes de qualification opérateur : aucune route ni page applicative ne l'importe. Commande de statut seule, approbation écrite et environnement local requis ; aucun prompt modèle.",
     paths: ["src/server/agents/models/hermes-codex-connection-probe.ts"],
   },
+  {
+    reason:
+      "Attestation Claude locale réservée à un appel opérateur explicite : aucune route ni page ne l'importe. Versions/statut seuls, propriétaire/workspace/hôte liés, accord écrit et opt-in local requis ; aucun prompt ni appariement HQ.",
+    paths: ["src/server/agents/models/local-claude-connection.ts"],
+  },
 ];
 
 /**

@@ -2,6 +2,14 @@
 
 Status: initial coherence safeguards. Multi-account login and execution are not delivered by this change.
 
+## Owner-visible connection status
+
+The owner-only `/hq/runtime` page now reads the configured runner connection through the canonical launch configuration and the existing persisted-evidence reader. `getPersonalConnectionStatus` receives the actual `requireOwnerAccess` result and active workspace; the configured identity or evidence author never substitutes for the authenticated reader. Its public DTO contains bounded references and enumerated statuses. It excludes email, provider diagnostics, container paths, approval references and secret material.
+
+The panel distinguishes implemented code, an observed account, fresh evidence, the selected confirmation transport and an independently verified mission. A positive persisted observation never verifies the operator-probe path, permission to launch or a completed mission. The page performs no active account probe, SSH, login or model call to populate this panel. Unknown storage/configuration remains unavailable. The existing local prototype section is explicitly identified as a reference rather than a current VPS status report.
+
+Current storage remains single-connection: `provider_connection_evidence` uses `(workspace_id, provider_id)` as its key. Two accounts or hosts for the same provider would overwrite that evidence. A real multi-connection selector requires additive connection metadata, connection-keyed evidence and an explicitly approved selection binding. Account identities remain in the existing identity repository. `scope.ownerActorRef` identifies the authorized reader only; it does not assert ownership of the provider account.
+
 ## Current behavior
 
 The OpenHands launch schema keeps both Claude and Codex profile identities for existing plans. The catalog does not establish that a runner implementation exists. The current Orchestrator runner implements the Claude ACP path only.
@@ -13,6 +21,16 @@ Claude must reference its matching subscription adapter. Existing workspace, att
 Connection snapshots with future timestamps, malformed times or non-finite/negative freshness windows are stale. Zero age permits only the exact observation instant; the configured upper boundary remains inclusive.
 
 ## Connection design to extend
+
+### Native Claude on a personal host
+
+The local connection adapter is an explicit operator-only diagnostic boundary, not a browser login endpoint or a background worker. Its binding must name the authorized owner, workspace, personal host and prequalified absolute native executable. Cloud markers, a foreign owner/workspace/host, missing operator approval and Windows shell launchers are refused before subprocess execution. Only the existing version and noninteractive auth-status commands are allowed. The child environment removes API-key variables and injected Claude/Anthropic authentication tokens; the installed official client retains ownership of its native login.
+
+`ORIA_ENABLE_LOCAL_CLAUDE_ATTESTATION` must be exactly `1` for any observation. A local production build additionally requires the existing `ORIA_ENABLE_LOCAL_RUNTIME_PROBE=1`. Neither flag replaces the written operator binding, and neither permits execution in a cloud environment. The example configuration leaves attestation disabled.
+
+The adapter accepts a Claude account login only when the native response identifies that authentication mode. A bare `loggedIn`, organization identifier, API authentication or catalog entry does not attest a personal subscription identity. The canonical account identity repository resolves a random opaque account reference; no email or raw CLI diagnostics enter the returned observation. The observation is scoped to the personal host, carries no VPS-runner evidence and grants no chat, mission or tool execution rights. No page or API route calls this adapter automatically.
+
+For the eventual HQ-to-companion connection, use an explicitly paired owner/workspace/host and a revocable connection identity. The browser must never supply a command, executable path or a provider token. Before enabling a mission, bind its approved connection, account, host, adapter, model and configuration revision, then recheck the same selection immediately before execution. The transport and connection-keyed persistence are still pending; a successful local diagnostic alone does not complete this pairing.
 
 Reuse canonical HQ workspace, identity, conversation, mission, permissions and ledger contracts. Store only opaque connection/account/host references and observed capability metadata in HQ. The official native client owns provider authentication. A local companion, or an explicitly qualified private execution host, mediates the client transport. Do not collect provider passwords or copy consumer OAuth tokens into HQ.
 
