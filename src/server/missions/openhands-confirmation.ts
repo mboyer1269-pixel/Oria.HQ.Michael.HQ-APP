@@ -36,6 +36,11 @@ export function createOpenHandsConfirmationService(deps: { store?: () => OpenHan
       }
       const prepared = buildOpenHandsSubmission(candidate, context.workspaceId, request);
       if (prepared.status !== "prepared") return { ...prepared, externalEffectAllowed: false };
+      // The current runner cannot apply/attest the requested model. Never reserve
+      // a v3 dossier until that end-to-end capability is qualified. Keep its data
+      // intact in the pure producer; do not silently downgrade it to v1/v2.
+      if (prepared.dossier.contractVersion === 3)
+        return { status: priorReceipt ? "reconciliation_required" : "unsupported_execution_contract", externalEffectAllowed: false };
       if (priorReceipt && (priorReceipt.idempotencyKey !== prepared.dossier.idempotencyKey || priorReceipt.payloadHash !== prepared.dossier.payloadHash)) return { status: "conflict", externalEffectAllowed: false };
       if (!confirmation && priorReceipt) return { status: priorReceipt.state === "audit_recorded" ? "already_reserved" : "reconciliation_required", receipt: priorReceipt, externalEffectAllowed: false };
       if (!confirmation) return { ...prepared, externalEffectAllowed: false };
