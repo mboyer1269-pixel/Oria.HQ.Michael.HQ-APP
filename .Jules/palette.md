@@ -1,0 +1,3 @@
+## 2024-10-24 - Form inputs without visible labels and icon-only buttons
+**Learning:** In React components like forms or asset panels where `input` and `select` elements do not have visible `label`s (using placeholders instead), screen readers cannot provide sufficient context without an `aria-label`. Moreover, icon-only buttons like those wrapping `Trash2` need explicit `aria-label` tags since `title` alone isn’t reliably spoken by all screen readers. Placeholders and titles are insufficient.
+**Action:** When creating forms without explicit label tags or interactive icon-only elements (e.g., delete buttons), always supply descriptive `aria-label` properties, optionally dynamically combining record identifiers for clarity.
