@@ -163,7 +163,9 @@ async function processFile(filePath: string) {
     // Task Master
     if (actionable) {
       try {
-        const prompt = `[Auto] Action requise : ${filename}`;
+        // Sanitize filename to prevent command injection risks via shell metacharacters
+        const safeFilename = filename.replace(/[^a-zA-Z0-9.\-_\sÀ-ÿ]/g, '_');
+        const prompt = `[Auto] Action requise : ${safeFilename}`;
         execFileSync('npx', ['task-master', 'add-task', '--prompt', prompt], { stdio: 'inherit' });
       } catch {}
     }
