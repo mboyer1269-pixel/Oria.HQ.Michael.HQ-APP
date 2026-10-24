@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -48,7 +49,7 @@ test("document index — dev/test reads, prod fail-closed", async (t) => {
     setEnv("NODE_ENV", "development");
     setEnv("ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD", undefined);
 
-    const snapshot = await getDocumentBriefSnapshot(3, fixturePath);
+    const snapshot = await getDocumentBriefSnapshot(3, () => readFile(fixturePath, "utf-8"));
 
     assert.equal(snapshot.totalCount, 1);
     assert.equal(snapshot.recent[0].filename, "plan.md");
@@ -59,17 +60,37 @@ test("document index — dev/test reads, prod fail-closed", async (t) => {
     setEnv("NODE_ENV", "production");
     setEnv("ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD", undefined);
 
-    const snapshot = await getDocumentBriefSnapshot(3, fixturePath);
+    const snapshot = await getDocumentBriefSnapshot(3, () => readFile(fixturePath, "utf-8"));
 
+    let called = false;
+    await getDocumentBriefSnapshot(3, async () => { called = true; throw Error("must not read"); });
+    assert.equal(called, false);
     assert.equal(snapshot.totalCount, 0);
     assert.deepEqual(snapshot.recent, []);
+  });
+
+  await t.test("missing fixture returns empty without reading another path", async () => {
+    setEnv("NODE_ENV", "test");
+    const snapshot = await getDocumentBriefSnapshot(3, () => readFile(path.join(tmpDir, "missing.json"), "utf-8"));
+    assert.deepEqual(snapshot, {totalCount: 0, byHat: {}, recent: []});
+  });
+
+  await t.test("malformed and non-array content remain empty; invalid entries excluded", async () => {
+    setEnv("NODE_ENV", "test");
+    const original = console.error; const errors = []; console.error = (...args) => errors.push(args);
+    try {
+      for (const value of ["{", "{}", "null"]) assert.equal((await getDocumentBriefSnapshot(3, async () => value)).totalCount, 0);
+      assert.equal(errors.length, 1);
+      const value = JSON.stringify([null, {}, {id:"valid",filename:"x",hat:"hq",created_at:"2026-01-01"}]);
+      assert.equal((await getDocumentBriefSnapshot(3, async () => value)).totalCount, 1);
+    } finally { console.error = original; }
   });
 
   await t.test("production reads only with the explicit unsafe break-glass flag", async () => {
     setEnv("NODE_ENV", "production");
     setEnv("ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD", "true");
 
-    const snapshot = await getDocumentBriefSnapshot(3, fixturePath);
+    const snapshot = await getDocumentBriefSnapshot(3, () => readFile(fixturePath, "utf-8"));
 
     assert.equal(snapshot.totalCount, 1);
   });

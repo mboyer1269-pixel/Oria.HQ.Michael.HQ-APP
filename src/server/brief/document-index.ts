@@ -24,8 +24,10 @@ export type DocumentBriefSnapshot = {
   }>;
 };
 
+// Keep the filesystem path statically traceable. Tests inject a reader, not an
+// arbitrary path that would make the deployment bundle include the whole repo.
 async function readDocumentIndex(
-  dbPath = path.join(process.cwd(), "db", "documents.json"),
+  readContent = () => fs.readFile(path.join(process.cwd(), "db", "documents.json"), "utf-8"),
 ): Promise<DocumentIndexEntry[]> {
   // db/documents.json is a dev/test fixture, never a production datastore. In
   // production this is fail-closed (returns empty without reading the file)
@@ -36,7 +38,7 @@ async function readDocumentIndex(
   warnIfUnsafeFileDocumentStore();
 
   try {
-    const content = await fs.readFile(dbPath, "utf-8");
+    const content = await readContent();
     const parsed: unknown = JSON.parse(content);
 
     if (!Array.isArray(parsed)) return [];
@@ -64,8 +66,8 @@ async function readDocumentIndex(
   }
 }
 
-export async function getDocumentBriefSnapshot(limit = 3, dbPath?: string): Promise<DocumentBriefSnapshot> {
-  const documents = await readDocumentIndex(dbPath);
+export async function getDocumentBriefSnapshot(limit = 3, readContent?: () => Promise<string>): Promise<DocumentBriefSnapshot> {
+  const documents = await readDocumentIndex(readContent);
   const byHat = documents.reduce<Record<string, number>>((acc, doc) => {
     acc[doc.hat] = (acc[doc.hat] || 0) + 1;
     return acc;
