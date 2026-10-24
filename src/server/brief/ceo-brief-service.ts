@@ -10,7 +10,7 @@ import { upcomingCalendarWindow } from "@/server/calendar/upcoming-window";
 function buildHeadline(input: {
   upcomingCount: number;
   newLeadCount: number;
-  documentCount: number;
+  documentCount: number | null;
 }) {
   const parts: string[] = [];
 
@@ -30,8 +30,12 @@ function buildHeadline(input: {
     );
   }
 
-  if (parts.length === 0 && input.documentCount > 0) {
-    return `${input.documentCount} document${input.documentCount > 1 ? "s" : ""} dans ton coffre privé.`;
+  if (parts.length === 0 && input.documentCount !== null && input.documentCount > 0) {
+    return `${input.documentCount} document${input.documentCount > 1 ? "s" : ""} dans la fixture locale de démonstration.`;
+  }
+
+  if (input.documentCount === null) {
+    return [...parts, "Documents indisponibles : leur absence ne peut pas être confirmée."].join(" · ");
   }
 
   if (parts.length === 0) {
@@ -93,6 +97,7 @@ export async function buildCeoBriefSnapshot(): Promise<CeoBriefSnapshot> {
   const nextEvent = agendaItems[0];
   const newestLead = leadItems[0];
 
+  const { recent, ...documentObservation } = documents;
   return {
     generatedAt: new Date().toISOString(),
     headline: buildHeadline({
@@ -114,9 +119,9 @@ export async function buildCeoBriefSnapshot(): Promise<CeoBriefSnapshot> {
       items: leadItems,
     },
     documents: {
-      totalCount: documents.totalCount,
+      ...documentObservation,
       byHat: documents.byHat,
-      recentFilenames: documents.recent.map((doc) => doc.filename),
+      recentFilenames: recent.map((doc) => doc.filename),
     },
   };
 }

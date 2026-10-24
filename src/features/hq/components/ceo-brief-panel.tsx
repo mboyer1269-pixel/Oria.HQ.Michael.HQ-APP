@@ -42,7 +42,7 @@ function BriefCard({
 }: {
   title: string;
   icon: LucideIcon;
-  count: number;
+  count: number | null;
   badgeLabel?: string;
   emptyLabel: string;
   isEmpty: boolean;
@@ -58,7 +58,7 @@ function BriefCard({
         </div>
         <span className="rounded-full border border-neutral-700 px-2 py-1 text-[11px] text-neutral-300">
           {count}
-          {badgeLabel ? ` ${badgeLabel}` : ""}
+          {badgeLabel ? `${count === null ? "" : " "}${badgeLabel}` : ""}
         </span>
       </div>
       {isEmpty ? (
@@ -72,7 +72,8 @@ function BriefCard({
 }
 
 export function CeoBriefPanel({ brief }: CeoBriefPanelProps) {
-  const hatSummary = Object.entries(brief.documents.byHat)
+  const documentsAvailable = brief.documents.status === "available";
+  const hatSummary = Object.entries(documentsAvailable ? brief.documents.byHat : {})
     .slice(0, 4)
     .map(([hat, count]) => `${hat} (${count})`)
     .join(" · ");
@@ -135,22 +136,30 @@ export function CeoBriefPanel({ brief }: CeoBriefPanelProps) {
         <BriefCard
           title="Documents"
           icon={FileText}
-          count={brief.documents.totalCount}
-          isEmpty={brief.documents.totalCount === 0}
-          emptyLabel="Le coffre est vide pour l'instant."
+          count={documentsAvailable ? brief.documents.totalCount : null}
+          badgeLabel={documentsAvailable ? undefined : "Indisponible"}
+          isEmpty={!documentsAvailable || brief.documents.totalCount === 0}
+          emptyLabel={documentsAvailable
+            ? "Aucun document dans cette source locale."
+            : "La source documentaire n'a pas pu être lue ou validée. L'absence de documents n'est pas confirmée."}
           footer={
-            brief.documents.totalCount > 0 ? (
-              <Link
-                href={"/dashboard/documents" as Route}
-                className="mt-4 inline-flex text-sm font-semibold text-amber-300 hover:text-amber-200"
-              >
-                Ouvrir le coffre
-              </Link>
-            ) : undefined
+            <>
+              <p className="mt-4 text-xs text-neutral-500">
+                Source : fixture locale de démonstration — pas de données de production.
+              </p>
+              {documentsAvailable && brief.documents.totalCount !== null && brief.documents.totalCount > 0 ? (
+                <Link
+                  href={"/dashboard/documents" as Route}
+                  className="mt-4 inline-flex text-sm font-semibold text-amber-300 hover:text-amber-200"
+                >
+                  Ouvrir le coffre
+                </Link>
+              ) : null}
+            </>
           }
           items={
             <>
-              {brief.documents.recentFilenames.map((filename) => (
+              {(documentsAvailable ? brief.documents.recentFilenames : []).map((filename) => (
                 <li
                   key={filename}
                   className="rounded-lg border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-neutral-200"

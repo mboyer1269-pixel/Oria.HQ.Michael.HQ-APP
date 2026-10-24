@@ -56,7 +56,7 @@ test("document index — dev/test reads, prod fail-closed", async (t) => {
     assert.equal(snapshot.byHat.hq, 1);
   });
 
-  await t.test("production without opt-in refuses the file store (empty, file not read)", async () => {
+  await t.test("production without opt-in refuses the file store (unavailable, file not read)", async () => {
     setEnv("NODE_ENV", "production");
     setEnv("ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD", undefined);
 
@@ -65,25 +65,36 @@ test("document index — dev/test reads, prod fail-closed", async (t) => {
     let called = false;
     await getDocumentBriefSnapshot(3, async () => { called = true; throw Error("must not read"); });
     assert.equal(called, false);
-    assert.equal(snapshot.totalCount, 0);
+    assert.equal(snapshot.totalCount, null);
+    assert.equal(snapshot.status, "unavailable");
+    assert.equal(snapshot.reason, "disabled");
     assert.deepEqual(snapshot.recent, []);
   });
 
-  await t.test("missing fixture returns empty without reading another path", async () => {
+  await t.test("missing fixture returns unavailable without reading another path", async () => {
     setEnv("NODE_ENV", "test");
     const snapshot = await getDocumentBriefSnapshot(3, () => readFile(path.join(tmpDir, "missing.json"), "utf-8"));
-    assert.deepEqual(snapshot, {totalCount: 0, byHat: {}, recent: []});
+    assert.deepEqual(snapshot, {source: "local_fixture", status: "unavailable", reason: "missing", totalCount: null, byHat: {}, recent: []});
   });
 
-  await t.test("malformed and non-array content remain empty; invalid entries excluded", async () => {
+  await t.test("malformed/non-array/partial-invalid content is unavailable, never a complete count", async () => {
     setEnv("NODE_ENV", "test");
     const original = console.error; const errors = []; console.error = (...args) => errors.push(args);
     try {
-      for (const value of ["{", "{}", "null"]) assert.equal((await getDocumentBriefSnapshot(3, async () => value)).totalCount, 0);
-      assert.equal(errors.length, 1);
+      for (const value of ["{", "{}", "null"]) assert.equal((await getDocumentBriefSnapshot(3, async () => value)).totalCount, null);
+      assert.equal(errors.length, 0);
       const value = JSON.stringify([null, {}, {id:"valid",filename:"x",hat:"hq",created_at:"2026-01-01"}]);
-      assert.equal((await getDocumentBriefSnapshot(3, async () => value)).totalCount, 1);
+      assert.equal((await getDocumentBriefSnapshot(3, async () => value)).totalCount, null);
     } finally { console.error = original; }
+  });
+
+  await t.test("confirmed empty is the only zero; read failure never masquerades as empty", async () => {
+    setEnv("NODE_ENV", "test");
+    const empty = await getDocumentBriefSnapshot(3, async () => "[]");
+    assert.deepEqual(empty, {source: "local_fixture", status: "available", reason: null, totalCount: 0, byHat: {}, recent: []});
+    const failed = await getDocumentBriefSnapshot(3, async () => { throw Object.assign(new Error("synthetic sensitive path"), {code: "EACCES"}); });
+    assert.equal(failed.status, "unavailable"); assert.equal(failed.reason, "read_error"); assert.equal(failed.totalCount, null);
+    assert.ok(!JSON.stringify(failed).includes("sensitive"));
   });
 
   await t.test("production reads only with the explicit unsafe break-glass flag", async () => {
