@@ -1,5 +1,8 @@
 "use client";
 
+import type { AssistantProfile } from "@/core/types";
+import { ConversationContextRail } from "@/features/cockpit/components/conversation-context-rail";
+import "@/features/cockpit/components/conversation-workspace.css";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,7 +14,6 @@ import {
   Bell,
   CalendarCheck2,
   CalendarClock,
-  CheckCircle2,
   Download,
   Loader2,
   MessageSquare,
@@ -26,7 +28,7 @@ import {
   MISSION_DRAFT_CHANGED_EVENT,
 } from "@/features/hq/mission-draft-format";
 
-type ChatResponse = {
+export type ChatResponse = {
   chatExecution?: ChatExecutionReport;
   chatBindingStatus?: string;
   summary: string;
@@ -73,10 +75,10 @@ function formatLedgerLabel(status: ActionLedgerStatus) {
 }
 
 function toUserError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Joris est temporairement indisponible.";
+  const message = error instanceof Error ? error.message : "L’assistant est temporairement indisponible.";
 
   if (/Joris API \d+/.test(message)) {
-    return "Joris ne répond pas pour le moment. Réessaie dans quelques instants.";
+    return "L’assistant ne répond pas pour le moment. Ta saisie est conservée.";
   }
 
   return message;
@@ -135,11 +137,18 @@ function MissionDraftProposalHint({ preview }: { preview: MissionDraftPreview })
   );
 }
 
-export function CommandCenter({ workspaceId }: { workspaceId: string }) {
-  return <CommandCenterInstance key={workspaceId} workspaceId={workspaceId} />;
+type CommandCenterProps = {
+  workspaceId: string;
+  assistant: AssistantProfile;
+  workspaceName: string;
+  variant?: "default" | "cockpit";
+};
+
+export function CommandCenter(props: CommandCenterProps) {
+  return <CommandCenterInstance key={props.workspaceId} {...props} />;
 }
 
-function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
+function CommandCenterInstance({ workspaceId, assistant, workspaceName, variant = "default" }: CommandCenterProps) {
   const router = useRouter();
   const [command, setCommand] = useState("");
   const draftRef = useRef<ChatInputDraft | null>(null);
@@ -258,104 +267,17 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
     }
   }
 
-  return (
-    <section
-      id="command-center"
-      data-testid="command-center"
-      aria-busy={loading}
-      className="rounded-3xl border border-amber-500/30 bg-neutral-950/85 p-4 shadow-2xl shadow-amber-950/20 md:p-6"
-    >
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-400">Command Center</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Parler à Joris</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-neutral-400">
-            Décris ton objectif et le résultat attendu. Joris peut préparer une réponse ou une proposition ; cela ne lance pas automatiquement une équipe d’agents.
-          </p>
-        </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          Permissions actives
-        </div>
-      </div>
-
-      <label className="mb-3 block text-sm text-neutral-300">Compte et modèle pour la réponse IA
-        <select value={modelSelection} onChange={event=>setModelSelection(event.target.value)} disabled={loading||!modelOptions.some(option=>option.executable)} className="mt-2 min-h-11 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-sm text-white disabled:opacity-60">
-          <option value="">Sans appel IA — commandes déterministes disponibles</option>
-          {modelOptions.map(option=><option key={modelOptionKey(option)} value={modelOptionKey(option)} disabled={!option.executable}>{option.provider} · {option.modelId} · compte {option.accountId}{option.executable?"":` — indisponible (${option.reason})`}</option>)}
-        </select>
-      </label>
-      <p className="mb-3 text-xs text-neutral-400">{!modelsLoaded?"Lecture des qualifications serveur…":!modelOptions.some(option=>option.executable)?"Aucun accès compte/modèle admissible pour ce chat. Les commandes calendrier et missions restent disponibles.":"Choisis explicitement un accès qualifié. Le serveur revérifie le compte, le modèle, la révision et le budget à l’envoi. Aucun repli payant automatique."} Les quotas disponibles ne sont pas mesurés ici.</p>
-      <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row">
-        <div className="flex min-h-14 flex-1 items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 transition focus-within:border-amber-500/60 focus-within:ring-2 focus-within:ring-amber-500/10">
-          <MessageSquare aria-hidden="true" className="h-5 w-5 shrink-0 text-neutral-500" />
-          <input
-            maxLength={4000}
-            value={command}
-            onChange={(event) => editCommand(event.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-neutral-600"
-            placeholder="Quel résultat veux-tu obtenir pour ton projet ?"
-            aria-label="Commande pour Joris"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading || !command.trim()}
-          className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 font-semibold text-neutral-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 md:w-auto"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          {loading ? "Joris traite..." : "Envoyer"}
-        </button>
-      </form>
-      <p className="mt-2 text-xs text-neutral-500">La saisie non envoyée reste dans cet onglet, par projet, pendant 24 heures après modification. Elle n’est jamais envoyée automatiquement.</p>
-      {draftNotice && <p role="status" className="mt-2 text-sm text-amber-200">{draftNotice}</p>}
-
-      <button type="button" disabled={loading || !preparationText || preparationText.length > 4000} onClick={prepareDevelopmentMission}
-        className="mt-3 min-h-11 rounded-lg border border-amber-500/40 px-4 text-sm font-semibold text-amber-200 disabled:opacity-50">Préparer une mission de développement</button>
-      <p className="mt-2 text-xs text-neutral-400">Transfère ton texte vers l’objectif du formulaire dans cet onglet ; ce transfert expire après 15 minutes. Complète ensuite le titre, le périmètre et les critères avant d’enregistrer.</p>
-      {handoffError && <p role="alert" className="mt-2 text-sm text-amber-200">{handoffError} <Link href="/hq/missions#development-mission" className="underline">Ouvrir le formulaire</Link></p>}
-
-      <p className="mt-3 text-xs leading-5 text-neutral-400">Une réponse IA exige un compte et un modèle qualifiés. Les abonnements CLI ne sont pas automatiquement utilisés. Le modèle exécuté et les tokens sont affichés lorsqu’ils sont fournis ; le coût reste inconnu sans mesure.</p>
-
-      {!result && !error && (
-        <div className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-white">Partir d’un exemple</p>
-              <p className="mt-1 text-sm leading-6 text-neutral-400">
-                Un clic remplit le champ. Tu peux modifier la demande avant de l’envoyer.
-              </p>
-            </div>
-            <span className="w-fit rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200">
-              Aucun résultat encore
-            </span>
-          </div>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            {commandExamples.map((example) => (
-              <button
-                key={example}
-                type="button"
-                onClick={() => editCommand(example)}
-                className="group inline-flex min-h-10 items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 text-left text-sm text-neutral-300 transition hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-200"
-              >
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-neutral-500 transition group-hover:text-amber-400" />
-                <span>{example}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {result && (
+  const responsePanel = (
+    result && (
         <div
           className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/80 p-4"
           role="status"
           aria-live="polite"
         >
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
+            <MessageSquare className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
             <div>
-              <p className="text-sm font-semibold text-white">Réponse de Joris</p>
+              <p className="text-sm font-semibold text-white">Réponse de {assistant.name}</p>
               <p className="mt-1 text-sm leading-6 text-neutral-300">{result.summary}</p>
             </div>
           </div>
@@ -396,7 +318,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
                       {result.missionId ? "Calendrier confirmé" : "Rendez-vous booké"}
                     </p>
                     <p className="mt-1 font-medium text-white">{result.calendarEvent.title}</p>
-                    <p className="mt-1 text-sm text-neutral-300">Ajouté à l&apos;agenda du workspace Michael HQ.</p>
+                    <p className="mt-1 text-sm text-neutral-300">Ajouté à l’agenda de {workspaceName}, selon la réponse serveur.</p>
                     {result.missionId ? (
                       <p className="mt-2 font-mono text-xs text-emerald-200/90">missionId: {result.missionId}</p>
                     ) : null}
@@ -429,7 +351,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
 
               {result.missionId ? (
                 <Link
-                  href="#ledger-activity"
+                  href={variant === "cockpit" ? "/hq#ledger-activity" : "#ledger-activity"}
                   className="mt-4 inline-flex text-sm font-semibold text-emerald-300 underline-offset-2 hover:underline"
                 >
                   Voir la trace ledger (Liée)
@@ -451,7 +373,108 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
             ) : null}
           </div>
         </div>
+      )
+  );
+
+  return (
+    <div className={variant === "cockpit" ? "conversation-workspace" : undefined}>
+    <section
+      id="command-center"
+      data-testid="command-center"
+      aria-busy={loading}
+      className="rounded-3xl border border-amber-500/30 bg-neutral-950/85 p-4 shadow-2xl shadow-amber-950/20 md:p-6"
+    >
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-400">Command Center</p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">{variant === "cockpit" ? "Une idée. Un échange. Une prochaine étape." : `Parler à ${assistant.name}`}</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-neutral-400">
+            Décris ton objectif et le résultat attendu. {assistant.name} peut préparer une réponse ou une proposition ; cela ne lance pas automatiquement une équipe d’agents.
+          </p>
+        </div>
+        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Contrôles conservés
+        </div>
+      </div>
+
+      {variant === "cockpit" && (
+        <div className="conversation-thread mb-5 rounded-2xl border border-neutral-800 bg-[var(--ink-900)] p-4">
+          <p className="text-xs text-neutral-400">Conversation avec {assistant.name} · dernier échange seulement</p>
+          {submittedCommand ? <div className="mt-4 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3"><p className="text-xs text-purple-300">Votre demande</p><p className="mt-1 whitespace-pre-wrap text-sm text-neutral-200">{submittedCommand}</p></div> : <p className="mt-4 text-lg leading-7 text-neutral-200">Quel résultat veux-tu obtenir ? Partons de ton objectif, puis examinons la prochaine étape.</p>}
+          {loading && <p role="status" className="mt-3 text-sm text-amber-200">Réponse en attente — aucune conclusion disponible.</p>}
+          {responsePanel}
+        </div>
       )}
+
+      <label className="mb-3 block text-sm text-neutral-300">Compte et modèle pour la réponse IA
+        <select value={modelSelection} onChange={event=>setModelSelection(event.target.value)} disabled={loading||!modelOptions.some(option=>option.executable)} className="mt-2 min-h-11 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-sm text-white disabled:opacity-60">
+          <option value="">Sans appel IA — commandes déterministes disponibles</option>
+          {modelOptions.map(option=><option key={modelOptionKey(option)} value={modelOptionKey(option)} disabled={!option.executable}>{option.provider} · {option.modelId} · compte {option.accountId}{option.executable?"":` — indisponible (${option.reason})`}</option>)}
+        </select>
+      </label>
+      <p className="mb-3 text-xs text-neutral-400">{!modelsLoaded?"Lecture des qualifications serveur…":!modelOptions.some(option=>option.executable)?"Aucun accès compte/modèle admissible pour ce chat. Les commandes calendrier et missions restent disponibles.":"Choisis explicitement un accès qualifié. Le serveur revérifie le compte, le modèle, la révision et le budget à l’envoi. Aucun repli payant automatique."} Les quotas disponibles ne sont pas mesurés ici.</p>
+      <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row">
+        <div className="flex min-h-14 flex-1 items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 transition focus-within:border-amber-500/60 focus-within:ring-2 focus-within:ring-amber-500/10">
+          <MessageSquare aria-hidden="true" className="h-5 w-5 shrink-0 text-neutral-500" />
+          <input
+            maxLength={4000}
+            value={command}
+            onChange={(event) => editCommand(event.target.value)}
+            className="min-h-11 min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-neutral-600"
+            placeholder="Quel résultat veux-tu obtenir pour ton projet ?"
+            aria-label={`Commande pour ${assistant.name}`}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={loading || !command.trim()}
+          className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 font-semibold text-neutral-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 md:w-auto"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {loading ? `${assistant.name} traite…` : "Envoyer"}
+        </button>
+      </form>
+      <p className="mt-2 text-xs text-neutral-500">La saisie non envoyée reste dans cet onglet, par projet, pendant 24 heures après modification. Elle n’est jamais envoyée automatiquement.</p>
+      {draftNotice && <p role="status" className="mt-2 text-sm text-amber-200">{draftNotice}</p>}
+
+      <button type="button" disabled={loading || !preparationText || preparationText.length > 4000} onClick={prepareDevelopmentMission}
+        className="mt-3 min-h-11 rounded-lg border border-amber-500/40 px-4 text-sm font-semibold text-amber-200 disabled:opacity-50">Préparer une mission de développement</button>
+      <p className="mt-2 text-xs text-neutral-400">Transfère ton texte vers l’objectif du formulaire dans cet onglet ; ce transfert expire après 15 minutes. Complète ensuite le titre, le périmètre et les critères avant d’enregistrer.</p>
+      {handoffError && <p role="alert" className="mt-2 text-sm text-amber-200">{handoffError} <Link href="/hq/missions#development-mission" className="underline">Ouvrir le formulaire</Link></p>}
+
+      <p className="mt-3 text-xs leading-5 text-neutral-400">Une réponse IA exige un compte et un modèle qualifiés. Les abonnements CLI ne sont pas automatiquement utilisés. Le modèle exécuté et les tokens sont affichés lorsqu’ils sont fournis ; le coût reste inconnu sans mesure.</p>
+
+      {!result && !error && (
+        <div className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/50 p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-white">Partir d’un exemple</p>
+              <p className="mt-1 text-sm leading-6 text-neutral-400">
+                Un clic remplit le champ. Tu peux modifier la demande avant de l’envoyer.
+              </p>
+            </div>
+            <span className="w-fit rounded-md border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200">
+              Aucun résultat encore
+            </span>
+          </div>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            {commandExamples.map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => editCommand(example)}
+                className="group inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 text-left text-sm text-neutral-300 transition hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-200"
+              >
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-neutral-500 transition group-hover:text-amber-400" />
+                <span>{example}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {variant !== "cockpit" && responsePanel}
 
       {error && (
         <div
@@ -460,11 +483,13 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
         >
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-medium text-red-100">Joris n&apos;a pas pu compléter ça.</p>
+            <p className="font-medium text-red-100">{assistant.name} n’a pas pu compléter cette demande.</p>
             <p className="mt-1 leading-6">{error}</p>
           </div>
         </div>
       )}
     </section>
+    {variant === "cockpit" && <ConversationContextRail assistant={assistant} workspaceName={workspaceName} result={result} loading={loading} error={error} />}
+    </div>
   );
 }
