@@ -26,6 +26,7 @@ try {
   await server.listen();
   browser = await chromium.launch({executablePath:process.env.QUALIFICATION_CHROMIUM || '/usr/bin/chromium',headless:true,args:['--no-sandbox']});
   const page = await browser.newPage({viewport:{width:390,height:1000}});
+  page.setDefaultTimeout(15000);
   page.on('pageerror',error=>errors.push(error.message));
   await page.route('**/*',async route=>{
     const url = new URL(route.request().url());
@@ -161,8 +162,77 @@ try {
   await team.getByRole('alert').filter({hasText:'Aucun nouvel envoi effectué'}).waitFor();
   assert.equal(writes(),5);assert.equal(state.A.employees.length,2);
   results.push('Session recovery write denied: fail closed before server action, no new employee');
-  for(const width of [390,1440]) {await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(output,`synthetic-${width}.png`),fullPage:true});}
+  // Reload restores the native Storage methods after the existing denial scenario.
+  await page.reload();await team.getByRole('button',{name:'Ajouter un employé IA',exact:true}).waitFor();
+  const fillProfile = async name => {
+    await team.getByRole('button',{name:'Ajouter un employé IA',exact:true}).click();
+    for(const [label,value] of [['Nom d’affichage',name],['Spécialité','Recherche'],['Rôle dans ce business','Analyste'],['Mandat et limites','Données synthétiques uniquement'],['Contexte de l’affectation','Business A uniquement']]) await team.getByLabel(label,{exact:false}).fill(value);
+  };
+  await fillProfile('Reprise ancienne');loseNext='employee-write';
+  await team.getByRole('button',{name:'Enregistrer le profil',exact:true}).click();
+  await team.getByRole('alert').filter({hasText:'Le résultat n’est pas confirmé'}).waitFor();
+  const agedCreate=structuredClone(calls.filter(c=>c.kind==='employee-write').at(-1).input);
+  await page.evaluate(()=>{
+    const key=Object.keys(sessionStorage).find(k=>k.startsWith('oria:employee-create:'));
+    const pending=JSON.parse(sessionStorage.getItem(key));pending.createdAt=Date.now()-25*60*60*1000;
+    sessionStorage.setItem(key,JSON.stringify(pending));
+  });
+  await page.reload();await team.getByText('Cette intention date de plus de 24 heures.',{exact:false}).waitFor();
+  assert.equal(writes(),6,'a 25-hour recovery must never auto-submit');
+  assert.equal(await team.getByLabel('Nom d’affichage',{exact:false}).inputValue(),'Reprise ancienne');
+  assert.equal(await team.getByLabel('Nom d’affichage',{exact:false}).isDisabled(),true);
+  await team.getByRole('button',{name:'Reprendre cette intention',exact:true}).click();
+  await team.getByText('Profil enregistré. Aucun droit d’exécution n’a été accordé.',{exact:true}).waitFor();
+  assert.equal(writes(),7);assert.equal(state.A.employees.length,3);
+  assert.deepEqual(calls.filter(c=>c.kind==='employee-write').at(-1).input,agedCreate);
+  results.push('25-hour lost-ACK intention survives reload without auto-send; explicit Reprendre cette intention reuses exactly the same key and payload');
+
+  await fillProfile('Nettoyage confirmé');
+  await page.evaluate(()=>{window.__qualificationRemoveItem=Storage.prototype.removeItem;Storage.prototype.removeItem=function(){throw Error('synthetic cleanup denial')};});
+  await team.getByRole('button',{name:'Enregistrer le profil',exact:true}).click();
+  await team.getByRole('alert').filter({hasText:'Profil confirmé, mais'}).waitFor();
+  assert.equal(writes(),8);assert.equal(state.A.employees.length,4);
+  const cleanup=team.getByRole('button',{name:'Terminer le nettoyage local',exact:true});
+  await cleanup.click();await team.getByRole('alert').filter({hasText:'Le nettoyage local reste indisponible'}).waitFor();
+  assert.equal(writes(),8,'failed local cleanup must not resend');
+  assert.equal(await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('oria:employee-create:')).length),1);
+  await page.evaluate(()=>{Storage.prototype.removeItem=window.__qualificationRemoveItem;delete window.__qualificationRemoveItem;});
+  await cleanup.click();await team.getByText('Profil déjà confirmé. Reprise locale nettoyée sans nouvel envoi.',{exact:true}).waitFor();
+  assert.equal(writes(),8);assert.equal(state.A.employees.length,4);
+  assert.equal(await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('oria:employee-create:')).length),0);
+  assert.equal(await cleanup.count(),0);
+  results.push('Confirmed creation with removeItem failure offers local cleanup; failed and successful cleanup retries never resend the API write');
+
+  await fillProfile('😀'.repeat(81));
+  const unicodeName=team.getByLabel('Nom d’affichage',{exact:false});
+  assert.equal(await unicodeName.getAttribute('maxlength'),'162');
+  assert.equal([...await unicodeName.inputValue()].length,81,'browser must allow the validator to see 81 code points');
+  await team.getByRole('button',{name:'Enregistrer le profil',exact:true}).click();
+  await team.getByRole('alert').filter({hasText:'longueur maximale'}).waitFor();
+  assert.equal(await unicodeName.getAttribute('aria-invalid'),'true');
+  assert.equal(writes(),8);assert.equal(await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('oria:employee-create:')).length),0);
+  await unicodeName.fill('😀'.repeat(80));
+  await team.getByRole('button',{name:'Enregistrer le profil',exact:true}).click();
+  await team.getByRole('heading',{name:'😀'.repeat(80),exact:true}).waitFor();
+  assert.equal(writes(),9);assert.equal(state.A.employees.length,5);
+  assert.equal(state.A.employees.at(-1).displayName,'😀'.repeat(80));
+  results.push('Unicode boundary: 81 emoji rejected before storage or write; 80 emoji accepted intact through the real form and synthetic transport');
+
+  await team.getByRole('button',{name:'Archiver Nettoyage confirmé',exact:true}).click();
+  await team.getByRole('button',{name:'Confirmer l’archivage',exact:true}).click();
+  await team.getByText('Profil archivé. Son identité et son affectation sont conservées.',{exact:true}).waitFor();
+  const archivedHeading=team.getByRole('heading',{name:'Nettoyage confirmé',exact:true});
+  await page.waitForFunction(()=>document.activeElement?.textContent==='Nettoyage confirmé');
+  assert.equal(await archivedHeading.evaluate(el=>document.activeElement===el),true);
+  assert.equal(await team.getByRole('button',{name:'Modifier Nettoyage confirmé',exact:true}).count(),0);
+  assert.equal(writes(),10);assert.equal(state.A.employees.find(e=>e.displayName==='Nettoyage confirmé').state,'archived');
+  results.push('Successful archive acknowledgement retains keyboard focus on the archived card heading after the edit/archive controls disappear');
+  assert.equal(results.length,15);
+  for(const width of [375,390,425,768,1024,1440]) {await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:path.join(output,`synthetic-${width}.png`),fullPage:true});}
   assert.deepEqual(errors,[]);assert.deepEqual(outbound,[]);
   await fs.writeFile(path.join(output,'results.json'),JSON.stringify({status:'passed',evidence,scope:'actual isolated components with synthetic test-owned transport; no real Auth/database',results,calls,externalRequests:outbound,pageErrors:errors},null,2));
   console.log(JSON.stringify({status:'passed',scenarios:results.length,results},null,2));
+} catch (error) {
+  await fs.writeFile(path.join(output,'results.json'),JSON.stringify({status:'failed',evidence,results,calls,externalRequests:outbound,pageErrors:errors,error:String(error)},null,2));
+  throw error;
 } finally {await browser?.close();await server.close();}

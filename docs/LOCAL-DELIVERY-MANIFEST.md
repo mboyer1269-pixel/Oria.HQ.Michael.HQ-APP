@@ -34,7 +34,7 @@ Le delta complet ajoute l’index `(ventures.id, ventures.workspace_id)` sans su
 3. **Auth/persistance staging et preview** : non passés. Aucun compte créé, secret configuré, migration appliquée ou preview déployée. Les lectures de métadonnées antérieures ne remplacent pas les scénarios authentifiés.
 4. **Dépendances** : le résiduel Inngest/Zod connu n’est pas corrigé par ce lot, aucune exception activée. Aucun vert global de livraison/production annoncé.
 
-La garantie idempotente porte sur la même clé. Autre onglet/navigateur, suppression du stockage ou nouvelle intention explicite nécessitent rapprochement. Les brouillons expirés/incohérents bloquent plutôt que d’effacer silencieusement la clé. Un retour serveur ne prouve pas qu’un employé peut exécuter une mission.
+La garantie idempotente porte sur la même clé. Autre onglet/navigateur, suppression du stockage ou nouvelle intention explicite nécessitent rapprochement. Les intentions valides de plus de 24 heures sont reprises explicitement avec la même clé et le contenu initial ; les records futurs/incohérents restent bloqués. Aucun record n’est effacé automatiquement pour produire une nouvelle clé. Un retour serveur ne prouve pas qu’un employé peut exécuter une mission.
 
 La configuration dédiée `vercel.qualification.json` raccorde `buildCommand` à `node scripts/qualification-preview.mjs --build`. Sa sélection future via `--local-config` doit être explicite. Les tests locaux exécutent la commande déclarée, pas le CLI Vercel ; aucune adoption distante n’a été effectuée. Le build normal `npm run build` direct ne l’applique pas, et une intégration Git ne sélectionne pas automatiquement ce fichier alternatif. Elle ne vérifie pas l’appartenance d’une clé et n’est pas un verrou réseau/hébergeur. `NEXT_PUBLIC_*` est figé au build ; ne jamais promouvoir l’artefact staging en production. Une autre cible exige un nouveau build et sa propre validation.
 
@@ -53,3 +53,18 @@ La configuration dédiée et ses quatre tests de processus complètent la livrai
 ## Complément UX borné
 
 Retour du focus au bouton ouvrant le formulaire, erreurs de saisie corrigeables avant conservation/envoi, édition sans génération UUID inutile. Les IDs, la clé de reprise, le scope serveur et les flags fermés restent inchangés. Le banc navigateur conserve les huit scénarios antérieurs et ajoute trois régressions ciblées ; ne pas additionner les huit anciens aux onze scénarios finaux.
+
+## Corrections de contre-revue — 24 octobre 2026
+
+Base conservée : `5a4848384149d46d5aa79efa0b8bbcf8ef840fc9`. Branche locale `builder/supervisor-findings-local`.
+
+- Reprise d’intention de profil après 24 heures : avertissement, action explicite, même clé et contenu initial, portée propriétaire/workspace/business inchangée. Un nettoyage local échoué après confirmation peut être réessayé sans envoi serveur. Aucun changement d’expiration ou d’autorisation d’exécution.
+- Preview : les noms `GOOGLE_GENERATIVE_AI_API_KEY` et `ELEVENLABS_API_KEY` sont refusés avant npm par la commande de build configurée ; régression sur les sept clés déclarées dans le schéma serveur. Les valeurs ne sont pas journalisées.
+- Unicode : comptage métier en points de code après trim, borne HTML permettant de saisir les caractères supplémentaires sans troncature à mi-limite ; validation avant sauvegarde.
+- Archivage confirmé : focus sur le titre conservé de la carte.
+
+Validation Node 22.23.4 : suite applicative 4 569 tests, 4 561 réussis, 8 ignorés, 0 échec ; tripwires 3/3 ; garde preview/commande configurée 35/35 ; navigateur 15 scénarios passés. Les 79 tests ciblés de contre-revue recouvrent les suites précédentes et ne s’y additionnent pas. Types, lint, build, smoke Joris, map et layering passent. Le build conserve un avertissement préexistant de traçage filesystem dans `src/server/brief/document-index.ts:39`.
+
+Preuves avant/après et manifeste exact du commit : `/workspace/oria-four-findings-evidence`. Les captures sont des composants isolés avec styles minimaux et données synthétiques, pas une page HQ authentifiée. Aucun DB/Auth réel, migration, fournisseur ou parcours intégré refusé exécuté ; flags fermés. Le problème de dépendances Inngest/Zod demeure hors de ce correctif, sans exception d’audit.
+
+Retour arrière préféré : réversion de ce seul commit sur une nouvelle branche après revue, sans reset des commits précédents ; aucune donnée distante à restaurer.

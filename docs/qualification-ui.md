@@ -17,11 +17,11 @@ La création transmet `creationKey` UUIDv4 et les cinq champs normalisés. Avant
 
 Après résultat incertain, les champs restent figés, une relecture n'envoie rien et annuler l'affichage conserve l'intention : le bouton suivant reprend celle-ci. Rechargement ou retour dans le même périmètre restaurent l'intention sans envoi automatique. Une reprise manuelle réutilise exactement la clé et le contenu initial. La protection contre deux événements synchrones utilise un verrou immédiat et la conservation locale refuse d'écraser une autre intention non résolue. La vraie idempotence demeure celle du repository/contrainte SQL, pas de ce verrou UI.
 
-Une confirmation du serveur permet d'effacer la récupération. Si cet effacement échoue, le profil est affiché mais les nouvelles créations sont bloquées explicitement. Une nouvelle intention légitime après confirmation reçoit une nouvelle clé. Le record local est limité à 24 heures pour restauration ; un record expiré, futur ou malformé est conservé et bloque la création, jamais effacé automatiquement avec génération d'une nouvelle clé. Une panne de stockage avant envoi bloque l'action.
+Une confirmation du serveur permet d'effacer la récupération. Si cet effacement échoue, le profil est affiché mais les nouvelles créations sont bloquées explicitement. Le bouton « Terminer le nettoyage local » permet de réessayer cet effacement sans nouvel appel de création. Une nouvelle intention légitime après confirmation reçoit une nouvelle clé. Au-delà de 24 heures, le record valide est restauré avec avertissement et reprise manuelle explicite, conservant clé et contenu initial. Cette ancienneté concerne uniquement une intention de profil, jamais une autorisation d’exécution. Un record futur ou malformé reste bloqué, jamais effacé automatiquement avec génération d'une nouvelle clé. Une panne de stockage avant envoi bloque l'action.
 
 ## Preuves
 
-Huit scénarios sur les composants réels :
+Quinze scénarios sur les composants réels (résultats détaillés dans `results.json`), couvrant :
 
 1. Opt-in absent : zéro appel au transport synthétique.
 2. Nom écrit puis accusé perdu : relecture explicite sans renvoi, ID historique conservé.
@@ -31,10 +31,14 @@ Huit scénarios sur les composants réels :
 6. Archivage avec accusé perdu, relecture et reload : ligne archivée conservée, édition absente, un seul envoi d'archivage.
 7. Nouvelle intention explicite après confirmation : clé et ID distincts, même nom autorisé.
 8. Refus d'écriture de récupération navigateur : aucun appel de création, aucune nouvelle ligne.
+9. Clavier : ouverture, annulation et retour au bouton ; validation récupérable avant stockage ; édition sans UUID.
+10. Intention âgée de 25 heures après accusé perdu : reprise explicite de la même clé et du contenu initial, aucun envoi automatique.
+11. Nettoyage local échoué après confirmation puis réessayé : aucun renvoi serveur.
+12. Unicode : 81 emoji refusés avant stockage/envoi, 80 conservés intégralement ; archivage confirmé : focus sur le titre conservé.
 
-Quatre tests du helper couvrent séparément chaque axe du périmètre, non-écrasement de l'intention, validation des champs/clé et expiration, échec lecture/écriture/nettoyage. Les tests du service/repository sont documentés séparément : le transport de ce banc reproduit leur contrat mais ne les remplace pas comme preuve serveur.
+Les tests du helper couvrent séparément chaque axe du périmètre, non-écrasement de l'intention, validation des champs/clé et reprise après 24 heures, échec lecture/écriture/nettoyage. Les tests du service/repository sont documentés séparément : le transport de ce banc reproduit leur contrat mais ne les remplace pas comme preuve serveur.
 
-`results.json` contient SHA de base, branche, runtime et empreintes des composants ainsi que les appels synthétiques. Captures 390/1440 pixels étiquetées comme qualification ; styles minimaux de fixture, pas rendu final du cockpit. Aucun cookie, token ni Authstate n'est enregistré.
+`results.json` contient SHA de base, branche, runtime et empreintes des composants ainsi que les appels synthétiques. Captures 375/390/425/768/1024/1440 pixels étiquetées comme qualification ; styles minimaux de fixture, pas rendu final du cockpit. Aucun cookie, token ni Authstate n'est enregistré.
 
 ## Limites
 

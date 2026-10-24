@@ -5,7 +5,7 @@ import { EmployeeReadiness } from "@/features/employees/components/employee-read
 import { readEmployeesAction, saveEmployeeAction } from "@/features/employees/actions";
 import type { EmployeeCommand, EmployeeFields, EmployeeListResult, EmployeeProfile, EmployeeScope } from "@/core/employees/types";
 
-import { clearIntention, intentionStorageKey, readIntention, retainIntention, type CreateIntention } from "@/features/employees/create-intention";
+import { clearIntention, intentionStorageKey, isIntentionStale, readIntention, retainIntention, type CreateIntention } from "@/features/employees/create-intention";
 
 const EMPTY: EmployeeFields = { displayName: "", specialty: "", instructions: "", assignmentRole: "", assignmentContext: "" };
 const FIELDS = [
@@ -26,6 +26,10 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
   const scope = { ...recoveryScope, ventureId };
   const intentionRef = useRef<CreateIntention | null>(null);
   const [intention, setIntention] = useState<CreateIntention | null>(null);
+  const [staleIntention, setStaleIntention] = useState(false);
+  const [confirmedCreation, setConfirmedCreation] = useState(false);
+  const archiveFocus = useRef<string | null>(null);
+  const cardHeadings = useRef(new Map<string, HTMLHeadingElement>());
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [recoveryError, setRecoveryError] = useState("");
   const [result, setResult] = useState(initial);
@@ -52,7 +56,7 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
       if (cancelled) return;
       try {
         const pending = readIntention(window.sessionStorage, { ownerId: recoveryScope.ownerId, workspaceId: recoveryScope.workspaceId, ventureId });
-        if (pending) { intentionRef.current = pending; setIntention(pending); setFields(pending.fields); setShowForm(true); }
+        if (pending) { intentionRef.current = pending; setIntention(pending); setStaleIntention(isIntentionStale(pending, Date.now())); setFields(pending.fields); setShowForm(true); }
         setRecoveryReady(true);
       } catch { setRecoveryError("Reprise locale indisponible. Aucune nouvelle création ne sera envoyée depuis cet onglet. Conservez cet onglet et vérifiez l’équipe avant toute nouvelle intention."); }
     });
@@ -66,6 +70,10 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
       target?.focus();
     }
   }, [showForm]);
+  useEffect(() => {
+    const id = archiveFocus.current;
+    if (id) { cardHeadings.current.get(id)?.focus(); archiveFocus.current = null; }
+  }, [result]);
   const available = result.status === "ready";
   const employees = available ? result.employees : [];
 
@@ -115,10 +123,12 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
       const response = await saveEmployeeAction(ventureId, command);
       if (!alive.current) return;
       if (response.status !== "saved") { setError(response.message); return; }
+      if (command.operation === "archive") archiveFocus.current = response.employee.id;
       setResult((current) => current.status === "ready" ? { status: "ready", employees: [...current.employees.filter((row) => row.id !== response.employee.id), response.employee] } : current);
       if (command.operation === "create") {
-        try { clearIntention(window.sessionStorage, scope); intentionRef.current = null; setIntention(null); }
+        try { clearIntention(window.sessionStorage, scope); intentionRef.current = null; setIntention(null); setStaleIntention(false); setConfirmedCreation(false); }
         catch {
+          setConfirmedCreation(true);
           setRecoveryError("Profil confirmé, mais la reprise locale n’a pas pu être effacée. Aucune nouvelle création n’est autorisée dans cet onglet pour le moment.");
           return;
         }
@@ -131,6 +141,20 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
     } catch {
       if (alive.current) setError("Enregistrement indisponible. Le résultat n’est pas confirmé. Rechargez l’équipe avant de réessayer ; votre saisie reste visible.");
     } finally { writing.current = false; if (alive.current) setBusy(false); }
+  }
+
+  function retryConfirmedCleanup() {
+    if (!confirmedCreation || busy || writing.current) return;
+    // Confirmation already came from the server in this scope. Only remove the
+    // browser recovery record; never resubmit the creation to finish cleanup.
+    try {
+      clearIntention(window.sessionStorage, scope);
+      intentionRef.current = null;
+      setIntention(null); setStaleIntention(false); setConfirmedCreation(false);
+      setRecoveryError(""); setError(""); setEditing(null); setFields(EMPTY);
+      closeForm();
+      setNotice("Profil déjà confirmé. Reprise locale nettoyée sans nouvel envoi.");
+    } catch { setRecoveryError("Profil confirmé. Le nettoyage local reste indisponible ; aucune nouvelle création n’a été envoyée."); }
   }
 
   async function refresh() {
@@ -158,6 +182,8 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
       <button className={button} type="button" disabled={busy} onClick={refresh}>Recharger l’équipe</button>
     </div>
     {recoveryError && <p role="alert" className="text-sm text-amber-200">{recoveryError}</p>}
+    {confirmedCreation && <button className={button} type="button" disabled={busy} onClick={retryConfirmedCleanup}>Terminer le nettoyage local</button>}
+    {staleIntention && <p role="status" className="text-sm text-amber-200">Cette intention date de plus de 24 heures. Vérifiez le business et reprenez explicitement la même clé et le même contenu. Aucun envoi automatique ni droit d’exécution n’est accordé.</p>}
     {intention && <p role="status" className="text-sm text-amber-200">Création en attente de confirmation : la même intention sera réutilisée. Les champs restent figés jusqu’à confirmation ; une relecture n’envoie rien. La reprise est conservée dans cet onglet uniquement.</p>}
     {notice && <p role="status" className="text-sm leading-6 text-emerald-300">{notice}</p>}
     {error && <p id={`${formId}-error`} role="alert" className="text-sm leading-6 text-amber-200">{error}</p>}
@@ -186,15 +212,15 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
       <h2 className="text-lg font-semibold text-white">{editing ? "Modifier le profil" : "Ajouter un employé IA"}</h2>
       {editing && <p className="break-all text-xs text-neutral-400">Identité inchangée : {editing.id} · Révision {editing.revision}</p>}
       {FIELDS.map(([key, label, max]) => <div key={key}>
-        <label className="mb-2 block text-sm text-neutral-200" htmlFor={`${formId}-${key}`}>{label} <span className="text-neutral-400">({max} caractères max.)</span></label>
-        {key === "instructions" || key === "assignmentContext" ? <textarea id={`${formId}-${key}`} name={key} aria-invalid={invalidField === key || undefined} aria-describedby={invalidField === key ? `${formId}-error` : undefined} required rows={4} maxLength={max} value={fields[key]} disabled={busy || Boolean(intention)} onChange={(event) => { setFields({ ...fields, [key]: event.target.value }); if (invalidField === key) { setInvalidField(null); setError(""); } }} className="min-h-24 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300" /> : <input ref={key === "displayName" ? nameInput : undefined} id={`${formId}-${key}`} name={key} aria-invalid={invalidField === key || undefined} aria-describedby={invalidField === key ? `${formId}-error` : undefined} required maxLength={max} value={fields[key]} disabled={busy || Boolean(intention)} onChange={(event) => { setFields({ ...fields, [key]: event.target.value }); if (invalidField === key) { setInvalidField(null); setError(""); } }} className="min-h-11 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300" />}
+        <label className="mb-2 block text-sm text-neutral-200" htmlFor={`${formId}-${key}`}>{label} <span className="text-neutral-400">({Array.from(fields[key].trim()).length}/{max} caractères)</span></label>
+        {key === "instructions" || key === "assignmentContext" ? <textarea id={`${formId}-${key}`} name={key} aria-invalid={invalidField === key || undefined} aria-describedby={invalidField === key ? `${formId}-error` : undefined} required rows={4} maxLength={2 * (max + 1)} value={fields[key]} disabled={busy || Boolean(intention)} onChange={(event) => { setFields({ ...fields, [key]: event.target.value }); if (invalidField === key) { setInvalidField(null); setError(""); } }} className="min-h-24 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300" /> : <input ref={key === "displayName" ? nameInput : undefined} id={`${formId}-${key}`} name={key} aria-invalid={invalidField === key || undefined} aria-describedby={invalidField === key ? `${formId}-error` : undefined} required maxLength={2 * (max + 1)} value={fields[key]} disabled={busy || Boolean(intention)} onChange={(event) => { setFields({ ...fields, [key]: event.target.value }); if (invalidField === key) { setInvalidField(null); setError(""); } }} className="min-h-11 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300" />}
       </div>)}
       <p className="text-xs leading-5 text-neutral-400">Le mandat décrit le travail souhaité. Il n’accorde aucun accès à des outils, connaissances privées ou autres business.</p>
-      <div className="flex flex-wrap gap-3"><button className={button} disabled={busy} type="submit">{busy ? "Enregistrement…" : "Enregistrer le profil"}</button><button className={button} disabled={busy} type="button" onClick={() => { closeForm(); setError(""); }}>Annuler l’édition</button></div>
+      <div className="flex flex-wrap gap-3"><button className={button} disabled={busy} type="submit">{busy ? "Enregistrement…" : staleIntention ? "Reprendre cette intention" : "Enregistrer le profil"}</button><button className={button} disabled={busy} type="button" onClick={() => { closeForm(); setError(""); }}>Annuler l’édition</button></div>
     </form>}
     {available && employees.length === 0 && <p className="text-sm text-neutral-300">Aucun employé enregistré pour ce business.</p>}
     <div className="grid gap-4 lg:grid-cols-2">{employees.map((employee) => <article key={employee.id} className="min-w-0 space-y-3 rounded-2xl border border-neutral-700 bg-neutral-950 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="break-words text-lg font-semibold text-white">{employee.displayName}</h2><span className="rounded-full border border-neutral-600 px-3 py-1 text-xs text-neutral-300">{employee.state === "archived" ? "Archivé" : "Proposé · non opérationnel"}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h2 tabIndex={-1} ref={(node) => { if (node) cardHeadings.current.set(employee.id, node); else cardHeadings.current.delete(employee.id); }} className="break-words text-lg font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">{employee.displayName}</h2><span className="rounded-full border border-neutral-600 px-3 py-1 text-xs text-neutral-300">{employee.state === "archived" ? "Archivé" : "Proposé · non opérationnel"}</span></div>
       <p className="break-words text-sm text-neutral-300">{employee.specialty} · {employee.assignmentRole}</p>
       <p className="whitespace-pre-wrap break-words text-sm leading-6 text-neutral-300">{employee.instructions}</p>
       <p className="whitespace-pre-wrap break-words text-sm leading-6 text-neutral-400">{employee.assignmentContext}</p>

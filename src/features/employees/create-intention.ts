@@ -23,8 +23,12 @@ export function readIntention(storage: IntentionStorage, scope: EmployeeScope): 
   const raw = storage.getItem(intentionStorageKey(scope));
   if (raw === null) return null;
   const value: unknown = JSON.parse(raw);
-  if (!validIntention(value) || value.createdAt > Date.now() || Date.now() - value.createdAt > 24 * 60 * 60 * 1000) throw new Error("Invalid recovery record");
+  if (!validIntention(value) || value.createdAt > Date.now()) throw new Error("Invalid recovery record");
   return value;
+}
+/** Advisory age only: an old intention retains its original key and payload for recovery. */
+export function isIntentionStale(intention: CreateIntention, now: number): boolean {
+  return now - intention.createdAt > 24 * 60 * 60 * 1000;
 }
 export function retainIntention(storage: IntentionStorage, scope: EmployeeScope, intention: CreateIntention): void {
   if (!validIntention(intention)) throw new Error("Invalid recovery record");

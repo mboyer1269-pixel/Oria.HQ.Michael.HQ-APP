@@ -31,7 +31,7 @@ function invoke(overrides = {}, { exitCode = 0, openFlag = false } = {}) {
     const env = { PATH: `${bin}:${dirname(process.execPath)}`, NEXT_PUBLIC_SUPABASE_URL: 'https://teatqbtzgzcygpefnfbh.supabase.co', VERCEL_ENV: 'preview', ...overrides };
     const [, ...args] = config.buildCommand.split(' ');
     const result = spawnSync(process.execPath, args, { cwd: directory, env, encoding: 'utf8', timeout: 5000 });
-    return { status: result.status, stderr: result.stderr, called: existsSync(marker) ? JSON.parse(readFileSync(marker, 'utf8')) : null };
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr, called: existsSync(marker) ? JSON.parse(readFileSync(marker, 'utf8')) : null };
   } finally { rmSync(directory, { recursive: true, force: true }); }
 }
 
@@ -63,3 +63,17 @@ test('failure of admitted build remains a failure through the configured command
   assert.equal(result.status, 7);
   assert.deepEqual(result.called, { args: ['run', 'build'], mode: 'production' });
 });
+
+for (const key of [
+  'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY',
+  'ELEVENLABS_API_KEY', 'OPENROUTER_API_KEY', 'RESEND_API_KEY', 'NARA_API_KEY',
+]) {
+  test(`configured build refuses ${key} before npm and redacts output`, () => {
+    const value = `synthetic-private-value-for-${key}`;
+    const result = invoke({ [key]: value });
+    assert.equal(result.status, 1);
+    assert.equal(result.called, null);
+    assert.equal(result.stderr.trim(), `Remove integration setting ${key} from the qualification build environment.`);
+    assert.ok(!`${result.stdout}${result.stderr}`.includes(value));
+  });
+}
