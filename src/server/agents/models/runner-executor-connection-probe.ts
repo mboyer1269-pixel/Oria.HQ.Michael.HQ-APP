@@ -470,6 +470,7 @@ export function createRunnerClaudeCliConnectionProbe(
 ): ProviderConnectionProbe {
   const workspaceId = options?.workspaceId;
   const resolveAccountId = options?.resolveAccountId ?? resolveOpaqueAccountId;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return async (provider: ModelProviderDescriptor, _adapters: readonly RuntimeAdapterDescriptor[]) => {
     if (provider.id === "codex-acp-cli") {
       return {
