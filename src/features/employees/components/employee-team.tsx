@@ -36,6 +36,10 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [invalidField, setInvalidField] = useState<keyof EmployeeFields | null>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const formOpener = useRef<HTMLButtonElement | null>(null);
+  const restoreFormFocus = useRef(false);
   const alive = useRef(true);
   const formId = useId();
   const nameInput = useRef<HTMLInputElement>(null);
@@ -54,10 +58,25 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
     return () => { cancelled = true; alive.current = false; };
   }, [recoveryScope.ownerId, recoveryScope.workspaceId, ventureId]);
   useEffect(() => { if (showForm) nameInput.current?.focus(); }, [showForm, editing]);
+  useEffect(() => {
+    if (!showForm && restoreFormFocus.current) {
+      restoreFormFocus.current = false;
+      const target = formOpener.current?.isConnected ? formOpener.current : addButton.current;
+      target?.focus();
+    }
+  }, [showForm]);
   const available = result.status === "ready";
   const employees = available ? result.employees : [];
 
-  function open(employee: EmployeeProfile | null) {
+  function closeForm() {
+    restoreFormFocus.current = true;
+    setShowForm(false);
+    setInvalidField(null);
+  }
+
+  function open(employee: EmployeeProfile | null, opener: HTMLButtonElement) {
+    formOpener.current = opener;
+    setInvalidField(null);
     if (intention) {
       if (employee) return;
       setEditing(null); setFields(intention.fields); setShowForm(true); return;
@@ -103,7 +122,7 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
           return;
         }
       }
-      setShowForm(false);
+      closeForm();
       setEditing(null);
       setFields(EMPTY);
       setArchiveId(null);
@@ -134,31 +153,43 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
     </div>
     {!available && <p role="status" className="rounded-xl border border-neutral-700 p-4 text-sm text-neutral-200">{result.message} L’absence d’employés ne peut pas être confirmée.</p>}
     <div className="flex flex-wrap gap-3">
-      <button className={button} type="button" disabled={!available || busy || !recoveryReady || Boolean(recoveryError)} onClick={() => open(null)}>{intention ? "Reprendre la création" : "Ajouter un employé IA"}</button>
+      <button ref={addButton} className={button} type="button" disabled={!available || busy || !recoveryReady || Boolean(recoveryError)} onClick={(event) => open(null, event.currentTarget)}>{intention ? "Reprendre la création" : "Ajouter un employé IA"}</button>
       <button className={button} type="button" disabled={busy} onClick={refresh}>Recharger l’équipe</button>
     </div>
     {recoveryError && <p role="alert" className="text-sm text-amber-200">{recoveryError}</p>}
     {intention && <p role="status" className="text-sm text-amber-200">Création en attente de confirmation : la même intention sera réutilisée. Les champs restent figés jusqu’à confirmation ; une relecture n’envoie rien. La reprise est conservée dans cet onglet uniquement.</p>}
     {notice && <p role="status" className="text-sm leading-6 text-emerald-300">{notice}</p>}
-    {error && <p role="alert" className="text-sm leading-6 text-amber-200">{error}</p>}
+    {error && <p id={`${formId}-error`} role="alert" className="text-sm leading-6 text-amber-200">{error}</p>}
     {showForm && <form className="space-y-4 rounded-2xl border border-neutral-700 bg-neutral-950 p-5" onSubmit={(event) => {
       event.preventDefault();
       const clean = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value.trim()])) as EmployeeFields;
-      if (FIELDS.some(([key, , max]) => !clean[key] || Array.from(clean[key]).length > max)) { setError("Tous les champs sont requis et doivent respecter leur longueur maximale."); return; }
-      if (!editing && (!recoveryReady || recoveryError)) return;
+      const invalid = FIELDS.find(([key, , max]) => {
+        const controls = key === "instructions" || key === "assignmentContext"
+          ? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/ : /[\u0000-\u001f\u007f]/;
+        return !clean[key] || Array.from(clean[key]).length > max || controls.test(clean[key]);
+      });
+      if (invalid) {
+        setInvalidField(invalid[0]);
+        setError(`Le champ « ${invalid[1]} » est requis, doit respecter sa longueur maximale et ne doit pas contenir de caractères non autorisés.`);
+        event.currentTarget.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${invalid[0]}"]`)?.focus();
+        return;
+      }
+      setInvalidField(null);
+      if (editing) { void save({ operation: "edit", id: editing.id, revision: editing.revision, ...clean }); return; }
+      if (!recoveryReady || recoveryError) return;
       let creationKey: string;
       try { creationKey = intentionRef.current?.creationKey ?? crypto.randomUUID(); }
       catch { setError("Impossible de préparer une intention stable. Aucun envoi effectué."); return; }
-      void save(editing ? { operation: "edit", id: editing.id, revision: editing.revision, ...clean } : { operation: "create", creationKey, ...(intentionRef.current?.fields ?? clean) });
+      void save({ operation: "create", creationKey, ...(intentionRef.current?.fields ?? clean) });
     }}>
       <h2 className="text-lg font-semibold text-white">{editing ? "Modifier le profil" : "Ajouter un employé IA"}</h2>
       {editing && <p className="break-all text-xs text-neutral-400">Identité inchangée : {editing.id} · Révision {editing.revision}</p>}
       {FIELDS.map(([key, label, max]) => <div key={key}>
         <label className="mb-2 block text-sm text-neutral-200" htmlFor={`${formId}-${key}`}>{label} <span className="text-neutral-400">({max} caractères max.)</span></label>
-        {key === "instructions" || key === "assignmentContext" ? <textarea id={`${formId}-${key}`} required rows={4} maxLength={max} value={fields[key]} disabled={busy || Boolean(intention)} onChange={(event) => setFields({ ...fields, [key]: event.target.value })} className="min-h-24 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300" /> : <input ref={key === "displayName" ? nameInput : undefined} id={`${formId}-${key}`} required maxLength={max} value={fields[key]} disabled={busy || Boolean(intention)} onChange={(event) => setFields({ ...fields, [key]: event.target.value })} className="min-h-11 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300" />}
+        {key === "instructions" || key === "assignmentContext" ? <textarea id={`${formId}-${key}`} name={key} aria-invalid={invalidField === key || undefined} aria-describedby={invalidField === key ? `${formId}-error` : undefined} required rows={4} maxLength={max} value={fields[key]} disabled={busy || Boolean(intention)} onChange={(event) => { setFields({ ...fields, [key]: event.target.value }); if (invalidField === key) { setInvalidField(null); setError(""); } }} className="min-h-24 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300" /> : <input ref={key === "displayName" ? nameInput : undefined} id={`${formId}-${key}`} name={key} aria-invalid={invalidField === key || undefined} aria-describedby={invalidField === key ? `${formId}-error` : undefined} required maxLength={max} value={fields[key]} disabled={busy || Boolean(intention)} onChange={(event) => { setFields({ ...fields, [key]: event.target.value }); if (invalidField === key) { setInvalidField(null); setError(""); } }} className="min-h-11 w-full rounded-xl border border-neutral-600 bg-neutral-900 p-3 text-sm text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300" />}
       </div>)}
       <p className="text-xs leading-5 text-neutral-400">Le mandat décrit le travail souhaité. Il n’accorde aucun accès à des outils, connaissances privées ou autres business.</p>
-      <div className="flex flex-wrap gap-3"><button className={button} disabled={busy} type="submit">{busy ? "Enregistrement…" : "Enregistrer le profil"}</button><button className={button} disabled={busy} type="button" onClick={() => { setShowForm(false); setError(""); }}>Annuler l’édition</button></div>
+      <div className="flex flex-wrap gap-3"><button className={button} disabled={busy} type="submit">{busy ? "Enregistrement…" : "Enregistrer le profil"}</button><button className={button} disabled={busy} type="button" onClick={() => { closeForm(); setError(""); }}>Annuler l’édition</button></div>
     </form>}
     {available && employees.length === 0 && <p className="text-sm text-neutral-300">Aucun employé enregistré pour ce business.</p>}
     <div className="grid gap-4 lg:grid-cols-2">{employees.map((employee) => <article key={employee.id} className="min-w-0 space-y-3 rounded-2xl border border-neutral-700 bg-neutral-950 p-5">
@@ -167,7 +198,7 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
       <p className="whitespace-pre-wrap break-words text-sm leading-6 text-neutral-300">{employee.instructions}</p>
       <p className="whitespace-pre-wrap break-words text-sm leading-6 text-neutral-400">{employee.assignmentContext}</p>
       <p className="break-all text-xs text-neutral-400">ID : {employee.id} · Révision {employee.revision}</p>
-      {employee.state === "draft" && <div className="flex flex-wrap gap-3"><button type="button" className={button} disabled={busy || Boolean(intention)} onClick={() => open(employee)}>Modifier {employee.displayName}</button><button type="button" className={button} disabled={busy} onClick={() => { setArchiveId(employee.id); setError(""); setNotice(""); }}>Archiver {employee.displayName}</button></div>}
+      {employee.state === "draft" && <div className="flex flex-wrap gap-3"><button type="button" className={button} disabled={busy || Boolean(intention)} onClick={(event) => open(employee, event.currentTarget)}>Modifier {employee.displayName}</button><button type="button" className={button} disabled={busy} onClick={() => { setArchiveId(employee.id); setError(""); setNotice(""); }}>Archiver {employee.displayName}</button></div>}
       {archiveId === employee.id && <div className="space-y-3 rounded-xl border border-amber-500/30 p-3"><p className="text-sm text-neutral-200">Archiver ce profil sans supprimer son identité ni son affectation ?</p><div className="flex flex-wrap gap-3"><button type="button" className={button} disabled={busy} onClick={() => void save({ operation: "archive", id: employee.id, revision: employee.revision })}>Confirmer l’archivage</button><button type="button" className={button} disabled={busy} onClick={() => setArchiveId(null)}>Conserver le profil</button></div></div>}
     </article>)}</div>
   </section>;

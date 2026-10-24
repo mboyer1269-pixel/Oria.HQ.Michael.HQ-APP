@@ -1,6 +1,6 @@
 # Livraison locale — noms, employés et qualification
 
-Édition du 24 octobre 2026. Base Git : `2249ac453f720cbe4082caddd9a50c84e2625e3b` (PR405). Branche : `builder/employee-idempotency-local`. Le commit contenant ce manifeste fixe l’assemblage ; son SHA et les résultats finaux sont consignés séparément dans `/workspace/oria-final-delivery-evidence/` pour éviter un SHA autoréférentiel. Aucun push, fusion ou déploiement n’est inclus.
+Édition du 24 octobre 2026. Base de ce complément : `e50c870ec78c6190addd915172415bc5cac94a01` ; origine PR405 : `2249ac453f720cbe4082caddd9a50c84e2625e3b`. Branche : `builder/parallel-finalization-local`. Le commit contenant ce manifeste fixe l’assemblage ; son SHA et les résultats finaux sont consignés séparément dans `/workspace/oria-parallel-final-evidence/` pour éviter un SHA autoréférentiel. Aucun push, fusion ou déploiement n’est inclus.
 
 ## Périmètre
 
@@ -36,7 +36,7 @@ Le delta complet ajoute l’index `(ventures.id, ventures.workspace_id)` sans su
 
 La garantie idempotente porte sur la même clé. Autre onglet/navigateur, suppression du stockage ou nouvelle intention explicite nécessitent rapprochement. Les brouillons expirés/incohérents bloquent plutôt que d’effacer silencieusement la clé. Un retour serveur ne prouve pas qu’un employé peut exécuter une mission.
 
-La garde `node scripts/qualification-preview.mjs --check|--build` est explicite : `npm run build` direct ne l’applique pas. Elle ne vérifie pas l’appartenance d’une clé et n’est pas un verrou réseau/hébergeur. `NEXT_PUBLIC_*` est figé au build ; ne jamais promouvoir l’artefact staging en production. Une autre cible exige un nouveau build et sa propre validation.
+La configuration dédiée `vercel.qualification.json` raccorde `buildCommand` à `node scripts/qualification-preview.mjs --build`. Sa sélection future via `--local-config` doit être explicite. Les tests locaux exécutent la commande déclarée, pas le CLI Vercel ; aucune adoption distante n’a été effectuée. Le build normal `npm run build` direct ne l’applique pas, et une intégration Git ne sélectionne pas automatiquement ce fichier alternatif. Elle ne vérifie pas l’appartenance d’une clé et n’est pas un verrou réseau/hébergeur. `NEXT_PUBLIC_*` est figé au build ; ne jamais promouvoir l’artefact staging en production. Une autre cible exige un nouveau build et sa propre validation.
 
 ## Retour arrière préféré
 
@@ -44,4 +44,12 @@ Avant toute activation, les flags restent fermés. Après une application future
 
 ## Commandes de preuve
 
-Node22.23.4 : `npm test`, `npm run test:gaps` (lecture source, résultat séparé), `node --test scripts/qualification-preview.test.mjs`, `npm run map:check`, `npm run check:layering`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run smoke:joris`, `node scripts/qualification-ui/run.mjs`. Aucun parcours intégré v3 refusé, setup DB, fournisseur ou compte réel n’est exécuté.
+Node22.23.4 : `npm test`, `npm run test:gaps` (lecture source, résultat séparé), `node --test scripts/qualification-preview.test.mjs scripts/qualification-build.test.mjs`, `npm run map:check`, `npm run check:layering`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run smoke:joris`, `node scripts/qualification-ui/run.mjs`. Aucun parcours intégré v3 refusé, setup DB, fournisseur ou compte réel n’est exécuté.
+
+## Complément local de raccordement preview
+
+La configuration dédiée et ses quatre tests de processus complètent la livraison e50c870 sans modifier package.json, lockfile, workflows, SQL ou contrôles applicatifs. Le CLI Vercel et un véritable build staging avec clés ne sont pas exécutés : seuls la sélection de commande, la garde réelle et un subprocess npm substitué sont qualifiés par ces nouveaux tests. Aucune migration ou permission supplémentaire.
+
+## Complément UX borné
+
+Retour du focus au bouton ouvrant le formulaire, erreurs de saisie corrigeables avant conservation/envoi, édition sans génération UUID inutile. Les IDs, la clé de reprise, le scope serveur et les flags fermés restent inchangés. Le banc navigateur conserve les huit scénarios antérieurs et ajoute trois régressions ciblées ; ne pas additionner les huit anciens aux onze scénarios finaux.

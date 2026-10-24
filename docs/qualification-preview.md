@@ -1,14 +1,18 @@
 # Preview de qualification : garde de build locale
 
-Ce point d’entrée est **opt-in**, ne remplace pas `npm run build` et n’a été raccordé à aucun hébergement. Il ne déploie rien, ne configure aucun secret, n’applique aucune migration et n’active aucun profil ni permission d’exécution.
+Le chemin de qualification est raccordé dans **`vercel.qualification.json`** : sa propriété `buildCommand` appelle `node scripts/qualification-preview.mjs --build`, donc la garde précède le build Next. Cette configuration est sélectionnée explicitement ; elle ne remplace pas le build normal et aucun hébergement actif n’a été modifié. Il ne déploie rien, ne configure aucun secret, n’applique aucune migration et n’active aucun profil ni permission d’exécution.
 
 ## Commandes
 
 ```sh
 node scripts/qualification-preview.mjs --check
 node scripts/qualification-preview.mjs --build
-node --test scripts/qualification-preview.test.mjs
+node --test scripts/qualification-preview.test.mjs scripts/qualification-build.test.mjs
 ```
+
+Pour une future qualification autorisée via le CLI Vercel déjà installé et épinglé, le sélecteur est `--local-config vercel.qualification.json`, notamment pour `vercel build --local-config vercel.qualification.json`. **Cette commande Vercel n’a pas été exécutée ici** : la liaison à un projet séparé, les paramètres de preview et l’accès sécurisé restent à approuver/préparer. Ne pas utiliser la liaison `.vercel` du projet de production. Le fichier n’est pas nommé `vercel.json` afin de ne pas changer les builds Git actuels ; une intégration Git ne le sélectionne pas automatiquement.
+
+Le fichier ne contient ni projet, domaine, token, variable de secret, commande de déploiement, ni configuration de permissions. La protection privée et la provenance des paramètres devront être vérifiées sur le futur projet ; cette configuration seule ne les crée pas. Ne pas passer `--prod` : la garde refuse une cible production signalée par Vercel, même avec une URL staging.
 
 L’environnement de build doit être fourni par une procédure sécurisée approuvée séparément. Le script ne charge aucun fichier `.env` et refuse la présence des quatre fichiers que Next charge en mode production (`.env`, `.env.local`, `.env.production`, `.env.production.local`). Il n’en lit pas le contenu. Ne pas supprimer automatiquement des fichiers pour passer cette garde : préparer une copie de build isolée.
 
@@ -28,6 +32,8 @@ Références officielles : [variables Next.js](https://nextjs.org/docs/app/guide
 
 ## Niveau de preuve
 
-Les tests locaux utilisent des paramètres synthétiques, les vrais fichiers de flags et un processus de build substitué pour vérifier son admission et la propagation d’erreurs. Ils prouvent le comportement de la garde, pas un déploiement, un login Auth, une appartenance réelle de clé, la persistance SQL ou l’isolation RLS. Le parent intègre les contrôles ordinaires types/lint/build/smoke sur le lot combiné séparément.
+Les 16 tests de garde utilisent des paramètres synthétiques et un processus de build substitué. Les quatre tests de raccordement lisent la configuration réelle, exécutent sa commande avec le vrai script de garde dans une copie isolée, et substituent seulement le dernier processus npm : ils démontrent refus avant build, appel du build après admission et propagation de son échec. Aucun Vercel CLI ni secret n’est utilisé. Ils prouvent le comportement de la garde, pas un déploiement, un login Auth, une appartenance réelle de clé, la persistance SQL ou l’isolation RLS. Le parent intègre les contrôles ordinaires types/lint/build/smoke sur le lot combiné séparément.
 
-Le contrôle n’est pas un verrou du fournisseur : une commande directe `npm run build` le contournerait. Son raccordement à une future preview dédiée devra être explicite et revu ; aucune configuration du projet existant n’est modifiée ici. Aucune promotion automatique et aucun test v3 ne font partie de cette tranche.
+Le contrôle n’est pas un verrou du fournisseur : une commande directe `npm run build` le contournerait. Son raccordement local est testé dans la configuration dédiée ; son adoption par un futur projet de preview reste explicite et non effectuée. Aucune configuration du projet existant n’est modifiée ici. Aucune promotion automatique et aucun test v3 ne font partie de cette tranche.
+
+Sources de configuration vérifiées : [buildCommand Vercel](https://vercel.com/docs/project-configuration/vercel-json#buildcommand) et [sélecteur local-config](https://vercel.com/docs/cli/global-options#local-config). La sélection documentée prépare un chemin utilisable, pas une autorisation de déploiement.
