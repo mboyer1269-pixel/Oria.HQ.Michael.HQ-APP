@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 664,
-    "live": 613,
+    "sourceFiles": 666,
+    "live": 615,
     "testOnly": 5,
     "incubation": 46
   },
@@ -186,8 +186,10 @@
     "src/features/contact/components/contact-lead-form.tsx",
     "src/features/contact/types.ts",
     "src/features/employees/actions.ts",
+    "src/features/employees/components/employee-readiness.tsx",
     "src/features/employees/components/employee-team.tsx",
     "src/features/employees/create-intention.ts",
+    "src/features/employees/readiness.ts",
     "src/features/hq/chat-input-draft.ts",
     "src/features/hq/command-tower/command-tower-model.ts",
     "src/features/hq/command-tower/dispatch-corridor-source.ts",
