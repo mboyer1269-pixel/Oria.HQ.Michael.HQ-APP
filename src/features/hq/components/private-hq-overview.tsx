@@ -45,10 +45,10 @@ const hqZones = [
   },
   {
     title: "Documents",
-    text: "Le coffre privé pour notes, décisions, SOPs et documents utiles au workspace actif.",
+    text: "Module temporairement retiré. La page explique son indisponibilité ; aucun document ne peut y être ouvert.",
     href: "/dashboard/documents",
-    cta: "Ouvrir documents",
-    status: "Privé",
+    cta: "Voir le statut du module",
+    status: "Indisponible",
     icon: FileText,
   },
   {
@@ -92,9 +92,9 @@ export function PrivateHqOverview() {
             </a>
             <Link
               href={"/dashboard/documents" as Route}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:bg-neutral-900"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-neutral-200 transition hover:border-neutral-500 hover:bg-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300"
             >
-              Documents
+              Statut du module Documents
             </Link>
           </div>
         </div>
@@ -119,14 +119,14 @@ export function PrivateHqOverview() {
                   zone.href.startsWith("/") ? (
                     <Link
                       href={zone.href as Route}
-                      className="mt-4 inline-flex text-sm font-semibold text-amber-300 hover:text-amber-200"
+                      className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-amber-300 hover:text-amber-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300"
                     >
                       {zone.cta}
                     </Link>
                   ) : (
                     <a
                       href={zone.href}
-                      className="mt-4 inline-flex text-sm font-semibold text-amber-300 hover:text-amber-200"
+                      className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-amber-300 hover:text-amber-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300"
                     >
                       {zone.cta}
                     </a>

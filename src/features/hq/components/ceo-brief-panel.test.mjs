@@ -38,7 +38,7 @@ test("available empty fixture renders a confirmed zero and empty state", () => {
   assert.doesNotMatch(card, /Indisponible|Ouvrir le coffre/);
 });
 
-test("available populated fixture renders count, illustrative filenames, hats and link", () => {
+test("available populated fixture renders count, illustrative filenames, hats without an unavailable vault action", () => {
   const card = renderDocuments({
     status: "available", reason: null, totalCount: 2,
     byHat: { "Exemple illustratif": 2 },
@@ -48,8 +48,8 @@ test("available populated fixture renders count, illustrative filenames, hats an
   assert.match(card, /exemple-illustratif-a\.pdf/);
   assert.match(card, /exemple-illustratif-b\.pdf/);
   assert.match(card, /Exemple illustratif \(2\)/);
-  assert.match(card, /href="\/dashboard\/documents"/);
-  assert.match(card, /Ouvrir le coffre/);
+  assert.doesNotMatch(card, /href="\/dashboard\/documents"|Ouvrir le coffre|<button/);
+  assert.match(card, /module Documents est temporairement indisponible/);
   assert.doesNotMatch(card, /Indisponible|Aucun document dans cette source locale|Le coffre est vide/);
 });
 

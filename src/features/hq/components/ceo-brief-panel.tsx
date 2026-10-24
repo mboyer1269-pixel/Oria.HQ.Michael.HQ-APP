@@ -1,5 +1,3 @@
-import type { Route } from "next";
-import Link from "next/link";
 import { CalendarClock, FileText, Sparkles, UsersRound, type LucideIcon } from "lucide-react";
 import type { CeoBriefSnapshot } from "@/features/hq/types";
 import type { ReactNode } from "react";
@@ -147,14 +145,9 @@ export function CeoBriefPanel({ brief }: CeoBriefPanelProps) {
               <p className="mt-4 text-xs text-neutral-500">
                 Source : fixture locale de démonstration — pas de données de production.
               </p>
-              {documentsAvailable && brief.documents.totalCount !== null && brief.documents.totalCount > 0 ? (
-                <Link
-                  href={"/dashboard/documents" as Route}
-                  className="mt-4 inline-flex text-sm font-semibold text-amber-300 hover:text-amber-200"
-                >
-                  Ouvrir le coffre
-                </Link>
-              ) : null}
+              <p className="mt-2 text-sm text-neutral-400">
+                Le module Documents est temporairement indisponible. Ces références ne sont pas ouvrables ici.
+              </p>
             </>
           }
           items={

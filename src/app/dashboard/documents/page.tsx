@@ -18,7 +18,7 @@ export default async function DocumentsDashboard() {
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/80 p-6 md:p-8">
         <Link
           href={"/hq" as Route}
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-500 transition hover:text-neutral-300"
+          className="inline-flex min-h-11 items-center gap-1.5 text-xs text-neutral-500 transition hover:text-neutral-300 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Michael HQ
@@ -32,7 +32,7 @@ export default async function DocumentsDashboard() {
         </p>
         <Link
           href={"/hq" as Route}
-          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400"
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-lg bg-amber-500 px-4 text-sm font-semibold text-neutral-950 transition hover:bg-amber-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300"
         >
           Retour à Michael HQ
         </Link>
