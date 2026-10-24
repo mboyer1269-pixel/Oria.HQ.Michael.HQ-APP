@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - builder/review-node22-security-20261023
   push:
     branches:
       - main
@@ -33,12 +34,15 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
+        id: install
         run: npm ci
 
       - name: Typecheck
+        id: typecheck
         run: npm run typecheck
 
       - name: Lint
+        id: lint
         run: npm run lint
 
       # Blocks on advisories in packages THIS repo declares. Transitive ones are
@@ -49,39 +53,52 @@ jobs:
         run: npm run audit:deps
 
       - name: Architecture layering guard
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run check:layering
 
       - name: System map is current
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run map:check
 
       - name: Build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.typecheck.outcome == 'success' && steps.lint.outcome == 'success' }}
+        id: build
         run: npm run build
 
       - name: Runtime smoke test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.build.outcome == 'success' }}
         run: npm run smoke:runtime
 
       - name: Joris smoke test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.build.outcome == 'success' }}
         run: npm run smoke:joris
 
       - name: Joris Memex evidence smoke test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.build.outcome == 'success' }}
         run: npm run smoke:joris:memex-evidence
 
       - name: Unit tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm test
 
       - name: Ledger hash-chain audit
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run ledger:audit
 
       - name: Ledger hash-chain migration draft check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run ledger:check-migration-draft
 
       - name: Ledger hash-chain not-live guard
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run ledger:guard-not-live
 
       - name: Mission persistence migration draft check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run mission:check-migration-draft
 
       - name: Mission persistence not-live guard
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run mission:guard-not-live
 
   # Wiring tripwires, deliberately separate from `verify`.

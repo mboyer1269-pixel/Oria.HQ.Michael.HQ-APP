@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 648,
-    "live": 597,
+    "sourceFiles": 650,
+    "live": 599,
     "testOnly": 5,
     "incubation": 46
   },
@@ -161,6 +161,7 @@
     "src/features/cockpit/components/cockpit-topbar.tsx",
     "src/features/cockpit/components/command-palette.tsx",
     "src/features/cockpit/components/control-chain.tsx",
+    "src/features/cockpit/components/conversation-context-rail.tsx",
     "src/features/cockpit/components/daily-direction-widget.tsx",
     "src/features/cockpit/components/founder-zero-state.tsx",
     "src/features/cockpit/components/governance-bar.tsx",
@@ -333,6 +334,7 @@
     "src/features/ventures/venture-suggestions.ts",
     "src/features/workflows/agent-quality-from-runs.ts",
     "src/features/workflows/agent-run-health.ts",
+    "src/features/workflows/agent-run-observation.ts",
     "src/features/workflows/components/agent-run-health-panel.tsx",
     "src/features/workflows/components/kpi-observation-panel.tsx",
     "src/features/workflows/components/workflow-board-live.tsx",

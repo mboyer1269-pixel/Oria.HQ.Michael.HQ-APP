@@ -1,0 +1,12 @@
+/* Scoped to the cockpit variant; the existing HQ CommandCenter stays intact. */
+.conversation-workspace { display: grid; gap: 1rem; align-items: start; min-width: 0; }
+.conversation-workspace > * { min-width: 0; }
+.conversation-pending :is(button, a, summary),
+.conversation-workspace :is(button, select, a) { min-height: 44px; }
+.conversation-pending :is(button, a, summary):focus-visible,
+.conversation-workspace :is(button, select, a, input):focus-visible { outline: 2px solid var(--marigold); outline-offset: 3px; }
+.conversation-workspace .conversation-thread { overflow-wrap: anywhere; }
+.conversation-workspace .conversation-context { border-top: 3px solid var(--grape); }
+@media (min-width: 1280px) {
+  .conversation-workspace { grid-template-columns: minmax(0, 1fr) 320px; }
+}

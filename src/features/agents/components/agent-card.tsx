@@ -31,7 +31,7 @@ const STATUS_STYLES: Record<AgentStatus, { badge: string; dot: string; label: st
   active: {
     badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
     dot: "bg-emerald-400",
-    label: "Actif",
+    label: "Profil activé",
   },
   standby: {
     badge: "border-amber-500/20 bg-amber-500/10 text-amber-300",
@@ -56,7 +56,7 @@ export function AgentCard({ agent }: { agent: AgentProfile }) {
 
   return (
     <article className="flex flex-col gap-4 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900">
             <Icon className="h-4 w-4 text-neutral-400" />

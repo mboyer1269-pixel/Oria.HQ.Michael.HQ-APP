@@ -20,14 +20,9 @@ import { validateAgentSkillMapping } from "@/features/agents/skill-mapping";
 import { skillsCatalog } from "@/features/skills/seed";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
-import type { ActionLedgerEntry } from "@/server/actions/action-ledger-repository";
 import { listMissionsForWorkspace } from "@/server/missions";
-import { buildMissionLookup, type MissionLookup } from "@/features/hq/ledger-activity";
-import { buildAgentObservationsFromRuns } from "@/features/workflows/agent-quality-from-runs";
-import { buildRunHealthReport } from "@/features/workflows/agent-run-health";
+import { AGENT_ACTIVITY_LIMIT, loadAgentRunObservation } from "@/features/workflows/agent-run-observation";
 import { AgentRunHealthPanel } from "@/features/workflows/components/agent-run-health-panel";
-import { reduceWorkflowRuns } from "@/features/workflows/workflow-run-events";
-import { projectRunsFromLedger } from "@/features/workflows/workflow-run-projection";
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
@@ -63,38 +58,19 @@ export default async function AgentsPage() {
     agents: agentRegistry,
     skills: skillsCatalog,
   });
-  // Real runs from the action ledger feed both the quality scorecard and the
-  // run-health scorecard, so HQ health reflects actual runs — not just the
-  // blueprint baseline. Missions resolve real run titles/conclusions; any
-  // failure falls back to empty data (baseline preserved). Read-only.
-  let ledgerEntries: ActionLedgerEntry[] = [];
-  let missionLookup: MissionLookup = new Map();
-  try {
-    const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
-    const [ledger, missions] = await Promise.all([
-      listActionLedgerForWorkspace({ workspaceId: activeWorkspace.id, limit: 100 }),
-      listMissionsForWorkspace({ workspaceId: activeWorkspace.id, modeId: activeMode.id }),
-    ]);
-    ledgerEntries = ledger.entries;
-    missionLookup = buildMissionLookup(missions.missions);
-  } catch {
-    ledgerEntries = [];
-    missionLookup = new Map();
-  }
-
-  // Single derivation: project the runs ONCE, then derive both the quality
-  // observations and the run-health report from the same list (no double
-  // aggregation, no drift). `nowMs` drives stuck-run detection.
   const nowMs = new Date().getTime();
-  const runs = reduceWorkflowRuns(projectRunsFromLedger(ledgerEntries, missionLookup));
-  const runObservations = buildAgentObservationsFromRuns(runs);
-  const runHealth = buildRunHealthReport(runs, { nowMs });
+  const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
+  const observation = await loadAgentRunObservation(
+    () => listActionLedgerForWorkspace({ workspaceId: activeWorkspace.id, limit: AGENT_ACTIVITY_LIMIT }),
+    () => listMissionsForWorkspace({ workspaceId: activeWorkspace.id, modeId: activeMode.id }),
+    nowMs,
+  );
   const agentNames = Object.fromEntries(agentRegistry.map((agent) => [agent.id, agent.name]));
 
   const qualityEvaluation = buildAgentQualityEvaluation({
     knowledgeCatalog: knowledgePackCatalog,
     autonomyCockpit,
-    observations: runObservations,
+    observations: observation.observations,
   });
 
   // Derive the local review queue from the quality scorecards via the shared
@@ -148,14 +124,23 @@ export default async function AgentsPage() {
       </HqWidget>
 
       <HqWidget title="Santé des runs" eyebrow="Runs réels — ledger" icon={Activity}>
-        <AgentRunHealthPanel report={runHealth} agentNames={agentNames} nowMs={nowMs} />
+        <AgentRunHealthPanel observation={observation} agentNames={agentNames} nowMs={nowMs} />
       </HqWidget>
 
       <HqWidget title="Qualité opérationnelle" eyebrow="Evaluation" icon={ShieldCheck}>
+        {qualityEvaluation.summary.evidenceMode === "blueprint_baseline" && (
+          <p className="mb-3 text-sm text-neutral-300">
+            Baseline théorique — aucune qualité observée exploitable dans cette lecture.
+            {observation.status !== "complete" && " Les données d’activité sont incomplètes ou indisponibles."}
+          </p>
+        )}
         <AgentQualityEvaluationPanel model={qualityEvaluation} />
       </HqWidget>
 
       <HqWidget title="Review queue" eyebrow="Operator loop" icon={Users}>
+        {observation.status !== "complete" && (
+          <p className="mb-3 text-sm text-neutral-300">Revue issue de la baseline théorique, sans conclusion sur les runs indisponibles.</p>
+        )}
         <AgentReviewQueuePanel queue={reviewQueue} />
       </HqWidget>
 
