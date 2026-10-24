@@ -273,6 +273,7 @@ export function classifyHermesOpenAiCodexAuthStatus(
 export function createHermesCodexConnectionProbe(
   runner: SshCommandRunner = createSshAuthStatusRunner(HERMES_CODEX_PROBE_APPROVAL),
 ): ProviderConnectionProbe {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   return async (provider: ModelProviderDescriptor, _adapters: readonly RuntimeAdapterDescriptor[]) => {
     if (provider.id !== "openai-codex") {
       return {
