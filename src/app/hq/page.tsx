@@ -1,3 +1,4 @@
+import { getAgentDisplayNames } from "@/features/agents/actions/display-names";
 import { getDefaultAssistantProfile } from "@/core/workspaces/registry";
 import type { Route } from "next";
 import Link from "next/link";
@@ -126,6 +127,8 @@ export default async function HqPage() {
   }
 
   const { activeWorkspace } = getActiveWorkspaceContext();
+  const naming = await getAgentDisplayNames();
+  const assistant = naming?.workspaceId === activeWorkspace.id ? naming.assistant : getDefaultAssistantProfile(activeWorkspace);
 
   return (
     <CockpitShell active="hq" crumb="HQ">
@@ -232,7 +235,7 @@ export default async function HqPage() {
       <MissionDraftPendingPanel workspaceId={activeWorkspace.id} variant="banner" />
 
       <HqWidgetGrid className="lg:grid-cols-[1.15fr_0.85fr]">
-        <CommandCenter workspaceId={activeWorkspace.id} workspaceName={activeWorkspace.displayName} assistant={getDefaultAssistantProfile(activeWorkspace)} />
+        <CommandCenter workspaceId={activeWorkspace.id} workspaceName={activeWorkspace.displayName} assistant={assistant} />
         <AgendaPanel />
       </HqWidgetGrid>
 

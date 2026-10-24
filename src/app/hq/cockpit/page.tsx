@@ -1,3 +1,4 @@
+import { getAgentDisplayNames } from "@/features/agents/actions/display-names";
 import { CommandCenter } from "@/features/hq/components/command-center";
 import { MissionDraftPendingPanel } from "@/features/hq/components/mission-draft-pending-panel";
 import { getDefaultWorkspace, getDefaultAssistantProfile } from "@/core/workspaces/registry";
@@ -30,7 +31,8 @@ export default async function CockpitPage() {
 
   const workspace = getDefaultWorkspace({ ownerUserId: access.user.id });
   const workspaceId = workspace.id;
-  const assistant = getDefaultAssistantProfile(workspace);
+  const naming = await getAgentDisplayNames();
+  const assistant = naming?.workspaceId === workspace.id ? naming.assistant : getDefaultAssistantProfile(workspace);
   const userId = access.user.id;
   // One clock read for the whole request. Two reads could straddle midnight
   // and hand the page a date and an instant that disagree.

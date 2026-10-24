@@ -42,9 +42,10 @@ export function resolveAgentId(idOrAlias: string): string {
  * when the reference does not resolve to a registry agent, so unknown writers
  * stay visible instead of disappearing.
  */
-export function getAgentDisplayName(idOrAlias: string): string {
+export function getAgentDisplayName(idOrAlias: string, displayNames: Readonly<Record<string, string>> = {}): string {
   const id = resolveAgentId(idOrAlias);
-  return agentRegistry.find((agent) => agent.id === id)?.name ?? idOrAlias;
+  const override = Object.hasOwn(displayNames, id) ? displayNames[id] : undefined;
+  return override ?? agentRegistry.find((agent) => agent.id === id)?.name ?? idOrAlias;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,9 +100,9 @@ export function resolveCouncilRoleToAgentId(roleId: string): string | null {
  * role is agent-backed, the lens label when it is synthetic, and the raw token
  * as a last-resort fallback so unknown roles stay visible instead of vanishing.
  */
-export function getCouncilRoleDisplayName(roleId: string): string {
+export function getCouncilRoleDisplayName(roleId: string, displayNames: Readonly<Record<string, string>> = {}): string {
   const agentId = COUNCIL_ROLE_TO_AGENT[roleId];
-  if (agentId !== undefined) return getAgentDisplayName(agentId);
+  if (agentId !== undefined) return getAgentDisplayName(agentId, displayNames);
   const synthetic = SYNTHETIC_COUNCIL_ROLES[roleId];
   if (synthetic !== undefined) return synthetic.label;
   return roleId;
