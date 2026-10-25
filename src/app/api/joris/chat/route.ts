@@ -1,3 +1,5 @@
+import { loadSubscriptionCatalog, subscriptionOptions, subscriptionSelectionSchema } from "@/server/ai/subscription-catalog";
+import { runSubscriptionTurn } from "@/server/ai/subscription-runtime";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
@@ -12,13 +14,14 @@ const requestSchema = z.object({
   message: z.string().min(1).max(4000),
   locale: z.literal("fr-CA").default("fr-CA"),
   modelSelection: chatModelSelectionSchema.optional(),
-}).strict();
+  subscriptionSelection: subscriptionSelectionSchema.optional(),
+}).strict().refine(value => !(value.modelSelection && value.subscriptionSelection));
 
 export async function GET() {
   const authResponse=await requireOwnerApiSession();if(authResponse)return authResponse;
   const ctx=getActiveWorkspaceContext();
   const catalog=await loadChatCapabilityCatalog();
-  return NextResponse.json({options:chatModelOptions(catalog,ctx.workspace.id),status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
+  return NextResponse.json({options:[...chatModelOptions(catalog,ctx.workspace.id),...subscriptionOptions(await loadSubscriptionCatalog())],status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(request: Request) {
@@ -37,10 +40,13 @@ export async function POST(request: Request) {
 
   try {
     const workspaceContext = getActiveWorkspaceContext();
+    if (parsed.data.subscriptionSelection) {
+      return NextResponse.json(await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog()));
+    }
     const catalog=await loadChatCapabilityCatalog();
     const binding=resolveChatModelBinding(catalog,workspaceContext.workspace.id,parsed.data.modelSelection);
     const result = await runJorisCommand(parsed.data.message, workspaceContext, undefined, binding);
-    return NextResponse.json(result);
+    return NextResponse.json({...result,consumptionMode:"pay_per_use_api"});
   } catch (error) {
     if (error instanceof CalendarServiceError) {
       return NextResponse.json(

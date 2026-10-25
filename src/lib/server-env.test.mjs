@@ -355,7 +355,7 @@ test("Schema completeness — it is the full inventory of what the code reads", 
   await t.test(".env.example documents every declared variable", async () => {
     const example = await read(".env.example");
     const documented = new Set(
-      [...example.matchAll(/^([A-Z][A-Z0-9_]+)=/gm)].map((match) => match[1]),
+      [...example.matchAll(/^(?:# )?([A-Z][A-Z0-9_]+)=/gm)].map((match) => match[1]),
     );
 
     const missingFromExample = [...declared].filter((name) => !documented.has(name)).sort();

@@ -179,6 +179,10 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
     paths: ["src/scripts/smoke/n8n-execution-slice.mjs"],
   },
   {
+    reason: "Smoke abonnement lancé manuellement : aide CLI ou un seul tour minimal via le même adaptateur local ; jamais exécuté par les tests.",
+    paths: ["src/scripts/smoke/subscription-runtime-turn.mjs"],
+  },
+  {
     reason:
       "Sonde SSH Hermes de qualification opérateur : aucune route ni page applicative ne l'importe. Commande de statut seule, approbation écrite et environnement local requis ; aucun prompt modèle.",
     paths: ["src/server/agents/models/hermes-codex-connection-probe.ts"],
@@ -190,6 +194,19 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
  * consequence.
  */
 export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
+  {
+    id: "subscription_chat_turn",
+    label: "Chat · abonnement CLI local",
+    executorKey: "runSubscriptionTurn",
+    effect: "external_call",
+    gate: "owner_session",
+    detail: "Sélection explicite propriétaire, opt-in local et login abonnement vérifié ; prompt stdin, configuration figée, aucun repli API payant.",
+    evidence: {
+      path: "src/server/ai/subscription-runtime.ts",
+      mustContain: "spawn(binary, args, options)",
+      because: "The authenticated chat route reaches a bounded CLI process only after a pinned catalog selection and official subscription login verification.",
+    },
+  },
   {
     id: "runner_connection_status_probe",
     label: "Runner · statut de connexion",

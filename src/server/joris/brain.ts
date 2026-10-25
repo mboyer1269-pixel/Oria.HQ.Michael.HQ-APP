@@ -1,7 +1,7 @@
 import type { CommandResult, JorisIntent, MissionPlanResult } from "@/core/types";
 import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import { logger } from "@/lib/logger";
-import { chooseModel } from "@/server/ai/model-router";
+import { chooseModel, recordBoundBrainRoute } from "@/server/ai/model-router";
 import type { TaskClass } from "@/server/ai/cost-ladder";
 import { buildCeoBriefSnapshot } from "@/server/brief/ceo-brief-service";
 import { parseCalendarIntent } from "@/server/calendar/intent-parser";
@@ -311,6 +311,7 @@ export async function runJorisCommand(
   const ctx = workspaceContext;
 
   const route = chooseModel({
+    suppressRouteLog: !!chatBinding,
     message,
     highImpact: false,
     // Shadow tagging (Cost Ladder, display_only): the pre-intent reply route
@@ -399,6 +400,7 @@ export async function runJorisCommand(
 
   const intent = detectIntent(message);
   const routedModel = chooseModel({
+    suppressRouteLog: !!chatBinding,
     message,
     highImpact: intent === "board.consult" || intent === "opportunity.score",
     // Shadow tagging (Cost Ladder, display_only): map the detected intent to a
@@ -719,6 +721,11 @@ export async function runJorisCommand(
     };
   }
 
+  if (chatBinding?.status === "ready") {
+    const approved = chatBinding.binding.approved;
+    const capability = chatBinding.binding.catalog.entries.find(entry => entry.modelId === approved.modelId && entry.accountId === approved.accountId && entry.workspaceId === ctx.workspace.id);
+    if (capability) recordBoundBrainRoute({ provider: capability.provider, modelId: approved.modelId, runtimeId: `${capability.provider}-http-json`, consumptionMode: "pay_per_use_api", inputChars: message.length });
+  }
   const llmReply = await deps.generateReply({
     message,
     memoryContext: memory.memoryContext,
