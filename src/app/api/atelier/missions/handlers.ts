@@ -20,6 +20,7 @@ const ERRORS: Record<string, [number, string]> = {
   subscription_auth_required: [503, "Abonnement CLI non connecté (aucun repli API)."],
   repo_outside_atelier_root: [400, "Dépôt hors du dossier atelier de cet espace."],
   invalid_workspace_id: [400, "Identifiant d'espace invalide pour le dossier des dépôts."],
+  workspace_path_collision: [409, "Un autre espace utilise déjà ce dossier de dépôts (identifiants identiques sans la casse)."],
   stale_lock_reclaim_in_progress: [409, "Reprise déjà en cours par un autre processus."],
   process_identity_unavailable: [503, "Identité de processus non vérifiable (ni /proc ni ps) : atelier refusé sur cette machine."],
   repo_not_git: [400, "Le dépôt n'est pas un dépôt git."],

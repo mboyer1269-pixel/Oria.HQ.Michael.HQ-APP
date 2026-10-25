@@ -135,13 +135,26 @@ export function observedModel(runtimeId: RuntimeId, sessionId: string, transcrip
 const executorOf = (r: RuntimeId) => r === "codex" ? "codex_cli" as const : "claude_code_cli" as const;
 
 // ---------- missions ----------
-/** Repos are stored per workspace: <reposRoot>/<workspaceId>/... (SENT-412-4/8). */
+/**
+ * Repos are stored per workspace: <reposRoot>/<lowercased workspaceId>/... (SENT-412-4/8/13). The path segment is
+ * lowercased (case-insensitive file systems such as APFS), and the first workspace to use a directory claims it
+ * (`.oria-workspace-id`, created exclusively): another id mapping to the same directory is refused.
+ */
 export function workspaceReposRoot(workspaceId: string, env = process.env) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(workspaceId) || workspaceId.includes("..")) throw new Error("invalid_workspace_id");
-  return join(atelierReposRoot(env), workspaceId);
+  return join(atelierReposRoot(env), workspaceId.toLowerCase());
+}
+export const WORKSPACE_CLAIM_FILE = ".oria-workspace-id";
+export function claimWorkspaceReposRoot(workspaceId: string, env = process.env) {
+  const dir = workspaceReposRoot(workspaceId, env); const claim = join(dir, WORKSPACE_CLAIM_FILE);
+  if (!existsSync(dir)) return dir;
+  try { writeFileSync(claim, workspaceId, { flag: "wx" }); } catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; }
+  if (readFileSync(claim, "utf8").trim() !== workspaceId) throw new Error("workspace_path_collision");
+  return dir;
 }
 export function resolveRepoPath(repoPath: string, workspaceId: string, env = process.env) {
   let base: string, real: string;
+  claimWorkspaceReposRoot(workspaceId, env);
   try { base = realpathSync(workspaceReposRoot(workspaceId, env)); real = realpathSync(repoPath); } catch (e) {
     if ((e as Error).message === "invalid_workspace_id") throw e; throw new Error("repo_outside_atelier_root");
   }

@@ -219,3 +219,15 @@ test("SENT-412-12: concurrent breakers of the same instance — exactly one unli
   assert.equal(A.breakAbandoned(f), true, "crashed breaker taken over by next generation");
   assert.equal(existsSync(f), false); assert.equal(existsSync(crashed), false);
 });
+
+test("SENT-412-13: workspace repo dirs are lowercased and case-variant ids colliding on one dir are refused", async () => {
+  const { mkdirSync } = await import("node:fs"); const { execFileSync } = await import("node:child_process");
+  const root = mkdtempSync(join(tmpdir(), "ws-")); const env = { ...process.env, ORIA_ATELIER_REPOS_ROOT: root };
+  assert.equal(A.workspaceReposRoot("MichaelHQ", env), join(root, "michaelhq"));
+  const repo = join(root, "michaelhq", "r"); mkdirSync(repo, { recursive: true }); execFileSync("git", ["-C", repo, "init", "-q"]);
+  assert.ok(A.resolveRepoPath(repo, "MichaelHQ", env).endsWith("/michaelhq/r"));
+  assert.equal(readFileSync(join(root, "michaelhq", A.WORKSPACE_CLAIM_FILE), "utf8"), "MichaelHQ");
+  assert.throws(() => A.resolveRepoPath(repo, "michaelhq", env), /workspace_path_collision/);
+  assert.throws(() => A.resolveRepoPath(repo, "MICHAELHQ", env), /workspace_path_collision/);
+  assert.ok(A.resolveRepoPath(repo, "MichaelHQ", env), "the claiming workspace keeps access");
+});
