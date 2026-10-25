@@ -34,7 +34,7 @@ test('one retry on malformed output, error fed back', async () => {
   const h = home({ 'reply.1': JSON.stringify('not json at all') });
   const r = await L.claudeJson('q', schema, { binary: FAKE, env: envFor(h) });
   assert.equal(r.ok, true); assert.equal(r.attempts, 2);
-  assert.match(readFileSync(path.join(h, 'input.2'), 'utf8'), /failed validation/);
+  assert.match(readFileSync(path.join(h, 'input.2'), 'utf8'), /refusée par le validateur/);
 });
 
 test('fenced JSON accepted; schema mismatch twice → invalid_output after exactly 2 calls', async () => {
@@ -80,4 +80,20 @@ test('init apiKeySource != none → run killed as paid_session, no retry', async
 test('parseClaudeJsonTranscript refuses a transcript without subscription init', () => {
   const t = '{"type":"result","is_error":false,"result":"{\\"answer\\":1}"}';
   assert.equal(L.parseClaudeJsonTranscript(t, schema).ok, false);
+});
+
+test('418-4: unsafe model ids refused before any spawn', async () => {
+  for (const model of ['--dangerously-skip-permissions', '-x', 'Sonnet', 'a b', 'a;b', '', 'x'.repeat(65)]) {
+    const h = home();
+    const r = await L.claudeJson('q', schema, { binary: FAKE, env: envFor(h), model });
+    assert.equal(r.ok, false); assert.equal(r.error, 'model_refused'); assert.equal(calls(h), 0);
+  }
+  assert.equal(L.isSafeModelId('claude-sonnet-4.5'), true);
+});
+
+test('validation errors never echo model output', async () => {
+  const h = home({ reply: JSON.stringify('voici sk-ant-api03-FAUX') });
+  const r = await L.claudeJson('q', schema, { binary: FAKE, env: envFor(h) });
+  assert.equal(r.reason, 'invalid_output'); assert.doesNotMatch(String(r.error), /sk-ant|voici/);
+  assert.doesNotMatch(readFileSync(path.join(h, 'input.2'), 'utf8'), /sk-ant/);
 });

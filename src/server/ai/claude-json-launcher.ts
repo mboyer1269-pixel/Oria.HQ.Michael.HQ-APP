@@ -2,10 +2,11 @@ import "server-only";
 /**
  * Strict-JSON exchanges with the local Claude Code CLI on the owner's claude.ai SUBSCRIPTION.
  *
- * Concept (not code) from FounderOS lib/creative-engine/claude.ts (MIT, © FounderOS contributors):
- * strict JSON reply validated by a zod schema, one retry that feeds the validation error back,
- * and a missing binary reported as `{ ok: false }` instead of an exception. Rewritten for Oria's
- * subscription guards; no FounderOS code is copied.
+ * Idea credited to FounderOS lib/creative-engine/claude.ts (https://github.com/Bennettxai/FounderOS, MIT):
+ * strict JSON reply validated by a zod schema, one retry that feeds the validation error back, and a missing
+ * binary reported as `{ ok: false }` instead of an exception. Implementation written for Oria (stream-json
+ * transcript, subscription guards, single-fence unwrap, non-echoing validation feedback in French); an earlier
+ * draft reused a few FounderOS lines (fence regex, parse block, retry wording) — those were rewritten (SENT-418-1).
  *
  * Guards reused (never bypassed): ORIA_HQ_SUBSCRIPTION_RUNTIMES + local-probe environment
  * (subscriptionEnabled), API-key/paid-switch env refusal, cleaned allowlisted env (agentEnvironment),
@@ -31,6 +32,9 @@ type Spawner = (binary: string, args: string[], options: { env: NodeJS.ProcessEn
 export type ClaudeJsonOptions = { model?: string; timeoutMs?: number; env?: NodeJS.ProcessEnv; binary?: string; spawn?: Spawner };
 
 const PAID_ENV = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CODEX_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY", "ANTHROPIC_BASE_URL"];
+
+/** 418-4: a model id is a plain slug; a leading "-" (option injection) or anything else is refused. */
+export const isSafeModelId = (m: unknown): m is string => typeof m === "string" && /^[a-z0-9][a-z0-9.-]{0,63}$/.test(m);
 
 export function claudeJsonArguments(model: string): string[] {
   return ["-p", "--model", model, "--output-format", "stream-json", "--verbose", "--tools", "", "--permission-mode", "default",
@@ -65,9 +69,18 @@ function run(binary: string, args: string[], input: string, cwd: string, env: No
   });
 }
 
-function stripFence(text: string): string {
-  const m = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return (m ? m[1] : text).trim();
+/** Oria rule: the reply is either bare JSON or ONE fenced block; anything else is rejected as-is. */
+function unwrapReply(raw: string): string {
+  const body = raw.trim();
+  if (!body.startsWith("`" + "``")) return body;
+  const lines = body.split(/\r?\n/);
+  const closing = lines.length > 1 && lines[lines.length - 1].trim() === "`" + "``";
+  return closing ? lines.slice(1, -1).join("\n").trim() : body;
+}
+
+/** Validation feedback WITHOUT echoing model output (no secret-like text travels back into errors/logs). */
+function describeIssues(error: z.ZodError): string {
+  return error.issues.slice(0, 10).map(i => `${i.path.length ? i.path.join(".") : "(root)"}: ${i.code}`).join("; ");
 }
 
 /** Parse one stream-json transcript into a schema-valid value. Pure; exported for tests. */
@@ -77,10 +90,10 @@ export function parseClaudeJsonTranscript<S extends z.ZodType>(transcript: strin
   const result = [...events].reverse().find(e => e.type === "result");
   if (!result || result.is_error || typeof result.result !== "string") return { ok: false, error: "no_result" };
   const assistant = [...events].reverse().find(e => e.type === "assistant" && typeof e.message?.model === "string");
-  let candidate: unknown;
-  try { candidate = JSON.parse(stripFence(result.result)); } catch (e) { return { ok: false, error: `reply was not valid JSON: ${e instanceof Error ? e.message : String(e)}` }; }
-  const parsed = schema.safeParse(candidate);
-  if (!parsed.success) return { ok: false, error: parsed.error.message.slice(0, 600) };
+  const decoded = (() => { try { return { value: JSON.parse(unwrapReply(result.result)) as unknown }; } catch { return null; } })();
+  if (!decoded) return { ok: false, error: "not_json" };
+  const parsed = schema.safeParse(decoded.value);
+  if (!parsed.success) return { ok: false, error: `schema_mismatch (${describeIssues(parsed.error)})` };
   return { ok: true, data: parsed.data, model: assistant?.message.model ?? null };
 }
 
@@ -89,7 +102,9 @@ export async function claudeJson<S extends z.ZodType>(prompt: string, schema: S,
   const env = { ...(opts.env ?? process.env) };
   if (!subscriptionEnabled(env)) return { ok: false, reason: "disabled", attempts: 0 };
   if (PAID_ENV.some(k => env[k])) return { ok: false, reason: "api_key_present", attempts: 0 };
-  const args = claudeJsonArguments(opts.model ?? "sonnet");
+  const model = opts.model ?? "sonnet";
+  if (!isSafeModelId(model)) return { ok: false, reason: "failed", error: "model_refused", attempts: 0 };
+  const args = claudeJsonArguments(model);
   try { assertClaudeLoadedSettings(args); } catch { return { ok: false, reason: "subscription_auth_required", attempts: 0 }; }
   if (!checkCliArguments(args).ok) return { ok: false, reason: "failed", error: "arguments_refused", attempts: 0 };
   if (inFlight || subscriptionRuntimeBusy()) return { ok: false, reason: "busy", attempts: 0 };
@@ -115,7 +130,7 @@ export async function claudeJson<S extends z.ZodType>(prompt: string, schema: S,
       if (parsed.ok) return { ok: true, data: parsed.data, model: parsed.model, attempts: attempt };
       if (parsed.error === "no_subscription_init") return { ok: false, reason: "paid_session", attempts: attempt };
       if (attempt === 2) return { ok: false, reason: "invalid_output", error: parsed.error, attempts: 2 };
-      input = `${prompt}\n\nYour previous reply failed validation with this error:\n${parsed.error}\nReply again with ONLY corrected strict JSON — nothing else.`;
+      input = [prompt, "", `[oria] Réponse refusée par le validateur : ${parsed.error}.`, "[oria] Renvoie uniquement l'objet JSON conforme, sans texte autour."].join("\n");
     }
     return { ok: false, reason: "invalid_output", attempts: 2 };
   } finally {

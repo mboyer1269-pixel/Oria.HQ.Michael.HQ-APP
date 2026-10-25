@@ -376,6 +376,19 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     }
   });
 
+  await t.test("Claude JSON launcher has no importer yet (SENT-418-2)", async () => {
+    const files = await sourceFiles();
+    const target = "src/server/ai/claude-json-launcher.ts";
+    const knownFiles = new Set(files.map((file) => toPosix(path.relative(projectRoot, file))));
+    for (const file of files) {
+      const rel = toPosix(path.relative(projectRoot, file));
+      if (rel === target) continue;
+      for (const specifier of importedSourceSpecifiers(await read(rel))) {
+        assert.notEqual(resolveSourceSpecifier(rel, specifier, knownFiles), target, `${rel} now imports claudeJson — declare it as a RUNTIME_CAPABILITY (owner + subscription-owner gate) and drop it from OUT_OF_SCOPE_EFFECT_SURFACES`);
+      }
+    }
+  });
+
   await t.test("every built-in skill handler is inventoried", async () => {
     const source = await read("src/server/runtime/skill-dispatcher.ts");
     const start = source.indexOf("const BUILTIN_HANDLERS");
