@@ -119,7 +119,6 @@ export function CockpitShell({
 
   return (
     <div className="grid min-h-screen grid-cols-[64px_1fr] bg-[#080a16] md:grid-cols-[250px_1fr]">
-      <a href="#hq-main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:p-3 focus:text-black">Aller au contenu</a>
       {/* Sidebar */}
       <aside className="sticky top-0 flex h-screen flex-col gap-1.5 overflow-auto border-r border-white/[0.06] bg-gradient-to-b from-[#0c1020]/95 to-[#080b18]/95 p-3.5 backdrop-blur-xl">
         <div className="flex items-center gap-3 px-2 pb-4 pt-1.5">
@@ -176,7 +175,7 @@ export function CockpitShell({
         {/* Read-only activity rail (no fabricated events, no ledger writes). */}
         <ActivityRail />
 
-        <main id="hq-main" tabIndex={-1} className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
+        <main id="main-content" tabIndex={-1} className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
           {children}
         </main>
       </div>

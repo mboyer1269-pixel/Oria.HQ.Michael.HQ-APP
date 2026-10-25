@@ -16,7 +16,7 @@ const SHELL_SIZE = {
 
 export function HqPageShell({ children, size = "wide" }: HqPageShellProps) {
   return (
-    <main
+    <main id="main-content" tabIndex={-1}
       className={`mx-auto flex min-h-screen w-full ${SHELL_SIZE[size]} flex-col gap-5 px-4 py-5 sm:gap-6 md:px-8 md:py-8`}
     >
       {children}

@@ -92,7 +92,7 @@ export function ContactLeadForm() {
               minLength={2}
               maxLength={120}
               autoComplete="name"
-              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
               placeholder="Ton nom"
             />
           </label>
@@ -104,7 +104,7 @@ export function ContactLeadForm() {
               type="email"
               maxLength={254}
               autoComplete="email"
-              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
               placeholder="toi@entreprise.com"
             />
           </label>
@@ -117,7 +117,7 @@ export function ContactLeadForm() {
               name="phone"
               maxLength={40}
               autoComplete="tel"
-              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
               placeholder="+1 514 ..."
             />
           </label>
@@ -127,7 +127,7 @@ export function ContactLeadForm() {
               name="company"
               maxLength={160}
               autoComplete="organization"
-              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
               placeholder="Nom de l'entreprise"
             />
           </label>
@@ -141,7 +141,7 @@ export function ContactLeadForm() {
             minLength={10}
             maxLength={4000}
             rows={5}
-            className="w-full resize-none rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+            className="w-full resize-none rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
             placeholder="Explique le besoin: assistant personnel, conseiller financier, immobilier ou autre métier."
           />
         </label>

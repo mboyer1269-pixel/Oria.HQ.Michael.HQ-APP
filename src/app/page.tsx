@@ -45,7 +45,7 @@ const guarantees = [
 
 export default function Home() {
   return (
-    <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 overflow-x-clip px-4 py-5 sm:gap-8 md:px-8 md:py-10">
+    <main id="main-content" tabIndex={-1} className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 overflow-x-clip px-4 py-5 sm:gap-8 md:px-8 md:py-10">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-amber-500/[0.07] blur-3xl" />
         <div className="absolute right-[-10rem] top-64 h-80 w-80 rounded-full bg-emerald-500/[0.05] blur-3xl" />

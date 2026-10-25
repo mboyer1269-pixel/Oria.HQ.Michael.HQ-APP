@@ -7,7 +7,7 @@ type OwnerAccessDeniedProps = {
 
 export function OwnerAccessDenied({ email }: OwnerAccessDeniedProps) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 py-8 text-neutral-100 md:py-12">
+    <main id="main-content" tabIndex={-1} className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 py-8 text-neutral-100 md:py-12">
       <section className="w-full max-w-lg rounded-lg border border-red-500/20 bg-neutral-950/90 p-5 text-center shadow-2xl shadow-red-950/20 sm:p-8">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-300">
           <ShieldAlert className="h-7 w-7" />

@@ -43,9 +43,89 @@
   /* Easing */
   --ease: cubic-bezier(.4,0,.2,1);
 
+  /* ─── Semantic tokens v2 (cockpit-v2, DESIGN.md §3) ─── */
+  --bg: #0e0f12;
+  --surface: #16181d;
+  --surface-2: #1d2027;
+  --fg-strong: #f2f1ec;
+  --fg-soft: #b4b2aa;
+  --line: #2c2f37;
+  --accent: #e8a33d;
+  --accent-fg: #1a1204;
+  --ok: #3fbf8a;
+  --warn: #e8a33d;
+  --danger: #ef6b6b;
+  --info: #6aa9ff;
+  --focus-ring: #f5b84f;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+
   /* Legacy tokens for compatibility */
   --background: var(--ink-950);
   --foreground: var(--fg);
+}
+
+/* Light theme (opt-in via <html data-theme="light">). Legacy screens still use
+   hard-coded neutral-* classes; they migrate progressively (DESIGN.md §8 step 2). */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --surface-2: #efede6;
+  --fg-strong: #1b1c20;
+  --fg-soft: #55565c;
+  --line: #d9d6cc;
+  --accent: #9a5b00;
+  --accent-fg: #ffffff;
+  --ok: #1d7a54;
+  --warn: #8a5300;
+  --danger: #b42323;
+  --info: #1f5fbf;
+  --focus-ring: #7a4700;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg-strong);
+  --color-fg-soft: var(--fg-soft);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --font-display: "Baloo 2", "Nunito", system-ui, sans-serif;
+  --font-sans: "Nunito", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+}
+
+/* ─── Accessibility baseline (WCAG 2.2 AA) ───────────────────── */
+:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px;
+}
+.oria-skip-link {
+  position: absolute; left: 8px; top: -48px; z-index: 1000;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  background: var(--accent); color: var(--accent-fg); font-weight: 700;
+}
+.oria-skip-link:focus { top: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ─── Keyframes ──────────────────────────────────────────────── */

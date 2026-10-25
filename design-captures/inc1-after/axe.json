@@ -1,0 +1,127 @@
+{
+ "/login": {
+  "url": "http://localhost:3123/login",
+  "violations": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "nodes": 2
+   }
+  ]
+ },
+ "/hq": {
+  "url": "http://localhost:3123/hq",
+  "violations": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "nodes": 158
+   },
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "nodes": 2
+   }
+  ]
+ },
+ "/hq/cockpit": {
+  "url": "http://localhost:3123/hq/cockpit",
+  "violations": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "nodes": 29
+   },
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "nodes": 2
+   }
+  ]
+ },
+ "/hq/missions": {
+  "url": "http://localhost:3123/hq/missions",
+  "violations": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "nodes": 20
+   },
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "nodes": 2
+   },
+   {
+    "id": "link-in-text-block",
+    "impact": "serious",
+    "nodes": 1
+   },
+   {
+    "id": "scrollable-region-focusable",
+    "impact": "serious",
+    "nodes": 1
+   }
+  ]
+ },
+ "/hq/atelier": {
+  "url": "http://localhost:3123/hq/atelier",
+  "violations": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "nodes": 8
+   },
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "nodes": 2
+   }
+  ]
+ },
+ "/hq/agents": {
+  "url": "http://localhost:3123/hq/agents",
+  "violations": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "nodes": 540
+   },
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "nodes": 2
+   }
+  ]
+ },
+ "/hq/runtime": {
+  "url": "http://localhost:3123/hq/runtime",
+  "violations": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "nodes": 44
+   },
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "nodes": 2
+   }
+  ]
+ },
+ "/hq/memory": {
+  "url": "http://localhost:3123/hq/memory",
+  "violations": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "nodes": 99
+   },
+   {
+    "id": "label-content-name-mismatch",
+    "impact": "serious",
+    "nodes": 2
+   }
+  ]
+ }
+}

@@ -38,7 +38,7 @@ export function LoginForm({ initialState }: { initialState: LoginFormState }) {
           autoComplete="email"
           defaultValue={state.email}
           required
-          className="min-h-12 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10"
+          className="min-h-12 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10"
           placeholder="ton@email.com"
         />
       </div>
@@ -53,7 +53,7 @@ export function LoginForm({ initialState }: { initialState: LoginFormState }) {
           type="password"
           autoComplete="current-password"
           required
-          className="min-h-12 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10"
+          className="min-h-12 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10"
           placeholder="Ton mot de passe"
         />
       </div>
