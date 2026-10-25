@@ -224,12 +224,25 @@ test("SENT-412-13: workspace repo dirs are lowercased and case-variant ids colli
   const { mkdirSync } = await import("node:fs"); const { execFileSync } = await import("node:child_process");
   const root = mkdtempSync(join(tmpdir(), "ws-")); const env = { ...process.env, ORIA_ATELIER_REPOS_ROOT: root };
   assert.equal(A.workspaceReposRoot("MichaelHQ", env), join(root, "michaelhq"));
+  A.claimWorkspaceReposRoot("MichaelHQ", env); // first owner mission: dir created and claimed
   const repo = join(root, "michaelhq", "r"); mkdirSync(repo, { recursive: true }); execFileSync("git", ["-C", repo, "init", "-q"]);
   assert.ok(A.resolveRepoPath(repo, "MichaelHQ", env).endsWith("/michaelhq/r"));
   assert.equal(readFileSync(join(root, "michaelhq", A.WORKSPACE_CLAIM_FILE), "utf8"), "MichaelHQ");
   assert.throws(() => A.resolveRepoPath(repo, "michaelhq", env), /workspace_path_collision/);
   assert.throws(() => A.resolveRepoPath(repo, "MICHAELHQ", env), /workspace_path_collision/);
   assert.ok(A.resolveRepoPath(repo, "MichaelHQ", env), "the claiming workspace keeps access");
+});
+
+test("SENT-412-14: an unclaimed pre-existing dir is adopted only by the exact normalised id; a missing dir is created and claimed", async () => {
+  const { mkdirSync } = await import("node:fs");
+  const root = mkdtempSync(join(tmpdir(), "ws-")); const env = { ...process.env, ORIA_ATELIER_REPOS_ROOT: root };
+  mkdirSync(join(root, "michael-hq")); // legacy dir (run4), no claim
+  assert.throws(() => A.claimWorkspaceReposRoot("Michael-HQ", env), /workspace_path_collision/, "first-come mixed-case id cannot adopt");
+  assert.equal(existsSync(join(root, "michael-hq", A.WORKSPACE_CLAIM_FILE)), false);
+  A.claimWorkspaceReposRoot("michael-hq", env);
+  assert.equal(readFileSync(join(root, "michael-hq", A.WORKSPACE_CLAIM_FILE), "utf8"), "michael-hq");
+  A.claimWorkspaceReposRoot("ws-new", env);
+  assert.equal(readFileSync(join(root, "ws-new", A.WORKSPACE_CLAIM_FILE), "utf8"), "ws-new", "reserved at first owner mission");
 });
 
 test("SENT-412-15: a breaker suspended past its lease never deletes a fresh file (rename + check under private name + link restore)", async () => {

@@ -8,7 +8,7 @@ Session : `requireWorkspaceApiSession(request)` ; espace via en-tête `x-oria-wo
 Lecture : owner **ou** member de l'espace. Écriture (POST) : owner de l'espace (sinon 403 `atelier_owner_only`) **et**
 titulaire de l'abonnement CLI (`ORIA_SUBSCRIPTION_OWNERS`, ids séparés par des virgules ; défaut `MICHAEL_HQ_OWNER_ID` ;
 vide = personne), sinon 403 `subscription_owner_only`. Toutes les erreurs ont la forme `{ error, code }` (chat :
-403 `SUBSCRIPTION_OWNER_ONLY`). Dépôts rangés par espace : `$ORIA_ATELIER_REPOS_ROOT/<workspaceId en minuscules>/…` ; le premier espace qui utilise le dossier le réserve (`.oria-workspace-id`) ; un autre identifiant qui tombe sur le même dossier → 409 `workspace_path_collision`. Mission d'un autre espace → 404 (jamais 403, pas de fuite).
+403 `SUBSCRIPTION_OWNER_ONLY`). Dépôts rangés par espace : `$ORIA_ATELIER_REPOS_ROOT/<workspaceId en minuscules>/…` ; le dossier est créé et réservé (`.oria-workspace-id`, publié par tmp+link) à la première mission owner+titulaire ; un dossier existant non réservé n'est adopté que par l'identifiant égal à son nom normalisé (minuscules) ; un autre identifiant qui tombe sur le même dossier → 409 `workspace_path_collision`. Mission d'un autre espace → 404 (jamais 403, pas de fuite).
 
 | Méthode | Chemin | Corps | Réponse |
 |---|---|---|---|
@@ -43,10 +43,11 @@ ou CLAUDE_CODE_OAUTH_TOKEN est défini).
   alors refusé : 503 `process_identity_unavailable`. `pidAlive` traite EPERM comme vivant.
 - Reprise d'un verrou périmé : uniquement via `/resume`, sérialisée par `run.lock.reclaim`, avec relecture et contrôle du
   jeton. Un `run.lock.reclaim` abandonné (propriétaire mort ou non prouvable, ou illisible et vieux de plus de 10 s) est
-  cassé sous un verrou fixe par instance (`mkdir` atomique de `run.lock.reclaim.breaking-<inode>-<ctime>-<génération>`) :
-  relecture, même instance et toujours abandonné, puis suppression. Aucun renommage ni restauration : un fichier frais
-  n'est jamais déplacé ni supprimé. Un casseur tué laisse son répertoire ; la génération suivante peut reprendre après 10 s.
-  `release` ne supprime que son propre verrou.
+  cassé ainsi : bail par instance (`mkdir` atomique de `run.lock.reclaim.breaking-<inode>-<ctime>-<génération>`, 10 s),
+  puis capture atomique (`rename` vers un nom privé), vérification sous ce nom (même inode, mêmes octets, propriétaire
+  toujours mort) et seulement alors suppression. Si un fichier frais a été capturé (casseur suspendu au-delà du bail),
+  il est remis en place par `link()` sans écraser ; si un autre fichier a été publié entre-temps (fenêtre de quelques µs),
+  la capture fraîche est conservée, jamais supprimée. Les baux et captures mortes de plus de 10 s sont purgés.
 - Nettoyage des enfants CLI orphelins (runner mort) : seulement si l'heure de démarrage correspond, et seulement lors
   d'une action POST autorisée (owner et titulaire de l'abonnement), jamais sur une lecture. Le verrou est conservé :
   la reprise reste explicite.
@@ -92,6 +93,14 @@ Artifact = { id: string; kind: "spec" | "diff" | "test_log" | "preview" | "trans
 - Artefact `preview` `.png` ⇒ image ; `.diff` ⇒ vue diff ; `test_log` ⇒ bloc monospace ; `transcript` (JSONL Codex) ⇒ repliable.
 - Aucune donnée démo : liste vide ⇒ « Aucune mission atelier locale ».
 - Un panneau minimal existe déjà : `src/features/atelier/components/atelier-local-missions.tsx` (inséré dans `/hq/atelier`).
+
+### Résidus connus
+- SENT-412-3 (kill d'un pid recyclé) : le chef de groupe est vérifié par son heure de démarrage avant tout kill. Reste :
+  si le chef est mort mais que des petits-enfants du CLI survivent dans son groupe, ils ne sont pas tués (`gone`) — choix
+  délibéré, on ne tue jamais un groupe sans preuve d'identité.
+- SENT-412-4 (missions hors du modèle espace) : abonnement CLI (412-8) et dépôts (412-8/13/14) sont désormais par
+  espace. Reste : le stockage des missions `~/.oria-atelier/missions/<id>` est commun à tous les espaces sur la machine,
+  l'isolement se fait par filtrage (`workspaceId`, 404 hors espace), pas par dossier.
 
 ### Hors #412 (à traiter dans #410)
 `src/server/auth/owner.ts:130` (`requireOwnerApiSession`, ancienne garde propriétaire) sert 47 routes, pas seulement

@@ -145,12 +145,27 @@ export function workspaceReposRoot(workspaceId: string, env = process.env) {
   return join(atelierReposRoot(env), workspaceId.toLowerCase());
 }
 export const WORKSPACE_CLAIM_FILE = ".oria-workspace-id";
+/**
+ * Reserve the workspace repo directory (SENT-412-13/14). Called on the first owner+subscription-holder mission
+ * creation (and by the CLI). The directory is created if missing and claimed at once. An existing directory without
+ * a claim (created before claims existed) is adopted ONLY by the workspace whose id is exactly the normalised
+ * (lowercase) directory name; any other id → workspace_path_collision. The claim is published via tmp+link (never
+ * observable empty).
+ */
 export function claimWorkspaceReposRoot(workspaceId: string, env = process.env) {
   const dir = workspaceReposRoot(workspaceId, env); const claim = join(dir, WORKSPACE_CLAIM_FILE);
-  if (!existsSync(dir)) return dir;
-  try { writeFileSync(claim, workspaceId, { flag: "wx" }); } catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; }
-  if (readFileSync(claim, "utf8").trim() !== workspaceId) throw new Error("workspace_path_collision");
+  const existed = existsSync(dir);
+  if (!existsSync(claim)) {
+    if (existed && workspaceId !== workspaceId.toLowerCase()) throw new Error("workspace_path_collision");
+    mkdirSync(dir, { recursive: true });
+    publishExclusiveText(claim, workspaceId);
+  }
+  if (readFileSync(claim, "utf8") !== workspaceId) throw new Error("workspace_path_collision");
   return dir;
+}
+function publishExclusiveText(target: string, text: string) {
+  const tmp = `${target}.tmp-${process.pid}-${randomUUID()}`; writeFileSync(tmp, text);
+  try { linkSync(tmp, target); } catch (e) { if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e; } finally { try { unlinkSync(tmp); } catch { /* */ } }
 }
 export function resolveRepoPath(repoPath: string, workspaceId: string, env = process.env) {
   let base: string, real: string;
