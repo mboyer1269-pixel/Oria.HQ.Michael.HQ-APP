@@ -223,15 +223,19 @@ test('claude-code SENT-412-17: init.apiKeySource ≠ "none" (paid API key inject
   assert.equal(spawnSync('git', ['-C', dir, 'rev-parse', '-q', '--verify', 'refs/stash']).status, 1);
 });
 
-test('claude-code SENT-412-21: auth checked in the mission work tree before spawn (project override → refused, no step, no CLI run)', async () => {
+test('SENT-412-30a: verify refuses on harness change, resumes only with approveHarnessChange (owner)', async () => {
   as({ id: 'u1' });
   knobs('FAKE_OBSERVED=claude-test');
-  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('rc21'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
-  const { missionId } = await created.json(); let m = await waitIdle(missionId);
-  writeFileSync(path.join(A.workPath(m), '.fake-paid-auth'), '1');
-  const r = await steps.POST(req('/x', { kind: 'code', prompt: 'code' }), params(missionId));
-  assert.equal(r.status, 503); assert.equal((await r.json()).code, 'subscription_auth_required');
-  m = A.loadMission(missionId); assert.equal(m.steps.length, 1, 'no step started'); assert.equal(A.currentLock(missionId), null);
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('h30'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); const m = await waitIdle(missionId);
+  writeFileSync(path.join(A.workPath(m), 'package.json'), JSON.stringify({ scripts: { test: 'echo HARNESS-RAN' } }));
+  const ctx = { userId: 'u1', workspaceId: 'ws-a' };
+  let v = await (await H.verifyAtelierMission(ctx, missionId)).json();
+  assert.equal(v.status, 'needs_human_review'); assert.equal(v.steps.at(-1).reason, 'test_harness_changed');
+  v = await (await H.verifyAtelierMission(ctx, missionId, {}, { approveHarnessChange: 'yes' })).json();
+  assert.equal(v.steps.at(-1).reason, 'test_harness_changed', 'only literal true approves');
+  v = await (await H.verifyAtelierMission(ctx, missionId, {}, { approveHarnessChange: true })).json();
+  assert.equal(v.steps.at(-1).status, 'succeeded'); assert.equal(A.loadMission(missionId).steps.at(-1).harnessApprovedBy, 'u1');
 });
 
 test('claude-code SENT-412-22: no init event → subscription_auth_required, no commit, quarantined (fail closed)', async () => {

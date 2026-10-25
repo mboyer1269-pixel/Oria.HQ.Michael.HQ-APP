@@ -5,7 +5,6 @@
 [ -f "$HOME/fake.env" ] && . "$HOME/fake.env"
 if [ "$1" = "auth" ]; then
   # A project-level override in the mission work tree (cwd) switches to API-key auth (SENT-412-21).
-  if [ -f .fake-paid-auth ]; then echo '{"loggedIn":true,"authMethod":"api_key","apiProvider":"firstParty"}'; exit 0; fi
   if [ -n "$FAKE_AUTH" ]; then echo "$FAKE_AUTH"; else echo '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"pro"}'; fi; exit 0
 fi
 cat >/dev/null

@@ -6,5 +6,6 @@ export const runtime = "nodejs";
 export async function POST(request: Request, { params }: { params: Promise<{ missionId: string }> }) {
   const ctx = await atelierSession(request); if (isResponse(ctx)) return ctx;
   const { missionId } = await params;
-  return verifyAtelierMission(ctx, missionId);
+  const body = await request.json().catch(() => ({})) as { approveHarnessChange?: unknown };
+  return verifyAtelierMission(ctx, missionId, {}, body && typeof body === "object" ? body : {});
 }

@@ -96,11 +96,14 @@ const API_KEYS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
 export function agentEnvironment(env = process.env): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(subscriptionEnvironment(env)).filter(([k]) => !/^(ANTHROPIC_|OPENAI_|CODEX_|CLAUDE_CODE_)|BASE_URL|TOKEN|_KEY$/i.test(k))) as NodeJS.ProcessEnv;
 }
-/** Subscription gate. `cwd` = the mission work tree: the check runs where (and with the env with which) the CLI will run. */
-export function assertSubscriptionOnly(runtimeId: RuntimeId = "codex", env = process.env, run = spawnSync, cwd?: string) {
+/**
+ * Pre-launch DIAGNOSTIC only (SENT-412-31): refuses no-login / API-key env, but `claude auth status` does not see
+ * project/settings overrides — the in-step protection is the init stream guard (apiKeySource) + the cleaned env.
+ */
+export function assertSubscriptionOnly(runtimeId: RuntimeId = "codex", env = process.env, run = spawnSync) {
   const leaked = API_KEYS.filter(k => env[k]);
   if (leaked.length) throw new Error(`api_key_present:${leaked.join(",")}`);
-  const s = run(runtimeId === "codex" ? "codex" : "claude", runtimeId === "codex" ? ["login", "status"] : ["auth", "status"], { encoding: "utf8", env: agentEnvironment(env), timeout: 20_000, ...(cwd ? { cwd } : {}) });
+  const s = run(runtimeId === "codex" ? "codex" : "claude", runtimeId === "codex" ? ["login", "status"] : ["auth", "status"], { encoding: "utf8", env: agentEnvironment(env), timeout: 20_000 });
   const out = `${s.stdout ?? ""}${s.stderr ?? ""}`;
   if (runtimeId === "codex") { if (!/logged in using chatgpt/i.test(out) || /api[ _-]?key/i.test(out)) throw new Error("subscription_auth_required"); return; }
   try { const j = JSON.parse(String(s.stdout)); if (j.loggedIn === true && j.authMethod === "claude.ai" && (!j.apiProvider || j.apiProvider === "firstParty")) return; } catch { /* fallthrough */ }
@@ -559,7 +562,7 @@ export const INIT_TIMEOUT_MS = 30_000;
 export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: string, opts: { resume?: boolean; timeoutMs?: number; initTimeoutMs?: number; root?: string } = {}): StartedStep {
   const root = opts.root ?? atelierRoot();
   let m = loadMission(id, root);
-  assertSubscriptionOnly(m.runtime.runtimeId, process.env, spawnSync, workPath(m)); // SENT-412-21: in the work tree, before spawn
+  assertSubscriptionOnly(m.runtime.runtimeId, process.env, spawnSync); // diagnostic (412-31); real guard = init stream
   const lastAgent = [...m.steps].reverse().find(s => s.executor !== "runner");
   const stepKind: AgentStepKind = kind ?? (opts.resume && lastAgent && lastAgent.kind !== "test" && lastAgent.kind !== "preview" ? lastAgent.kind : "code");
   const step: AtelierStep = { id: randomUUID(), kind: stepKind, status: "running", startedAt: now(), endedAt: null, executor: executorOf(m.runtime.runtimeId), sessionId: null,

@@ -24,6 +24,9 @@ const ERRORS: Record<string, [number, string]> = {
   stale_lock_reclaim_in_progress: [409, "Reprise déjà en cours par un autre processus."],
   process_identity_unavailable: [503, "Identité de processus non vérifiable (ni /proc ni ps) : atelier refusé sur cette machine."],
   repo_not_git: [400, "Le dépôt n'est pas un dépôt git."],
+  branch_in_use: [409, "Branche de mission déjà utilisée par un autre arbre de travail."],
+  repo_symlink_escape: [409, "Le dépôt contient un lien symbolique qui sort de l'arbre de travail : refusé."],
+  repo_head_mismatch: [409, "La branche de l'arbre de travail a changé : refusé."],
 };
 function fail(error: unknown) {
   const code = error instanceof Error ? error.message : "atelier_failed";
@@ -99,9 +102,11 @@ export function interruptAtelierMission(ctx: AtelierCtx, id: string, deps: Ateli
   return json(r, r.interrupted ? 202 : 409);
 }
 /** POST /missions/:id/verify — runner executes the fixed `npm test` (no caller-supplied command). */
-export function verifyAtelierMission(ctx: AtelierCtx, id: string, deps: AtelierDeps = {}) {
+export function verifyAtelierMission(ctx: AtelierCtx, id: string, deps: AtelierDeps = {}, body: { approveHarnessChange?: unknown } = {}) {
   const root = deps.root ?? atelierRoot(); if (!scoped(ctx, id, root)) return notFound();
-  try { return json(missionView(runCommandStep(id, "test", ["npm", "test"], { root }))); } catch (error) { return fail(error); }
+  // SENT-412-30a: explicit owner approval (route is owner-only) needed when the mission changed the test harness.
+  const approveHarnessChange = body.approveHarnessChange === true ? { by: ctx.userId } : undefined;
+  try { return json(missionView(runCommandStep(id, "test", ["npm", "test"], { root, approveHarnessChange }))); } catch (error) { return fail(error); }
 }
 
 const TYPES: Record<string, string> = { ".png": "image/png", ".md": "text/markdown; charset=utf-8", ".diff": "text/x-diff; charset=utf-8", ".jsonl": "application/x-ndjson", ".log": "text/plain; charset=utf-8", ".txt": "text/plain; charset=utf-8" };

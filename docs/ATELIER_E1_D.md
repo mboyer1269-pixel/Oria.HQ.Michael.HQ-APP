@@ -49,11 +49,12 @@ Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrig�
 - **Worktree par mission** : `git worktree add -b atelier/<id> <store>/<mission>/worktree <baseSha>` ; le checkout partagé n'est
   jamais basculé. HEAD + branche vérifiés (`repo_head_mismatch`) avant chaque étape (sous verrou) et avant chaque commit. La
   quarantaine ne touche que le worktree de la mission ; ref nommé `refs/atelier/quarantine/<mission>/<step>` = stash réellement produit.
-- **Claude, avant lancement** : `claude auth status` dans le worktree, même env enfant (liste blanche moins ANTHROPIC_*, OPENAI_*,
-  *_BASE_URL, *TOKEN*, *_KEY) ; refus si ce n'est pas claude.ai/firstParty. **Pendant** : stdout lu en flux ; init non abonnement → kill
+- **Claude, avant lancement (diagnostic seulement, 412-31)** : `claude auth status` ne voit pas les surcharges projet/settings (vérifié
+  sur la vraie CLI) ; il ne refuse que l'absence de connexion. **Seule protection pendant l'étape** : env enfant nettoyé (liste blanche
+  moins ANTHROPIC_*, OPENAI_*, *_BASE_URL, *TOKEN*, *_KEY), `--setting-sources ""`, et garde du flux init : init non abonnement → kill
   du groupe ; pas d'init avant 30 s → kill ; init jamais vu → `subscription_auth_required` (fail closed), quarantaine, aucun commit.
 - **Marge résiduelle (412-21)** : pas de blocage réseau sans privilège (pas de netns/pare-feu par processus). Si un vecteur non couvert
-  par `--setting-sources ""`, la liste blanche d'env et la vérification `auth status` faisait passer la CLI en clé API, la requête
+  par `--setting-sources ""` et la liste blanche d'env faisait passer la CLI en clé API, la requête
   facturable partie entre l'émission de init et le SIGKILL (ordre de la ms, lecture en flux) n'est pas empêchée. Piste : proxy local
   `HTTPS_PROXY` qui retient les CONNECT jusqu'à init validé (non fait : non validé sur la vraie CLI sans dépenser de quota).
 - **Agent Claude sans Bash (412-23)** : outils Read/Edit/Write/Glob/Grep ; refusés : Bash, WebFetch, WebSearch, et Read/Edit/Write sur
@@ -64,3 +65,17 @@ Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrig�
 - **Étape test (412-29)** : la commande est chef de son propre groupe (superviseur node) ; au timeout tout le groupe est tué.
 - La fermeture d'étape libère le verrou et sauvegarde l'état même si git lève (412-27).
 - La sortie de la CLI passe par un tube : si le runner meurt, l'enfant reçoit SIGPIPE à sa prochaine écriture (reprise explicite inchangée).
+
+## Réaudit 488609a (SENT-412-30…35, MERGE-4)
+- **Étape test, fermeture (412-30a)** : si le diff de la mission (vs baseSha, commité ou non, non suivi ou ignoré) touche package.json,
+  lockfiles, .npmrc/.yarnrc, configs jest/vitest/mocha/…, .husky/.githooks ou node_modules, l'étape n'est pas lancée :
+  `needs_human_review` / `test_harness_changed`. Reprise seulement par `POST /verify {"approveHarnessChange": true}` (propriétaire),
+  tracée dans `harnessApprovedBy`.
+- **Bac à sable (412-30b)** : bwrap sans sudo disponible ici → `npm test` tourne sous `bwrap --unshare-net --unshare-pid
+  --die-with-parent`, système en lecture seule, `/tmp` tmpfs, ni /home ni /root réels, HOME privé, seul le worktree (et ce HOME privé)
+  en écriture ; `step.sandbox = "bwrap"`. Sans bwrap : `sandbox = "none"` (confinement réduit à l'env nettoyé + groupe tué).
+- **Worktrees (412-32/33)** : `worktree prune` avant création ; échec de création → dossier supprimé, `branch_in_use` si la branche
+  existe ; `closeMission` retire le worktree (jamais forcé : `worktree_dirty`) puis prune.
+- **Quarantaine (412-34)** : `git add -A` + `git stash create` → ref nommé vérifié (arbre = arbre de travail), puis seulement remise
+  à HEAD du worktree ; `refs/stash` n'est jamais touché.
+- **412-35** : Grep/Glob refusés aussi sur les chemins sensibles ; lancement refusé (`repo_symlink_escape`) si un lien symbolique sort du worktree.
