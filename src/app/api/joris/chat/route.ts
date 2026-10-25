@@ -50,7 +50,8 @@ export async function POST(request: Request) {
       if (!isSubscriptionOwner((await getCurrentAuthUser())?.id)) {
         return NextResponse.json({ error: "Abonnement CLI réservé à son titulaire.", code: "SUBSCRIPTION_OWNER_ONLY" }, { status: 403 });
       }
-      return NextResponse.json(await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog()));
+      const turn = await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog());
+      return NextResponse.json(turn, turn.reason === "runtime_busy" ? { status: 429, headers: { "Retry-After": "5" } } : undefined);
     }
     const catalog=await loadChatCapabilityCatalog();
     const binding=resolveChatModelBinding(catalog,workspaceContext.workspace.id,parsed.data.modelSelection);
