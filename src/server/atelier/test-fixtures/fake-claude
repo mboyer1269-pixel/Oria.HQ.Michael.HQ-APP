@@ -12,6 +12,7 @@ for a in "$@"; do
   [ "$prev" = "--resume" ] && SID=$a; [ "$prev" = "--model" ] && MODEL=$a; prev=$a
 done
 OBS=${FAKE_OBSERVED:-$MODEL}
+[ "${FAKE_API_KEY_SOURCE:-none}" != "none" ] && echo "paid" >> work.txt && echo "x" > paid-untracked.txt
 echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"$SID\",\"model\":\"$MODEL\",\"apiKeySource\":\"${FAKE_API_KEY_SOURCE:-none}\"}"
 # A non-"none" key source simulates a paid API session (key injected by settings): it keeps working for a while.
 [ "${FAKE_API_KEY_SOURCE:-none}" != "none" ] && sleep 5

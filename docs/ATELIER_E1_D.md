@@ -36,7 +36,8 @@ Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrig�
 ## Garde abonnement en cours d'étape et limites (SENT-412-17 / 412-18)
 - Claude Code est lancé avec `--setting-sources ""` : aucun réglage utilisateur/projet/local (clé `env`, apiKeyHelper, skills, plugins).
   Le runner lit `system/init` du stream-json : `apiKeySource` ≠ `"none"` (ou `apiProvider` ≠ firstParty) → groupe tué (SIGKILL),
-  étape `failed`, raison `subscription_auth_required`, aucun commit (modifications suivies annulées).
+  étape `failed`, raison `subscription_auth_required`, aucun commit ; rien n'est détruit : les changements (suivis et non suivis) sont mis de côté
+  par `git stash push --include-untracked -m "atelier-quarantine-<missionId>-<stepId>"`, sha du stash dans `step.quarantineRef` (null si rien).
 - Codex : `--json` n'expose pas la méthode d'authentification ; la garde reste `codex login status` (« Logged in using ChatGPT ») avant
   lancement + `forced_login_method="chatgpt"` + `model_provider="openai"`. Pas de vérification équivalente en cours d'exécution.
 - Étape `test` (runner) : environnement minimal (PATH/LANG/TERM, NODE_ENV=test, CI=1), HOME/TMPDIR privés par mission, cwd = dépôt,

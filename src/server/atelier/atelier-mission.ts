@@ -20,7 +20,7 @@ export type ArtifactKind = "spec" | "diff" | "test_log" | "preview" | "transcrip
 export type AtelierArtifact = { id: string; kind: ArtifactKind; stepId: string; path: string; sha256: string; bytes: number; createdAt: string };
 export type AtelierStep = {
   id: string; kind: StepKind; status: StepStatus; startedAt: string; endedAt: string | null;
-  executor: "codex_cli" | "claude_code_cli" | "runner"; sessionId: string | null; resumedFrom: string | null;
+  executor: "codex_cli" | "claude_code_cli" | "runner"; sessionId: string | null; resumedFrom: string | null; /** stash sha of changes set aside after subscription_auth_required */ quarantineRef?: string | null;
   requestedModelId: string | null; observedModelId: string | null; exitCode: number | null; reason: string | null;
   commitSha: string | null;
 };
@@ -436,6 +436,13 @@ function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
   addArtifact(m, step.id, "commit", `${step.id.slice(0, 8)}-commit.txt`, `${step.commitSha}\n`, root);
 }
 
+/** SENT-412-17: set aside (never delete) whatever a paid session touched; the stash commit sha goes in step.quarantineRef. */
+function quarantine(m: AtelierMission, s: AtelierStep) {
+  s.quarantineRef = null;
+  if (!git(m.repo.path, ["status", "--porcelain"])) return;
+  git(m.repo.path, ["stash", "push", "--include-untracked", "-m", `atelier-quarantine-${m.id}-${s.id}`]);
+  s.quarantineRef = git(m.repo.path, ["rev-parse", "stash@{0}"]);
+}
 export type StartedStep = { mission: AtelierMission; stepId: string; done: Promise<AtelierMission> };
 /**
  * Starts an agent step. Lock + validation are synchronous (errors throw before return);
@@ -490,7 +497,7 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
     if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript);
     hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);
     if (stepKind === "spec" && existsSync(join(m.repo.path, "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(m.repo.path, "SPEC.md")), root);
-    if (paidSession) git(m.repo.path, ["reset", "-q", "--hard"]); // discard anything a paid session touched (tracked files)
+    if (paidSession) quarantine(m, s); // never commit, never destroy: changes set aside in a named stash
     else commitIfChanged(m, s, root);
     m.status = s.status === "succeeded" ? "awaiting_review" : s.status === "interrupted" ? "interrupted" : s.status === "blocked" ? "blocked" : "failed";
     release(m, lockFile); save(m, root);

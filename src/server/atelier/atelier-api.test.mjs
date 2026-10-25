@@ -210,6 +210,10 @@ test('claude-code SENT-412-17: init.apiKeySource ≠ "none" (paid API key inject
   assert.equal(m.status, 'failed'); assert.equal(m.steps[0].status, 'failed'); assert.equal(m.steps[0].reason, 'subscription_auth_required');
   assert.equal(m.steps[0].commitSha, null);
   assert.equal(execFileSync('git', ['-C', dir, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim(), '1');
+  assert.equal(execFileSync('git', ['-C', dir, 'status', '--porcelain'], { encoding: 'utf8' }), '', 'clean tree');
+  const stash = execFileSync('git', ['-C', dir, 'stash', 'list', '--format=%H %s'], { encoding: 'utf8' }).trim();
+  assert.ok(m.steps[0].quarantineRef && stash.startsWith(m.steps[0].quarantineRef), 'stash present, ref recorded');
+  assert.match(stash, new RegExp(`atelier-quarantine-${missionId}-${m.steps[0].id}`));
 });
 
 test('claude-code refusals: ANTHROPIC_API_KEY set, or auth method not claude.ai → 503 before any spawn', async () => {
