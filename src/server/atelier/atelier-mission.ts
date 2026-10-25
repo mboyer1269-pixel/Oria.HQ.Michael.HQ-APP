@@ -285,44 +285,60 @@ function publishExclusive(target: string, content: object): boolean {
 }
 function abandonedUnreadable(file: string) { try { return Date.now() - statSync(file).mtimeMs > ABANDONED_AFTER_MS; } catch { return false; } }
 /**
- * Break an abandoned reclaim file (SENT-412-5/12): owner recorded but not provably alive, or unreadable and older
- * than ABANDONED_AFTER_MS. Breaking is serialised per file INSTANCE by an atomic mkdir of a fixed name derived from
- * its inode + change time (`<file>.breaking-<ino>-<ctimeNs>-<gen>`): only one breaker per instance. Under it the
- * file is re-read and re-checked (same instance, still abandoned) and only then unlinked — nothing is renamed or
- * restored, so a fresh file published by someone else is never moved or deleted. Between the re-check and the
- * unlink the instance can only disappear through its owner (dead) or a breaker (excluded by the mkdir).
- * A breaker killed mid-break leaves its directory: after ABANDONED_AFTER_MS the next generation may take over.
+ * Break an abandoned reclaim file (SENT-412-5/12/15/16): owner recorded but not provably alive, or unreadable and
+ * older than ABANDONED_AFTER_MS.
+ * - Breakers of one file instance are serialised by an atomic mkdir (`<file>.breaking-<ino>-<ctimeNs>-<gen>`, a 10 s
+ *   lease; a crashed breaker is succeeded by the next generation).
+ * - Correctness does NOT depend on that lease (a breaker may be suspended past it): the file is captured with an
+ *   atomic rename to a private name, and the captured file is checked under that name (same inode, same bytes as
+ *   judged, owner still not alive). Only then is it deleted. If a fresh file was captured, it is put back with
+ *   link() (never overwrites); in the µs window where someone else published meanwhile the restore fails and the
+ *   fresh file is kept under its private name for diagnosis (event-free, never deleted).
+ * - Housekeeping: lease directories and private captures older than ABANDONED_AFTER_MS are purged (they no longer
+ *   guard anything once their instance is gone).
  */
-export function breakAbandoned(file: string, hooks: { afterJudge?: () => void } = {}): boolean {
-  const judge = () => {
-    let raw: string, st: BigIntStats;
-    try { st = statSync(file, { bigint: true }); raw = readFileSync(file, "utf8"); } catch { return null; }
-    let owner: AtelierLock | null = null; try { owner = JSON.parse(raw) as AtelierLock; } catch { /* unreadable */ }
-    const abandoned = owner ? !sameProcess(owner.runnerPid, owner.runnerStart) : Date.now() - Number(st.mtimeMs) > ABANDONED_AFTER_MS;
-    return { key: `${st.ino}-${st.ctimeNs}`, abandoned };
+export function breakAbandoned(file: string, hooks: { afterJudge?: () => void; beforeCapture?: () => void } = {}): boolean {
+  purgeBreakLeftovers(file);
+  let raw: string, st: BigIntStats;
+  try { st = statSync(file, { bigint: true }); raw = readFileSync(file, "utf8"); } catch { return true; /* already gone */ }
+  const isAbandoned = (text: string, mtimeMs: number) => {
+    let owner: AtelierLock | null = null; try { owner = JSON.parse(text) as AtelierLock; } catch { /* unreadable */ }
+    return owner ? !sameProcess(owner.runnerPid, owner.runnerStart) : Date.now() - mtimeMs > ABANDONED_AFTER_MS;
   };
-  const first = judge(); if (!first) return true; /* already gone */
-  if (!first.abandoned) return false;
+  if (!isAbandoned(raw, Number(st.mtimeMs))) return false;
   hooks.afterJudge?.();
-  const prefix = `${file}.breaking-${first.key}-`;
-  let mine: string | null = null;
-  for (let gen = 0; gen < 1000 && !mine; gen++) {
-    try { mkdirSync(prefix + gen); mine = prefix + gen; } catch (e) {
+  const prefix = `${file}.breaking-${st.ino}-${st.ctimeNs}-`;
+  let lease: string | null = null;
+  for (let gen = 0; gen < 1000 && !lease; gen++) {
+    try { mkdirSync(prefix + gen); lease = prefix + gen; } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
-      try { if (Date.now() - statSync(prefix + gen).mtimeMs <= ABANDONED_AFTER_MS) return false; } catch { /* removed meanwhile: retry same gen */ gen--; }
+      try { if (Date.now() - statSync(prefix + gen).mtimeMs <= ABANDONED_AFTER_MS) return false; } catch { gen--; }
     }
   }
-  if (!mine) return false;
+  if (!lease) return false;
   try {
-    const again = judge();
-    if (!again) return true;
-    if (again.key !== first.key || !again.abandoned) return false; // a different (fresh) file: leave it alone
-    unlinkSync(file); return true;
-  } finally {
-    const dir = dirname(file), base = `${basename(file)}.breaking-${first.key}-`;
-    for (const n of readdirSync(dir)) if (n.startsWith(base)) try { rmdirSync(join(dir, n)); } catch { /* */ }
+    hooks.beforeCapture?.();
+    const priv = `${file}.captured-${randomUUID()}`;
+    try { renameSync(file, priv); } catch { return true; /* gone */ }
+    let ok = false;
+    try { const got = statSync(priv, { bigint: true }); const text = readFileSync(priv, "utf8");
+      ok = got.ino === st.ino && text === raw && isAbandoned(text, Number(got.mtimeMs)); } catch { /* */ }
+    if (ok) { unlinkSync(priv); return true; }
+    try { linkSync(priv, file); unlinkSync(priv); } catch { /* someone published meanwhile: keep priv, never delete a fresh file */ }
+    return false;
+  } finally { try { rmdirSync(lease); } catch { /* */ } }
+}
+function purgeBreakLeftovers(file: string) {
+  const dir = dirname(file), base = basename(file);
+  let names: string[] = []; try { names = readdirSync(dir); } catch { return; }
+  for (const n of names) {
+    if (!n.startsWith(`${base}.breaking-`) && !n.startsWith(`${base}.captured-`)) continue;
+    const pth = join(dir, n);
+    try { const st = statSync(pth); if (Date.now() - st.mtimeMs <= ABANDONED_AFTER_MS) continue; if (st.isDirectory()) rmdirSync(pth); else if (!isLiveCapture(pth)) unlinkSync(pth); } catch { /* */ }
   }
 }
+/** A capture whose recorded owner is still alive is a fresh file kept after a failed restore: never purged. */
+function isLiveCapture(pth: string) { try { const o = JSON.parse(readFileSync(pth, "utf8")) as AtelierLock; return sameProcess(o.runnerPid, o.runnerStart); } catch { return false; } }
 function acquire(m: AtelierMission, stepId: string, explicitResume: boolean, root: string) {
   const lockFile = lockPath(m.id, root);
   const lock = acquireLockFile(lockFile, stepId, { explicitResume, onStale: (held) => {

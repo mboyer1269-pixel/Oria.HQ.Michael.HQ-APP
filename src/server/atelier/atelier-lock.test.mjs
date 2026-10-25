@@ -231,3 +231,29 @@ test("SENT-412-13: workspace repo dirs are lowercased and case-variant ids colli
   assert.throws(() => A.resolveRepoPath(repo, "MICHAELHQ", env), /workspace_path_collision/);
   assert.ok(A.resolveRepoPath(repo, "MichaelHQ", env), "the claiming workspace keeps access");
 });
+
+test("SENT-412-15: a breaker suspended past its lease never deletes a fresh file (rename + check under private name + link restore)", async () => {
+  const { readdirSync } = await import("node:fs"); const { dirname, basename } = await import("node:path");
+  const f = `${fresh()}.reclaim`; writeFileSync(f, JSON.stringify({ runnerPid: 2 ** 22 - 17, runnerStart: "1", stepId: "dead", since: "d" }));
+  const live = JSON.stringify({ runnerPid: process.pid, runnerStart: A.procStartTime(process.pid), stepId: "fresh", since: "f" });
+  // B holds the lease, then is "suspended": meanwhile the abandoned instance is removed and a fresh file is published.
+  const r = A.breakAbandoned(f, { beforeCapture: () => {
+    unlinkSync(f); writeFileSync(`${f}.t`, live); linkSync(`${f}.t`, f); unlinkSync(`${f}.t`);
+  } });
+  assert.equal(r, false);
+  assert.equal(readFileSync(f, "utf8"), live, "fresh file restored intact");
+  assert.deepEqual(readdirSync(dirname(f)).filter(n => n.startsWith(basename(f) + ".")), [], "no capture or lease left");
+});
+
+test("SENT-412-16: orphan lease dirs and dead captures older than the grace period are purged; live captures are kept", async () => {
+  const { mkdirSync, utimesSync, readdirSync } = await import("node:fs"); const { dirname, basename } = await import("node:path");
+  const f = `${fresh()}.reclaim`; const old = (Date.now() - A.ABANDONED_AFTER_MS - 1000) / 1000;
+  const orphanDir = `${f}.breaking-1-2-0`, recentDir = `${f}.breaking-3-4-0`, deadCap = `${f}.captured-dead`, liveCap = `${f}.captured-live`;
+  mkdirSync(orphanDir); mkdirSync(recentDir);
+  writeFileSync(deadCap, JSON.stringify({ runnerPid: 2 ** 22 - 19, runnerStart: "1" }));
+  writeFileSync(liveCap, JSON.stringify({ runnerPid: process.pid, runnerStart: A.procStartTime(process.pid) }));
+  for (const p of [orphanDir, deadCap, liveCap]) utimesSync(p, old, old);
+  assert.equal(A.breakAbandoned(f), true, "no reclaim file: nothing to break");
+  const left = readdirSync(dirname(f)).filter(n => n.startsWith(basename(f) + ".")).sort();
+  assert.deepEqual(left, [basename(liveCap), basename(recentDir)].sort());
+});
