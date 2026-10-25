@@ -1,7 +1,7 @@
 // SENT-412-2 / SENT-412-3: stale-lock reclaim race and pid-reuse kill.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
+import { closeSync, existsSync, linkSync, mkdtempSync, openSync, readFileSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -188,4 +188,34 @@ test("SENT-412-11: second resolution handled by pid+command token and an explici
     // Later start (simulated clock 1 h ahead when re-read) → mismatch
     assert.equal(A.samePsIdentity(ia, A.procStartTime(a.pid, { proc: false, nowMs: Date.now() + 3_600_000 })), false);
   } finally { a.kill(); b.kill(); }
+});
+
+test("SENT-412-12: interleaving — a breaker with a stale view never moves or deletes a fresh reclaim file", async () => {
+  const { readdirSync } = await import("node:fs"); const { dirname, basename } = await import("node:path");
+  const f = `${fresh()}.reclaim`; const dead = JSON.stringify({ runnerPid: 2 ** 22 - 11, runnerStart: "1", stepId: "dead", since: "d" });
+  const live = JSON.stringify({ runnerPid: process.pid, runnerStart: A.procStartTime(process.pid), stepId: "A-fresh", since: "a" });
+  writeFileSync(f, dead);
+  // B judges F1 abandoned; before B acts, A breaks F1 and publishes its fresh F2; then C tries too.
+  let cResult;
+  const bResult = A.breakAbandoned(f, { afterJudge: () => {
+    assert.equal(A.breakAbandoned(f), true, "A breaks F1");
+    writeFileSync(`${f}.tmpA`, live); linkSync(`${f}.tmpA`, f); unlinkSync(`${f}.tmpA`);
+    cResult = A.breakAbandoned(f); // C sees a live owner
+  } });
+  assert.equal(bResult, false, "B must not break A's fresh file");
+  assert.equal(cResult, false, "C must not break A's fresh file");
+  assert.equal(readFileSync(f, "utf8"), live, "A's file intact, never renamed");
+  assert.deepEqual(readdirSync(dirname(f)).filter(n => n.startsWith(basename(f) + ".breaking-")), [], "no breaker dirs left");
+});
+
+test("SENT-412-12: concurrent breakers of the same instance — exactly one unlinks; a crashed breaker is taken over after the grace period", async () => {
+  const { mkdirSync, statSync, utimesSync } = await import("node:fs");
+  const f = `${fresh()}.reclaim`; writeFileSync(f, JSON.stringify({ runnerPid: 2 ** 22 - 13, runnerStart: "1", stepId: "dead", since: "d" }));
+  const st = statSync(f, { bigint: true }); const crashed = `${f}.breaking-${st.ino}-${st.ctimeNs}-0`;
+  mkdirSync(crashed); // a breaker holds this instance
+  assert.equal(A.breakAbandoned(f), false, "held by another breaker: wait");
+  assert.equal(existsSync(f), true);
+  const old = (Date.now() - A.ABANDONED_AFTER_MS - 1000) / 1000; utimesSync(crashed, old, old);
+  assert.equal(A.breakAbandoned(f), true, "crashed breaker taken over by next generation");
+  assert.equal(existsSync(f), false); assert.equal(existsSync(crashed), false);
 });

@@ -4,9 +4,10 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { appendFileSync, closeSync, linkSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, linkSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import type { BigIntStats } from "node:fs";
 import { homedir } from "node:os";
-import { join, relative, sep } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { subscriptionEnvironment } from "../ai/subscription-runtime";
 
 export const ATELIER_CONTRACT = "atelier-mission/v1" as const;
@@ -271,21 +272,43 @@ function publishExclusive(target: string, content: object): boolean {
 }
 function abandonedUnreadable(file: string) { try { return Date.now() - statSync(file).mtimeMs > ABANDONED_AFTER_MS; } catch { return false; } }
 /**
- * Break an abandoned reclaim file: owner recorded but not provably alive, or unreadable and older than ABANDONED_AFTER_MS.
- * Rename it to a private name (only one breaker wins the rename), then check it is still the file we judged; if a
- * fresh file was taken by mistake it is restored with link() (never overwrites).
+ * Break an abandoned reclaim file (SENT-412-5/12): owner recorded but not provably alive, or unreadable and older
+ * than ABANDONED_AFTER_MS. Breaking is serialised per file INSTANCE by an atomic mkdir of a fixed name derived from
+ * its inode + change time (`<file>.breaking-<ino>-<ctimeNs>-<gen>`): only one breaker per instance. Under it the
+ * file is re-read and re-checked (same instance, still abandoned) and only then unlinked — nothing is renamed or
+ * restored, so a fresh file published by someone else is never moved or deleted. Between the re-check and the
+ * unlink the instance can only disappear through its owner (dead) or a breaker (excluded by the mkdir).
+ * A breaker killed mid-break leaves its directory: after ABANDONED_AFTER_MS the next generation may take over.
  */
-function breakAbandoned(file: string): boolean {
-  let raw: string; let st: { ino: number; mtimeMs: number };
-  try { raw = readFileSync(file, "utf8"); st = statSync(file); } catch { return true; /* already gone */ }
-  let owner: AtelierLock | null = null; try { owner = JSON.parse(raw) as AtelierLock; } catch { /* unreadable */ }
-  const abandoned = owner ? !sameProcess(owner.runnerPid, owner.runnerStart) : Date.now() - st.mtimeMs > ABANDONED_AFTER_MS;
-  if (!abandoned) return false;
-  const priv = `${file}.abandoned-${randomUUID()}`;
-  try { renameSync(file, priv); } catch { return true; /* someone else broke it */ }
-  const got = statSync(priv);
-  if (got.ino !== st.ino) { try { linkSync(priv, file); } catch { /* a newer one exists: leave it */ } unlinkSync(priv); return false; }
-  unlinkSync(priv); return true;
+export function breakAbandoned(file: string, hooks: { afterJudge?: () => void } = {}): boolean {
+  const judge = () => {
+    let raw: string, st: BigIntStats;
+    try { st = statSync(file, { bigint: true }); raw = readFileSync(file, "utf8"); } catch { return null; }
+    let owner: AtelierLock | null = null; try { owner = JSON.parse(raw) as AtelierLock; } catch { /* unreadable */ }
+    const abandoned = owner ? !sameProcess(owner.runnerPid, owner.runnerStart) : Date.now() - Number(st.mtimeMs) > ABANDONED_AFTER_MS;
+    return { key: `${st.ino}-${st.ctimeNs}`, abandoned };
+  };
+  const first = judge(); if (!first) return true; /* already gone */
+  if (!first.abandoned) return false;
+  hooks.afterJudge?.();
+  const prefix = `${file}.breaking-${first.key}-`;
+  let mine: string | null = null;
+  for (let gen = 0; gen < 1000 && !mine; gen++) {
+    try { mkdirSync(prefix + gen); mine = prefix + gen; } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+      try { if (Date.now() - statSync(prefix + gen).mtimeMs <= ABANDONED_AFTER_MS) return false; } catch { /* removed meanwhile: retry same gen */ gen--; }
+    }
+  }
+  if (!mine) return false;
+  try {
+    const again = judge();
+    if (!again) return true;
+    if (again.key !== first.key || !again.abandoned) return false; // a different (fresh) file: leave it alone
+    unlinkSync(file); return true;
+  } finally {
+    const dir = dirname(file), base = `${basename(file)}.breaking-${first.key}-`;
+    for (const n of readdirSync(dir)) if (n.startsWith(base)) try { rmdirSync(join(dir, n)); } catch { /* */ }
+  }
 }
 function acquire(m: AtelierMission, stepId: string, explicitResume: boolean, root: string) {
   const lockFile = lockPath(m.id, root);
