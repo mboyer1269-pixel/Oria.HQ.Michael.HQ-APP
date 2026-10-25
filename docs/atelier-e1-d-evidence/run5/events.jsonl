@@ -1,0 +1,14 @@
+{"seq":1,"at":"2026-10-25T10:09:55.193Z","type":"mission_created","data":{"runtimeId":"codex","requestedModelId":"gpt-5.6-luna","branch":"atelier/6b9479ae"}}
+{"seq":2,"at":"2026-10-25T10:09:55.290Z","type":"step_started","stepId":"6721f6bd-c9ef-4e6d-8e6b-e374d6b1d8ba","data":{"kind":"spec","resumedFrom":null,"runtimeId":"codex","requestedModelId":"gpt-5.6-luna"}}
+{"seq":3,"at":"2026-10-25T10:10:15.594Z","type":"step_finished","stepId":"6721f6bd-c9ef-4e6d-8e6b-e374d6b1d8ba","data":{"status":"succeeded","reason":null,"observedModelId":"gpt-5.6-luna","commitSha":"af7b160bf492ea7cd4c6b23f6c011d9068672a40","sessionId":"01a17289-cda2-75f3-872e-dfd8b1dec241"}}
+{"seq":4,"at":"2026-10-25T10:10:15.940Z","type":"step_started","stepId":"0a451d18-5e9f-45dd-84f1-28a149594795","data":{"kind":"code","resumedFrom":null,"runtimeId":"codex","requestedModelId":"gpt-5.6-luna"}}
+{"seq":5,"at":"2026-10-25T10:10:48.566Z","type":"step_finished","stepId":"0a451d18-5e9f-45dd-84f1-28a149594795","data":{"status":"succeeded","reason":null,"observedModelId":"gpt-5.6-luna","commitSha":"3a07fb4e17d3f479cb030c0cb52e771337396e22","sessionId":"01a1728a-1b45-7c91-8867-af097a76f9c0"}}
+{"seq":6,"at":"2026-10-25T10:10:49.030Z","type":"step_started","stepId":"b680f68a-3de6-4f3b-8ac3-28f7338bc57e","data":{"kind":"test"}}
+{"seq":7,"at":"2026-10-25T10:10:49.210Z","type":"step_finished","stepId":"b680f68a-3de6-4f3b-8ac3-28f7338bc57e","data":{"status":"succeeded","exitCode":0}}
+{"seq":8,"at":"2026-10-25T10:10:49.286Z","type":"step_started","stepId":"9e0b87e1-7ea6-4891-aa68-0e2f3f187a3e","data":{"kind":"revision","resumedFrom":null,"runtimeId":"codex","requestedModelId":"gpt-5.6-luna"}}
+{"seq":9,"at":"2026-10-25T10:10:59.475Z","type":"orphan_child_reaped","stepId":"9e0b87e1-7ea6-4891-aa68-0e2f3f187a3e","data":{"childPid":698240,"deadRunnerPid":697045,"result":"killed"}}
+{"seq":10,"at":"2026-10-25T10:11:00.607Z","type":"stale_lock_reclaimed","stepId":"9e0b87e1-7ea6-4891-aa68-0e2f3f187a3e","data":{"deadRunnerPid":697045,"orphanChild":698240,"orphanKill":"gone"}}
+{"seq":11,"at":"2026-10-25T10:11:00.608Z","type":"step_started","stepId":"33dc1a22-d100-4174-90e8-0c2e0a62fa4c","data":{"kind":"revision","resumedFrom":"01a1728a-9d99-77f3-afa6-f656c4dcb103","runtimeId":"codex","requestedModelId":"gpt-5.6-luna"}}
+{"seq":12,"at":"2026-10-25T10:11:15.268Z","type":"step_finished","stepId":"33dc1a22-d100-4174-90e8-0c2e0a62fa4c","data":{"status":"succeeded","reason":null,"observedModelId":"gpt-5.6-luna","commitSha":"7e6d8dabe1d339452217863d1c4ecca78d720192","sessionId":"01a1728a-9d99-77f3-afa6-f656c4dcb103"}}
+{"seq":13,"at":"2026-10-25T10:11:15.666Z","type":"step_started","stepId":"4d699dfb-2814-4088-acd5-7f6cad040146","data":{"kind":"test"}}
+{"seq":14,"at":"2026-10-25T10:11:15.854Z","type":"step_finished","stepId":"4d699dfb-2814-4088-acd5-7f6cad040146","data":{"status":"succeeded","exitCode":0}}
