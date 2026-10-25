@@ -1,0 +1,87 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Atelier — Calculatrice de pourboire — Oria</title><style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+:root{--bg:#07090a;--panel:#0e1213;--panel2:#151b1c;--line:#26332e;--ink:#e8f3ec;--soft:#9fb4a8;--accent:#4dff9a;--on-accent:#03140a;--warn:#ffb340;--bad:#ff6b5e;--info:#7cc4ff;--ui:'Space Grotesk',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;--display:'Space Grotesk',sans-serif}
+[data-mode=carte]{--bg:#fbf7ef;--panel:#fffdf8;--panel2:#f3ecdf;--line:#d9cdb8;--ink:#1f1a14;--soft:#5a4f42;--accent:#b4441f;--on-accent:#fff;--warn:#8a5a00;--bad:#a3261b;--info:#1f4f8a;--ok:#2f6b3a;--ui:'IBM Plex Sans',sans-serif;--display:'Fraunces',serif}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--ui)}
+a{color:inherit}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--accent);color:var(--on-accent);padding:8px 12px;z-index:99}.skip:focus{left:8px}
+.app{display:grid;grid-template-columns:88px 1fr;grid-template-rows:48px 1fr;min-height:100vh}
+.bar{grid-column:1/3;display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--panel) 82%,transparent);backdrop-filter:blur(12px);position:sticky;top:0;z-index:5}
+.ctx{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:4px 10px;background:var(--panel2);font-weight:600;text-decoration:none}
+.dot{width:10px;height:10px;border-radius:50%;background:#c58cff;display:inline-block}
+.bar h1{font-size:15px;margin:0;font-weight:600}.bar .sp{flex:1}
+.k{font:12px var(--mono);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--soft)}
+.cmd{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:4px 10px;color:var(--soft);text-decoration:none;min-width:220px}
+.att{display:flex;gap:6px;align-items:center;text-decoration:none;font-weight:600;padding:4px 10px;border-radius:6px}
+.att.on{background:var(--warn);color:#1a1000}[data-mode=carte] .att.on{color:#fff}.clock{font:13px var(--mono);color:var(--soft)}
+.run{display:flex;gap:6px;align-items:center;font:12px var(--mono);color:var(--soft)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:p 1.6s infinite}@keyframes p{50%{opacity:.4}}
+.rail{border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px;padding:8px 6px;background:var(--bg)}
+.rail a{display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--soft);font-size:12px;padding:8px 2px;border-radius:8px;min-height:48px}
+.rail a .i{font-size:18px;line-height:1}.rail a[aria-current=page]{color:var(--ink);background:var(--panel2);box-shadow:inset 2px 0 0 var(--accent)}
+.rail .sep{flex:1}
+main{display:grid;grid-template-columns:1fr 400px;min-width:0}main.full{grid-template-columns:1fr}
+.content{padding:24px 32px;max-width:980px;width:100%;min-width:0}.drawer{border-left:1px solid var(--line);background:var(--panel);padding:20px;min-width:0}
+h2{font:600 26px/1.15 var(--display);margin:0 0 4px}h3{font-size:15px;margin:0 0 6px}.lede{color:var(--soft);margin:0 0 20px}
+.eyebrow{font:12px var(--mono);color:var(--soft);text-transform:uppercase;letter-spacing:.08em;margin:24px 0 8px;display:flex;gap:8px;align-items:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px}
+.card.warn{border-left:4px solid var(--warn)}.card.bad{border-left:4px solid var(--bad)}.card.info{border-left:4px solid var(--info)}.card.go{border-left:4px solid var(--accent)}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}
+.meta{font:12px var(--mono);color:var(--soft)}.mono{font-family:var(--mono)}
+.tag{font:600 12px var(--mono);padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.t-warn{color:var(--warn)}.t-bad{color:var(--bad)}.t-info{color:var(--info)}.t-go{color:var(--accent)}.t-soft{color:var(--soft)}
+.prov{font:600 12px var(--ui);padding:2px 8px;border-radius:999px;white-space:nowrap}
+.prov.ex{background:#ffe9a8;color:#3a2a00}.prov.re{background:#d9f5e3;color:#0b3a1d}.prov.nc{background:#e6e6e6;color:#2b2b2b}.prov.pe{background:#f1dccf;color:#4a1d06}
+.btn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 14px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink);font:600 14px var(--ui);text-decoration:none;cursor:default}
+.btn.p{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}.btn.p .k{color:var(--on-accent);border-color:var(--on-accent)}.btn.d{border-color:var(--bad);color:var(--bad)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.hero{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+.big{font:600 40px/1 var(--mono)}
+dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}dl.kv dt{color:var(--soft);font-size:13px}dl.kv dd{margin:0;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.list{list-style:none;margin:0;padding:0}.list li{border-bottom:1px solid var(--line);padding:12px 0}
+.list a{text-decoration:none}.list a:hover h3{text-decoration:underline}
+.av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:600 13px var(--mono);background:var(--panel2);border:1px solid var(--line);flex:none}
+.tl{list-style:none;margin:0;padding:0;position:relative}.tl li{display:grid;grid-template-columns:20px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.tl .n{width:14px;height:14px;border-radius:50%;border:2px solid var(--soft);margin-top:4px}.tl .ok .n{background:var(--accent);border-color:var(--accent)}.tl .int .n{border-color:var(--warn);background:var(--bg)}
+.msg{max-width:640px;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);margin:8px 0}.msg.me{margin-left:auto;background:var(--panel2)}
+.composer{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel);display:flex;gap:8px;align-items:center;margin-top:16px}
+.composer label{flex:1;color:var(--soft)}
+.meter{height:8px;border-radius:4px;background:var(--panel2);border:1px solid var(--line);overflow:hidden}.meter i{display:block;height:100%;background:var(--soft)}.meter.hi i{background:var(--warn)}
+.preview{border:1px solid var(--line);border-radius:10px;background:#fff;color:#111;padding:20px;font-family:system-ui}
+.preview label{display:block;font-size:13px;margin-top:8px}.preview .f{border:1px solid #666;border-radius:4px;padding:6px 8px;margin-top:2px}
+.diff{font:12px/1.6 var(--mono);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;white-space:pre}
+.add{color:var(--accent)}.del{color:var(--bad)}
+.skel{height:14px;border-radius:4px;background:var(--panel2);margin:8px 0}
+.pal-back{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:start center;padding-top:96px;z-index:20}
+.pal{width:min(640px,94vw);background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+.pal .q{padding:14px 16px;border-bottom:1px solid var(--line);font-size:17px}.pal .g{font:12px var(--mono);color:var(--soft);padding:10px 16px 4px;margin:0;font-weight:400}
+.pal ul{list-style:none;margin:0;padding:0 8px 8px}.pal li{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;gap:8px}.pal li.sel{background:var(--panel2);box-shadow:inset 2px 0 0 var(--accent)}
+.pal li.dis{color:var(--soft)}
+.tabbar{display:none}
+.mobile-back{display:none}
+table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;color:var(--soft);font-weight:500;font-size:13px;border-bottom:1px solid var(--line);padding:8px 6px}td{border-bottom:1px solid var(--line);padding:10px 6px;vertical-align:top}
+@media (max-width:760px){
+ .app{grid-template-columns:1fr;grid-template-rows:56px 1fr 64px}.bar{grid-column:1;gap:8px;padding:0 12px}.cmd,.clock,.run,.bar h1{display:none}
+ .rail{display:none}.tabbar{display:flex;position:fixed;bottom:0;left:0;right:0;height:64px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--panel) 90%,transparent);backdrop-filter:blur(12px);z-index:5}
+ .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;text-decoration:none;color:var(--soft);min-height:44px}.tabbar a[aria-current=page]{color:var(--ink);box-shadow:inset 0 2px 0 var(--accent)}
+ main{grid-template-columns:1fr;padding-bottom:72px}.content{padding:16px}.drawer{border-left:0;border-top:1px solid var(--line)}
+ .grid2,.grid3,.hero{grid-template-columns:1fr}.big{font-size:32px}.mobile-back{display:inline-flex}
+ h2{font-size:22px}table{font-size:13px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head>
+<body><a class="skip" href="#main">Aller au contenu</a><div class="app">
+<header class="bar"><a class="ctx" href="palette.html" aria-label="Contexte actif : Dadz Co. (exemple). Changer de contexte"><span class="dot" aria-hidden="true"></span>Dadz Co. <span class="t-soft" aria-hidden="true">▾</span></a>
+<h1>Atelier — Calculatrice de pourboire</h1><span class="sp"></span><a class="cmd" href="palette.html"><span aria-hidden="true">⌕</span>Rechercher ou agir… <span class="k">Ctrl K</span></a><span class="run">Atelier : rien en cours</span>
+<a class="att on" href="attention.html"><span aria-hidden="true">⚑</span>4 à traiter</a><span class="clock">dim. 09 h 07 HAE</span></header>
+<nav class="rail" aria-label="Navigation principale"><a href="pont.html" ><span class="i" aria-hidden="true">◎</span>Pont</a><a href="attention.html" ><span class="i" aria-hidden="true">⚑</span>Attention</a><a href="conversations.html" ><span class="i" aria-hidden="true">❝</span>Conversations</a><a href="missions.html" ><span class="i" aria-hidden="true">▤</span>Missions</a><a href="equipe.html" ><span class="i" aria-hidden="true">☺</span>Équipe</a><a href="atelier.html" aria-current=page><span class="i" aria-hidden="true">⚒</span>Atelier</a><a href="connexions.html" ><span class="i" aria-hidden="true">⇄</span>Connexions</a><span class="sep"></span><a href="fiche.html" ><span class="i" aria-hidden="true">❖</span>Fiche</a><a href="etats.html" ><span class="i" aria-hidden="true">◌</span>États</a></nav>
+<main id="main" class=""><div class="content"><a class="btn mobile-back" href="atelier.html">← Atelier</a>
+<div class="row between"><div><p class="eyebrow">Session d'atelier <span class="prov re" title="Lu depuis mission.json, branche atelier/e1-d">● réelle</span></p><h2>Calculatrice de pourboire</h2></div><span class="tag t-info">À relire</span></div>
+<p class="lede">Je veux une petite bibliothèque JS qui calcule le pourboire et le partage d&#x27;une addition entre N personnes, avec une page HTML d&#x27;aperçu.</p>
+<div class="grid2"><section class="card" aria-labelledby="fr"><h3 id="fr">Frise</h3><ol class="tl" aria-label="Frise des étapes"><li class="ok"><span class="n" aria-hidden="true"></span><div><div class="row between"><strong>1. spec</strong><span class="tag t-go">✓ Réussie</span></div><div class="meta">Codex CLI · 05 h 04:19 HAE · 17.5 s</div><div class="meta">Modèle demandé gpt-5.6-luna · observé gpt-5.6-luna</div></div></li><li class="ok"><span class="n" aria-hidden="true"></span><div><div class="row between"><strong>2. code</strong><span class="tag t-go">✓ Réussie</span></div><div class="meta">Codex CLI · 05 h 04:42 HAE · 53.6 s</div><div class="meta">Modèle demandé gpt-5.6-luna · observé gpt-5.6-luna</div></div></li><li class="ok"><span class="n" aria-hidden="true"></span><div><div class="row between"><strong>3. test</strong><span class="tag t-go">✓ Réussie</span></div><div class="meta">Runner Oria (preuve) · 05 h 05:35 HAE · 0.2 s</div></div></li><li class="ok"><span class="n" aria-hidden="true"></span><div><div class="row between"><strong>4. preview</strong><span class="tag t-go">✓ Réussie</span></div><div class="meta">Runner Oria (preuve) · 05 h 05:52 HAE · 2.0 s</div></div></li><li class="int"><span class="n" aria-hidden="true"></span><div><div class="row between"><strong>5. revision</strong><span class="tag t-warn">⏸ Interrompue — reprise possible</span></div><div class="meta">Codex CLI · 05 h 06:04 HAE · 39.7 s</div><div class="meta">Modèle demandé gpt-5.6-luna · observé gpt-5.6-luna</div><div class="meta t-warn">Cause : runner_died</div></div></li><li class="ok"><span class="n" aria-hidden="true"></span><div><div class="row between"><strong>6. code</strong><span class="tag t-go">✓ Réussie</span> <span class="tag t-info">↻ reprise</span></div><div class="meta">Codex CLI · 05 h 06:44 HAE · 33.9 s</div><div class="meta">Modèle demandé gpt-5.6-luna · observé gpt-5.6-luna</div></div></li><li class="ok"><span class="n" aria-hidden="true"></span><div><div class="row between"><strong>7. test</strong><span class="tag t-go">✓ Réussie</span></div><div class="meta">Runner Oria (preuve) · 05 h 07:18 HAE · 0.2 s</div></div></li><li class="ok"><span class="n" aria-hidden="true"></span><div><div class="row between"><strong>8. preview</strong><span class="tag t-go">✓ Réussie</span></div><div class="meta">Runner Oria (preuve) · 05 h 07:18 HAE · 2.1 s</div></div></li></ol></section>
+<section aria-labelledby="ap"><h3 id="ap">Aperçu (dernière étape preview)</h3><div class="preview" role="img" aria-label="Aperçu de l'application calculatrice de pourboire"><strong>Calculatrice de pourboire</strong><label>Montant de l'addition</label><div class="f">48,00</div><label>Pourboire</label><div class="f">15 %</div><p><strong>Total : 55,20</strong></p></div>
+<p class="meta">Rendu illustratif de la maquette ; l'aperçu réel est servi par le runner.</p>
+<h3 style="margin-top:16px">Décision</h3><div class="row"><a class="btn p">Accepter</a><a class="btn">Demander une correction</a><a class="btn d">Rejeter</a></div></section></div>
+<section class="card" aria-labelledby="ar"><h3 id="ar">Artefacts (17) — empreintes sha256</h3><div style="overflow:auto" tabindex="0" role="region" aria-label="Tableau des artefacts, défilable"><table><thead><tr><th>Type</th><th>Chemin</th><th>sha256</th><th>Octets</th></tr></thead><tbody><tr><td>transcript</td><td class="mono">artifacts/06f29400-spec.jsonl</td><td class="mono">d80a3b33941c…</td><td class="mono">5477</td></tr><tr><td>spec</td><td class="mono">artifacts/SPEC.md</td><td class="mono">6852d6495c94…</td><td class="mono">3359</td></tr><tr><td>diff</td><td class="mono">artifacts/06f29400-spec.diff</td><td class="mono">8ccedaf93d9d…</td><td class="mono">3659</td></tr><tr><td>commit</td><td class="mono">artifacts/06f29400-commit.txt</td><td class="mono">a330806d20d7…</td><td class="mono">41</td></tr><tr><td>transcript</td><td class="mono">artifacts/787f84ff-code.jsonl</td><td class="mono">ca1440b6f726…</td><td class="mono">16439</td></tr><tr><td>diff</td><td class="mono">artifacts/787f84ff-code.diff</td><td class="mono">458ae011a89c…</td><td class="mono">9179</td></tr></tbody></table></div><p class="meta">6 premiers affichés sur 17.</p></section></div><aside class="drawer" aria-label="Détail"><h3>Preuves</h3><dl class="kv"><dt>Modèle demandé</dt><dd class="mono">gpt-5.6-luna</dd><dt>Modèle observé</dt><dd class="mono">gpt-5.6-luna</dd><dt>Verdict</dt><dd class="t-go">✓ concordant</dd><dt>Session</dt><dd class="mono">01a1724f-5707-7fe2-bb01-94daf8ab0e73</dd><dt>Tête</dt><dd class="mono">d3909431</dd><dt>Étape reprise</dt><dd>code ← session 01a1724f…</dd></dl>
+<p class="meta" style="margin-top:12px">Source : mission.json, branche atelier/e1-d. Heures converties en HAE.</p><span class="prov re" title="Lu depuis mission.json, branche atelier/e1-d">● réelle</span></aside></main>
+</div><nav class="tabbar" aria-label="Navigation mobile"><a href="pont.html" ><span aria-hidden="true">◎</span>Pont</a><a href="attention.html" ><span aria-hidden="true">⚑</span>Attention</a><a href="conversations.html" ><span aria-hidden="true">❝</span>Conversations</a><a href="missions.html" ><span aria-hidden="true">▤</span>Missions</a><a href="index.html"><span aria-hidden="true">⋯</span>Plus</a></nav></body></html>

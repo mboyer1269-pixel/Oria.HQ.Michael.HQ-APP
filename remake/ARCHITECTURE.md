@@ -10,7 +10,7 @@ Objectif : un centre d'opérations où **chaque chose a une place fixe**. On ne 
 ├──────┬────────────────────────────────────────────────────────┬──────────────┤
 │ B.   │ C. CONTENU (un seul sujet)                             │ D. DÉTAIL    │
 │ RAIL │                                                        │ (tiroir, 1   │
-│ 72px │                                                        │ seul niveau) │
+│ 88px │                                                        │ seul niveau) │
 │      │                                                        │ 400px        │
 │      ├────────────────────────────────────────────────────────┤              │
 │      │ E. COMPOSITEUR (conversations seulement)                │              │

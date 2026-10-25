@@ -12,15 +12,15 @@ Les zones, composants et raccourcis sont identiques dans les deux modes : seuls 
 Fond de référence : `--bg #07090a`. Contraste calculé selon WCAG 2.x (luminance relative).
 | Token | Valeur | Usage | Contraste sur bg | sur `--panel #0e1213` |
 |---|---|---|---|---|
-| `--ink` | #e8f3ec | texte | 16.6:1 | 15.9:1 |
-| `--soft` | #9fb4a8 | texte secondaire | 8.6:1 | 8.2:1 |
+| `--ink` | #e8f3ec | texte | 17.5:1 | 16.6:1 |
+| `--soft` | #9fb4a8 | texte secondaire | 9.1:1 | 8.6:1 |
 | `--line` | #1f2a26 | bordures (non textuelles, décoratives) | — | — |
-| `--accent` | #4dff9a | action principale, activité réelle | 14.4:1 | 13.8:1 |
-| `--on-accent` | #03140a | texte sur accent | 14.5:1 sur accent | |
-| `--warn` | #ffb340 | décision / attention | 10.6:1 | 10.1:1 |
-| `--bad` | #ff6b5e | échec / bloqué | 6.7:1 | 6.4:1 |
-| `--info` | #7cc4ff | information | 10.0:1 | 9.6:1 |
-Règle : texte courant ≥ 7:1 (objectif interne, NASA F.5.10) ; tout texte ≥ 4.5:1 (AA). `--bad` (6.7:1) n'est utilisé que pour des libellés courts, toujours accompagnés d'une icône.
+| `--accent` | #4dff9a | action principale, activité réelle | 15.3:1 | 14.4:1 |
+| `--on-accent` | #03140a | texte sur accent | — | 14.5:1 sur accent |
+| `--warn` | #ffb340 | décision / attention | 11.2:1 | 10.6:1 |
+| `--bad` | #ff6b5e | échec / bloqué | 7.1:1 | 6.7:1 |
+| `--info` | #7cc4ff | information | 10.6:1 | 10.0:1 |
+Règle : texte courant ≥ 7:1 (objectif interne, NASA F.5.10) ; tout texte ≥ 4.5:1 (AA). `--bad` (6.7:1 sur panneau) n'est utilisé que pour des libellés courts, toujours accompagnés d'une icône.
 
 ### Couleur — Carte (clair)
 | Token | Valeur | Contraste sur #fbf7ef |
@@ -35,10 +35,10 @@ Règle : texte courant ≥ 7:1 (objectif interne, NASA F.5.10) ; tout texte ≥ 
 ### Provenance (identique dans les deux modes)
 | Badge | Fond / texte | Contraste | Sens |
 |---|---|---|---|
-| **réelle** | #d9f5e3 / #0b3a1d | 12.6:1 | donnée lue depuis une source vérifiable (fichier, API, commit) |
+| **réelle** | #d9f5e3 / #0b3a1d | 11.1:1 | donnée lue depuis une source vérifiable (fichier, API, commit) |
 | **exemple** | #ffe9a8 / #3a2a00 | 11.6:1 | donnée fictive de maquette — jamais affichée en production |
-| **non confirmé** | #e6e6e6 / #2b2b2b | 12.1:1 | modèle/fait demandé mais sans preuve observée |
-| **périmée** | #f1dccf / #4a1d06 | 11.0:1 | donnée datée au-delà du seuil (ex. dernier test > 24 h) |
+| **non confirmé** | #e6e6e6 / #2b2b2b | 11.3:1 | modèle/fait demandé mais sans preuve observée |
+| **périmée** | #f1dccf / #4a1d06 | 10.8:1 | donnée datée au-delà du seuil (ex. dernier test > 24 h) |
 Forme : pilule 20px, majuscule initiale, icône (●, ◆, ?, ⟳) + mot, jamais la couleur seule. Survol/focus → info-bulle « Source : … · lu à 09 h 07 HAE ».
 
 ### Typographie
