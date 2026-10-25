@@ -60,7 +60,7 @@ test("multi-process: 8 processes reclaim the same stale lock at once → exactly
     const jiti = createJiti(${JSON.stringify(import.meta.url)}, { alias: ${JSON.stringify(ALIAS)} });
     const A = await jiti.import("./atelier-mission.ts");
     while (Date.now() < ${go}) {}
-    try { A.acquireLockFile(${JSON.stringify(f)}, "p" + process.pid, { explicitResume: true }); console.log("WON"); } catch (e) { console.log("LOST " + e.message); }`;
+    try { A.acquireLockFile(${JSON.stringify(f)}, "p" + process.pid, { explicitResume: true }); console.log("WON"); /* stay alive: a dead winner's lock is legitimately stale */ while (Date.now() < ${go} + 3000) {} } catch (e) { console.log("LOST " + e.message); }`;
   const outs = await Promise.all(Array.from({ length: 8 }, () => new Promise((res) => {
     const c = spawn(process.execPath, ["--input-type=module", "-e", script], { cwd: new URL(".", import.meta.url).pathname });
     let o = ""; c.stdout.on("data", d => o += d); c.stderr.on("data", d => o += d); c.on("close", () => res(o.trim()));
