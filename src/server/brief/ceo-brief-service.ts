@@ -1,5 +1,6 @@
 import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import "server-only";
+import { DEFAULT_WORKSPACE_SLUG } from "@/core/workspaces/registry";
 
 import type { CeoBriefSnapshot } from "@/core/types";
 import { createCalendarRepository } from "@/server/calendar/calendar-repository";
@@ -70,7 +71,8 @@ export async function buildCeoBriefSnapshot(ctx: WorkspaceContext = getActiveWor
     }),
     contactRepository.listRecent({ workspaceId: ctx.workspace.id, status: "new", limit: 5 }),
     contactRepository.listRecent({ workspaceId: ctx.workspace.id, limit: 5 }),
-    getDocumentBriefSnapshot(3),
+    // The document index is not workspace-scoped yet: only the legacy workspace may read it.
+    ctx.workspace.id === DEFAULT_WORKSPACE_SLUG ? getDocumentBriefSnapshot(3) : Promise.resolve({ totalCount: 0, byHat: {}, recent: [] }),
   ]);
 
   const agendaItems = events.map((event) => ({

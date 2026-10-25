@@ -137,7 +137,10 @@ test("two users x two workspaces: authorization and persistence isolation", asyn
     process.env.MICHAEL_HQ_OWNER_EMAIL = "legacy@example.test";
     assert.equal(owner.isOwnerUser({ id: "legacy" }), true);
     assert.equal(owner.isOwnerUser({ id: "different", email: "LEGACY@example.test" }), true);
-    assert.equal(owner.isOwnerUser({ id: "userA" }), true);
+    // Owning another workspace must not open legacy routes bound to the default workspace.
+    assert.equal(owner.isOwnerUser({ id: "userA" }), false);
+    assert.equal(owner.isOwnerUser({ id: "userB" }), false);
+    assert.equal(owner.hasOwnerAuthConfig(), true);
     assert.equal(owner.isOwnerUser({ id: "stranger" }), false);
     assert.equal(authz.resolveAuthzContext({ userId: "legacy" }).workspaceId, "michael-hq");
     delete process.env.MICHAEL_HQ_OWNER_ID;

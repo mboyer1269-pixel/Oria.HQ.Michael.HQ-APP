@@ -75,3 +75,19 @@ Admission: an authenticated user with no configured membership is refused
 (403 `NOT_A_MEMBER`), even for `personal:<userId>`, unless
 `ORIA_OPEN_PERSONAL_SPACES=true`. This keeps self-signed-up Supabase accounts
 out of a single-user deployment while allowing personal spaces without any company.
+
+Legacy owner gate (`isOwnerUser` / `requireOwnerApiSession`) now admits only an
+owner of the default workspace (`michael-hq`), because the ~50 legacy routes still
+resolve the default context. Owners of other workspaces are refused there (403)
+and must use routes migrated to `requireWorkspaceApiSession`.
+
+DEPLOY PREREQUISITE: migration 0032 must be applied (it adds
+`contact_leads.workspace_id`) BEFORE deploying this code with Supabase enabled,
+otherwise contact create/list fail. Not applied by this lot.
+
+Known limits: routes other than `/api/joris/chat` are still legacy (default
+workspace, owner gate); event payloads carry no email, so a job for an owner
+matched only by email is refused (configure `userId`); the document index is
+global and therefore only shown to the default workspace; for an email-matched
+owner whose session id differs from MICHAEL_HQ_OWNER_ID, Joris attributes to the
+session id while legacy routes use the configured id.

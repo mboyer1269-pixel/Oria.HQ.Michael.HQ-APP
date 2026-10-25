@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { configuredMemberships, membershipsForUser, resolveAuthzContext, WorkspaceAccessError, type AuthzContext } from "@/server/auth/authz-context";
+import { DEFAULT_WORKSPACE_SLUG } from "@/core/workspaces/registry";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { asRoute, getLoginPath } from "@/server/auth/redirects";
 
@@ -18,12 +19,17 @@ export type OwnerAccess =
     };
 
 export function hasOwnerAuthConfig() {
-  return configuredMemberships().some((m) => m.role === "owner" && !m.workspaceId.startsWith("personal:"));
+  return configuredMemberships().some((m) => m.role === "owner" && m.workspaceId === DEFAULT_WORKSPACE_SLUG);
 }
 
+/**
+ * Legacy owner gate: legacy routes still resolve the default workspace context, so
+ * only an owner of that default workspace may pass. Owners of other workspaces must
+ * go through requireWorkspaceApiSession, which scopes data to their workspace.
+ */
 export function isOwnerUser(user: User) {
   return membershipsForUser({ userId: user.id, email: user.email }).some((m) =>
-    m.role === "owner" && !m.workspaceId.startsWith("personal:"));
+    m.role === "owner" && m.workspaceId === DEFAULT_WORKSPACE_SLUG);
 }
 
 export async function getCurrentAuthUser() {
