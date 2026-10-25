@@ -514,6 +514,16 @@ export function interruptMission(id: string, root = atelierRoot()) {
   return { interrupted: false, reason: lock.live ? "no_child" as const : "runner_dead_resume_required" as const };
 }
 
+/**
+ * SENT-412-18: repo scripts (npm test…) run with a minimal env: PATH/LANG/TERM only, HOME and TMPDIR moved to a
+ * private per-mission dir, so the subscription logins (~/.codex, ~/.claude) and any secret of the server env are
+ * out of reach of the default paths. Not an OS sandbox (same uid: an absolute path can still be read) — see docs.
+ */
+export function commandStepEnvironment(id: string, root = atelierRoot(), env = process.env): NodeJS.ProcessEnv {
+  const home = join(missionDir(id, root), "sandbox-home"); const tmp = join(home, "tmp"); mkdirSync(tmp, { recursive: true });
+  return { NODE_ENV: "test", CI: "1", HOME: home, USERPROFILE: home, TMPDIR: tmp, TMP: tmp, TEMP: tmp, npm_config_cache: join(home, ".npm"),
+    ...Object.fromEntries(["PATH", "LANG", "LC_ALL", "TERM", "SYSTEMROOT", "WINDIR"].flatMap(k => env[k] === undefined ? [] : [[k, env[k]]])) };
+}
 /** Runner-executed verification (not agent-claimed): tests or preview. */
 export function runCommandStep(id: string, kind: "test" | "preview", command: string[], opts: { root?: string; previewFile?: string } = {}): AtelierMission {
   const root = opts.root ?? atelierRoot();
@@ -522,7 +532,7 @@ export function runCommandStep(id: string, kind: "test" | "preview", command: st
     requestedModelId: null, observedModelId: null, exitCode: null, reason: null, commitSha: m.repo.headSha };
   const { lockFile } = acquire(m, step.id, false, root); m.steps.push(step); save(m, root);
   logEvent(id, "step_started", root, step.id, { kind });
-  const r = spawnSync(command[0], command.slice(1), { cwd: m.repo.path, encoding: "utf8", timeout: 120_000, env: subscriptionEnvironment(process.env) });
+  const r = spawnSync(command[0], command.slice(1), { cwd: m.repo.path, encoding: "utf8", timeout: 120_000, killSignal: "SIGKILL", env: commandStepEnvironment(m.id, root) });
   step.exitCode = r.status; step.endedAt = now(); step.status = r.status === 0 ? "succeeded" : "failed";
   const log = `$ ${command.join(" ")}\n# HEAD ${m.repo.headSha}\n${r.stdout}\n${r.stderr}\n# exit ${r.status}\n`;
   addArtifact(m, step.id, kind === "test" ? "test_log" : "preview", `${step.id.slice(0, 8)}-${kind}.${kind === "test" ? "log" : "txt"}`, log, root);

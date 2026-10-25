@@ -32,3 +32,14 @@ Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrig�
 
 ## OpenHands — état (non retenu, non modifié)
 1. v3 vs v1/v2 : confirmé. 2. profil refusé : confirmé. 3. ACP Claude en dur, modèle non transmis : confirmé. 4. reprise : verrou `started.json` en `open('x')` + pas de reprise auto — confirmé par lecture, non exécuté. 5. artefacts non renvoyés : confirmé par lecture. 6. SDK épinglé 1.50.0 (asserts dans `openhands-qualification/*.py`), PyPI publie 1.58.2 (`pip index versions`, 2026-10-25). Recommandation : geler OpenHands hors V1 ; si repris, migrer vers Agent Server 1.58.x plutôt que réparer l'ancien chemin Docker.
+
+## Garde abonnement en cours d'étape et limites (SENT-412-17 / 412-18)
+- Claude Code est lancé avec `--setting-sources ""` : aucun réglage utilisateur/projet/local (clé `env`, apiKeyHelper, skills, plugins).
+  Le runner lit `system/init` du stream-json : `apiKeySource` ≠ `"none"` (ou `apiProvider` ≠ firstParty) → groupe tué (SIGKILL),
+  étape `failed`, raison `subscription_auth_required`, aucun commit (modifications suivies annulées).
+- Codex : `--json` n'expose pas la méthode d'authentification ; la garde reste `codex login status` (« Logged in using ChatGPT ») avant
+  lancement + `forced_login_method="chatgpt"` + `model_provider="openai"`. Pas de vérification équivalente en cours d'exécution.
+- Étape `test` (runner) : environnement minimal (PATH/LANG/TERM, NODE_ENV=test, CI=1), HOME/TMPDIR privés par mission, cwd = dépôt,
+  timeout 120 s (SIGKILL). Ce n'est **pas** un bac à sable OS : même uid, un chemin absolu (ex. `~/.codex/auth.json`) reste lisible ;
+  le timeout ne tue que le processus direct. Le `Bash(npm test:*)` autorisé à l'agent Claude hérite de l'environnement de la CLI
+  (liste blanche, HOME réel nécessaire à la connexion claude.ai) : non confiné. Vrai confinement = conteneur / bubblewrap (hors lot).

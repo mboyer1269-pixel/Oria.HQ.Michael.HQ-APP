@@ -109,3 +109,10 @@ test('claude-code: observed model from the real stream shape (claude 2.1.283), q
   const q = A.parseTranscript('claude-code', limited);
   assert.equal(q.quota, true); assert.equal(q.completed, false); assert.equal(q.streamModel, null);
 });
+
+test('SENT-412-18: runner test step env is minimal (no secrets, private HOME/TMPDIR)', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'atelier-env-'));
+  const e = A.commandStepEnvironment('0b7e8d2a-1c3f-4e5a-9b6d-7f8e9a0b1c2d', root, { PATH: '/bin', HOME: '/home/real', SUPABASE_SERVICE_ROLE_KEY: 's', OPENAI_API_KEY: 'k', GITHUB_TOKEN: 'g', LANG: 'C' });
+  assert.deepEqual(Object.keys(e).sort(), ['CI', 'HOME', 'LANG', 'NODE_ENV', 'PATH', 'TEMP', 'TMP', 'TMPDIR', 'USERPROFILE', 'npm_config_cache']);
+  assert.notEqual(e.HOME, '/home/real'); assert.ok(e.HOME.startsWith(root));
+});
