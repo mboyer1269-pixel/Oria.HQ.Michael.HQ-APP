@@ -1,3 +1,4 @@
+import { hasConsentEvidence } from "./sales-lead";
 // src/features/sales/follow-up-draft.ts
 //
 // Prepare-only follow-up drafts (SMS / email). Never sends.
@@ -108,6 +109,9 @@ export function prepareFollowUpDraft(input: FollowUpPrepareInput): FollowUpPrepa
   }
   if (input.lead.stage === "sold" || input.lead.stage === "lost") {
     errors.push(`cannot prepare follow-up for stage=${input.lead.stage}`);
+  }
+  if (input.lead.consentBasis === "implied_verified" && !hasConsentEvidence(input.lead.consentEvidence)) {
+    errors.push("Preuve de consentement implicite manquante.");
   }
   if (input.lead.consentBasis === "unknown") {
     errors.push("consentBasis unknown — set express or implied_verified before outreach");

@@ -3,7 +3,7 @@ import { runSubscriptionTurn } from "@/server/ai/subscription-runtime";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { getCurrentAuthUser, requireOwnerApiSession } from "@/server/auth/owner";
+import { authzIdentity, requireWorkspaceApiSession } from "@/server/auth/owner";
 import { isSubscriptionOwner } from "@/server/ai/subscription-owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
@@ -18,18 +18,19 @@ const requestSchema = z.object({
   subscriptionSelection: subscriptionSelectionSchema.optional(),
 }).strict().refine(value => !(value.modelSelection && value.subscriptionSelection));
 
-export async function GET() {
-  const authResponse=await requireOwnerApiSession();if(authResponse)return authResponse;
-  const ctx=getActiveWorkspaceContext();
+export async function GET(request: Request) {
+  const session = await requireWorkspaceApiSession(request);
+  if (session instanceof NextResponse) return session;
+  const ctx = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email, emailVerified: authzIdentity(session.user).emailVerified });
   const catalog=await loadChatCapabilityCatalog();
   // Subscription options are listed only to the subscription holder (same rule as POST).
-  const subscriptionHolder=isSubscriptionOwner((await getCurrentAuthUser())?.id);
+  const subscriptionHolder=isSubscriptionOwner(session.user.id);
   return NextResponse.json({options:[...chatModelOptions(catalog,ctx.workspace.id),...(subscriptionHolder?subscriptionOptions(await loadSubscriptionCatalog()):[])],status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(request: Request) {
-  const authResponse = await requireOwnerApiSession();
-  if (authResponse) return authResponse;
+  const session = await requireWorkspaceApiSession(request);
+  if (session instanceof NextResponse) return session;
 
   const body = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(body);
@@ -42,12 +43,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const workspaceContext = getActiveWorkspaceContext();
+    const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email, emailVerified: authzIdentity(session.user).emailVerified });
     if (parsed.data.subscriptionSelection) {
       // The CLI runs on a personal subscription on this machine: only its holder
       // (ORIA_SUBSCRIPTION_OWNERS, default MICHAEL_HQ_OWNER_ID) may use it, even
       // once #410 widens this route to other workspace owners/members (SENT-X-1, SENT-412-8).
-      if (!isSubscriptionOwner((await getCurrentAuthUser())?.id)) {
+      if (!isSubscriptionOwner(session.user.id)) {
         return NextResponse.json({ error: "Abonnement CLI réservé à son titulaire.", code: "SUBSCRIPTION_OWNER_ONLY" }, { status: 403 });
       }
       const turn = await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog());

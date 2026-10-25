@@ -276,3 +276,20 @@ entière ; ~22 % des emails B2B légitimes n'atteignent déjà jamais l'inbox.
 Pas d'envoi live. Pas de provider email branché en production. Pas de migration DB sans approbation
 séparée. Pas de n8n live. Pas de paiements, déploiements, budgets ads, ni intégrations externes
 nouvelles. Pas d'endpoint runtime public. Pas de secrets côté client. Pas de bypass RLS.
+
+
+## Lot B3 — client consent trust boundary
+
+The owner-gated queue API neutralizes all client provenance (`isVerified: false`)
+and downgrades client `implied_verified` to `manual_review_required`; intake then
+rejects the send. The lead API drops client `consentEvidence` and applies the same
+downgrade. No trusted server consent evidence store exists today. Only trusted
+server code constructing evidence from recorded sources may use verified provenance;
+the structural evidence predicate alone is not an authenticity check.
+
+`express` remains an owner attestation for the existing manual Sales Desk and
+single-send workflow. Requiring server proof for it now would disable that flow
+without a record-capture mechanism. It is **not** server-verified consent: client
+evidence is still discarded/neutralized. Both executors block unknown/review-required
+consent and implied consent without recorded verified provenance. Replacing the
+manual express exception requires a separately scoped trusted consent store.

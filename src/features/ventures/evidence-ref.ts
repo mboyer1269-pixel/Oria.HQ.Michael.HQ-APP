@@ -72,6 +72,7 @@ export type EvidenceRef = {
   kind: EvidenceKind;
   referenceId: string;
   isVerified: boolean;
+  provenance?: "simulated";
   source: string;
   capturedAt: string; // ISO date string
   summary: string;
@@ -147,7 +148,7 @@ export function classifyEvidenceTrust(ref: EvidenceRef): EvidenceTrustLevel {
     return "low";
   }
   // An unverified claim, whatever its kind, is only low trust — nothing confirms it.
-  if (!ref.isVerified) {
+  if (!ref.isVerified || ref.provenance === "simulated") {
     return "low";
   }
   switch (ref.kind) {
@@ -185,7 +186,7 @@ export function classifyEvidenceCollectionTrust(
 // ---------------------------------------------------------------------------
 
 export function isVerifiedFinancialEvidence(ref: EvidenceRef): boolean {
-  return ref.isVerified === true && VERIFIED_FINANCIAL_KINDS.includes(ref.kind);
+  return ref.provenance !== "simulated" && ref.isVerified === true && VERIFIED_FINANCIAL_KINDS.includes(ref.kind);
 }
 
 export function hasVerifiedFinancialEvidence(refs: EvidenceRef[]): boolean {
@@ -256,6 +257,7 @@ export function copyEvidenceRef(ref: EvidenceRef): EvidenceRef {
     kind: ref.kind,
     referenceId: ref.referenceId,
     isVerified: ref.isVerified,
+    ...(ref.provenance ? { provenance: ref.provenance } : {}),
     source: ref.source,
     capturedAt: ref.capturedAt,
     summary: ref.summary,

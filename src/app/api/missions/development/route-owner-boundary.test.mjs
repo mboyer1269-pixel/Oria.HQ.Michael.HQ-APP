@@ -102,10 +102,21 @@ test("development route owner boundary", async (t) => {
       assert.equal(row.input.development.createdBy, "synthetic-owner-id");
     });
 
-    await t.test("owner email still attributes createdBy to the session id", async () => {
+    await t.test("unconfirmed owner email is refused (SENT-410-1)", async () => {
       resetWrites();
       setAuthResult({
-        user: { id: "synthetic-session-email", email: "Synthetic-Owner@Example.com" },
+        user: { id: "synthetic-session-email", email: "Synthetic-Owner@Example.com", email_confirmed_at: null },
+        error: null,
+      });
+      const response = await POST(post(input));
+      assert.equal(response.status, 403);
+      assert.equal(writtenRows().length, 0);
+    });
+
+    await t.test("confirmed owner email still attributes createdBy to the session id", async () => {
+      resetWrites();
+      setAuthResult({
+        user: { id: "synthetic-session-email", email: "Synthetic-Owner@Example.com", email_confirmed_at: "2026-01-01T00:00:00Z" },
         error: null,
       });
       const response = await POST(post(input));

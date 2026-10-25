@@ -6,7 +6,7 @@ import type { ActionLedgerEntry } from "@/server/actions/action-ledger-repositor
 import { listMissionsForWorkspace } from "@/server/missions";
 import { buildMissionLookup, type MissionLookup } from "@/features/hq/ledger-activity";
 import { agentRegistry } from "@/features/agents/seed";
-import { selectWorkflowsModel } from "@/features/workflows/workflows-page-data";
+import { assembleRealWorkflowsModel, selectWorkflowsModel } from "@/features/workflows/workflows-page-data";
 import { WorkflowBoardLive } from "@/features/workflows/components/workflow-board-live";
 import { KpiObservationPanel } from "@/features/workflows/components/kpi-observation-panel";
 import { requireOwnerAccess } from "@/server/auth/owner";
@@ -29,8 +29,8 @@ export default async function WorkflowsPage() {
   }
 
   // Read the action ledger (the real run source) and the missions (for run
-  // titles + status-based conclusion). Any failure falls back to the labelled
-  // demonstration board — read-only, never throws into the page.
+  // titles + status-based conclusion). Failed reads are shown as unavailable.
+  let loadError = false;
   let entries: ActionLedgerEntry[] = [];
   let missionLookup: MissionLookup = new Map();
   try {
@@ -42,11 +42,14 @@ export default async function WorkflowsPage() {
     entries = ledger.entries;
     missionLookup = buildMissionLookup(missions.missions);
   } catch {
+    loadError = true;
     entries = [];
     missionLookup = new Map();
   }
 
-  const model = selectWorkflowsModel(entries, missionLookup, new Date().getTime());
+  const model = loadError
+    ? { ...assembleRealWorkflowsModel([], new Map()), note: "Données indisponibles — la lecture du registre a échoué." }
+    : selectWorkflowsModel(entries, missionLookup, new Date().getTime());
   const agentNames = Object.fromEntries(agentRegistry.map((agent) => [agent.id, agent.name]));
   const isReal = model.source === "ledger";
 

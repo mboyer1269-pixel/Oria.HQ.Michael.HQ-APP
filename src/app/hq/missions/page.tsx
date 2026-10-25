@@ -142,7 +142,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
               <Bot className="h-8 w-8 text-amber-400" />
             </div>
             <div className="mt-6 max-w-md">
-              <h2 className="text-xl font-semibold text-white">Aucun résultat sur cette page</h2>
+              <h2 className="text-xl font-semibold text-white">{summary.total === 0 ? "Aucune donnée — rien n’a encore été enregistré" : "Aucun résultat sur cette page"}</h2>
               <p className="mt-3 text-sm leading-6 text-neutral-400">
                 Modifiez les filtres ou revenez à la première page. Seules les missions enregistrées apparaissent dans ce dossier.
               </p>

@@ -23,6 +23,8 @@
 //   * Daily caps are constants. Not env vars. Not advisory.
 // ---------------------------------------------------------------------------
 
+import { hasRecordedConsentProvenance } from "./consent-evidence.ts";
+
 import type {
   AudienceType,
   ConsentBasis,
@@ -128,13 +130,14 @@ export type ChannelValidationContext = {
 
 export function validateActionForChannel(
   channel: ChannelDescriptor,
-  batch: Pick<OutboundBatch, "consentBasis" | "audienceType" | "unsubscribeMechanism">,
+  batch: Pick<OutboundBatch, "consentBasis" | "audienceType" | "unsubscribeMechanism"> & Partial<Pick<OutboundBatch, "consentProvenance">>,
   action: Pick<OutboundAction, "renderedBody">,
   context: ChannelValidationContext,
 ): ChannelValidationResult {
   const violations: ChannelViolation[] = [];
 
-  if (!channel.allowedConsentBases.includes(batch.consentBasis)) {
+  if (!channel.allowedConsentBases.includes(batch.consentBasis) ||
+    (batch.consentBasis === "implied_verified" && !hasRecordedConsentProvenance({ consentProvenance: batch.consentProvenance ?? [] }))) {
     violations.push({
       code: "consent_basis_not_allowed",
       message: `Consent basis "${batch.consentBasis}" is not allowed on channel "${channel.channelId}".`,

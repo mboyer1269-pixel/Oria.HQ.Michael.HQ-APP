@@ -427,7 +427,7 @@ test("GET /api/arena/candidates returns 401 for unauthenticated request", async 
 // Test 12: GET /api/arena/candidates returns authenticated workspace candidates
 // ---------------------------------------------------------------------------
 
-test("GET /api/arena/candidates returns 200 for authenticated owner and workspace-scoped mission candidates", async () => {
+test("GET /api/arena/candidates returns 200 and no invented candidates for an empty workspace", async () => {
   allowOwnerApiSession();
 
   const res = await candidatesGET(new Request("http://localhost/api/arena/candidates"));
@@ -436,17 +436,7 @@ test("GET /api/arena/candidates returns 200 for authenticated owner and workspac
   const body = await res.json();
   assert.equal(body.workspaceId, DEFAULT_WORKSPACE_SLUG);
   assert.equal(body.source, "local");
-  assert.equal(body.candidates.length, 3);
-  assert.deepEqual(
-    body.candidates.map((candidate) => candidate.id),
-    [
-      "mission_ceo_brief_2026_05_21",
-      "mission_audit_oria_2026_05_21",
-      "mission_client_message_2026_05_21",
-    ],
-  );
-  assert.ok(body.candidates.every((candidate) => candidate.workspaceId === DEFAULT_WORKSPACE_SLUG));
-  assert.ok(body.candidates.every((candidate) => candidate.kind === "mission"));
+  assert.deepEqual(body.candidates, []);
 });
 
 // ---------------------------------------------------------------------------

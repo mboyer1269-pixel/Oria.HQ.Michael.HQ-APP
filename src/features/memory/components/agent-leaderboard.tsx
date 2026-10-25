@@ -18,6 +18,7 @@ function scoreClass(score: number) {
 }
 
 export function AgentLeaderboard({ scores }: { scores: AgentScore[] }) {
+  if (scores.length === 0) return <p>Aucune donnée — rien n’a encore été enregistré</p>;
   const ranked = [...scores].sort((a, b) => b.score - a.score);
 
   return (

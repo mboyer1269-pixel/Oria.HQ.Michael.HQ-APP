@@ -1,3 +1,4 @@
+import { isDemoMode, EMPTY_DATA_LABEL } from "@/lib/demo-mode";
 import { charterRegistry } from "@/features/agents/charter-seed";
 import { agentRegistry } from "@/features/agents/seed";
 import type { MissionLookup } from "@/features/hq/ledger-activity";
@@ -23,7 +24,7 @@ import {
 //     flags stuck runs against `nowMs`.
 //   - buildWorkflowsPageModel: the labelled demonstration fallback (no clock —
 //     demo timestamps are fixed, staleness is not meaningful there).
-// selectWorkflowsModel prefers the real board and falls back to the demo. The
+// selectWorkflowsModel prefers real data; demo requires explicit opt-in. The
 // page does the ledger/mission I/O and hands the data in — assembly stays pure.
 // ---------------------------------------------------------------------------
 
@@ -38,6 +39,7 @@ export type WorkflowsPageModel = {
   note: string;
   source: WorkflowsModelSource;
   isDemonstration: boolean;
+  provenance: "ledger" | "simulated";
 };
 
 function agentNameLookup(): Record<string, string> {
@@ -59,13 +61,15 @@ export function assembleRealWorkflowsModel(
   return {
     board,
     kpiReport,
-    note: WORKFLOW_BOARD_REAL_NOTE,
+    note: runs.length > 0 ? WORKFLOW_BOARD_REAL_NOTE : EMPTY_DATA_LABEL,
     source: "ledger",
     isDemonstration: false,
+    provenance: "ledger",
   };
 }
 
 export function buildWorkflowsPageModel(): WorkflowsPageModel {
+  if (!isDemoMode()) return assembleRealWorkflowsModel([], new Map());
   const store = createWorkflowRunStore(buildWorkflowRunSeedEvents(charterRegistry));
   const board = buildWorkflowLiveBoard(store.snapshot(), agentNameLookup());
   const kpiReport = buildKpiObservationReport(
@@ -79,15 +83,16 @@ export function buildWorkflowsPageModel(): WorkflowsPageModel {
     note: WORKFLOW_BOARD_DEMO_NOTE,
     source: "demo",
     isDemonstration: true,
+    provenance: "simulated",
   };
 }
 
-/** Prefer real ledger activity; fall back to the labelled demo when none. */
+/** Empty stays empty unless the demonstration mode is explicitly enabled. */
 export function selectWorkflowsModel(
   entries: readonly ActionLedgerEntry[],
   missionLookup: MissionLookup,
   nowMs?: number,
 ): WorkflowsPageModel {
   const real = assembleRealWorkflowsModel(entries, missionLookup, nowMs);
-  return real.board.totals.runs > 0 ? real : buildWorkflowsPageModel();
+  return real.board.totals.runs === 0 && isDemoMode() ? buildWorkflowsPageModel() : real;
 }

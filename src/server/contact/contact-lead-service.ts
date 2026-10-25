@@ -1,3 +1,4 @@
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import type { ContactLead, ContactNotificationStatus } from "@/core/types";
 import {
   createContactLeadRepository,
@@ -5,7 +6,7 @@ import {
 } from "@/server/contact/contact-lead-repository";
 import { notifyContactLead } from "@/server/contact/contact-notification-service";
 
-export type CreateContactLeadCommand = CreateContactLeadInput;
+export type CreateContactLeadCommand = Omit<CreateContactLeadInput, "workspaceId">;
 
 export type ContactLeadWriteResult = {
   lead: ContactLead;
@@ -15,7 +16,7 @@ export type ContactLeadWriteResult = {
 
 export async function createContactLead(command: CreateContactLeadCommand): Promise<ContactLeadWriteResult> {
   const repository = createContactLeadRepository();
-  const lead = await repository.create(command);
+  const lead = await repository.create({ ...command, workspaceId: getActiveWorkspaceContext().workspace.id });
 
   try {
     const notification = await notifyContactLead(lead);

@@ -33,7 +33,7 @@ function makeApprovedBatch(overrides = {}) {
     messageTemplate: "Hi {{name}},\n\nFollowing up on our conversation.\n\nBest,\nMichael",
     aiDisclosure: "Assisted by Orya HQ AI",
     consentBasis: "implied_verified",
-    consentProvenance: [{ type: "email_reply", source: "crm", value: "prior-contact" }],
+    consentProvenance: [{ kind: "email_reply", source: "crm", referenceId: "consent-record-1", capturedAt: "2026-06-01T12:00:00Z", summary: "Recorded right to contact", isVerified: true }],
     unsubscribeMechanism: "present",
     jurisdiction: "CA",
     riskLevel: "medium",
@@ -203,3 +203,19 @@ test("executeBatchDryRun — ok with zero actions", () => {
   assert.strictEqual(result.totalActions, 0);
   assert.strictEqual(result.dryRun, true);
 });
+
+for (const consentBasis of ["unknown", "manual_review_required", "implied_verified"]) {
+  test(`execution blocks ${consentBasis} without recorded proof`, () => {
+    const result = executeBatchDryRun(makeApprovedBatch({ consentBasis, consentProvenance: [] }), [makeAction("a", "l")]);
+    assert.equal(result.status, "blocked");
+    assert.match(result.blockReason, /consent/i);
+    assert.deepEqual(result.actions, []);
+  });
+}
+for (const proof of [{ isVerified: false }, { provenance: "simulated" }, { referenceId: "" }, { capturedAt: "invalid" }]) {
+  test(`execution rejects invalid implied evidence ${JSON.stringify(proof)}`, () => {
+    const batch = makeApprovedBatch();
+    batch.consentProvenance = [{ ...batch.consentProvenance[0], ...proof }];
+    assert.equal(executeBatchDryRun(batch, [makeAction("a", "l")]).status, "blocked");
+  });
+}

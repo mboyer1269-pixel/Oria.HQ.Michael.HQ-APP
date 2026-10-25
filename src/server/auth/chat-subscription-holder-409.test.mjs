@@ -36,8 +36,7 @@ test("non-holder passing the owner gate → 403 SUBSCRIPTION_OWNER_ONLY before a
   for (const user of [{ id: "other-owner" }, null]) {
     globalThis.subOwnerTestUser = user;
     const res = await post();
-    // se resserrera à 401 une fois #410 fusionnée
-    if (user === null) { assert.ok([401, 403].includes(res.status), String(res.status)); continue; } // 401 with #410 (no session), 403 on #409 alone — never reaches the CLI
+    if (user === null) { assert.equal(res.status, 401); continue; } // #410 merged: no session → 401, never reaches the CLI
     assert.equal(res.status, 403);
     const body = await res.json();
     assert.equal(body.code, "SUBSCRIPTION_OWNER_ONLY");

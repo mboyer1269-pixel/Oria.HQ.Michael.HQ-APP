@@ -318,11 +318,11 @@ export default async function HqPage() {
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Billion Dollar Board</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">Intelligence stratégique intégrée</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Cadres de référence stratégiques</h2>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
             <BadgeDollarSign className="h-3.5 w-3.5" />
-            Verdict final par Joris
+            Références — aucune consultation réelle de ces personnes
           </div>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">

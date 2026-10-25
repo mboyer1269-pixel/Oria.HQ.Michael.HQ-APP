@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireOwnerApiSession } from "@/server/auth/owner";
-import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { buildApprovedSendCandidate } from "@/server/outbound/outbound-queue-intake";
+import { requireOutboundOwnerContext } from "@/server/outbound/outbound-route-auth";
+import { buildClientSendCandidate } from "@/server/outbound/outbound-queue-intake";
 import {
   listOutboundSendCandidates,
   registerOutboundSendCandidate,
@@ -26,15 +25,22 @@ const queueRequestSchema = z.object({
   subVoie: z.enum(["reply_assist", "follow_up", "re_activation", "cold_email"]),
   audienceType: z.enum(["internal_test", "known_contact", "warm_lead", "cold_prospect"]),
   consentBasis: z.enum(["express", "implied_verified", "manual_review_required", "unknown"]),
+  consentProvenance: z.array(z.object({
+    kind: z.enum(["stripe_charge", "signed_loi", "email_reply", "analytics_event", "screenshot", "manual_note", "self_reported"]),
+    referenceId: z.string().min(1),
+    source: z.string().min(1),
+    capturedAt: z.iso.datetime(),
+    summary: z.string().min(1),
+    isVerified: z.boolean(),
+    provenance: z.literal("simulated").optional(),
+  })).optional(),
   ventureId: z.string().optional(),
   recipientLocalHour: z.number().int().min(0).max(23).nullable().optional(),
 });
 
 export async function POST(request: Request) {
-  const authError = await requireOwnerApiSession();
-  if (authError) return authError;
-
-  const ctx = getActiveWorkspaceContext();
+  const ctx = await requireOutboundOwnerContext(request);
+  if (ctx instanceof NextResponse) return ctx;
 
   const body = await request.json().catch(() => null);
   const parsed = queueRequestSchema.safeParse(body);
@@ -45,10 +51,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const built = buildApprovedSendCandidate({
+  const built = buildClientSendCandidate({
     ...parsed.data,
-    workspaceId: ctx.workspace.id,
-    approverId: ctx.userId,
+    workspaceId: ctx.workspaceId,
+    approverId: ctx.approverId,
   });
 
   if (!built.ok) {
@@ -68,12 +74,10 @@ export async function POST(request: Request) {
   );
 }
 
-export async function GET() {
-  const authError = await requireOwnerApiSession();
-  if (authError) return authError;
-
-  const ctx = getActiveWorkspaceContext();
-  const candidates = listOutboundSendCandidates(ctx.workspace.id);
+export async function GET(request?: Request) {
+  const ctx = await requireOutboundOwnerContext(request);
+  if (ctx instanceof NextResponse) return ctx;
+  const candidates = listOutboundSendCandidates(ctx.workspaceId);
 
   return NextResponse.json({
     candidates: candidates.map((candidate) => ({

@@ -1,3 +1,5 @@
+import { NonRetriableError } from "inngest";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { inngest } from "./inngest-client";
 import type { CommandResult } from "@/core/types";
 
@@ -23,6 +25,29 @@ export type JorisExecuteEventData = {
   locale: "fr-CA";
 };
 
+/**
+ * The only sanctioned way to build a `joris/execute` event. Identity and
+ * workspace come exclusively from the server-resolved session context
+ * (`requireWorkspaceApiSession`), never from a request body; the job re-checks
+ * membership on receipt. No emitter exists yet (the chat route is synchronous).
+ */
+export function buildJorisExecuteEvent(
+  session: { ctx: { userId: string; workspaceId: string } },
+  message: string,
+): { name: "joris/execute"; data: JorisExecuteEventData } {
+  if (!session?.ctx?.userId || !session.ctx.workspaceId) throw new Error("Missing server session context");
+  return { name: "joris/execute", data: { userId: session.ctx.userId, workspaceId: session.ctx.workspaceId, message, locale: "fr-CA" } };
+}
+
+export function resolveJorisJobContext(data: JorisExecuteEventData) {
+  try {
+    if (!data.userId || !data.workspaceId) throw new Error("Missing job authorization context");
+    return getActiveWorkspaceContext({ userId: data.userId, workspaceId: data.workspaceId });
+  } catch (error) {
+    throw new NonRetriableError(error instanceof Error ? error.message : "Invalid job authorization context");
+  }
+}
+
 export const jorisExecuteJob = inngest.createFunction(
   {
     id: "joris-execute",
@@ -34,12 +59,11 @@ export const jorisExecuteJob = inngest.createFunction(
   },
   { event: "joris/execute" },
   async ({ event, step }): Promise<CommandResult> => {
+    const workspaceContext = resolveJorisJobContext(event.data);
     // Import lazily to avoid circular dependencies during build.
     const { runJorisCommand } = await import("@/server/joris/brain");
-    const { getActiveWorkspaceContext } = await import("@/core/workspace-context");
 
     const result = await step.run("run-joris-command", async () => {
-      const workspaceContext = getActiveWorkspaceContext();
       return runJorisCommand(event.data.message, workspaceContext);
     });
 

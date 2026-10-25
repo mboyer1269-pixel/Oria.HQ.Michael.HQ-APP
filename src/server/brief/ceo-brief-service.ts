@@ -1,7 +1,9 @@
+import { getActiveWorkspaceContext, type WorkspaceContext } from "@/core/workspace-context";
 import "server-only";
+import { DEFAULT_WORKSPACE_SLUG } from "@/core/workspaces/registry";
 
 import type { CeoBriefSnapshot } from "@/core/types";
-import { listCalendarEvents } from "@/server/calendar/calendar-service";
+import { createCalendarRepository } from "@/server/calendar/calendar-repository";
 import { createContactLeadRepository } from "@/server/contact/contact-lead-repository";
 import { getDocumentBriefSnapshot } from "@/server/brief/document-index";
 
@@ -57,19 +59,20 @@ function buildFocusLine(input: {
   return "Priorité du jour: choisir une seule action qui fait avancer Michael HQ ou un futur mode métier.";
 }
 
-export async function buildCeoBriefSnapshot(): Promise<CeoBriefSnapshot> {
+export async function buildCeoBriefSnapshot(ctx: WorkspaceContext = getActiveWorkspaceContext()): Promise<CeoBriefSnapshot> {
   const { fromDateISO: todayISO, toDateISO: horizonISO } = upcomingCalendarWindow();
   const contactRepository = createContactLeadRepository();
 
   const [events, newLeads, allRecentLeads, documents] = await Promise.all([
-    listCalendarEvents({
+    createCalendarRepository(ctx).list({
       fromDateISO: todayISO,
       toDateISO: horizonISO,
       limit: 6,
     }),
-    contactRepository.listRecent({ status: "new", limit: 5 }),
-    contactRepository.listRecent({ limit: 5 }),
-    getDocumentBriefSnapshot(3),
+    contactRepository.listRecent({ workspaceId: ctx.workspace.id, status: "new", limit: 5 }),
+    contactRepository.listRecent({ workspaceId: ctx.workspace.id, limit: 5 }),
+    // The document index is not workspace-scoped yet: only the legacy workspace may read it.
+    ctx.workspace.id === DEFAULT_WORKSPACE_SLUG ? getDocumentBriefSnapshot(3) : Promise.resolve({ totalCount: 0, byHat: {}, recent: [] }),
   ]);
 
   const agendaItems = events.map((event) => ({

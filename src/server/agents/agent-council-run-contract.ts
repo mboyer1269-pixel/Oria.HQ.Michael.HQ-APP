@@ -79,6 +79,7 @@ export interface AgentCouncilEvidenceRef {
   referenceId: string;
   summary: string;
   isVerified?: boolean;
+  provenance?: "simulated";
 }
 
 export interface AgentCouncilRetryPolicy {
@@ -504,6 +505,7 @@ function copyEvidenceRefs(refs: AgentCouncilEvidenceRef[]): AgentCouncilEvidence
       summary: ref.summary,
     };
     if (ref.isVerified !== undefined) copy.isVerified = ref.isVerified;
+    if (ref.provenance !== undefined) copy.provenance = ref.provenance;
     return copy;
   });
 }
@@ -559,7 +561,7 @@ function deriveEvidenceQuality(
   const refs = turns.flatMap((turn) => turn.evidenceRefs);
   const hasVerifiedFinancial = refs.some(
     (ref) =>
-      ref.isVerified === true &&
+      ref.provenance !== "simulated" && ref.isVerified === true &&
       (ref.kind === "stripe_charge" || ref.kind === "signed_loi"),
   );
   if (hasVerifiedFinancial) return MoneyStrategyEvidenceQuality.VERIFIED_FINANCIAL;

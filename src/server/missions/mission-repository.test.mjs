@@ -47,7 +47,7 @@ test.after(() => {
   }
 });
 
-test("listMissionsForWorkspace uses local seed fallback in development without Supabase", async () => {
+test("listMissionsForWorkspace returns an empty local store in development without Supabase", async () => {
   process.env.NODE_ENV = "development";
   clearSupabaseAdminEnv();
 
@@ -61,13 +61,7 @@ test("listMissionsForWorkspace uses local seed fallback in development without S
   assert.equal(result.source, "local");
   assert.equal(result.workspaceId, "michael-hq");
   assert.equal(result.modeId, "hq");
-  assert.ok(result.missions.length > 0);
-  assert.ok(result.missions.every((mission) => mission.workspaceId === "michael-hq"));
-  assert.ok(result.missions.every((mission) => mission.modeId === "hq"));
-  assert.equal(
-    result.missions.find((mission) => mission.id === "mission_audit_oria_2026_05_21")?.assignedAgentId,
-    "builder",
-  );
+  assert.deepEqual(result.missions, []);
 });
 
 test("listMissionsForWorkspace fails fast in production without Supabase", async () => {

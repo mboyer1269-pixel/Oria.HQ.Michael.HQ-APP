@@ -11,7 +11,8 @@ function fromCents(cents: number) {
   return cad.format(cents / 100);
 }
 
-export function MoneyboardPanel({ data }: { data: Moneyboard }) {
+export function MoneyboardPanel({ data }: { data: Moneyboard | null }) {
+  if (!data) return <p>Aucune donnée — rien n’a encore été enregistré</p>;
   const net = data.moneyInCents - data.moneyOutCents;
 
   return (

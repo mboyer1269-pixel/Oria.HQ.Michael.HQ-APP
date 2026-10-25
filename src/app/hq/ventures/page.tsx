@@ -92,8 +92,8 @@ export default async function VenturesPage() {
             Aucune écriture, aucune dépense, aucun envoi déclenché depuis cet écran.
           </p>
           <div className="mt-3 grid gap-2">
-            <HqMetric label="Candidats visibles" value={candidateLimit} tone="amber" />
-            <HqMetric label="Validations actives" value={validationSlotLimit} tone="emerald" />
+            <HqMetric label="Limite de candidats" value={candidateLimit} tone="amber" />
+            <HqMetric label="Limite de validations actives" value={validationSlotLimit} tone="emerald" />
           </div>
         </HqSummaryRail>
       </HqPageHeader>
