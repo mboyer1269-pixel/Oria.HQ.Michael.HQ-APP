@@ -148,3 +148,49 @@ test('SENT-412-37: no bwrap → Codex agent step refused (sandbox_unavailable)',
   const out = inChild(`try { A.startAgentStep(${JSON.stringify(m.id)}, 'code', 'x', { root: ${JSON.stringify(root)} }); console.log('STARTED'); } catch (e) { console.log('ERR', e.message); }`, P);
   assert.match(out, /ERR sandbox_unavailable/);
 });
+
+test('SENT-412-38: PATH holding HOME or an ancestor (/, /home…) never covers the isolated HOME; PATH mounts precede the HOME tmpfs', () => {
+  const { root, m } = setup();
+  const home = mkdtempSync(path.join(tmpdir(), 'home-')); mkdirSync(path.join(home, '.claude')); writeFileSync(path.join(home, '.claude', '.credentials.json'), 'x');
+  const savedHome = process.env.HOME; process.env.HOME = home;
+  let inv; try { inv = A.codexSandboxInvocation(m, root, 'sh', ['-c', `[ -e "$HOME/.claude/.credentials.json" ] && echo SEEN || echo HIDDEN`], { ...process.env, PATH: `/:${path.dirname(home)}:${home}:${process.env.PATH}` }); } finally { process.env.HOME = savedHome; }
+  const binds = []; for (let i = 0; i < inv.args.length; i++) if (inv.args[i] === '--ro-bind-try') binds.push(inv.args[i + 1]);
+  for (const d of ['/', path.dirname(home), home]) assert.ok(!binds.includes(d), `ancestor ${d} not mounted`);
+  const tmpfsHome = inv.args.findIndex((a, i) => a === '--tmpfs' && inv.args[i + 1] === home);
+  inv.args.forEach((a, i) => { if (a === '--ro-bind-try' && !inv.args[i + 1].startsWith(home + path.sep)) assert.ok(i < tmpfsHome, `${inv.args[i + 1]} mounted before HOME tmpfs`); });
+  assert.match(execFileSync('bwrap', inv.args, { env: { PATH: process.env.PATH, HOME: home }, encoding: 'utf8' }), /HIDDEN/);
+});
+
+test('SENT-412-39: secret scan — OpenAI/Anthropic tokens, JWT, auth.json-like content detected; ordinary code not', () => {
+  const add = s => `+++ b/x\n+${s}\n`;
+  assert.deepEqual(A.secretFindings(add('k = "sk-ant-api03-' + 'a'.repeat(30) + '"')).includes('anthropic_token'), true);
+  assert.ok(A.secretFindings(add('sk-proj-' + 'B'.repeat(40))).includes('openai_token'));
+  assert.ok(A.secretFindings(add('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop')).includes('jwt'));
+  assert.ok(A.secretFindings(add('{"tokens": {"refresh_token": "rt_abcdefghijkl"}}')).length >= 1);
+  assert.deepEqual(A.secretFindings(add('const sum = (a, b) => a + b; // task-list access')), []);
+  assert.deepEqual(A.secretFindings(`-sk-proj-${'B'.repeat(40)}\n`), [], 'removed lines are not findings');
+});
+
+test('SENT-412-39: step that wrote a secret → no commit, no diff artifact, quarantined, reason secret_detected', () => {
+  const { root, m } = setup();
+  writeFileSync(path.join(m.repo.worktree, 'leak.json'), JSON.stringify({ tokens: { access_token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop' } }));
+  const head = execFileSync('git', ['-C', m.repo.worktree, 'rev-parse', 'HEAD']).toString().trim();
+  const mm = A.loadMission(m.id, root); const s = { id: '12345678-step', kind: 'code', status: 'succeeded', quarantineRef: null };
+  A.commitIfChanged(mm, s, root);
+  assert.equal(s.status, 'failed'); assert.equal(s.reason, 'secret_detected'); assert.ok(s.secretKinds.includes('jwt'));
+  assert.equal(execFileSync('git', ['-C', m.repo.worktree, 'rev-parse', 'HEAD']).toString().trim(), head, 'no commit');
+  assert.ok(!(mm.artifacts ?? []).some(a => a.kind === 'diff' || a.kind === 'commit'), 'no diff/commit artifact');
+  assert.ok(s.quarantineRef?.startsWith('refs/atelier/quarantine/')); assert.ok(!existsSync(path.join(m.repo.worktree, 'leak.json')), 'set aside');
+  writeFileSync(path.join(m.repo.worktree, 'ok.js'), 'export const x = 1;\n');
+  const s2 = { id: '87654321-step', kind: 'code', status: 'succeeded', quarantineRef: null }; A.commitIfChanged(mm, s2, root);
+  assert.equal(s2.status, 'succeeded'); assert.ok(s2.commitSha);
+});
+
+test('P3 (b1040ab): closeMission TAKES the mission lock — refused while held, lock released after close', () => {
+  const { root, m } = setup();
+  const lf = path.join(A.missionDir(m.id, root), 'run.lock');
+  const held = A.acquireLockFile(lf, 'live-step', { explicitResume: false });
+  assert.throws(() => A.closeMission(m.id, root), /lock|locked/); assert.ok(existsSync(m.repo.worktree));
+  void held; execFileSync('rm', ['-f', lf]);
+  A.closeMission(m.id, root); assert.ok(!existsSync(m.repo.worktree)); assert.equal(A.currentLock(m.id, root), null);
+});

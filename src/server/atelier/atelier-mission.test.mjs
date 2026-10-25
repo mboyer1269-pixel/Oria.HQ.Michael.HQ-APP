@@ -171,3 +171,17 @@ test('412-29: runner test step timeout kills the whole process group (no orphan 
   if (alive) spawnSync('pkill', ['-f', 'sleep 31.4159']);
   assert.equal(alive, false, 'grandchild killed with the group');
 });
+
+test('SENT-412-39: diff / commit artifacts are owner-only too (member → 403 atelier_owner_only)', async () => {
+  const store = mkdtempSync(path.join(tmpdir(), 'atelier-store-'));
+  const m = A.createMission({ title: 't', need: 'n', repoPath: repo(), modelId: 'model-x' }, store);
+  writeFileSync(path.join(m.repo.worktree, 'f.js'), 'export const y = 2;\n');
+  const mm = A.loadMission(m.id, store); A.commitIfChanged(mm, { id: '11111111-s', kind: 'code', status: 'succeeded' }, store);
+  writeFileSync(path.join(A.missionDir(m.id, store), 'mission.json'), JSON.stringify(mm));
+  for (const kind of ['diff', 'commit']) {
+    const art = mm.artifacts.find(a => a.kind === kind); assert.ok(art, kind);
+    const r = H.getAtelierArtifact({ ...C, role: 'member' }, m.id, art.id, { root: store });
+    assert.equal(r.status, 403); assert.match(await r.text(), /atelier_owner_only/);
+    assert.equal(H.getAtelierArtifact({ ...C, role: 'owner' }, m.id, art.id, { root: store }).status, 200);
+  }
+});

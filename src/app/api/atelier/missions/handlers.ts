@@ -122,8 +122,9 @@ export function getAtelierArtifact(ctx: AtelierCtx, id: string, artifactId: stri
   const root = deps.root ?? atelierRoot(); if (!scoped(ctx, id, root)) return notFound();
   const found = readArtifact(id, artifactId, root);
   if (!found) return json({ error: "Artefact introuvable.", code: "not_found" }, 404);
-  // SENT-412-37: CLI transcripts and test logs may echo what the agent saw → workspace owners only.
-  if ((found.artifact.kind === "transcript" || found.artifact.kind === "test_log") && ctx.role !== "owner")
+  // SENT-412-37/39: every artifact is content the agent produced or saw (transcript, test log, diff, spec, commit,
+  // preview) → workspace owners only.
+  if (ctx.role !== "owner")
     return json({ error: "Artefact réservé au propriétaire de l'espace.", code: "atelier_owner_only" }, 403);
   const ext = found.artifact.path.slice(found.artifact.path.lastIndexOf("."));
   return new NextResponse(new Uint8Array(found.content), { headers: { "content-type": TYPES[ext] ?? "application/octet-stream", "x-artifact-sha256": found.artifact.sha256, "x-content-type-options": "nosniff" } });

@@ -21,7 +21,7 @@ export type AtelierArtifact = { id: string; kind: ArtifactKind; stepId: string; 
 export type AtelierStep = {
   id: string; kind: StepKind; status: StepStatus; startedAt: string; endedAt: string | null;
   executor: "codex_cli" | "claude_code_cli" | "runner"; sessionId: string | null; resumedFrom: string | null; /** stash sha of changes set aside after subscription_auth_required */ quarantineRef?: string | null;
-  /** SENT-412-30: test harness files changed by the mission, owner approval, sandbox used by the runner step */ harnessFiles?: string[]; harnessApprovedBy?: string | null; sandbox?: "bwrap" | "none"; unsandboxedApprovedBy?: string | null;
+  /** SENT-412-30: test harness files changed by the mission, owner approval, sandbox used by the runner step */ harnessFiles?: string[]; harnessApprovedBy?: string | null; sandbox?: "bwrap" | "none"; unsandboxedApprovedBy?: string | null; secretKinds?: string[];
   requestedModelId: string | null; observedModelId: string | null; exitCode: number | null; reason: string | null;
   commitSha: string | null;
 };
@@ -263,12 +263,15 @@ export function createMission(input: { title: string; need: string; repoPath: st
  */
 export function closeMission(id: string, root = atelierRoot()) {
   const m = loadMission(id, root); if (!m.repo.worktree) return m;
-  if (currentLock(id, root)) throw new Error("mission_locked_by_live_runner");
-  if (existsSync(m.repo.worktree)) {
-    if (git(m.repo.worktree, ["status", "--porcelain"])) throw new Error("worktree_dirty");
-    git(m.repo.path, ["worktree", "remove", m.repo.worktree]);
-  }
-  spawnSync("git", ["-C", m.repo.path, "worktree", "prune"]);
+  // P3: the mission lock is TAKEN (not just checked) for the whole close: no step can start meanwhile.
+  const { lockFile } = acquire(m, randomUUID(), false, root);
+  try {
+    if (existsSync(m.repo.worktree)) {
+      if (git(m.repo.worktree, ["status", "--porcelain"])) throw new Error("worktree_dirty");
+      git(m.repo.path, ["worktree", "remove", m.repo.worktree]);
+    }
+    spawnSync("git", ["-C", m.repo.path, "worktree", "prune"]);
+  } finally { release(m, lockFile); save(m, root); }
   logEvent(id, "mission_closed", root); return m;
 }
 
@@ -335,15 +338,22 @@ export function codexSandboxInvocation(m: AtelierMission, root: string, binary: 
   mkdirSync(ch, { recursive: true }); writeFileSync(join(ch, "config.toml"), CODEX_CONFIG);
   const sensitive = [".codex", ".claude", ".ssh", ".config", ".aws", ".gnupg", ".npmrc", ".netrc", ".git-credentials", ".docker", ".kube"].map(d => join(home, d));
   const okDir = (d: string) => d.startsWith("/") && d !== home && d !== "/" && !sensitive.some(s => d === s || d.startsWith(s + sep));
-  const pathDirs = [...new Set((env.PATH ?? "").split(":").filter(d => d && existsSync(d)).map(d => realpathSync(d)).filter(okDir))];
+  // SENT-412-38: a PATH entry that is HOME or one of its ancestors (/home, /) would cover the isolated HOME → excluded.
+  const isAncestorOfHome = (d: string) => d === "/" || home === d || home.startsWith(d + sep);
+  const pathDirs = [...new Set((env.PATH ?? "").split(":").filter(d => d && existsSync(d)).map(d => realpathSync(d)).filter(d => okDir(d) && !isAncestorOfHome(d)))];
   const found = onPath(binary, env); const pkg = found ? dirname(dirname(realpathSync(found))) : null;
   const nodePrefix = dirname(dirname(process.execPath));
   const ro = ["/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/etc", "/opt"].flatMap(d => ["--ro-bind-try", d, d]);
   const auth = join(home, ".codex", "auth.json");
   const work = workPath(m);
+  const tools = [...new Set([nodePrefix, ...pathDirs, ...(pkg && okDir(pkg) && !isAncestorOfHome(pkg) ? [pkg] : [])])].filter(d => !isAncestorOfHome(d));
   return { binary: "bwrap", args: ["--die-with-parent", "--unshare-pid", "--unshare-ipc", "--unshare-uts", ...ro, "--dev", "/dev", "--proc", "/proc",
-    "--tmpfs", "/tmp", "--tmpfs", home,
-    ...[nodePrefix, ...pathDirs, ...(pkg && okDir(pkg) ? [pkg] : [])].flatMap(d => ["--ro-bind-try", d, d]),
+    // 412-38: tool dirs outside HOME are mounted BEFORE the HOME tmpfs (cannot cover it); those inside HOME (never
+    // HOME itself, an ancestor, or a credential dir) after it, as read-only descendants.
+    "--tmpfs", "/tmp",
+    ...tools.filter(d => !d.startsWith(home + sep)).flatMap(d => ["--ro-bind-try", d, d]),
+    "--tmpfs", home,
+    ...tools.filter(d => d.startsWith(home + sep)).flatMap(d => ["--ro-bind-try", d, d]),
     "--bind", ch, join(home, ".codex"),
     // the ChatGPT login is the one secret Codex must see: read-only, alone (no Claude token, no ~/.ssh…)
     ...(existsSync(auth) ? ["--ro-bind", auth, join(home, ".codex", "auth.json")] : []),
@@ -560,12 +570,30 @@ function release(m: AtelierMission, lockFile: string) {
   try { const cur = readLock(lockFile); if (cur && (!mine || cur.token === mine)) unlinkSync(lockFile); } catch { /* */ }
 }
 
-function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
+/** SENT-412-39: simple secret scan of the ADDED lines of a diff → kinds found (never the values). */
+const SECRET_PATTERNS: [string, RegExp][] = [
+  ["anthropic_token", /sk-ant-[A-Za-z0-9_-]{20,}/],
+  ["openai_token", /sk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_-]{20,}/],
+  ["jwt", /eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/],
+  ["oauth_token_field", /["']?(refresh_token|access_token|id_token)["']?\s*[:=]\s*["']?[A-Za-z0-9._-]{8,}/i],
+  ["auth_json", /"(OPENAI_API_KEY|tokens|last_refresh|claudeAiOauth)"\s*:/],
+];
+export function secretFindings(diff: string): string[] {
+  const added = diff.split("\n").filter(l => l.startsWith("+") && !l.startsWith("+++")).join("\n");
+  return SECRET_PATTERNS.filter(([, re]) => re.test(added)).map(([k]) => k);
+}
+export function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
   const repo = workPath(m);
   assertRepoHead(m);
   git(repo, ["add", "-A"]);
   if (spawnSync("git", ["-C", repo, "diff", "--cached", "--quiet"]).status === 0) return;
   const diff = git(repo, ["diff", "--cached", "--stat", "-p"]);
+  // SENT-412-39: never commit (nor store as a diff artifact) a step that wrote a secret: quarantined instead.
+  const hits = secretFindings(git(repo, ["diff", "--cached", "-U0", "--no-color"]));
+  if (hits.length) {
+    step.status = "failed"; step.reason = "secret_detected"; step.secretKinds = hits;
+    quarantine(m, step); return;
+  }
   git(repo, ["-c", "user.name=Oria Atelier", "-c", "user.email=atelier@oria.local", "commit", "-q", "-m", `atelier(${step.kind}): ${m.title} [${step.id.slice(0, 8)}]`]);
   step.commitSha = git(repo, ["rev-parse", "HEAD"]); m.repo.headSha = step.commitSha;
   addArtifact(m, step.id, "diff", `${step.id.slice(0, 8)}-${step.kind}.diff`, diff, root);
@@ -663,9 +691,11 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
       if (s.status === "failed" && s.reason === "subscription_quota") s.status = "blocked";
       if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript, codexRoot(id, root));
       hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);
-      if (stepKind === "spec" && existsSync(join(workPath(m), "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(workPath(m), "SPEC.md")), root);
+      const spec = stepKind === "spec" && existsSync(join(workPath(m), "SPEC.md")) ? readFileSync(join(workPath(m), "SPEC.md")) : null;
       if (authFailed) quarantine(m, s); // never commit, never destroy: changes set aside
       else commitIfChanged(m, s, root);
+      // 412-39: no spec artifact when the step was quarantined for a secret.
+      if (spec && s.reason !== "secret_detected" && !authFailed) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, spec, root);
     } catch (e) {
       s.status = "failed"; s.endedAt ??= now();
       if (s.reason !== "subscription_auth_required") s.reason = (e as Error).message === "repo_head_mismatch" ? "repo_head_mismatch" : "runner_error";

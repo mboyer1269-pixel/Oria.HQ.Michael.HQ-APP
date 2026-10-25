@@ -100,3 +100,8 @@ Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrig�
   Le flux d'événements reste lisible par les membres (statuts, sans contenu CLI).
 - **412-32** : `POST /missions/:id/close` (owner + titulaire) appelle `closeMission` : retire le worktree (refus si sale ou étape
   vivante) puis prune. Pas de fermeture automatique : la fin de mission (revue) est une décision humaine.
+
+## Réaudit b1040ab
+- **SENT-412-38** : dans le bwrap Codex, un dossier du PATH qui est le HOME ou l'un de ses ancêtres (`/`, `/home`, …) est exclu. Les dossiers d'outils situés hors du HOME sont montés AVANT `--tmpfs $HOME` (et après `--tmpfs /tmp`). Ceux situés sous le HOME, qui ne peuvent pas être des dossiers d'identifiants, sont montés après.
+- **SENT-412-39** : tous les artefacts (diff, spec, commit, preview, transcript, test_log) sont réservés aux owners (403 `atelier_owner_only`). Avant chaque commit d'étape, les lignes ajoutées du diff sont scannées : jetons OpenAI et Anthropic, JWT, champs `refresh_token`/`access_token`/`id_token`, contenu de type auth.json. Si quelque chose est trouvé : aucun commit, aucun artefact diff ni spec, la quarantaine passe par une ref nommée, et l'étape échoue avec `secret_detected` (`secretKinds` ne liste que les types, jamais les valeurs).
+- **P3** : closeMission prend le verrou de mission pendant toute la fermeture et le relâche ensuite.
