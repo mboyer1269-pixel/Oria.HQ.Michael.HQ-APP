@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 663,
-    "live": 614,
+    "sourceFiles": 664,
+    "live": 615,
     "testOnly": 5,
     "incubation": 44
   },
@@ -432,6 +432,7 @@
     "src/server/ai/openai-json-client.ts",
     "src/server/ai/server-capability-catalog.ts",
     "src/server/ai/subscription-catalog.ts",
+    "src/server/ai/subscription-owner.ts",
     "src/server/ai/subscription-runtime.ts",
     "src/server/arena/arena-api-schema.ts",
     "src/server/arena/arena-batch-service.ts",
