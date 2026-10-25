@@ -19,6 +19,8 @@ const ERRORS: Record<string, [number, string]> = {
   no_session_to_resume: [409, "Aucune session CLI à reprendre."],
   subscription_auth_required: [503, "Abonnement CLI non connecté (aucun repli API)."],
   repo_outside_atelier_root: [400, "Dépôt hors de la racine atelier."],
+  stale_lock_reclaim_in_progress: [409, "Reprise déjà en cours par un autre processus."],
+  stale_lock_reclaim_file_orphaned: [409, "Fichier run.lock.reclaim orphelin : intervention opérateur requise."],
   repo_not_git: [400, "Le dépôt n'est pas un dépôt git."],
 };
 function fail(error: unknown) {

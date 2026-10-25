@@ -3,15 +3,41 @@
 Destinataire : agent Oria Design. Source : `src/server/atelier/atelier-mission.ts`.
 Exemple réel complet : `docs/atelier-e1-d-evidence/mission.json` (mission exécutée le 2026-10-25).
 
-## Endpoints (lecture seule, propriétaire uniquement — `requireOwnerApiSession`)
-| Méthode | Chemin | Réponse |
-|---|---|---|
-| GET | `/api/atelier/missions` | `{ contract: "atelier-mission-list/v1", missions: MissionView[] }` triées par `updatedAt` desc |
-| GET | `/api/atelier/missions/:missionId` | `MissionView` ou 404 `{ error }` |
-| GET | `/api/atelier/missions/:missionId/artifacts/:artifactId` | octets bruts ; en-têtes `content-type`, `x-artifact-sha256` |
+## Endpoints stables v1 (runtime Node, contexte espace de la PR #410)
+Session : `requireWorkspaceApiSession(request)` ; espace via en-tête `x-oria-workspace` ou `?workspace=`.
+Lecture : owner **ou** member de l'espace. Écriture (POST) : **owner uniquement** → sinon 403 `atelier_owner_only`
+(les CLI tournent sur l'abonnement personnel du propriétaire). Mission d'un autre espace → 404 (jamais 403, pas de fuite).
 
-401/403 si pas de session propriétaire. Aucun endpoint d'écriture : lancer/reprendre se fait aujourd'hui via
-`node src/scripts/atelier/mission.mjs` (opérateur local). Stockage : `$ORIA_ATELIER_ROOT` (défaut `~/.oria-atelier/missions/<id>/`).
+| Méthode | Chemin | Corps | Réponse |
+|---|---|---|---|
+| GET | `/api/atelier/missions` | — | `{ contract: "atelier-mission-list/v1", missions: MissionView[] }` (espace courant, `updatedAt` desc) |
+| POST | `/api/atelier/missions` | `{ title, need, repoPath, runtimeId: "codex"\|"claude-code", modelId }` | 202 `{ missionId, stepId, mission, events }` — lance l'étape `spec` |
+| GET | `/api/atelier/missions/:id` | — | `MissionView` |
+| GET | `/api/atelier/missions/:id/events` | — | `text/event-stream` (voir SSE) |
+| POST | `/api/atelier/missions/:id/steps` | `{ kind: "code"\|"revision", prompt? }` | 202 `{ missionId, stepId, mission }` ; `revision` = demande de correction |
+| POST | `/api/atelier/missions/:id/interrupt` | — | 202 si signal envoyé, sinon 409 ; `{ interrupted, reason }` (`signal_sent`, `not_running`, `no_child`, `runner_dead_resume_required`, `identity_mismatch`, `identity_unknown`) |
+| POST | `/api/atelier/missions/:id/resume` | `{ prompt? }` | 202 `{ missionId, stepId, mission }` — reprend la même session CLI ; seul moyen de récupérer un verrou périmé ; l'étape reprise garde le `kind` interrompu |
+| POST | `/api/atelier/missions/:id/verify` | — | 200 : `npm test` (commande fixe) dans le dépôt de mission |
+| GET | `/api/atelier/missions/:id/artifacts/:artifactId` | — | octets bruts ; `content-type`, `x-artifact-sha256` |
+
+### SSE `/events`
+`event: snapshot` (MissionView) → `event: mission` (une ligne de `events.jsonl` : `{ at, type, stepId, data }`, types
+`step_started`, `step_finished`, `interrupt_requested`, `stale_lock_reclaimed`, …) → `event: agent` (lignes JSON du transcript CLI
+en direct) → `event: end` `{ status, lock: { live } | null }` quand plus rien ne tourne (ou si le runner est mort : `lock.live=false`).
+
+### Codes d'erreur (`{ error, code }`)
+401 non authentifié · 403 espace refusé / `atelier_owner_only` · 404 `not_found` · 400 `invalid_request`, `model_unavailable`,
+`repo_outside_atelier_root`, `repo_not_git` · 409 `mission_locked_by_live_runner`, `stale_lock_requires_explicit_resume`,
+`stale_lock_reclaim_in_progress`, `stale_lock_reclaim_file_orphaned`, `no_session_to_resume` · 503 `runtime_disabled`,
+`subscription_auth_required`, `api_key_present` (refus si OPENAI_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, CODEX_API_KEY
+ou CLAUDE_CODE_OAUTH_TOKEN est défini).
+
+### Verrou et reprise
+`run.lock` créé en O_EXCL avec `runnerPid/runnerStart`, `childPid/childStart` (heure de démarrage `/proc/<pid>/stat`) et un jeton.
+Un PID dont l'heure de démarrage diffère n'est jamais considéré vivant ni tué. La récupération d'un verrou périmé est sérialisée
+par `run.lock.reclaim` (O_EXCL) avec relecture sous ce verrou ; `release` ne supprime que son propre verrou (jeton).
+Stockage : `$ORIA_ATELIER_ROOT` (défaut `~/.oria-atelier/missions/<id>/`) ; dépôts sous `$ORIA_ATELIER_REPOS_ROOT` uniquement.
+CLI opérateur équivalent : `node src/scripts/atelier/mission.mjs create … [--runtime=codex|claude-code]`.
 
 ## MissionView
 ```ts
@@ -21,7 +47,7 @@ Exemple réel complet : `docs/atelier-e1-d-evidence/mission.json` (mission exéc
   title: string; need: string;               // besoin exprimé
   createdAt: string; updatedAt: string;      // ISO-8601 UTC (afficher en heure locale)
   status: "created" | "running" | "interrupted" | "awaiting_review" | "failed" | "blocked";
-  runtime: { runtimeId: "codex"; consumptionMode: "subscription"; authMode: "chatgpt_session"; requestedModelId: string };
+  runtime: { runtimeId: "codex" | "claude-code"; consumptionMode: "subscription"; authMode: "chatgpt_session" | "claude_ai_session"; requestedModelId: string };
   repo: { path: string; baseBranch: string; branch: string; baseSha: string; headSha: string };
   sessionId: string | null;                  // fil Codex courant (reprise)
   lock: { runnerPid: number; childPid: number | null; stepId: string; since: string } | null; // non nul = en cours
