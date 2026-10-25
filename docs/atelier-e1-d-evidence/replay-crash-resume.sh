@@ -1,12 +1,26 @@
 #!/bin/sh
-# Rejoue la preuve crash/reprise RÉELLE (Codex CLI abonnement) et écrit les preuves dans $OUT.
-# Prérequis : node 22 sur le PATH, `codex login status` = ChatGPT, AUCUNE clé API dans l'environnement.
-# Usage : OUT=/tmp/run docs/atelier-e1-d-evidence/replay-crash-resume.sh
+# Rejoue la preuve crash/reprise RÉELLE (CLI abonnement : Codex ou Claude Code) et écrit les preuves dans $OUT.
+# Prérequis : node 22 sur le PATH, AUCUNE clé API dans l'environnement, et selon RUNTIME :
+#   codex (défaut)  : `codex login status` = ChatGPT
+#   claude-code     : `claude auth status` = authMethod claude.ai (abonnement) ; mission minuscule pour ménager le quota
+# Usage : OUT=/tmp/run [RUNTIME=claude-code] [MODEL=claude-haiku-4-5-20251001] docs/atelier-e1-d-evidence/replay-crash-resume.sh
 set -eu
 ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"; cd "$ROOT"
-OUT="${OUT:?OUT requis}"; PORT="${PORT:-4318}"; MODEL="${MODEL:-gpt-5.6-luna}"; WS=michael-hq; NAME="tip-calc-$(date +%s)"
+OUT="${OUT:?OUT requis}"; PORT="${PORT:-4318}"; RUNTIME="${RUNTIME:-codex}"; WS=michael-hq; NAME="tip-calc-$(date +%s)"
+if [ "$RUNTIME" = claude-code ]; then
+  MODEL="${MODEL:-claude-haiku-4-5-20251001}"
+  NEED="Minuscule module JS ESM sans dépendance : pourboire(montant, pct) arrondi au cent, en euros ; 2 tests node --test."
+  CODE="Implémente SPEC.md : un seul fichier tip.js (pourboire arrondi au cent, en euros) + tip.test.js (2 tests node --test). Reste minimal."
+  REV="Correction demandée : passer des euros aux dollars canadiens ($), ajouter partage(total, n) arrondi au cent avec 1 test, et documenter des boutons de pourboire 15/18/20 % dans le README. Reste minimal, garde les tests verts."
+else
+  MODEL="${MODEL:-gpt-5.6-luna}"
+  NEED="Petite bibliothèque JS ESM sans dépendance : pourboire et partage d'addition entre N personnes (arrondi au cent), en euros, tests node --test."
+  CODE="Implémente SPEC.md : lib ESM (pourboire, partage entre N, arrondi au cent, en euros) + tests node --test."
+  REV="Correction demandée : passer des euros aux dollars canadiens ($) et documenter des boutons de pourboire 15/18/20 % dans le README. Garde les tests verts."
+fi
 for k in OPENAI_API_KEY ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CODEX_API_KEY CLAUDE_CODE_OAUTH_TOKEN; do eval "v=\${$k:-}"; [ -z "$v" ] || { echo "refus : $k défini"; exit 2; }; done
-mkdir -p "$OUT"; { date; git rev-parse HEAD; git status --porcelain | wc -l | sed 's/^/fichiers modifiés non commités: /'; } > "$OUT/00-head.txt"
+mkdir -p "$OUT"; { date; git rev-parse HEAD; git status --porcelain | wc -l | sed 's/^/fichiers modifiés non commités: /'; echo "runtime=$RUNTIME model=$MODEL"
+  if [ "$RUNTIME" = claude-code ]; then claude --version; claude auth status | grep -E '"(loggedIn|authMethod|apiProvider|subscriptionType)"'; else codex login status 2>&1; fi; } > "$OUT/00-head.txt"
 echo "{\"revision\":\"replay\",\"entries\":[{\"runtimeId\":\"codex\",\"modelId\":\"$MODEL\"}]}" > "$OUT/catalog.json"
 R="$HOME/oria-atelier-repos/$WS/$NAME"; mkdir -p "$R"; git -C "$R" init -q -b main
 printf '{"name":"%s","type":"module","scripts":{"test":"node --test"}}\n' "$NAME" > "$R/package.json"; echo "# $NAME" > "$R/README.md"
@@ -15,15 +29,15 @@ host() { CATALOG="$OUT/catalog.json" PORT=$PORT "$ROOT/docs/atelier-e1-d-evidenc
 api() { curl -s -XPOST "localhost:$PORT/api/atelier/missions$1" -H 'content-type: application/json' -d "$2"; }
 sse() { timeout "${2:-900}" curl -sN "localhost:$PORT/api/atelier/missions/$M/events" > "$OUT/$1" || true; }
 host 1
-api "" "{\"title\":\"Calculatrice de pourboire (replay)\",\"need\":\"Petite bibliothèque JS ESM sans dépendance : pourboire et partage d'addition entre N personnes (arrondi au cent), en euros, tests node --test.\",\"repoPath\":\"$R\",\"runtimeId\":\"codex\",\"modelId\":\"$MODEL\"}" > "$OUT/01-create.json"
+api "" "{\"title\":\"Calculatrice de pourboire (replay $RUNTIME)\",\"need\":\"$NEED\",\"repoPath\":\"$R\",\"runtimeId\":\"$RUNTIME\",\"modelId\":\"$MODEL\"}" > "$OUT/01-create.json"
 M=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).missionId)' "$OUT/01-create.json"); echo "$M" > "$OUT/mission-id.txt"
 sse 02-spec-sse.txt
-api "/$M/steps" '{"kind":"code","prompt":"Implémente SPEC.md : lib ESM (pourboire, partage entre N, arrondi au cent, en euros) + tests node --test."}' > "$OUT/03-code-start.json"; sse 03-code-sse.txt
+api "/$M/steps" "{\"kind\":\"code\",\"prompt\":\"$CODE\"}" > "$OUT/03-code-start.json"; sse 03-code-sse.txt
 api "/$M/verify" '{}' > "$OUT/04-verify.json"
-api "/$M/steps" '{"kind":"revision","prompt":"Correction demandée : passer des euros aux dollars canadiens ($) et documenter des boutons de pourboire 15/18/20 % dans le README. Garde les tests verts."}' > "$OUT/05-revision-start.json"
+api "/$M/steps" "{\"kind\":\"revision\",\"prompt\":\"$REV\"}" > "$OUT/05-revision-start.json"
 sse 05-revision-sse-before-crash.txt 60 & 
 L="$HOME/.oria-atelier/missions/$M/run.lock"; i=0
-while [ $i -lt 60 ] && ! grep -q '^event: agent' "$OUT/05-revision-sse-before-crash.txt" 2>/dev/null; do sleep 1; i=$((i+1)); done
+while [ $i -lt 240 ] && ! grep -q '^event: agent' "$OUT/05-revision-sse-before-crash.txt" 2>/dev/null; do sleep 0.25; i=$((i+1)); done
 cp "$L" "$OUT/06-lock-before-crash.json"
 C=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).childPid)' "$L"); H=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).runnerPid)' "$L")
 { echo "child $C cmd=$(tr '\0' ' ' < /proc/$C/cmdline | cut -c1-120)"; echo "SIGKILL host pid=$H at $(date '+%T %Z')"; kill -9 "$H"; sleep 1
@@ -39,6 +53,6 @@ cp "$HOME/.oria-atelier/missions/$M/events.jsonl" "$HOME/.oria-atelier/missions/
 node -e '
 const m=JSON.parse(require("fs").readFileSync(process.argv[1]));
 console.log(m.id, m.status, JSON.stringify(m.modelProof));
-for (const s of m.steps) console.log(s.kind, s.status, s.executor, s.resumedFrom??"-", s.sessionId??"-", s.observedModelId??"-", (s.commitSha??"-").slice(0,7), s.reason??"");' "$OUT/10-verify.json" > "$OUT/11-summary.txt"
+for (const s of m.steps) console.log(s.kind, s.status, s.executor, s.resumedFrom??"-", s.sessionId??"-", s.requestedModelId??"-", s.observedModelId??"-", (s.commitSha??"-").slice(0,7), s.reason??"");' "$OUT/10-verify.json" > "$OUT/11-summary.txt"
 pkill -f "docs/atelier-e1-d-evidence/local-api-host.mjs" || true
 cat "$OUT/11-summary.txt"
