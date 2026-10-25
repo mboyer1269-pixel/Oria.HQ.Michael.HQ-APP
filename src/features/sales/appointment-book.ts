@@ -1,3 +1,4 @@
+import { hasConsentEvidence } from "./sales-lead";
 // src/features/sales/appointment-book.ts
 //
 // Dealership appointment book ("livre de RDV") — pure contracts.
@@ -200,6 +201,9 @@ export function prepareAppointmentSms(input: {
   const errors: string[] = [];
   const to = input.lead.phone?.trim() || input.appointment.phone?.trim();
   if (!to) errors.push("phone required for appointment SMS");
+  if (input.lead.consentBasis === "implied_verified" && !hasConsentEvidence(input.lead.consentEvidence)) {
+    errors.push("Preuve de consentement implicite manquante.");
+  }
   if (input.lead.consentBasis === "unknown") {
     errors.push("consentBasis unknown — set express or implied_verified before outreach");
   }

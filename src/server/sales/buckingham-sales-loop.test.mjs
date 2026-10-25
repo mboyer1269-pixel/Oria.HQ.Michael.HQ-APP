@@ -158,7 +158,7 @@ test("Buckingham loop: stock → marketplace → lead → follow-up → sold", a
     assert.equal(queue[0].due, true);
   });
 
-  await t.test("prepare SMS follow-up without sending", () => {
+  await t.test("blocks SMS follow-up until captured lead consent is documented", () => {
     const lead = listSalesLeads(WS).find((l) => l.leadId === leadId);
     assert.ok(lead);
     const draft = prepareFollowUpDraft({
@@ -168,8 +168,9 @@ test("Buckingham loop: stock → marketplace → lead → follow-up → sold", a
       vehicleHint: "2025 Chevrolet Trax LT",
       nowIso: NOW,
     });
-    assert.equal(draft.ok, true);
-    assert.equal(draft.draft.noExecutionAuthorized, true);
+    assert.equal(lead.consentBasis, "unknown");
+    assert.equal(draft.ok, false);
+    assert.ok(draft.errors.some((error) => error.includes("consentBasis unknown")));
   });
 
   await t.test("capture sold with stock id", () => {

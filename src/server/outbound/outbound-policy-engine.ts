@@ -17,6 +17,7 @@
 //   - all other client-facing → REQUIRE_APPROVAL (Yellow)
 // ---------------------------------------------------------------------------
 
+import { hasRecordedConsentProvenance } from "./consent-evidence.ts";
 import type {
   OutboundBatch,
   PolicyDecision,
@@ -152,8 +153,8 @@ export function canExecuteOutboundAction(input: OutboundPolicyInput): OutboundPo
   // COMPLIANCE WARNINGS (non-blocking individually, may escalate to BLOCK)
   // -------------------------------------------------------------------------
 
-  if (batch.jurisdiction === "CA" && batch.consentBasis === "implied_verified") {
-    if (batch.consentProvenance.length === 0) {
+  if (batch.consentBasis === "implied_verified") {
+    if (!hasRecordedConsentProvenance(batch)) {
       consentIssues.push(
         "CASL: implied_verified consent requires at least one EvidenceRef in consentProvenance",
       );

@@ -10,6 +10,7 @@
 // the route registers the result.
 // ---------------------------------------------------------------------------
 
+import { hasRecordedConsentProvenance, neutralizeClientConsent } from "./consent-evidence.ts";
 import { createHash, randomUUID } from "node:crypto";
 import type {
   AudienceType,
@@ -36,6 +37,7 @@ export type OutboundQueueIntakeInput = {
   subVoie: OutboundSubVoie;
   audienceType: AudienceType;
   consentBasis: ConsentBasis;
+  consentProvenance?: OutboundBatch["consentProvenance"];
   jurisdiction?: Jurisdiction;
   aiDisclosure?: string;
   recipientLocalHour?: number | null;
@@ -72,9 +74,21 @@ export function computeOutboundContentHash(input: {
     .digest("hex");
 }
 
+/** Intake for HTTP callers. There is currently no server evidence store to resolve assertions. */
+export function buildClientSendCandidate(input: OutboundQueueIntakeInput): OutboundQueueIntakeResult {
+  return buildApprovedSendCandidate({ ...input, ...neutralizeClientConsent(input) });
+}
+
+/** Trusted server input only. HTTP callers must use buildClientSendCandidate. */
 export function buildApprovedSendCandidate(
   input: OutboundQueueIntakeInput,
 ): OutboundQueueIntakeResult {
+  if (input.consentBasis !== "express" && input.consentBasis !== "implied_verified") {
+    return { ok: false, reason: "Consentement inconnu ou à vérifier — envoi bloqué." };
+  }
+  if (input.consentBasis === "implied_verified" && !hasRecordedConsentProvenance({ consentProvenance: input.consentProvenance ?? [] })) {
+    return { ok: false, reason: "Preuve de consentement implicite manquante — envoi bloqué." };
+  }
   const now = new Date();
   const nowIso = now.toISOString();
   const jurisdiction = input.jurisdiction ?? "CA";
@@ -109,7 +123,7 @@ export function buildApprovedSendCandidate(
     messageTemplate: body,
     aiDisclosure,
     consentBasis: input.consentBasis,
-    consentProvenance: [],
+    consentProvenance: input.consentProvenance ?? [],
     unsubscribeMechanism: "present",
     jurisdiction,
     riskLevel: input.audienceType === "cold_prospect" ? "medium" : "low",

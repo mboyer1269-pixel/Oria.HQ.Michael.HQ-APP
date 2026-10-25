@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { requireOwnerApiSession } from "@/server/auth/owner";
-import { CONSENT_BASES, LEAD_SOURCES, LEAD_STAGES } from "@/features/sales/sales-lead";
+import { CONSENT_BASES, LEAD_SOURCES, LEAD_STAGES, normalizeClientLeadConsent } from "@/features/sales/sales-lead";
 import { listSalesLeads, upsertSalesLead } from "@/server/sales/lead-bank-store";
 
 // GET  /api/sales/leads — list lead bank
@@ -20,6 +20,7 @@ const upsertSchema = z.object({
   stage: z.enum(LEAD_STAGES as unknown as [string, ...string[]]).optional(),
   consentBasis: z.enum(CONSENT_BASES as unknown as [string, ...string[]]),
   consentNote: z.string().optional(),
+  consentEvidence: z.object({ source: z.string().min(1), recordedAt: z.iso.datetime(), reference: z.string().min(1) }).optional(),
   nextFollowUpAt: z.string().optional(),
   lastContactAt: z.string().optional(),
   notes: z.string().optional(),
@@ -78,7 +79,10 @@ export async function POST(request: Request) {
       interestedStockIds: data.interestedStockIds ?? [],
       interestedModels: data.interestedModels ?? [],
       stage: (data.stage as (typeof LEAD_STAGES)[number] | undefined) ?? "new",
-      consentBasis: data.consentBasis as (typeof CONSENT_BASES)[number],
+      ...normalizeClientLeadConsent({
+        consentBasis: data.consentBasis as (typeof CONSENT_BASES)[number],
+        consentEvidence: data.consentEvidence,
+      }),
       consentNote: data.consentNote,
       nextFollowUpAt: data.nextFollowUpAt ?? nowIso,
       lastContactAt: data.lastContactAt,

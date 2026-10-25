@@ -139,7 +139,8 @@ function buildEvidenceRefs(packet: CashActionPacket): AgentCouncilEvidenceRef[] 
     kind,
     referenceId: `${packet.packetId}_evidence_${index + 1}`,
     summary: `Required ${kind} for expected signal ${packet.expectedCashSignal}`,
-    isVerified: VERIFIED_FINANCIAL_KINDS.includes(kind),
+    isVerified: false,
+    provenance: "simulated",
   }));
 }
 

@@ -58,6 +58,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // SENT-B3-3: demo mode is a BUILD-TIME flag. Pinning it here makes Next inline
+  // the same normalized value into server and client bundles, so a runtime env
+  // change without a rebuild can never make them diverge (hydration mismatch).
+  env: {
+    NEXT_PUBLIC_ORIA_DEMO_MODE: process.env.NEXT_PUBLIC_ORIA_DEMO_MODE === "1" ? "1" : "0",
+  },
   // Required for Docker standalone build (copies server.js + minimal runtime)
   // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
   output: "standalone",

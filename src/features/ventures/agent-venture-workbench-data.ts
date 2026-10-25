@@ -285,3 +285,8 @@ export const AGENT_VENTURE_WORKBENCH_SEED: AgentVentureWorkbenchItem =
 export const AGENT_VENTURE_WORKBENCH_ITEMS: AgentVentureWorkbenchItem[] = [
   AGENT_VENTURE_WORKBENCH_SEED,
 ];
+
+/** Samples are available only when the caller explicitly enables demo mode. */
+export function getAgentVentureWorkbenchItems(demoMode: boolean): AgentVentureWorkbenchItem[] {
+  return demoMode ? AGENT_VENTURE_WORKBENCH_ITEMS : [];
+}

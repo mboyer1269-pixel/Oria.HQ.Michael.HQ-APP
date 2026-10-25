@@ -24,6 +24,7 @@ function makeInput(overrides = {}) {
     subVoie: "cold_email",
     audienceType: "cold_prospect",
     consentBasis: "implied_verified",
+    consentProvenance: [{ kind: "email_reply", source: "crm", referenceId: "consent-record-1", capturedAt: "2026-06-01T12:00:00Z", summary: "Recorded right to contact", isVerified: true }],
     ...overrides,
   };
 }
