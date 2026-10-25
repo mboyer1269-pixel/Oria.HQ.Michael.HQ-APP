@@ -107,7 +107,9 @@ export function assertSubscriptionOnly(runtimeId: RuntimeId = "codex", env = pro
 }
 export function agentInvocation(runtimeId: RuntimeId, modelId: string, resumeSession: string | null): { binary: string; args: string[] } {
   if (runtimeId === "codex") {
-    const common = ["--json", "-m", modelId, "-c", 'forced_login_method="chatgpt"', "-c", 'model_provider="openai"', "-c", "mcp_servers={}", "-c", 'web_search="disabled"'];
+    const common = ["--json", "-m", modelId, "-c", 'forced_login_method="chatgpt"', "-c", 'model_provider="openai"', "-c", "mcp_servers={}", "-c", 'web_search="disabled"',
+      // 412-24: pin the ChatGPT backend; an `openai_base_url` in the HOME config is otherwise applied.
+      "-c", 'openai_base_url="https://chatgpt.com/backend-api/codex"'];
     return { binary: "codex", args: resumeSession ? ["exec", "resume", ...common, "-c", 'sandbox_mode="workspace-write"', resumeSession, "-"] : ["exec", ...common, "-s", "workspace-write", "-"] };
   }
   const args = ["-p", "--model", modelId, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
@@ -457,12 +459,22 @@ function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
   addArtifact(m, step.id, "commit", `${step.id.slice(0, 8)}-commit.txt`, `${step.commitSha}\n`, root);
 }
 
-/** SENT-412-17: set aside (never delete) whatever a paid session touched; the stash commit sha goes in step.quarantineRef. */
+/**
+ * SENT-412-17/25/26/28: set aside (never delete) whatever the step touched in THIS mission's work tree, with
+ * `git stash push --include-untracked`. The stash really produced (refs/stash compared before/after, never a blind
+ * stash@{0}) is pinned under a named ref refs/atelier/quarantine/<mission>/<step> (survives stash drop / gc);
+ * that ref name goes in step.quarantineRef.
+ */
 function quarantine(m: AtelierMission, s: AtelierStep) {
-  s.quarantineRef = null;
-  if (!git(workPath(m), ["status", "--porcelain"])) return;
-  git(workPath(m), ["stash", "push", "--include-untracked", "-m", `atelier-quarantine-${m.id}-${s.id}`]);
-  s.quarantineRef = git(workPath(m), ["rev-parse", "stash@{0}"]);
+  s.quarantineRef = null; const dir = workPath(m);
+  if (!git(dir, ["status", "--porcelain"])) return;
+  const stashHead = () => { const r = spawnSync("git", ["-C", dir, "rev-parse", "-q", "--verify", "refs/stash"], { encoding: "utf8" }); return r.status === 0 ? r.stdout.trim() : null; };
+  const before = stashHead();
+  git(dir, ["stash", "push", "--include-untracked", "-m", `atelier-quarantine-${m.id}-${s.id}`]);
+  const after = stashHead();
+  if (!after || after === before) throw new Error("quarantine_failed");
+  const ref = `refs/atelier/quarantine/${m.id}/${s.id}`;
+  git(dir, ["update-ref", ref, after]); s.quarantineRef = ref;
 }
 export type StartedStep = { mission: AtelierMission; stepId: string; done: Promise<AtelierMission> };
 /**
@@ -567,7 +579,18 @@ export function commandStepEnvironment(id: string, root = atelierRoot(), env = p
     ...Object.fromEntries(["PATH", "LANG", "LC_ALL", "TERM", "SYSTEMROOT", "WINDIR"].flatMap(k => env[k] === undefined ? [] : [[k, env[k]]])) };
 }
 /** Runner-executed verification (not agent-claimed): tests or preview. */
-export function runCommandStep(id: string, kind: "test" | "preview", command: string[], opts: { root?: string; previewFile?: string } = {}): AtelierMission {
+/**
+ * 412-29: the command runs as the leader of its own process group (detached) under a tiny node supervisor; on
+ * timeout the WHOLE group is SIGKILLed (no orphan grandchild). Output is relayed through the supervisor.
+ */
+const GROUP_SUPERVISOR = `const { spawn } = require("node:child_process"); const [cmd, ...args] = process.argv.slice(1);
+const c = spawn(cmd, args, { detached: true, stdio: "inherit" }); const ms = Number(process.env.ATELIER_STEP_TIMEOUT_MS);
+const kill = () => { try { process.kill(-c.pid, "SIGKILL"); } catch {} };
+const t = setTimeout(() => { kill(); process.exitCode = 124; }, ms);
+process.on("SIGTERM", () => { kill(); process.exit(143); });
+c.on("error", () => { clearTimeout(t); process.exit(127); });
+c.on("exit", (code, sig) => { clearTimeout(t); kill(); if (process.exitCode !== 124) process.exitCode = code ?? 1; });`;
+export function runCommandStep(id: string, kind: "test" | "preview", command: string[], opts: { root?: string; previewFile?: string; timeoutMs?: number } = {}): AtelierMission {
   const root = opts.root ?? atelierRoot();
   const m = loadMission(id, root);
   const step: AtelierStep = { id: randomUUID(), kind, status: "running", startedAt: now(), endedAt: null, executor: "runner", sessionId: null, resumedFrom: null,
@@ -576,7 +599,9 @@ export function runCommandStep(id: string, kind: "test" | "preview", command: st
   try { assertRepoHead(m); } catch (e) { release(m, lockFile); save(m, root); throw e; }
   m.steps.push(step); save(m, root);
   logEvent(id, "step_started", root, step.id, { kind });
-  const r = spawnSync(command[0], command.slice(1), { cwd: workPath(m), encoding: "utf8", timeout: 120_000, killSignal: "SIGKILL", env: commandStepEnvironment(m.id, root) });
+  const timeoutMs = opts.timeoutMs ?? 120_000;
+  const r = spawnSync(process.execPath, ["-e", GROUP_SUPERVISOR, ...command], { cwd: workPath(m), encoding: "utf8", timeout: timeoutMs + 5_000, killSignal: "SIGKILL",
+    env: { ...commandStepEnvironment(m.id, root), ATELIER_STEP_TIMEOUT_MS: String(timeoutMs) } });
   step.exitCode = r.status; step.endedAt = now(); step.status = r.status === 0 ? "succeeded" : "failed";
   const log = `$ ${command.join(" ")}\n# HEAD ${m.repo.headSha}\n${r.stdout}\n${r.stderr}\n# exit ${r.status}\n`;
   addArtifact(m, step.id, kind === "test" ? "test_log" : "preview", `${step.id.slice(0, 8)}-${kind}.${kind === "test" ? "log" : "txt"}`, log, root);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -146,4 +146,24 @@ test('SENT-412-23: the Claude agent gets no Bash, and credential dirs are denied
   assert.ok(!/Bash/.test(allowed), allowed);
   const denied = a[a.indexOf('--disallowedTools') + 1] ?? '';
   for (const d of ['Bash', 'Read(~/.claude/**)', 'Read(~/.codex/**)', 'Read(~/.ssh/**)']) assert.ok(denied.split(',').includes(d), d);
+});
+
+test('412-24: codex base URL pinned on the command line (HOME config openai_base_url ignored)', () => {
+  for (const r of [null, '11111111-2222-3333-4444-555555555555']) {
+    const a = A.agentInvocation('codex', 'gpt', r).args; const i = a.indexOf('openai_base_url="https://chatgpt.com/backend-api/codex"');
+    assert.ok(i > 0 && a[i - 1] === '-c', a.join(' '));
+  }
+});
+
+test('412-29: runner test step timeout kills the whole process group (no orphan grandchild)', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'atelier-to-')); const repo = path.join(root, 'r');
+  execFileSync('git', ['init', '-q', '-b', 'main', repo]); execFileSync('git', ['-C', repo, '-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '-q', '--allow-empty', '-m', 'i']);
+  const m = A.createMission({ title: 'T', need: 'n', repoPath: repo, modelId: 'm' }, root);
+  const pidFile = path.join(root, 'grandchild.pid');
+  const r = A.runCommandStep(m.id, 'test', ['sh', '-c', `sleep 30 & echo $! > ${pidFile}; wait`], { root, timeoutMs: 500 });
+  assert.equal(r.steps.at(-1).status, 'failed');
+  const gp = Number(readFileSync(pidFile, 'utf8'));
+  let alive = true; try { process.kill(gp, 0); } catch { alive = false; }
+  if (alive) process.kill(gp, 'SIGKILL');
+  assert.equal(alive, false, 'grandchild killed with the group');
 });

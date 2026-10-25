@@ -217,8 +217,12 @@ test('claude-code SENT-412-17: init.apiKeySource ≠ "none" (paid API key inject
   assert.equal(execFileSync('git', ['-C', m.repo.worktree ?? dir, 'status', '--porcelain'], { encoding: 'utf8' }), '', 'clean mission tree');
   assert.match(execFileSync('git', ['-C', other.repo.worktree ?? dir, 'status', '--porcelain'], { encoding: 'utf8' }), /travail-de-B\.txt/, 'other mission untouched');
   const stash = execFileSync('git', ['-C', m.repo.worktree ?? dir, 'stash', 'list', '--format=%H %s'], { encoding: 'utf8' }).trim();
-  assert.ok(m.steps[0].quarantineRef && stash.startsWith(m.steps[0].quarantineRef), 'stash present, ref recorded');
+  assert.ok(stash, 'stash present');
   assert.match(stash, new RegExp(`atelier-quarantine-${missionId}-${m.steps[0].id}`));
+  // 412-25/26: named ref (survives gc/expiry), pointing at the stash really produced.
+  const ref = `refs/atelier/quarantine/${missionId}/${m.steps[0].id}`;
+  assert.equal(m.steps[0].quarantineRef, ref);
+  assert.equal(execFileSync('git', ['-C', dir, 'rev-parse', ref], { encoding: 'utf8' }).trim(), stash.split(' ')[0]);
 });
 
 test('claude-code SENT-412-21: auth checked in the mission work tree before spawn (project override → refused, no step, no CLI run)', async () => {
