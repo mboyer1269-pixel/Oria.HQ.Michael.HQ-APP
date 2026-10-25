@@ -11,6 +11,8 @@ process.env.NODE_ENV = "test";
 delete process.env.ORIA_SUBSCRIPTION_OWNERS;
 delete process.env.MICHAEL_HQ_OWNER_EMAIL;
 process.env.MICHAEL_HQ_OWNER_ID = "holder";
+// MERGE-2: #410 gate = requireWorkspaceApiSession → both users are owners of a configured workspace.
+process.env.ORIA_WORKSPACE_MEMBERS = JSON.stringify([{ userId: "holder", workspaceId: "ws-sub", role: "owner" }, { userId: "other-owner", workspaceId: "ws-sub", role: "owner" }]);
 const dir = mkdtempSync(path.join(tmpdir(), "sub-owner-"));
 const fixture = path.join(dir, "supabase-fixture.mjs");
 writeFileSync(fixture, `export async function createServerSupabaseClient() {
@@ -34,6 +36,8 @@ test("non-holder passing the owner gate → 403 SUBSCRIPTION_OWNER_ONLY before a
   for (const user of [{ id: "other-owner" }, null]) {
     globalThis.subOwnerTestUser = user;
     const res = await post();
+    // se resserrera à 401 une fois #410 fusionnée
+    if (user === null) { assert.ok([401, 403].includes(res.status), String(res.status)); continue; } // 401 with #410 (no session), 403 on #409 alone — never reaches the CLI
     assert.equal(res.status, 403);
     const body = await res.json();
     assert.equal(body.code, "SUBSCRIPTION_OWNER_ONLY");
