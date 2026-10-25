@@ -38,7 +38,7 @@ Sources : ISA, « The High Performance HMI » <https://www.isa.org/getmedia/0613
 
 ### 2.1 Linear
 Sources : <https://linear.app/now/behind-the-latest-design-refresh> · <https://linear.app/now/how-we-redesigned-the-linear-ui> · <https://linear.app/docs/inbox>
-- Refresh 2026 : « ne pas réclamer une attention qu'on n'a pas méritée » — la barre latérale est atténuée pour laisser le contenu dominer ; moins d'icônes ; bordures adoucies (« la structure se ressent plus qu'elle ne se voit »).
+- Refresh récent : « ne pas réclamer une attention qu'on n'a pas méritée » — la barre latérale est atténuée pour laisser le contenu dominer ; moins d'icônes ; bordures adoucies (« la structure se ressent plus qu'elle ne se voit »).
 - Thèmes générés en **LCH** à partir de 3 variables (base, accent, contraste), ce qui permet des thèmes à fort contraste pour l'accessibilité.
 - Inbox : onglet *Priorité* qui sépare ce qui demande votre attention du reste ; raccourcis `G` puis `I`, `J/K`, `H` pour reporter (snooze) ; rappels qui font revenir un élément à l'heure voulue.
 - → Oria : navigation atténuée, contenu au premier plan ; tokens dérivés de 3 paramètres ; centre d'attention avec *Priorité*, report, rappel « Reprendre demain ».
