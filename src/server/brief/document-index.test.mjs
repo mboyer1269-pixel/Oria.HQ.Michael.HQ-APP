@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -48,28 +49,59 @@ test("document index — dev/test reads, prod fail-closed", async (t) => {
     setEnv("NODE_ENV", "development");
     setEnv("ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD", undefined);
 
-    const snapshot = await getDocumentBriefSnapshot(3, fixturePath);
+    const snapshot = await getDocumentBriefSnapshot(3, () => readFile(fixturePath, "utf-8"));
 
     assert.equal(snapshot.totalCount, 1);
     assert.equal(snapshot.recent[0].filename, "plan.md");
     assert.equal(snapshot.byHat.hq, 1);
   });
 
-  await t.test("production without opt-in refuses the file store (empty, file not read)", async () => {
+  await t.test("production without opt-in refuses the file store (unavailable, file not read)", async () => {
     setEnv("NODE_ENV", "production");
     setEnv("ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD", undefined);
 
-    const snapshot = await getDocumentBriefSnapshot(3, fixturePath);
+    const snapshot = await getDocumentBriefSnapshot(3, () => readFile(fixturePath, "utf-8"));
 
-    assert.equal(snapshot.totalCount, 0);
+    let called = false;
+    await getDocumentBriefSnapshot(3, async () => { called = true; throw Error("must not read"); });
+    assert.equal(called, false);
+    assert.equal(snapshot.totalCount, null);
+    assert.equal(snapshot.status, "unavailable");
+    assert.equal(snapshot.reason, "disabled");
     assert.deepEqual(snapshot.recent, []);
+  });
+
+  await t.test("missing fixture returns unavailable without reading another path", async () => {
+    setEnv("NODE_ENV", "test");
+    const snapshot = await getDocumentBriefSnapshot(3, () => readFile(path.join(tmpDir, "missing.json"), "utf-8"));
+    assert.deepEqual(snapshot, {source: "local_fixture", status: "unavailable", reason: "missing", totalCount: null, byHat: {}, recent: []});
+  });
+
+  await t.test("malformed/non-array/partial-invalid content is unavailable, never a complete count", async () => {
+    setEnv("NODE_ENV", "test");
+    const original = console.error; const errors = []; console.error = (...args) => errors.push(args);
+    try {
+      for (const value of ["{", "{}", "null"]) assert.equal((await getDocumentBriefSnapshot(3, async () => value)).totalCount, null);
+      assert.equal(errors.length, 0);
+      const value = JSON.stringify([null, {}, {id:"valid",filename:"x",hat:"hq",created_at:"2026-01-01"}]);
+      assert.equal((await getDocumentBriefSnapshot(3, async () => value)).totalCount, null);
+    } finally { console.error = original; }
+  });
+
+  await t.test("confirmed empty is the only zero; read failure never masquerades as empty", async () => {
+    setEnv("NODE_ENV", "test");
+    const empty = await getDocumentBriefSnapshot(3, async () => "[]");
+    assert.deepEqual(empty, {source: "local_fixture", status: "available", reason: null, totalCount: 0, byHat: {}, recent: []});
+    const failed = await getDocumentBriefSnapshot(3, async () => { throw Object.assign(new Error("synthetic sensitive path"), {code: "EACCES"}); });
+    assert.equal(failed.status, "unavailable"); assert.equal(failed.reason, "read_error"); assert.equal(failed.totalCount, null);
+    assert.ok(!JSON.stringify(failed).includes("sensitive"));
   });
 
   await t.test("production reads only with the explicit unsafe break-glass flag", async () => {
     setEnv("NODE_ENV", "production");
     setEnv("ORIA_UNSAFE_ALLOW_FILE_DOCUMENT_STORE_IN_PROD", "true");
 
-    const snapshot = await getDocumentBriefSnapshot(3, fixturePath);
+    const snapshot = await getDocumentBriefSnapshot(3, () => readFile(fixturePath, "utf-8"));
 
     assert.equal(snapshot.totalCount, 1);
   });

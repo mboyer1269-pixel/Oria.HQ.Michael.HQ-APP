@@ -1,3 +1,4 @@
+import { employeePreparationSchema } from "../../core/employees/preparation";
 import type { Mission } from "@/core/types";
 import { openHandsResultReceiptSchema, type OpenHandsResultReceipt } from "../../core/openhands-result-contract";
 import { getAgentDisplayName, resolveAgentId } from "../agents/naming";
@@ -58,7 +59,10 @@ export function missionReportedOutput(mission: Mission): MissionReportedOutput {
 export function missionDossierSummary(mission: Mission) {
   const summary = mission.result?.summary;
   const budget = mission.costBudgetCents;
+  const metadata = mission.input?.development as {version?:unknown} | undefined;
+  const provenance = employeePreparationSchema.safeParse(mission.input?.employeePreparation);
   return {
+    employeePreparation: metadata?.version === 2 && provenance.success ? provenance.data : null,
     owner: !mission.assignedAgentId?.trim() ? "Non attribué"
       : agentRegistry.some((agent) => agent.id === resolveAgentId(mission.assignedAgentId))
         ? getAgentDisplayName(mission.assignedAgentId) : "Agent à identifier",

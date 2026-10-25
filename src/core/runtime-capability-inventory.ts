@@ -103,6 +103,16 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
 }[] = [
   {
     reason:
+      "Édition de noms et répertoire d'employés proposés, pilotés par le propriétaire et fermés par flags : persistance de présentation uniquement, sans ajout au registre d'exécution, permission, outil ou lancement d'agent.",
+    paths: [
+      "src/features/agents/actions/display-names.ts",
+      "src/features/employees/actions.ts",
+      "src/server/agents/display-names/supabase-store.ts",
+      "src/server/employees/store.ts",
+    ],
+  },
+  {
+    reason:
       "Le journal d'audit lui-même. Chaque capacité écrit à travers lui ; le compter comme un exécuteur le ferait apparaître une fois par capacité.",
     paths: ["src/server/actions/action-ledger-repository.ts"],
   },

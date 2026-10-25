@@ -55,11 +55,11 @@ export function getDefaultWorkspaceMode(workspace: Workspace): WorkspaceMode {
   );
 }
 
-export function getDefaultAssistantProfile(workspace: Workspace): AssistantProfile {
+export function getDefaultAssistantProfile(workspace: Workspace, displayNames: Readonly<Record<string, string>> = {}): AssistantProfile {
   return {
     id: workspace.defaultAssistantId,
     workspaceId: workspace.id,
-    name: ACTIVE_WORKSPACE_CONFIG.defaultAssistantName,
+    name: (Object.hasOwn(displayNames, workspace.defaultAssistantId) ? displayNames[workspace.defaultAssistantId] : undefined) ?? ACTIVE_WORKSPACE_CONFIG.defaultAssistantName,
     runtimeId: ACTIVE_WORKSPACE_CONFIG.defaultAssistantRuntimeId,
     allowedTools: ACTIVE_WORKSPACE_CONFIG.defaultAssistantAllowedTools,
   };

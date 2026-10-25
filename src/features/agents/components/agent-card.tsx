@@ -1,3 +1,4 @@
+import { AgentNameEditor } from "./agent-name-editor";
 import {
   Bot,
   ClipboardCheck,
@@ -50,7 +51,7 @@ const STATUS_STYLES: Record<AgentStatus, { badge: string; dot: string; label: st
   },
 };
 
-export function AgentCard({ agent }: { agent: AgentProfile }) {
+export function AgentCard({ agent, naming }: { agent: AgentProfile; naming?: { available: boolean; defaultName: string } }) {
   const Icon = ROLE_ICONS[agent.role];
   const status = STATUS_STYLES[agent.status];
 
@@ -105,6 +106,7 @@ export function AgentCard({ agent }: { agent: AgentProfile }) {
           ))}
         </ul>
       )}
+      {naming && <AgentNameEditor key={agent.name} agentId={agent.id} name={agent.name} defaultName={naming.defaultName} available={naming.available} />}
     </article>
   );
 }

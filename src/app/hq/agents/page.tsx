@@ -1,3 +1,4 @@
+import { getAgentDisplayNames } from "@/features/agents/actions/display-names";
 import type { Route } from "next";
 import { Activity, BrainCircuit, Crosshair, Network, Send, ShieldCheck, Users } from "lucide-react";
 import { buildAgentAutonomyCockpit } from "@/features/agents/agent-autonomy-cockpit";
@@ -42,20 +43,22 @@ export default async function AgentsPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
-  const active = agentRegistry.filter((a) => a.status === "active");
-  const standby = agentRegistry.filter((a) => a.status === "standby");
-  const locked = agentRegistry.filter((a) => a.status === "locked");
-  const planned = agentRegistry.filter((a) => a.status === "planned");
+  const naming = await getAgentDisplayNames();
+  const agents = naming?.agents ?? agentRegistry;
+  const active = agents.filter((a) => a.status === "active");
+  const standby = agents.filter((a) => a.status === "standby");
+  const locked = agents.filter((a) => a.status === "locked");
+  const planned = agents.filter((a) => a.status === "planned");
 
-  const mappingReport = validateAgentSkillMapping(agentRegistry, skillsCatalog);
-  const charterHealth = buildCharterHealthReport(agentRegistry, charterRegistry);
+  const mappingReport = validateAgentSkillMapping(agents, skillsCatalog);
+  const charterHealth = buildCharterHealthReport(agents, charterRegistry);
   const autonomyCockpit = buildAgentAutonomyCockpit({
-    agents: agentRegistry,
+    agents,
     skills: skillsCatalog,
     policy: getDefaultAgentAutonomyPolicy(),
   });
   const knowledgePackCatalog = buildAgentKnowledgePackCatalog({
-    agents: agentRegistry,
+    agents,
     skills: skillsCatalog,
   });
   const nowMs = new Date().getTime();
@@ -65,7 +68,7 @@ export default async function AgentsPage() {
     () => listMissionsForWorkspace({ workspaceId: activeWorkspace.id, modeId: activeMode.id }),
     nowMs,
   );
-  const agentNames = Object.fromEntries(agentRegistry.map((agent) => [agent.id, agent.name]));
+  const agentNames = Object.fromEntries(agents.map((agent) => [agent.id, agent.name]));
 
   const qualityEvaluation = buildAgentQualityEvaluation({
     knowledgeCatalog: knowledgePackCatalog,
@@ -110,6 +113,8 @@ export default async function AgentsPage() {
           </div>
         </HqSummaryRail>
       </HqPageHeader>
+
+      {naming?.status !== "available" && <p role="status" className="mb-4 rounded-xl border border-amber-500/20 p-3 text-sm text-amber-200">Noms par défaut affichés. Le stockage des noms personnalisés est indisponible ou non qualifié ; aucun renommage durable n’est activé.</p>}
 
       <HqWidget title="Chartes opérationnelles" eyebrow="ADN & ROI" icon={Crosshair}>
         <AgentCharterPanel charters={charterRegistry} health={charterHealth} />
@@ -159,7 +164,7 @@ export default async function AgentsPage() {
           <HqWidget key={label} title={label} eyebrow="Agents" icon={Users}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {agents.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} />
+                <AgentCard key={`${naming?.workspaceId}:${agent.id}`} agent={agent} naming={{ available: naming?.status === "available", defaultName: agentRegistry.find(item => item.id === agent.id)?.name ?? agent.name }} />
               ))}
             </div>
           </HqWidget>
