@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
 import { execFileSync, spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -16,7 +16,7 @@ symlinkSync(path.join(src, 'server/atelier/test-fixtures/fake-codex'), path.join
 symlinkSync(path.join(src, 'server/atelier/test-fixtures/fake-codex'), path.join(bin, 'claude'));
 for (const k of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CODEX_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'MICHAEL_HQ_OWNER_ID', 'MICHAEL_HQ_OWNER_EMAIL']) delete process.env[k];
 Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(tmp, 'home'), ORIA_ATELIER_ROOT: path.join(tmp, 'store'), ORIA_ATELIER_REPOS_ROOT: path.join(tmp, 'repos'), ORIA_HQ_SUBSCRIPTION_RUNTIMES: '1',
-  ORIA_WORKSPACE_MEMBERS: JSON.stringify([{ userId: 'u1', workspaceId: 'ws-a', role: 'owner' }, { userId: 'u2', workspaceId: 'ws-b', role: 'owner' }, { userId: 'u3', workspaceId: 'ws-a', role: 'member' }]) });
+  ORIA_WORKSPACE_MEMBERS: JSON.stringify([{ userId: 'u1', workspaceId: 'ws-a', role: 'owner' }, { userId: 'u2', workspaceId: 'ws-b', role: 'owner' }, { userId: 'u3', workspaceId: 'ws-a', role: 'member' }, { userId: 'u4', workspaceId: 'ws-c', role: 'owner' }]), ORIA_SUBSCRIPTION_OWNERS: 'u1,u2' });
 mkdirSync(process.env.HOME); mkdirSync(process.env.ORIA_ATELIER_ROOT); mkdirSync(process.env.ORIA_ATELIER_REPOS_ROOT);
 const A = await jiti.import('./atelier-mission.ts');
 const H = await jiti.import('../../app/api/atelier/missions/handlers.ts');
@@ -28,8 +28,9 @@ const resume = await jiti.import('../../app/api/atelier/missions/[missionId]/res
 const interrupt = await jiti.import('../../app/api/atelier/missions/[missionId]/interrupt/route.ts');
 const catalog = { revision: 't', entries: [{ runtimeId: 'codex', modelId: 'gpt-test' }, { runtimeId: 'claude-code', modelId: 'claude-test' }] };
 
-function repo(name) {
-  const dir = path.join(process.env.ORIA_ATELIER_REPOS_ROOT, name); mkdirSync(dir);
+function repo(name, ws = 'ws-a') {
+  mkdirSync(path.join(process.env.ORIA_ATELIER_REPOS_ROOT, ws), { recursive: true });
+  const dir = path.join(process.env.ORIA_ATELIER_REPOS_ROOT, ws, name); mkdirSync(dir);
   execFileSync('git', ['init', '-q', '-b', 'main', dir]); writeFileSync(path.join(dir, 'package.json'), '{"scripts":{"test":"node -e 0"}}');
   execFileSync('git', ['-C', dir, 'add', '-A']); execFileSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'seed']);
   return dir;
@@ -121,6 +122,9 @@ test('refusals: API key present, model outside catalog, repo outside root, runti
   const base = { title: 'T', need: 'N', repoPath: repo('r5'), runtimeId: 'codex', modelId: 'gpt-test' };
   assert.equal((await H.createAtelierMission(ctx, { ...base, modelId: 'nope' }, { catalog })).status, 400);
   assert.equal((await H.createAtelierMission(ctx, { ...base, repoPath: tmp }, { catalog })).status, 400);
+  const other = await H.createAtelierMission(ctx, { ...base, repoPath: repo('r5b', 'ws-b') }, { catalog });
+  assert.equal(other.status, 400, "a repo of another workspace is refused (repos are per space)");
+  assert.equal((await other.json()).code, 'repo_outside_atelier_root');
   assert.equal((await H.createAtelierMission(ctx, base, { catalog, env: {} })).status, 503);
   process.env.ANTHROPIC_API_KEY = 'fixture';
   const r = await H.createAtelierMission(ctx, base, { catalog });
@@ -139,6 +143,33 @@ test('a workspace member can read but never launch on the owner subscription (40
   as({ id: 'u3' });
   const res = await list.POST(req('/api/atelier/missions', { title: 'T', need: 'N', repoPath: '/nope', runtimeId: 'codex', modelId: 'gpt-test' }, { 'x-oria-workspace': 'ws-a' }));
   assert.equal(res.status, 403);
-  assert.equal((await res.json()).error, 'atelier_owner_only');
+  assert.equal((await res.json()).code, 'atelier_owner_only');
   assert.equal((await list.GET(req('/api/atelier/missions', null, { 'x-oria-workspace': 'ws-a' }))).status, 200);
+});
+
+test('SENT-412-8: owner of another workspace who is not the subscription owner → 403 subscription_owner_only', async () => {
+  as({ id: 'u4' });
+  const res = await list.POST(req('/api/atelier/missions', { title: 'T', need: 'N', repoPath: '/nope', runtimeId: 'codex', modelId: 'gpt-test' }, { 'x-oria-workspace': 'ws-c' }));
+  assert.equal(res.status, 403);
+  const body = await res.json();
+  assert.equal(body.code, 'subscription_owner_only'); assert.equal(typeof body.error, 'string');
+  assert.equal((await list.GET(req('/api/atelier/missions', null, { 'x-oria-workspace': 'ws-c' }))).status, 200, 'reads stay allowed');
+});
+
+test('SENT-412-9: orphan reap never runs on a read or a refused mutation, only on an authorised owner action', async () => {
+  const id = '00000000-0000-4000-8000-0000000000aa';
+  const dir = path.join(process.env.ORIA_ATELIER_ROOT, id); mkdirSync(dir);
+  const child = spawn('sleep', ['30'], { detached: true }); await new Promise(r => setTimeout(r, 100));
+  writeFileSync(path.join(dir, 'run.lock'), JSON.stringify({ runnerPid: 2 ** 22 - 7, runnerStart: '1', childPid: child.pid, childStart: A.procStartTime(child.pid), stepId: 's', since: 'x', token: 't' }));
+  as({ id: 'u3' }); // member
+  await list.GET(req('/api/atelier/missions', null, { 'x-oria-workspace': 'ws-a' }));
+  await list.POST(req('/api/atelier/missions', {}, { 'x-oria-workspace': 'ws-a' }));
+  as({ id: 'u4' }); // owner, not subscription owner
+  await list.POST(req('/api/atelier/missions', {}, { 'x-oria-workspace': 'ws-c' }));
+  as({ id: 'u1' }); // authorised owner, read only
+  await list.GET(req('/api/atelier/missions', null, { 'x-oria-workspace': 'ws-a' }));
+  assert.equal(A.pidAlive(child.pid), true, 'no reap on reads or refused mutations');
+  await list.POST(req('/api/atelier/missions', {}, { 'x-oria-workspace': 'ws-a' })); // authorised owner action (400 body, after authz)
+  await new Promise(r => child.on('exit', r));
+  assert.equal(A.pidAlive(child.pid), false, 'reaped on the authorised owner action');
 });

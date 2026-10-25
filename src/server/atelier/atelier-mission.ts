@@ -134,8 +134,16 @@ export function observedModel(runtimeId: RuntimeId, sessionId: string, transcrip
 const executorOf = (r: RuntimeId) => r === "codex" ? "codex_cli" as const : "claude_code_cli" as const;
 
 // ---------- missions ----------
-export function resolveRepoPath(repoPath: string, env = process.env) {
-  const base = realpathSync(atelierReposRoot(env)); const real = realpathSync(repoPath);
+/** Repos are stored per workspace: <reposRoot>/<workspaceId>/... (SENT-412-4/8). */
+export function workspaceReposRoot(workspaceId: string, env = process.env) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(workspaceId) || workspaceId.includes("..")) throw new Error("invalid_workspace_id");
+  return join(atelierReposRoot(env), workspaceId);
+}
+export function resolveRepoPath(repoPath: string, workspaceId: string, env = process.env) {
+  let base: string, real: string;
+  try { base = realpathSync(workspaceReposRoot(workspaceId, env)); real = realpathSync(repoPath); } catch (e) {
+    if ((e as Error).message === "invalid_workspace_id") throw e; throw new Error("repo_outside_atelier_root");
+  }
   if (real !== base && !real.startsWith(base + sep)) throw new Error("repo_outside_atelier_root");
   if (!existsSync(join(real, ".git"))) throw new Error("repo_not_git");
   return real;
