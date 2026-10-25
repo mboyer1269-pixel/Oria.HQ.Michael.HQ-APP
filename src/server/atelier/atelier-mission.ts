@@ -101,7 +101,7 @@ export function agentEnvironment(env = process.env): NodeJS.ProcessEnv {
  * project/settings overrides — the in-step protection is the init stream guard (apiKeySource) + the cleaned env.
  */
 export function assertSubscriptionOnly(runtimeId: RuntimeId = "codex", env = process.env, run = spawnSync) {
-  const leaked = [...API_KEYS, ...(runtimeId === "claude-code" ? CLAUDE_PAID_SWITCHES : [])].filter(k => env[k]);
+  const leaked = [...API_KEYS, ...(runtimeId === "claude-code" ? CLAUDE_PAID_SWITCHES : [])].filter(k => Object.entries(env).some(([n, v]) => n === k && v));
   if (leaked.length) throw new Error(`api_key_present:${leaked.join(",")}`);
   // SENT-412-31: the real pre-launch refusal is the env (above) + the settings Claude will load (only ours: --setting-sources "").
   if (runtimeId === "claude-code") assertClaudeLoadedSettings(agentInvocation("claude-code", "x", null).args);
@@ -665,7 +665,7 @@ export function interruptMission(id: string, root = atelierRoot()) {
 export function commandStepEnvironment(id: string, root = atelierRoot(), env = process.env): NodeJS.ProcessEnv {
   const home = join(missionDir(id, root), "sandbox-home"); const tmp = join(home, "tmp"); mkdirSync(tmp, { recursive: true });
   return { NODE_ENV: "test", CI: "1", HOME: home, USERPROFILE: home, TMPDIR: tmp, TMP: tmp, TEMP: tmp, npm_config_cache: join(home, ".npm"),
-    ...Object.fromEntries(["PATH", "LANG", "LC_ALL", "TERM", "SYSTEMROOT", "WINDIR"].flatMap(k => env[k] === undefined ? [] : [[k, env[k]]])) };
+    ...Object.fromEntries(Object.entries(env).filter(([k, v]) => ["PATH", "LANG", "LC_ALL", "TERM", "SYSTEMROOT", "WINDIR"].includes(k) && v !== undefined)) };
 }
 /** Runner-executed verification (not agent-claimed): tests or preview. */
 /**
