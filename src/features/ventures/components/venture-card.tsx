@@ -78,7 +78,7 @@ const STATUS_VISUALS: Record<VentureLifecycleStatus, StatusVisual> = {
   },
   archived: {
     label: "Archivée",
-    badge: "border-neutral-700 bg-neutral-900 text-neutral-500",
+    badge: "border-neutral-700 bg-neutral-900 text-neutral-400",
     dot: "bg-neutral-600",
   },
 };
@@ -150,7 +150,7 @@ export function VentureCard({ card }: { card: VentureCardType }) {
             <h3 className="text-base font-semibold leading-snug text-white">
               {card.name}
             </h3>
-            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-neutral-500">
+            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-neutral-400">
               {card.source === "agent_suggested"
                 ? "Suggestion agent — candidat"
                 : card.source === "human_created"
@@ -163,7 +163,7 @@ export function VentureCard({ card }: { card: VentureCardType }) {
             </p>
           </div>
           <span
-            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusVisual.badge}`}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${statusVisual.badge}`}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${statusVisual.dot}`}
@@ -178,9 +178,9 @@ export function VentureCard({ card }: { card: VentureCardType }) {
 
       <div className="grid grid-cols-1 gap-3 text-xs text-neutral-400 sm:grid-cols-2">
         <div className="flex items-start gap-2">
-          <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+          <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
           <div>
-            <p className="font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <p className="font-semibold uppercase tracking-[0.14em] text-neutral-400">
               Client cible
             </p>
             <p className="mt-1 text-sm leading-5 text-neutral-300">
@@ -189,18 +189,18 @@ export function VentureCard({ card }: { card: VentureCardType }) {
           </div>
         </div>
         <div className="flex items-start gap-2">
-          <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+          <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
           <div>
-            <p className="font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <p className="font-semibold uppercase tracking-[0.14em] text-neutral-400">
               Problème
             </p>
             <p className="mt-1 text-sm leading-5 text-neutral-300">{card.problem}</p>
           </div>
         </div>
         <div className="flex items-start gap-2 sm:col-span-2">
-          <Compass className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+          <Compass className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
           <div>
-            <p className="font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <p className="font-semibold uppercase tracking-[0.14em] text-neutral-400">
               Offre
             </p>
             <p className="mt-1 text-sm leading-5 text-neutral-300">{card.offer}</p>
@@ -211,14 +211,14 @@ export function VentureCard({ card }: { card: VentureCardType }) {
       {card.score && (
         <section className="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-800/80 bg-neutral-900/40 px-3 py-2 text-xs">
           <span className="inline-flex items-center gap-1.5 text-neutral-400">
-            <Gauge className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-            <span className="font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <Gauge className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+            <span className="font-semibold uppercase tracking-[0.14em] text-neutral-400">
               Score
             </span>
             <span className="tabular-nums text-white">{card.score.overallScore}/100</span>
           </span>
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${
               RECOMMENDATION_STYLES[card.score.recommendation]
             }`}
           >
@@ -231,8 +231,8 @@ export function VentureCard({ card }: { card: VentureCardType }) {
         <section className="space-y-2 rounded-xl border border-neutral-800/80 bg-neutral-900/40 px-3 py-3 text-xs">
           <div className="flex flex-wrap items-center gap-3 text-neutral-400">
             <span className="inline-flex items-center gap-1.5">
-              <CalendarRange className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-              <span className="font-semibold uppercase tracking-[0.14em] text-neutral-500">
+              <CalendarRange className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+              <span className="font-semibold uppercase tracking-[0.14em] text-neutral-400">
                 Fenêtre
               </span>
               <span className="tabular-nums text-white">
@@ -240,8 +240,8 @@ export function VentureCard({ card }: { card: VentureCardType }) {
               </span>
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <CircleDollarSign className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-              <span className="font-semibold uppercase tracking-[0.14em] text-neutral-500">
+              <CircleDollarSign className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+              <span className="font-semibold uppercase tracking-[0.14em] text-neutral-400">
                 Budget cap
               </span>
               <span className="tabular-nums text-white">
@@ -256,7 +256,7 @@ export function VentureCard({ card }: { card: VentureCardType }) {
             </p>
           )}
           {firstKillCriterion && (
-            <p className="text-xs leading-5 text-neutral-500">
+            <p className="text-xs leading-5 text-neutral-400">
               <span className="font-semibold text-neutral-400">Kill criterion :</span>{" "}
               {firstKillCriterion.metric} {firstKillCriterion.threshold} —{" "}
               {firstKillCriterion.consequence === "kill"
@@ -273,8 +273,8 @@ export function VentureCard({ card }: { card: VentureCardType }) {
 
       <section className="rounded-xl border border-neutral-800/80 bg-neutral-900/40 px-3 py-3 text-xs">
         <div className="flex items-center gap-2 text-neutral-400">
-          <ShieldCheck className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-          <span className="font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <ShieldCheck className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+          <span className="font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Autonomie sécuritaire
           </span>
         </div>
@@ -286,12 +286,12 @@ export function VentureCard({ card }: { card: VentureCardType }) {
           <span className="tabular-nums text-red-300">{autonomySummary.forbiddenCount}</span>{" "}
           bloqué·s
         </p>
-        <p className="mt-2 text-[11px] leading-5 text-neutral-500">
+        <p className="mt-2 text-xs leading-5 text-neutral-400">
           Aucune action risquée sans approbation CEO explicite.
         </p>
       </section>
 
-      <footer className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-neutral-800/60 pt-3 text-[11px] text-neutral-500">
+      <footer className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-neutral-800/60 pt-3 text-xs text-neutral-400">
         <span>
           {card.assignedAgents.length === 0
             ? "Aucun agent assigné"

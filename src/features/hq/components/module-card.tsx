@@ -20,7 +20,7 @@ export function ModuleCard({ module }: { module: HqModule }) {
           <h3 className="font-semibold text-white">{module.title}</h3>
           <p className="mt-1 text-sm leading-6 text-neutral-400">{module.subtitle}</p>
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] ${statusClasses[module.status]}`}>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs ${statusClasses[module.status]}`}>
           {statusLabels[module.status]}
         </span>
       </div>
@@ -30,7 +30,7 @@ export function ModuleCard({ module }: { module: HqModule }) {
           style={{ width: `${Math.max(10, module.autonomyLevel * 20)}%` }}
         />
       </div>
-      <p className="mt-2 text-xs text-neutral-500">Autonomie cible niveau {module.autonomyLevel}/5</p>
+      <p className="mt-2 text-xs text-neutral-400">Autonomie cible niveau {module.autonomyLevel}/5</p>
     </article>
   );
 }

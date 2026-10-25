@@ -92,7 +92,7 @@ export function ContactLeadForm() {
               minLength={2}
               maxLength={120}
               autoComplete="name"
-              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
               placeholder="Ton nom"
             />
           </label>
@@ -104,7 +104,7 @@ export function ContactLeadForm() {
               type="email"
               maxLength={254}
               autoComplete="email"
-              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
               placeholder="toi@entreprise.com"
             />
           </label>
@@ -112,22 +112,22 @@ export function ContactLeadForm() {
 
         <div className="grid gap-3 md:grid-cols-2">
           <label className="space-y-2 text-sm font-medium text-neutral-200">
-            Téléphone <span className="text-neutral-500">(optionnel)</span>
+            Téléphone <span className="text-neutral-400">(optionnel)</span>
             <input
               name="phone"
               maxLength={40}
               autoComplete="tel"
-              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
               placeholder="+1 514 ..."
             />
           </label>
           <label className="space-y-2 text-sm font-medium text-neutral-200">
-            Entreprise <span className="text-neutral-500">(optionnel)</span>
+            Entreprise <span className="text-neutral-400">(optionnel)</span>
             <input
               name="company"
               maxLength={160}
               autoComplete="organization"
-              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+              className="min-h-12 w-full rounded-2xl border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
               placeholder="Nom de l'entreprise"
             />
           </label>
@@ -141,7 +141,7 @@ export function ContactLeadForm() {
             minLength={10}
             maxLength={4000}
             rows={5}
-            className="w-full resize-none rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-white outline-none transition placeholder:text-neutral-600 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
+            className="w-full resize-none rounded-2xl border border-neutral-800 bg-neutral-900 px-4 py-3 text-white outline-none transition placeholder:text-neutral-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/10"
             placeholder="Explique le besoin: assistant personnel, conseiller financier, immobilier ou autre métier."
           />
         </label>
@@ -154,11 +154,11 @@ export function ContactLeadForm() {
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <p className="text-xs leading-5 text-neutral-500">Confidentiel · Aucun spam · Suivi humain</p>
+          <p className="text-xs leading-5 text-neutral-400">Confidentiel · Aucun spam · Suivi humain</p>
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 font-semibold text-neutral-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 md:w-auto"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 font-semibold text-neutral-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-400 md:w-auto"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             {loading ? "Envoi en cours..." : "Envoyer la demande"}

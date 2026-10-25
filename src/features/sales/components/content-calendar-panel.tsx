@@ -82,9 +82,9 @@ export function ContentCalendarPanel({ initialCalendar }: Props) {
                 >
                   <p className="text-xl font-extrabold text-white">
                     {t.target}
-                    <span className="ml-1 text-[10px] font-semibold text-neutral-500">{t.unitFr}</span>
+                    <span className="ml-1 text-xs font-semibold text-neutral-400">{t.unitFr}</span>
                   </p>
-                  <p className="mt-0.5 text-[10px] leading-4 text-neutral-400">{t.labelFr}</p>
+                  <p className="mt-0.5 text-xs leading-4 text-neutral-400">{t.labelFr}</p>
                 </div>
               ))}
             </div>
@@ -96,35 +96,35 @@ export function ContentCalendarPanel({ initialCalendar }: Props) {
                 className="rounded-xl border border-white/[0.06] bg-black/30 p-3"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-sky-300/80">
+                  <p className="text-xs font-bold uppercase tracking-wide text-sky-300/80">
                     {slot.dayLabelFr}
                   </p>
-                  <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-100">
+                  <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-xs font-semibold text-sky-100">
                     {KIND_LABEL[slot.kind] ?? slot.kind}
                   </span>
                 </div>
                 <p className="mt-2 text-xs font-semibold text-white">{slot.titleFr}</p>
-                <p className="mt-1 text-[11px] leading-5 text-neutral-400">{slot.briefFr}</p>
+                <p className="mt-1 text-xs leading-5 text-neutral-400">{slot.briefFr}</p>
                 <div className="mt-2 space-y-1 border-t border-white/[0.05] pt-2">
-                  <p className="text-[10px] text-amber-300/90">⏰ {slot.bestTimeFr}</p>
-                  <p className="text-[10px] text-emerald-300/90">🎯 {slot.kpiFr}</p>
-                  <p className="text-[10px] leading-4 text-neutral-500">{slot.strategyFr}</p>
+                  <p className="text-xs text-amber-300/90">⏰ {slot.bestTimeFr}</p>
+                  <p className="text-xs text-emerald-300/90">🎯 {slot.kpiFr}</p>
+                  <p className="text-xs leading-4 text-neutral-400">{slot.strategyFr}</p>
                 </div>
-                <p className="mt-2 text-[10px] uppercase tracking-wide text-neutral-600">
+                <p className="mt-2 text-xs uppercase tracking-wide text-neutral-400">
                   {slot.channelHint}
                   {slot.vehicleLabel ? ` · ${slot.vehicleLabel}` : ""}
                 </p>
               </li>
             ))}
           </ol>
-          <ul className="mt-3 space-y-1 text-[11px] leading-5 text-neutral-500">
+          <ul className="mt-3 space-y-1 text-xs leading-5 text-neutral-400">
             {calendar.operatorNotesFr.map((note) => (
               <li key={note}>• {note}</li>
             ))}
           </ul>
         </>
       ) : (
-        <p className="mt-3 text-xs text-neutral-500">
+        <p className="mt-3 text-xs text-neutral-400">
           Génère le plan pour la semaine (spotlights depuis inventaire + jours livre).
         </p>
       )}

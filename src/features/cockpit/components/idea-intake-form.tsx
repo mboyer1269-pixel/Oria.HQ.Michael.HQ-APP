@@ -44,7 +44,7 @@ export function IdeaIntakeForm() {
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-3">
       <label className="flex flex-col gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f7899]">
+        <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#a9b0cc]">
           Idée brute
         </span>
         <textarea
@@ -54,12 +54,12 @@ export function IdeaIntakeForm() {
           maxLength={4000}
           rows={6}
           placeholder="Capture l'idée telle quelle. Le titre sera dérivé de la première ligne."
-          className="min-h-36 w-full resize-y rounded-lg border border-white/10 bg-black/30 px-3 py-3 text-[13px] leading-6 text-[#eff1fb] outline-none transition placeholder:text-[#5d6688] focus:border-amber-400/60"
+          className="min-h-36 w-full resize-y rounded-lg border border-white/10 bg-black/30 px-3 py-3 text-[13px] leading-6 text-[#eff1fb] outline-none transition placeholder:text-[#a9b0cc] focus:border-amber-400/60"
         />
       </label>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[11.5px] leading-5 text-[#6f7899]">
+        <p className="text-xs leading-5 text-[#a9b0cc]">
           Écriture append-only dans <span className="font-semibold text-[#b8c0df]">events</span>.
           Aucune projection fictive.
         </p>

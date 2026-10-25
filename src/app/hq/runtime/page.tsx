@@ -283,7 +283,7 @@ export default async function RuntimePage({
         }
       >
         <HqSummaryRail>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
             Canary check
           </p>
           <div className="mt-3 grid gap-2">
@@ -332,7 +332,7 @@ export default async function RuntimePage({
           <HqMetric label="Budget-bound" value={costSnapshot.budgetBoundCount} />
         </div>
 
-        <p className="mt-4 text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500">
+        <p className="mt-4 text-xs font-extrabold uppercase tracking-[0.22em] text-neutral-400">
           Par rung
         </p>
         <div className="mt-2 grid gap-3 sm:grid-cols-3">
@@ -354,11 +354,11 @@ export default async function RuntimePage({
 
         <HqWidgetGrid className="mt-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500">
+            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-neutral-400">
               Par task class
             </p>
             {taskClassRows.length === 0 ? (
-              <p className="mt-2 text-xs text-neutral-600">Aucun événement observé.</p>
+              <p className="mt-2 text-xs text-neutral-400">Aucun événement observé.</p>
             ) : (
               <div className="mt-2 grid gap-1.5">
                 {taskClassRows.map(([taskClass, bucket]) => (
@@ -376,11 +376,11 @@ export default async function RuntimePage({
             )}
           </div>
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500">
+            <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-neutral-400">
               Par agent
             </p>
             {agentRows.length === 0 ? (
-              <p className="mt-2 text-xs text-neutral-600">Aucun événement observé.</p>
+              <p className="mt-2 text-xs text-neutral-400">Aucun événement observé.</p>
             ) : (
               <div className="mt-2 grid gap-1.5">
                 {agentRows.map(([agentId, bucket]) => (
@@ -421,12 +421,12 @@ export default async function RuntimePage({
         {catalog.ok ? (
           <>
             {catalog.failures.map((failure) => (
-              <p key={failure.provider} className="mt-2 text-xs text-neutral-500">
+              <p key={failure.provider} className="mt-2 text-xs text-neutral-400">
                 {failure.provider} · indisponible · {failure.reason}
               </p>
             ))}
             <div className="mt-3 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/70">
-              <div className="grid gap-1 border-b border-neutral-800 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500 sm:grid-cols-[7rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem]">
+              <div className="grid gap-1 border-b border-neutral-800 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.22em] text-neutral-400 sm:grid-cols-[7rem_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_6rem]">
                 <span>Fournisseur</span>
                 <span>Modèle</span>
                 <span>Tarif</span>
@@ -435,7 +435,7 @@ export default async function RuntimePage({
                 <span>État</span>
               </div>
               {catalog.sections.length === 0 ? (
-                <p className="px-4 py-3 text-xs text-neutral-500">inconnu</p>
+                <p className="px-4 py-3 text-xs text-neutral-400">inconnu</p>
               ) : (
                 catalog.sections.map((section) => (
                   <div key={section.provider}>
@@ -470,7 +470,7 @@ export default async function RuntimePage({
                       </span>
                     </div>
                     {section.lines.length === 0 ? (
-                      <p className="border-b border-neutral-800 px-4 py-3 text-xs text-neutral-500">inconnu</p>
+                      <p className="border-b border-neutral-800 px-4 py-3 text-xs text-neutral-400">inconnu</p>
                     ) : (
                       section.lines.map((line, index) => (
                         <div
@@ -480,8 +480,8 @@ export default async function RuntimePage({
                           <span className="text-neutral-300">{line.provider}</span>
                           <span className="truncate font-mono text-neutral-200">{line.modelId}</span>
                           <span className="font-mono text-neutral-300">{line.tariff}</span>
-                          <span className="text-neutral-500">{catalogUnitLabel(line.units)}</span>
-                          <span className="truncate font-mono text-neutral-500">{line.observedAt ?? "inconnu"}</span>
+                          <span className="text-neutral-400">{catalogUnitLabel(line.units)}</span>
+                          <span className="truncate font-mono text-neutral-400">{line.observedAt ?? "inconnu"}</span>
                           <span className="text-neutral-300">{line.status}</span>
                         </div>
                       ))
@@ -508,7 +508,7 @@ export default async function RuntimePage({
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-medium text-white">{item.label}</p>
                   <span
-                    className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${styles.badge}`}
+                    className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${styles.badge}`}
                   >
                     <span
                       className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${styles.dot}`}
@@ -518,7 +518,7 @@ export default async function RuntimePage({
                 </div>
                 <p className="mt-2 font-mono text-xs text-neutral-300">{item.value}</p>
                 {item.note && (
-                  <p className="mt-1.5 text-xs text-neutral-500">{item.note}</p>
+                  <p className="mt-1.5 text-xs text-neutral-400">{item.note}</p>
                 )}
               </div>
             );
@@ -537,30 +537,30 @@ export default async function RuntimePage({
             >
               <span
                 className={`shrink-0 font-mono text-xs ${
-                  phase.done ? "text-emerald-400" : "text-neutral-600"
+                  phase.done ? "text-emerald-400" : "text-neutral-400"
                 }`}
               >
                 {phase.done ? <CheckCircle2 className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
               </span>
               <span
                 className={`text-xs font-medium uppercase tracking-[0.12em] ${
-                  phase.done ? "text-emerald-300" : "text-neutral-500"
+                  phase.done ? "text-emerald-300" : "text-neutral-400"
                 }`}
               >
                 Phase {phase.phase}
               </span>
               <span
-                className={`text-sm ${phase.done ? "text-white" : "text-neutral-500"}`}
+                className={`text-sm ${phase.done ? "text-white" : "text-neutral-400"}`}
               >
                 {phase.label}
               </span>
               {phase.done && (
-                <span className="ml-auto shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-300">
+                <span className="ml-auto shrink-0 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300">
                   fait
                 </span>
               )}
               {!phase.done && phase.phase === "2" && (
-                <span className="ml-auto shrink-0 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">
+                <span className="ml-auto shrink-0 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">
                   suivant
                 </span>
               )}
@@ -609,7 +609,7 @@ export default async function RuntimePage({
             { label: "Live unlock", value: "Phase 6 — per skill" },
           ].map((item) => (
             <div key={item.label} className="rounded-xl border border-neutral-800 bg-neutral-900/50 px-3 py-2">
-              <p className="text-neutral-500">{item.label}</p>
+              <p className="text-neutral-400">{item.label}</p>
               <p className="mt-0.5 font-mono text-neutral-200">{item.value}</p>
             </div>
           ))}

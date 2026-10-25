@@ -78,11 +78,40 @@ test("dev fallback guard: production fail-closes unless explicitly opted in", as
   delete process.env.ORIA_ALLOW_DEV_USER_FALLBACK;
   assert.equal(isDevUserFallbackAllowed(), false);
 
-  // Production, explicit opt-in: allowed.
+  // Production, explicit opt-in: still refused (cannot be enabled in prod).
   process.env.ORIA_ALLOW_DEV_USER_FALLBACK = "true";
-  assert.equal(isDevUserFallbackAllowed(), true);
+  assert.equal(isDevUserFallbackAllowed(), false);
 
   // Production, any value other than "true": still fail-closed.
   process.env.ORIA_ALLOW_DEV_USER_FALLBACK = "1";
   assert.equal(isDevUserFallbackAllowed(), false);
+});
+
+test("local preview session: off by default, never in production or Vercel", async () => {
+  process.env.NODE_ENV = "development";
+  delete process.env.MICHAEL_HQ_OWNER_ID;
+  delete process.env.ORIA_ALLOW_DEV_USER_FALLBACK;
+  const { isLocalPreviewSessionAllowed, isDevUserFallbackAllowed } = await importUserContext();
+  const savedVercel = process.env.VERCEL_ENV;
+  try {
+    delete process.env.VERCEL_ENV;
+    delete process.env.ORIA_ALLOW_DEV_USER_FALLBACK;
+    assert.equal(isLocalPreviewSessionAllowed(), false, "off by default");
+    process.env.ORIA_ALLOW_DEV_USER_FALLBACK = "true";
+    assert.equal(isLocalPreviewSessionAllowed(), true, "explicit local opt-in");
+    process.env.ORIA_ALLOW_DEV_USER_FALLBACK = "1";
+    assert.equal(isLocalPreviewSessionAllowed(), false);
+    process.env.ORIA_ALLOW_DEV_USER_FALLBACK = "true";
+    process.env.NODE_ENV = "production";
+    assert.equal(isLocalPreviewSessionAllowed(), false, "NODE_ENV=production");
+    process.env.NODE_ENV = "development";
+    for (const v of ["production", "preview"]) {
+      process.env.VERCEL_ENV = v;
+      assert.equal(isLocalPreviewSessionAllowed(), false, `VERCEL_ENV=${v}`);
+      assert.equal(isDevUserFallbackAllowed(), false, `fallback VERCEL_ENV=${v}`);
+    }
+  } finally {
+    if (savedVercel === undefined) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = savedVercel;
+    process.env.NODE_ENV = "development";
+  }
 });

@@ -12,7 +12,7 @@ export function MissionCalendarFlowSection() {
       <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
               Flux calendrier Joris
             </p>
             <p className="mt-2 text-sm leading-6 text-neutral-400">

@@ -19,8 +19,8 @@ export function ActivityRail() {
       aria-label="Activité, lecture seule"
       className="flex shrink-0 flex-col gap-1 border-b border-white/[0.06] bg-[#080b16]/40 px-5 py-2.5 backdrop-blur-xl"
     >
-      <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
-        <span className="flex items-center gap-1.5 font-semibold text-[#98a1c4]">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="flex items-center gap-1.5 font-semibold text-[#b4bbd6]">
           <Activity className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
           Activité
         </span>
@@ -36,7 +36,7 @@ export function ActivityRail() {
           <ArrowRight className="h-3 w-3" aria-hidden="true" />
         </Link>
       </div>
-      <p className="text-[10.5px] leading-snug text-[#646c8e]">
+      <p className="text-xs leading-snug text-[#a9b0cc]">
         Consulte les événements enregistrés et leurs liens vers les missions dans le journal.
       </p>
     </aside>

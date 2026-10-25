@@ -19,9 +19,9 @@ const ENTRY_TYPES: { value: MemoryVaultEntryType; label: string }[] = [
 ];
 
 const inputClass =
-  "w-full rounded-lg border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-emerald-500/40 focus:outline-none";
+  "w-full rounded-lg border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-sm text-white placeholder:text-neutral-400 focus:border-emerald-500/40 focus:outline-none";
 const labelClass =
-  "text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500";
+  "text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400";
 
 export function MemoryWritePanel({ pending }: MemoryWritePanelProps) {
   const router = useRouter();
@@ -192,7 +192,7 @@ export function MemoryWritePanel({ pending }: MemoryWritePanelProps) {
       <div className="grid gap-2">
         <p className={labelClass}>File d&apos;approbation — propositions en attente</p>
         {pending.length === 0 ? (
-          <p className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 text-xs text-neutral-600">
+          <p className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 text-xs text-neutral-400">
             Aucune proposition en attente.
           </p>
         ) : (
@@ -207,7 +207,7 @@ export function MemoryWritePanel({ pending }: MemoryWritePanelProps) {
                   <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
                     {entry.type} · proposé · {entry.author}
                   </span>
-                  <span className="font-mono text-xs text-neutral-600">{entry.id}</span>
+                  <span className="font-mono text-xs text-neutral-400">{entry.id}</span>
                 </div>
                 <h3 className="mt-2 text-sm font-semibold text-white">{entry.title}</h3>
                 <p className="mt-1 text-xs leading-5 text-neutral-400">{entry.content}</p>

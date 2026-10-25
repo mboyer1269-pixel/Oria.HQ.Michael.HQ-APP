@@ -75,7 +75,7 @@ export function ModelKnowledgePanel({
               <GraduationCap className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-teal-300/80">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-300/80">
                 Formation modèle neuf
               </p>
               <h3 className="mt-1 text-xl font-extrabold tracking-tight text-white sm:text-2xl">
@@ -122,7 +122,7 @@ export function ModelKnowledgePanel({
         </div>
 
         <div className="mt-4">
-          <div className="flex items-center justify-between text-[11px] text-neutral-400">
+          <div className="flex items-center justify-between text-xs text-neutral-400">
             <span>
               Progression must-know · {mastered}/{total}
             </span>
@@ -153,7 +153,7 @@ export function ModelKnowledgePanel({
             className={`inline-flex items-center gap-1.5 rounded-t-xl px-3 py-2 text-xs font-semibold transition ${
               tab === id
                 ? "bg-white/[0.06] text-teal-100"
-                : "text-neutral-500 hover:text-neutral-300"
+                : "text-neutral-400 hover:text-neutral-300"
             }`}
           >
             <Icon className="h-3.5 w-3.5" />
@@ -179,7 +179,7 @@ export function ModelKnowledgePanel({
                     }`}
                   >
                     <CheckCircle2
-                      className={`mt-0.5 h-4 w-4 shrink-0 ${done ? "text-teal-300" : "text-neutral-600"}`}
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${done ? "text-teal-300" : "text-neutral-400"}`}
                     />
                     <span className={`text-sm leading-6 ${done ? "text-teal-50" : "text-neutral-200"}`}>
                       {item}
@@ -198,7 +198,7 @@ export function ModelKnowledgePanel({
                 key={`${step.zone}-${i}`}
                 className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-3"
               >
-                <p className="text-[11px] font-bold uppercase tracking-wide text-teal-300/80">
+                <p className="text-xs font-bold uppercase tracking-wide text-teal-300/80">
                   {i + 1}. {step.zone}
                 </p>
                 <p className="mt-1 text-sm text-neutral-200">{step.talk}</p>
@@ -211,7 +211,7 @@ export function ModelKnowledgePanel({
         {tab === "vs" ? (
           <div className="space-y-3">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+              <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
                 Feature → bénéfice
               </p>
               <ul className="mt-2 space-y-2">
@@ -221,14 +221,14 @@ export function ModelKnowledgePanel({
                     className="rounded-xl border border-neutral-800 bg-neutral-950/60 px-3 py-2.5 text-sm"
                   >
                     <span className="font-semibold text-white">{row.feature}</span>
-                    <span className="text-neutral-500"> → </span>
+                    <span className="text-neutral-400"> → </span>
                     <span className="text-neutral-300">{row.benefit}</span>
                   </li>
                 ))}
               </ul>
             </div>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+              <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
                 Set concurrent
               </p>
               <ul className="mt-2 space-y-2">
@@ -238,7 +238,7 @@ export function ModelKnowledgePanel({
                     className="rounded-xl border border-neutral-800 bg-neutral-950/60 px-3 py-2.5 text-sm text-neutral-300"
                   >
                     <span className="font-semibold text-white">{row.rival}</span>
-                    <span className="text-neutral-500"> — </span>
+                    <span className="text-neutral-400"> — </span>
                     {row.angle}
                   </li>
                 ))}
@@ -246,7 +246,7 @@ export function ModelKnowledgePanel({
             </div>
             {card.coldClimateFr.length > 0 ? (
               <div className="rounded-xl border border-sky-500/20 bg-sky-500/10 p-3">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-sky-300">
+                <p className="text-xs font-bold uppercase tracking-wide text-sky-300">
                   Outaouais / hiver
                 </p>
                 <ul className="mt-2 space-y-1 text-xs leading-5 text-sky-100/90">
@@ -278,7 +278,7 @@ export function ModelKnowledgePanel({
                     href={link.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 rounded-lg border border-neutral-800 px-2.5 py-1.5 text-[11px] text-teal-200 hover:border-teal-500/40"
+                    className="inline-flex items-center gap-1 rounded-lg border border-neutral-800 px-2.5 py-1.5 text-xs text-teal-200 hover:border-teal-500/40"
                   >
                     {link.label} <ExternalLink className="h-3 w-3" />
                   </a>
@@ -288,7 +288,7 @@ export function ModelKnowledgePanel({
           </ul>
         ) : null}
 
-        <p className="mt-4 text-[10px] leading-4 text-neutral-600">
+        <p className="mt-4 text-xs leading-4 text-neutral-400">
           Microlearning vendeur — confirme toujours prix/équipement sur l’étiquette et le guide
           commande. GlobalConnect / AutoBook restent la source officielle OEM.
         </p>
@@ -300,7 +300,7 @@ export function ModelKnowledgePanel({
 function StoryTile({ label, text }: { label: string; text: string }) {
   return (
     <div className="rounded-xl border border-white/[0.06] bg-black/25 p-3">
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-teal-300/70">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-teal-300/70">{label}</p>
       <p className="mt-1.5 text-xs leading-5 text-neutral-200">{text}</p>
     </div>
   );

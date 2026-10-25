@@ -214,7 +214,7 @@ export function MissionDraftPendingPanel({
         data-ux-state="loading"
         className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5"
       >
-        <div className="flex items-center gap-2 text-sm text-neutral-500">
+        <div className="flex items-center gap-2 text-sm text-neutral-400">
           <Loader2 className="h-4 w-4 animate-spin" />
           Chargement des propositions en attente…
         </div>
@@ -246,7 +246,7 @@ export function MissionDraftPendingPanel({
               (Phase 2 reste mock sur Mission Control).
             </p>
             {confirmed.summary ? (
-              <p className="mt-2 text-sm leading-6 text-neutral-500">{confirmed.summary}</p>
+              <p className="mt-2 text-sm leading-6 text-neutral-400">{confirmed.summary}</p>
             ) : null}
             <details className="mt-3 rounded-lg border border-neutral-800 bg-neutral-950/50 p-3">
               <summary className="cursor-pointer text-xs font-semibold text-neutral-400">
@@ -427,7 +427,7 @@ export function MissionDraftPendingPanel({
                 <button
                   type="button"
                   onClick={() => setShowTechnicalDetails((open) => !open)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-neutral-300"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-400 hover:text-neutral-300"
                   aria-expanded={showTechnicalDetails}
                 >
                   {showTechnicalDetails ? (
@@ -438,11 +438,11 @@ export function MissionDraftPendingPanel({
                   Détails techniques
                 </button>
                 {showTechnicalDetails ? (
-                  <p className="mt-2 font-mono text-xs text-neutral-500">{pending.pendingDraftId}</p>
+                  <p className="mt-2 font-mono text-xs text-neutral-400">{pending.pendingDraftId}</p>
                 ) : null}
               </div>
             ) : null}
-            <p className="mt-3 text-xs leading-5 text-neutral-500">
+            <p className="mt-3 text-xs leading-5 text-neutral-400">
               {variant === "embedded"
                 ? "Confirmer ou refuser le rendez-vous se fait sur Michael HQ — distinct de l'approbation exécuteur (Phase 2, mock)."
                 : "Confirmer le rendez-vous crée une mission draft locale et réserve le calendrier (missionId sur le ledger). Ce n'est pas l'approbation exécuteur Phase 2."}
@@ -503,7 +503,7 @@ export function MissionDraftPendingPanel({
       ) : null}
 
       {variant === "banner" ? (
-        <p className="mt-4 flex items-center gap-2 text-xs text-neutral-500">
+        <p className="mt-4 flex items-center gap-2 text-xs text-neutral-400">
           <XCircle className="h-3.5 w-3.5" />
           Tu peux aussi confirmer par chat (« confirme », « oui », « go ») dans le Command Center.
         </p>

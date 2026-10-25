@@ -25,11 +25,11 @@ import { fromOpportunityBriefToWorkstream } from "../agent-venture-workstream";
 // ---------------------------------------------------------------------------
 
 const inputClass =
-  "w-full rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-amber-500/50 focus:outline-none";
+  "w-full rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-400 focus:border-amber-500/50 focus:outline-none";
 const labelClass =
-  "text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500";
+  "text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400";
 const sectionTitleClass =
-  "text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500 mb-3";
+  "text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400 mb-3";
 
 // ---------------------------------------------------------------------------
 // Form draft state
@@ -624,7 +624,7 @@ export function AgentOpportunityBriefForm({
               </div>
               <ul className="mt-1 flex flex-col gap-0.5">
                 {validationErrors.map((err, i) => (
-                  <li key={i} className="text-[11px] text-red-300">
+                  <li key={i} className="text-xs text-red-300">
                     {err}
                   </li>
                 ))}
@@ -643,7 +643,7 @@ export function AgentOpportunityBriefForm({
 
       {/* Action row */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-800/60 pt-4">
-        <p className="text-[11px] leading-5 text-neutral-600">
+        <p className="text-xs leading-5 text-neutral-400">
           This form creates a local draft only. Nothing is saved, sent, or executed.
         </p>
         <div className="flex flex-wrap items-center gap-2">

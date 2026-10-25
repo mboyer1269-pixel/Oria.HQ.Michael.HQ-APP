@@ -124,7 +124,7 @@ function Metric({
 
   return (
     <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-      <p className="text-[10px] uppercase tracking-widest text-neutral-500">{label}</p>
+      <p className="text-xs uppercase tracking-widest text-neutral-400">{label}</p>
       <p className={`mt-1 text-sm font-semibold ${toneClass}`}>{value}</p>
     </div>
   );

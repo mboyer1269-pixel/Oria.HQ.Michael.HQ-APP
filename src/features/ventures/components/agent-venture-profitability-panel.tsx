@@ -62,7 +62,7 @@ function ScoreMetric({
 }) {
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
         {label}
       </span>
       <p className="mt-1 tabular-nums text-sm font-semibold text-white">{value}/100</p>
@@ -81,7 +81,7 @@ export function AgentVentureProfitabilityPanel({
   return (
     <section className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
       <div className="mb-4 flex items-center gap-2">
-        <span className="text-neutral-500">
+        <span className="text-neutral-400">
           <CircleDollarSign className="h-4 w-4" aria-hidden="true" />
         </span>
         <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
@@ -110,13 +110,13 @@ export function AgentVentureProfitabilityPanel({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-2 text-sm text-neutral-300">
-              <Gauge className="h-4 w-4 text-neutral-500" aria-hidden="true" />
-              <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">
+              <Gauge className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+              <span className="font-semibold uppercase tracking-[0.12em] text-neutral-400">
                 Profitability
               </span>
               <span className="tabular-nums text-2xl font-bold text-white">
                 {score.profitabilityScore}
-                <span className="text-xs font-normal text-neutral-500">/100</span>
+                <span className="text-xs font-normal text-neutral-400">/100</span>
               </span>
             </span>
             <span
@@ -127,14 +127,14 @@ export function AgentVentureProfitabilityPanel({
               {RECOMMENDATION_LABELS[score.recommendation]}
             </span>
           </div>
-          <span className="text-xs text-neutral-500">
+          <span className="text-xs text-neutral-400">
             {score.blockerCount} blocker{score.blockerCount === 1 ? "" : "s"}
           </span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
               <CircleDollarSign className="h-3.5 w-3.5" aria-hidden="true" />
               Revenue potential
             </span>
@@ -143,7 +143,7 @@ export function AgentVentureProfitabilityPanel({
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
               <Target className="h-3.5 w-3.5" aria-hidden="true" />
               Validation cost
             </span>
@@ -152,7 +152,7 @@ export function AgentVentureProfitabilityPanel({
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
               <Clock className="h-3.5 w-3.5" aria-hidden="true" />
               Speed to first dollar
             </span>
@@ -161,21 +161,21 @@ export function AgentVentureProfitabilityPanel({
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
               <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
               Confidence
             </span>
             <p className="mt-1 text-sm font-semibold text-white">{confidenceScore}/100</p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
               <Zap className="h-3.5 w-3.5" aria-hidden="true" />
               Automation leverage
             </span>
             <p className="mt-1 text-sm font-semibold text-white">{automationPotentialScore}/100</p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
               <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
               Risk penalty
             </span>
@@ -198,7 +198,7 @@ export function AgentVentureProfitabilityPanel({
 
         {score.blockers.length > 0 && (
           <div>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
               Blockers
             </span>
             <ul className="mt-2 space-y-2">
@@ -209,7 +209,7 @@ export function AgentVentureProfitabilityPanel({
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-white">{blocker.label}</span>
-                    <span className="rounded-full border border-neutral-700 bg-neutral-950 px-2 py-0.5 text-[11px] uppercase tracking-[0.12em] text-neutral-400">
+                    <span className="rounded-full border border-neutral-700 bg-neutral-950 px-2 py-0.5 text-xs uppercase tracking-[0.12em] text-neutral-400">
                       {blocker.severity}
                     </span>
                   </div>
@@ -221,14 +221,14 @@ export function AgentVentureProfitabilityPanel({
         )}
 
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Rationale
           </span>
           <p className="mt-1 text-sm leading-6 text-neutral-300">{score.rationale}</p>
         </div>
 
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Next CEO decision
           </span>
           <p className="mt-1 text-sm font-semibold leading-6 text-white">{score.nextCeoDecision}</p>

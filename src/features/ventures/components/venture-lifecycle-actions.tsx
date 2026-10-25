@@ -44,8 +44,8 @@ function initialSubScores(card: VentureCard): VentureSubScores {
 }
 
 const inputClass =
-  "w-full rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-amber-500/50 focus:outline-none";
-const labelClass = "text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500";
+  "w-full rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-400 focus:border-amber-500/50 focus:outline-none";
+const labelClass = "text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400";
 
 export function VentureLifecycleActions({
   card,
@@ -101,9 +101,9 @@ export function VentureLifecycleActions({
       <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4 text-xs leading-5 text-neutral-400">
         <div className="flex items-center gap-2 text-neutral-300">
           {isUnsaved ? (
-            <AlertTriangle className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+            <AlertTriangle className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
           ) : (
-            <FlaskConical className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+            <FlaskConical className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
           )}
           <span className="font-semibold">
             {isUnsaved ? "Carte non sauvegardée" : "Carte démo — exemple"}
@@ -122,7 +122,7 @@ export function VentureLifecycleActions({
     return (
       <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4 text-xs leading-5 text-neutral-400">
         <div className="flex items-center gap-2 text-neutral-300">
-          <Lock className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+          <Lock className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
           <span className="font-semibold">
             {card.status === "archived" ? "Venture archivée" : "Venture tuée"}
           </span>
@@ -143,7 +143,7 @@ export function VentureLifecycleActions({
   return (
     <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
           Actions cycle de vie
         </span>
         {mode !== "none" && (
@@ -299,7 +299,7 @@ export function VentureLifecycleActions({
                 <span className="text-xs leading-5 text-neutral-300">
                   {dimension.label}
                   {dimension.polarity === "negative" && (
-                    <span className="text-neutral-500"> (bas = mieux)</span>
+                    <span className="text-neutral-400"> (bas = mieux)</span>
                   )}
                 </span>
                 <input

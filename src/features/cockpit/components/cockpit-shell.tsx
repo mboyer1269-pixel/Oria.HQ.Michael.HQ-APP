@@ -73,12 +73,12 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
       <Tooltip title={item.tipTitle} detail={item.tipDetail} meta={item.tipMeta} align="left" className="w-full">
         <span
           aria-disabled="true"
-          className={`${base} w-full cursor-not-allowed border-transparent text-[#5a6080] opacity-60`}
+          className={`${base} w-full cursor-not-allowed border-transparent text-[#a9b0cc] opacity-60`}
         >
           <Icon className="h-[17px] w-[17px] shrink-0" aria-hidden="true" />
           <span className="hidden md:inline">{item.label}</span>
           {item.tipMeta ? (
-            <span className="ml-auto hidden rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#646c8e] md:inline">
+            <span className="ml-auto hidden rounded-full border border-white/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-[#a9b0cc] md:inline">
               {item.tipMeta}
             </span>
           ) : null}
@@ -89,7 +89,7 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
 
   const state = active
     ? "border-violet-500/40 bg-gradient-to-br from-violet-500/22 to-indigo-500/[0.13] text-white"
-    : "border-transparent text-[#98a1c4] hover:border-white/10 hover:bg-white/[0.04] hover:text-[#eff1fb]";
+    : "border-transparent text-[#b4bbd6] hover:border-white/10 hover:bg-white/[0.04] hover:text-[#eff1fb]";
   return (
     <Tooltip title={item.tipTitle} detail={item.tipDetail} meta={item.tipMeta} align="left" className="w-full">
       <Link href={item.href as Route} aria-label={item.label} aria-current={active ? "page" : undefined} className={`${base} ${state} w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400`}>
@@ -119,7 +119,6 @@ export function CockpitShell({
 
   return (
     <div className="grid min-h-screen grid-cols-[64px_1fr] bg-[#080a16] md:grid-cols-[250px_1fr]">
-      <a href="#hq-main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:p-3 focus:text-black">Aller au contenu</a>
       {/* Sidebar */}
       <aside className="sticky top-0 flex h-screen flex-col gap-1.5 overflow-auto border-r border-white/[0.06] bg-gradient-to-b from-[#0c1020]/95 to-[#080b18]/95 p-3.5 backdrop-blur-xl">
         <div className="flex items-center gap-3 px-2 pb-4 pt-1.5">
@@ -141,27 +140,27 @@ export function CockpitShell({
           </svg>
           <span className="hidden md:block">
             <span className="block text-[15px] font-bold text-[#eff1fb]">ORIA HQ</span>
-            <span className="block text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#646c8e]">
+            <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-[#a9b0cc]">
               Michael
             </span>
           </span>
         </div>
 
-        <p className="hidden px-2.5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#646c8e] md:block">
+        <p className="hidden px-2.5 pb-1.5 pt-3 text-xs font-bold uppercase tracking-[0.2em] text-[#a9b0cc] md:block">
           Pilotage
         </p>
         {pilotage.map((item) => (
           <SidebarLink key={item.key} item={item} active={item.key === active} />
         ))}
 
-        <p className="hidden px-2.5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#646c8e] md:block">
+        <p className="hidden px-2.5 pb-1.5 pt-3 text-xs font-bold uppercase tracking-[0.2em] text-[#a9b0cc] md:block">
           Espace
         </p>
         {espace.map((item) => (
           <SidebarLink key={item.key} item={item} active={item.key === active} />
         ))}
 
-        <div className="mt-auto hidden border-t border-white/[0.06] pt-3 text-[11.5px] leading-relaxed text-[#646c8e] md:block">
+        <div className="mt-auto hidden border-t border-white/[0.06] pt-3 text-xs leading-relaxed text-[#a9b0cc] md:block">
           <span className="text-emerald-400">●</span> workspace actif · human-on-the-loop
         </div>
       </aside>
@@ -176,7 +175,7 @@ export function CockpitShell({
         {/* Read-only activity rail (no fabricated events, no ledger writes). */}
         <ActivityRail />
 
-        <main id="hq-main" tabIndex={-1} className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
+        <main id="main-content" tabIndex={-1} className="mx-auto flex w-full max-w-[1240px] flex-col gap-[18px] px-5 pb-32 pt-[22px]">
           {children}
         </main>
       </div>

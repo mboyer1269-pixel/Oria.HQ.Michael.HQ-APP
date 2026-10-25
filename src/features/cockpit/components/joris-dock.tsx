@@ -86,7 +86,7 @@ export function JorisDock() {
         <span className="h-[30px] w-[30px] shrink-0 rounded-[10px] bg-[radial-gradient(circle_at_30%_30%,#22d3ee,#8b5cf6_70%)] shadow-[0_0_18px_rgba(139,92,246,.6)]" />
         <div className="flex-1">
           <p className="text-sm font-bold text-[#eff1fb]">Joris</p>
-          <p className="text-[10.5px] font-semibold text-emerald-300">chat owner-gated · propose seulement</p>
+          <p className="text-xs font-semibold text-emerald-300">chat owner-gated · propose seulement</p>
         </div>
       </div>
 
@@ -105,7 +105,7 @@ export function JorisDock() {
               className={`max-w-[92%] self-start rounded-[13px] border px-3 py-2.5 text-[12.5px] leading-relaxed ${
                 turn.muted
                   ? "border-amber-500/25 bg-amber-500/[0.06] text-amber-100"
-                  : "border-white/10 bg-[#1c223a]/55 text-[#98a1c4]"
+                  : "border-white/10 bg-[#1c223a]/55 text-[#b4bbd6]"
               }`}
             >
               {turn.muted ? (
@@ -116,7 +116,7 @@ export function JorisDock() {
           ),
         )}
         {loading ? (
-          <span className="inline-flex items-center gap-2 self-start text-[12px] text-[#646c8e]">
+          <span className="inline-flex items-center gap-2 self-start text-[12px] text-[#a9b0cc]">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Joris réfléchit…
           </span>
         ) : null}
@@ -128,7 +128,7 @@ export function JorisDock() {
           onChange={(e) => setCommand(e.target.value)}
           placeholder="Parle à Joris…"
           aria-label="Message pour Joris"
-          className="min-w-0 flex-1 rounded-[10px] border border-white/10 bg-black/35 px-3 py-2.5 text-[12.5px] text-[#eff1fb] outline-none transition placeholder:text-[#646c8e] focus:border-violet-500/60"
+          className="min-w-0 flex-1 rounded-[10px] border border-white/10 bg-black/35 px-3 py-2.5 text-[12.5px] text-[#eff1fb] outline-none transition placeholder:text-[#a9b0cc] focus:border-violet-500/60"
         />
         <button
           type="submit"

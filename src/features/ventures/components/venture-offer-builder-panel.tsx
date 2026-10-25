@@ -97,7 +97,7 @@ export function VentureOfferBuilderPanel({
 
               <div className="grid gap-2 sm:grid-cols-2 lg:min-w-80 lg:grid-cols-2">
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     <CircleDollarSign className="h-3.5 w-3.5" aria-hidden="true" />
                     Price hypothesis
                   </span>
@@ -106,7 +106,7 @@ export function VentureOfferBuilderPanel({
                   </p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                     First dollar
                   </span>
@@ -115,7 +115,7 @@ export function VentureOfferBuilderPanel({
                   </p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Validation cost
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">
@@ -123,7 +123,7 @@ export function VentureOfferBuilderPanel({
                   </p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Profitability
                   </span>
                   <p className="mt-1 tabular-nums text-sm font-semibold text-white">
@@ -135,7 +135,7 @@ export function VentureOfferBuilderPanel({
 
             <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Offer promise
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">{item.offerPromise}</p>
@@ -149,7 +149,7 @@ export function VentureOfferBuilderPanel({
               </div>
 
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Why buy now
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">{item.reasonToBuyNow}</p>
@@ -158,25 +158,25 @@ export function VentureOfferBuilderPanel({
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Package
                 </span>
                 <p className="mt-1 text-sm font-semibold text-white">{item.packageLabel}</p>
               </div>
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Main objection
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">{item.mainObjection}</p>
               </div>
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Risk reduction
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">{item.riskReduction}</p>
               </div>
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Next validation step
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">{item.nextValidationStep}</p>
@@ -185,7 +185,7 @@ export function VentureOfferBuilderPanel({
 
             <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   <Target className="h-3.5 w-3.5" aria-hidden="true" />
                   Package deliverables
                 </span>
@@ -199,7 +199,7 @@ export function VentureOfferBuilderPanel({
               </div>
 
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
                   Safety
                 </span>
@@ -220,7 +220,7 @@ export function VentureOfferBuilderPanel({
       <div className="mt-3 flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900/60 px-3 py-2 text-xs text-neutral-400">
         <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         Local workbench only. No persistence path is wired here.
-        <Lock className="h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+        <Lock className="h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
       </div>
     </section>
   );

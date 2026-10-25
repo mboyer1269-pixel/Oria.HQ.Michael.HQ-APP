@@ -56,13 +56,13 @@ function BriefCard({
           <Icon className="h-4 w-4 text-amber-300" />
           <h3 className="font-semibold text-white">{title}</h3>
         </div>
-        <span className="rounded-full border border-neutral-700 px-2 py-1 text-[11px] text-neutral-300">
+        <span className="rounded-full border border-neutral-700 px-2 py-1 text-xs text-neutral-300">
           {count}
           {badgeLabel ? ` ${badgeLabel}` : ""}
         </span>
       </div>
       {isEmpty ? (
-        <p className="mt-4 text-sm leading-6 text-neutral-500">{emptyLabel}</p>
+        <p className="mt-4 text-sm leading-6 text-neutral-400">{emptyLabel}</p>
       ) : (
         <ul className="mt-4 space-y-2">{items}</ul>
       )}
@@ -88,7 +88,7 @@ export function CeoBriefPanel({ brief }: CeoBriefPanelProps) {
           CEO Brief
         </div>
         <h2 className="mt-3 text-2xl font-semibold text-white md:text-3xl">{brief.headline}</h2>
-        <p className="mt-2 text-xs text-neutral-500">
+        <p className="mt-2 text-xs text-neutral-400">
           Généré{" "}
           {new Intl.DateTimeFormat("fr-CA", {
             dateStyle: "medium",
@@ -160,7 +160,7 @@ export function CeoBriefPanel({ brief }: CeoBriefPanelProps) {
               ))}
               {hatSummary ? (
                 <li className="list-none px-0 py-0">
-                  <p className="text-xs text-neutral-500">{hatSummary}</p>
+                  <p className="text-xs text-neutral-400">{hatSummary}</p>
                 </li>
               ) : null}
             </>

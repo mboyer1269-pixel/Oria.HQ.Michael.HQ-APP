@@ -23,7 +23,7 @@ export function MoneyboardPanel({ data }: { data: Moneyboard }) {
         </div>
         <BadgeDollarSign className="h-6 w-6 text-emerald-400" />
       </div>
-      <p className="mt-1 text-xs text-neutral-500">{data.periodLabel} · données illustratives</p>
+      <p className="mt-1 text-xs text-neutral-400">{data.periodLabel} · données illustratives</p>
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
@@ -34,27 +34,27 @@ export function MoneyboardPanel({ data }: { data: Moneyboard }) {
           <p className="mt-2 text-2xl font-bold text-emerald-300">{fromCents(data.moneyInCents)}</p>
         </div>
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-          <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-neutral-500">
+          <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-neutral-400">
             <TrendingDown className="h-3.5 w-3.5" />
             Out
           </p>
           <p className="mt-2 text-2xl font-bold text-white">{fromCents(data.moneyOutCents)}</p>
         </div>
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Net</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-400">Net</p>
           <p className={`mt-2 text-2xl font-bold ${net >= 0 ? "text-emerald-300" : "text-red-300"}`}>
             {fromCents(net)}
           </p>
         </div>
         <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Pipeline estimé</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-400">Pipeline estimé</p>
           <p className="mt-2 text-2xl font-bold text-amber-300">{fromCents(data.pipelineEstimatedCents)}</p>
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400/80">Détail in</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400/80">Détail in</p>
           <ul className="mt-2 space-y-1.5 text-sm text-neutral-400">
             {data.inBreakdown.map((item) => (
               <li key={item.label} className="flex items-center justify-between gap-3">
@@ -65,7 +65,7 @@ export function MoneyboardPanel({ data }: { data: Moneyboard }) {
           </ul>
         </div>
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Détail out</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Détail out</p>
           <ul className="mt-2 space-y-1.5 text-sm text-neutral-400">
             {data.outBreakdown.map((item) => (
               <li key={item.label} className="flex items-center justify-between gap-3">
@@ -77,7 +77,7 @@ export function MoneyboardPanel({ data }: { data: Moneyboard }) {
         </div>
       </div>
 
-      <p className="mt-3 text-[11px] text-neutral-600">
+      <p className="mt-3 text-xs text-neutral-400">
         Coût IA / runtime estimé : {fromCents(data.aiRuntimeCostCents)} sur la période.
       </p>
     </section>

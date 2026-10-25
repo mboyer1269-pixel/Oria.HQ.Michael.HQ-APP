@@ -35,12 +35,12 @@ import type { DailyDirectionItem } from "@/features/cockpit/events/event-record"
 function SourceBadge({ ids }: { ids: string[] }) {
   if (ids.length === 0) return null;
   return (
-    <span className="mt-1.5 block text-[10.5px] text-[#6f7899]">
+    <span className="mt-1.5 block text-xs text-[#a9b0cc]">
       source:{" "}
       {ids.map((id, i) => (
         <span key={id}>
           {i > 0 ? ", " : ""}
-          <span className="font-mono text-[10px] text-[#8791b7]">{id.slice(0, 8)}</span>
+          <span className="font-mono text-xs text-[#b4bbd6]">{id.slice(0, 8)}</span>
         </span>
       ))}
     </span>
@@ -66,7 +66,7 @@ function DirectionItem({
         <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#6f7899]">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#a9b0cc]">
           {label}
         </p>
         <p className="mt-0.5 text-[13px] leading-6 text-[#c4cde8]">{item.text}</p>
@@ -82,7 +82,7 @@ function DirectionItem({
 
 function GeneratingState() {
   return (
-    <div className="flex items-center gap-3 py-6 text-[#8791b7]">
+    <div className="flex items-center gap-3 py-6 text-[#b4bbd6]">
       <Loader2 className="h-4 w-4 shrink-0 animate-spin text-violet-400" aria-hidden="true" />
       <span className="text-sm">Joris lit tes events et prépare le plan du jour…</span>
     </div>
@@ -135,13 +135,13 @@ function DirectionDisplay({ projection }: { projection: DailyDirectionProjection
 
       {/* Outcomes */}
       <section>
-        <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#6f7899]">
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-[#a9b0cc]">
           3 outcomes du jour
         </p>
         <ol className="flex flex-col gap-4">
           {payload.outcomes.map((outcome, i) => (
             <li key={i} className="flex gap-3">
-              <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/10 text-[10px] font-bold text-violet-300">
+              <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-violet-500/30 bg-violet-500/10 text-xs font-bold text-violet-300">
                 {i + 1}
               </span>
               <div className="min-w-0">
@@ -184,7 +184,7 @@ function DirectionDisplay({ projection }: { projection: DailyDirectionProjection
       </section>
 
       {/* Metadata footer */}
-      <p className="border-t border-white/[0.06] pt-3 text-[10.5px] text-[#505878]">
+      <p className="border-t border-white/[0.06] pt-3 text-xs text-[#a9b0cc]">
         Direction {payload.dateIso} · event {projection.eventId.slice(0, 8)} ·{" "}
         {payload.generatorEventIds.length} event
         {payload.generatorEventIds.length !== 1 ? "s" : ""} source
@@ -244,7 +244,7 @@ export function DailyDirectionWidget({
     <section className="rounded-lg border border-white/[0.07] bg-[#111827]/55 p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-violet-300">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-violet-300">
             <Zap className="h-3.5 w-3.5" aria-hidden="true" />
             Daily Direction
           </p>
@@ -257,7 +257,7 @@ export function DailyDirectionWidget({
             onClick={runGeneration}
             disabled={isPending}
             aria-label="Régénérer la direction du jour"
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-[11.5px] font-semibold text-[#8791b7] transition hover:border-violet-500/30 hover:text-violet-300 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-semibold text-[#b4bbd6] transition hover:border-violet-500/30 hover:text-violet-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             Régénérer

@@ -44,7 +44,7 @@ export default async function InfrastructurePage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-bold text-zinc-100">{pkg.title}</p>
-                      <p className="mt-1 text-[11px] text-zinc-500">
+                      <p className="mt-1 text-xs text-zinc-500">
                         {pkg.packageId} · mode={pkg.modeId} · {pkg.files.length} fichier(s)
                       </p>
                       {pkg.estimatedCost ? (
@@ -56,23 +56,23 @@ export default async function InfrastructurePage() {
                     <div className="flex flex-wrap gap-2">
                       <a
                         href={`/api/hq/infrastructure/packages/${encodeURIComponent(pkg.packageId)}/export`}
-                        className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/20"
+                        className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20"
                       >
                         <Download className="h-3.5 w-3.5" />
                         Télécharger JSON
                       </a>
-                      <span className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-700 px-3 text-[11px] text-zinc-400">
+                      <span className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-700 px-3 text-xs text-zinc-400">
                         <HardDrive className="h-3.5 w-3.5" />
                         {pkg.exportTargets.join(" · ")}
                       </span>
                     </div>
                   </div>
-                  <p className="mt-3 text-[11px] leading-5 text-zinc-400">{pkg.brief}</p>
+                  <p className="mt-3 text-xs leading-5 text-zinc-400">{pkg.brief}</p>
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {pkg.files.map((file) => (
                       <li
                         key={file.path}
-                        className="rounded border border-zinc-800 bg-black/40 px-2 py-0.5 text-[10px] text-sky-300"
+                        className="rounded border border-zinc-800 bg-black/40 px-2 py-0.5 text-xs text-sky-300"
                       >
                         {file.path}
                       </li>

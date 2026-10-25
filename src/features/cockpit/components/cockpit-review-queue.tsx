@@ -58,11 +58,11 @@ function QueueItem({ item }: { item: AgentReviewQueueItem }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-[#eff1fb]">{item.agentId}</span>
-            <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 font-mono text-[11px] text-[#646c8e]">
+            <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 font-mono text-xs text-[#a9b0cc]">
               {item.outcomeId}
             </span>
           </div>
-          <p className="mt-1 text-sm text-[#98a1c4]">
+          <p className="mt-1 text-sm text-[#b4bbd6]">
             {DECISION_LABEL[item.decision] ?? item.decision}
           </p>
         </div>
@@ -72,14 +72,14 @@ function QueueItem({ item }: { item: AgentReviewQueueItem }) {
         </Tag>
       </div>
 
-      <p className="mt-3 text-xs leading-5 text-[#98a1c4]">{item.executiveSummary}</p>
+      <p className="mt-3 text-xs leading-5 text-[#b4bbd6]">{item.executiveSummary}</p>
 
       {item.riskFlags.length > 0 ? (
         <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Risk flags">
           {item.riskFlags.map((flag) => (
             <li
               key={flag}
-              className="rounded-full border border-rose-500/20 bg-rose-500/[0.08] px-2 py-0.5 font-mono text-[11px] text-rose-300"
+              className="rounded-full border border-rose-500/20 bg-rose-500/[0.08] px-2 py-0.5 font-mono text-xs text-rose-300"
             >
               {flag}
             </li>
@@ -87,9 +87,9 @@ function QueueItem({ item }: { item: AgentReviewQueueItem }) {
         </ul>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[#646c8e]">
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#a9b0cc]">
         <span>
-          next: <span className="text-[#98a1c4]">{item.nextAction.replace(/_/g, " ")}</span>
+          next: <span className="text-[#b4bbd6]">{item.nextAction.replace(/_/g, " ")}</span>
         </span>
         <span>·</span>
         <span>{item.status.replace(/_/g, " ")}</span>
@@ -111,7 +111,7 @@ function QueueItem({ item }: { item: AgentReviewQueueItem }) {
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-      <p className="text-[11px] uppercase tracking-[0.14em] text-[#646c8e]">{label}</p>
+      <p className="text-xs uppercase tracking-[0.14em] text-[#a9b0cc]">{label}</p>
       <p className={`mt-1 text-2xl font-bold tabular-nums ${tone}`}>{value}</p>
     </div>
   );
@@ -129,7 +129,7 @@ export function CockpitReviewQueue({ queue }: { queue: AgentReviewQueue }) {
             <Eye className="h-4 w-4 text-violet-300" aria-hidden="true" />
             File de revue des agents
           </h2>
-          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[#98a1c4]">
+          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[#b4bbd6]">
             Items priorisés, dérivés des évaluations de qualité et des recommandations de
             gouvernance. Revue humaine requise avant toute décision d&apos;autonomie.
           </p>
@@ -143,9 +143,9 @@ export function CockpitReviewQueue({ queue }: { queue: AgentReviewQueue }) {
       </div>
 
       <div className="mt-4 flex items-start gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-        <ShieldOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#646c8e]" aria-hidden="true" />
-        <p className="text-xs leading-5 text-[#646c8e]">
-          <span className="font-semibold text-[#98a1c4]">File en lecture seule.</span> Aucune
+        <ShieldOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#a9b0cc]" aria-hidden="true" />
+        <p className="text-xs leading-5 text-[#a9b0cc]">
+          <span className="font-semibold text-[#b4bbd6]">File en lecture seule.</span> Aucune
           approbation, changement d&apos;autonomie ou exécution n&apos;est effectué depuis cette vue.
           Tout item est consultatif et requiert une décision humaine explicite.
         </p>
@@ -155,7 +155,7 @@ export function CockpitReviewQueue({ queue }: { queue: AgentReviewQueue }) {
         {empty ? (
           <div className="rounded-xl border border-dashed border-white/10 bg-black/10 px-4 py-10 text-center">
             <p className="text-sm font-semibold text-[#eff1fb]">Aucun item à revoir pour l&apos;instant.</p>
-            <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-6 text-[#646c8e]">
+            <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-6 text-[#a9b0cc]">
               Quand tes agents produiront des outcomes observés, les recommandations apparaîtront ici,
               priorisées. En attendant, tu peux demander à Joris d&apos;évaluer un agent.
             </p>

@@ -40,8 +40,8 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 text-center">
       <div className="text-xl font-bold text-white">{value}</div>
-      <div className="text-xs text-neutral-500">{label}</div>
-      {sub && <div className="mt-0.5 text-xs text-neutral-600">{sub}</div>}
+      <div className="text-xs text-neutral-400">{label}</div>
+      {sub && <div className="mt-0.5 text-xs text-neutral-400">{sub}</div>}
     </div>
   );
 }
@@ -80,7 +80,7 @@ export function OutboundBatchPanel({
         <div>
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-amber-400" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+            <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
               Batch outbound
             </span>
           </div>
@@ -89,7 +89,7 @@ export function OutboundBatchPanel({
           </h3>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <RiskBadge level={batch.riskLevel} />
-            <span className="text-xs text-neutral-600">#{batch.id.slice(0, 8)}</span>
+            <span className="text-xs text-neutral-400">#{batch.id.slice(0, 8)}</span>
           </div>
         </div>
 
@@ -120,7 +120,7 @@ export function OutboundBatchPanel({
 
       {/* Send window */}
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-        <Clock className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+        <Clock className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
         <span className="text-xs text-neutral-400">
           Fenêtre d&apos;envoi :{" "}
           <span className="font-mono text-neutral-300">
@@ -135,8 +135,8 @@ export function OutboundBatchPanel({
 
       {/* Content hash */}
       <div className="mt-2 flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
-        <Hash className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
-        <span className="text-xs text-neutral-500">
+        <Hash className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
+        <span className="text-xs text-neutral-400">
           contentHash:{" "}
           <span className="font-mono text-neutral-400">{batch.contentHash.slice(0, 16)}...</span>
           {" "}— approuvé après modification = token expiré
@@ -145,7 +145,7 @@ export function OutboundBatchPanel({
 
       {/* Message template preview */}
       <div className="mt-4">
-        <p className="mb-1.5 text-xs font-semibold text-neutral-500">Template message</p>
+        <p className="mb-1.5 text-xs font-semibold text-neutral-400">Template message</p>
         <pre className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 text-xs leading-5 text-neutral-300 whitespace-pre-wrap">
           {batch.messageTemplate}
         </pre>
@@ -176,12 +176,12 @@ export function OutboundBatchPanel({
       {reputationState && (
         <div className="mt-3 rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-500">Réputation domaine ({reputationState.domain})</span>
+            <span className="text-xs text-neutral-400">Réputation domaine ({reputationState.domain})</span>
             <span className={`text-xs font-semibold ${circuitOpen ? "text-red-400" : "text-emerald-400"}`}>
               Circuit: {reputationState.circuitBreaker}
             </span>
           </div>
-          <div className="mt-1 flex gap-4 text-xs text-neutral-500">
+          <div className="mt-1 flex gap-4 text-xs text-neutral-400">
             <span>Bounce: {(reputationState.rollingBounceRate * 100).toFixed(1)}%</span>
             <span>Plaintes: {(reputationState.rollingComplaintRate * 100).toFixed(2)}%</span>
             <span>{reputationState.dailySentCount}/{reputationState.dailyCap} envoyés</span>
@@ -198,7 +198,7 @@ export function OutboundBatchPanel({
             className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition ${
               canApprove
                 ? "bg-emerald-600 text-white hover:bg-emerald-500"
-                : "cursor-not-allowed bg-neutral-800 text-neutral-600"
+                : "cursor-not-allowed bg-neutral-800 text-neutral-400"
             }`}
           >
             <ShieldCheck className="h-4 w-4" />

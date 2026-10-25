@@ -122,7 +122,7 @@ function MissionDraftProposalHint({ preview }: { preview: MissionDraftPreview })
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">Proposition en attente</p>
           <p className="mt-1 font-medium text-white">{preview.title}</p>
           {schedule ? <p className="mt-1 text-sm text-amber-100">{schedule}</p> : null}
-          <p className="mt-2 text-xs text-neutral-500">{expiryLabel}</p>
+          <p className="mt-2 text-xs text-neutral-400">{expiryLabel}</p>
           <Link
             href="#mission-draft-pending"
             className="mt-3 inline-flex text-sm font-semibold text-amber-300 underline-offset-2 hover:underline"
@@ -288,12 +288,12 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
       <p className="mb-3 text-xs text-neutral-400">{!modelsLoaded?"Lecture des qualifications serveur…":!modelOptions.some(option=>option.executable)?"Aucun accès compte/modèle admissible pour ce chat. Les commandes calendrier et missions restent disponibles.":"Choisis explicitement un accès qualifié. Le serveur revérifie le compte, le modèle, la révision et le budget à l’envoi. Aucun repli payant automatique."} Les quotas disponibles ne sont pas mesurés ici.</p>
       <form onSubmit={submit} className="flex flex-col gap-3 md:flex-row">
         <div className="flex min-h-14 flex-1 items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 px-4 transition focus-within:border-amber-500/60 focus-within:ring-2 focus-within:ring-amber-500/10">
-          <MessageSquare aria-hidden="true" className="h-5 w-5 shrink-0 text-neutral-500" />
+          <MessageSquare aria-hidden="true" className="h-5 w-5 shrink-0 text-neutral-400" />
           <input
             maxLength={4000}
             value={command}
             onChange={(event) => editCommand(event.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-neutral-600"
+            className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-neutral-400"
             placeholder="Quel résultat veux-tu obtenir pour ton projet ?"
             aria-label="Commande pour Joris"
           />
@@ -301,13 +301,13 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
         <button
           type="submit"
           disabled={loading || !command.trim()}
-          className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 font-semibold text-neutral-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 md:w-auto"
+          className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 font-semibold text-neutral-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-400 md:w-auto"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           {loading ? "Joris traite..." : "Envoyer"}
         </button>
       </form>
-      <p className="mt-2 text-xs text-neutral-500">La saisie non envoyée reste dans cet onglet, par projet, pendant 24 heures après modification. Elle n’est jamais envoyée automatiquement.</p>
+      <p className="mt-2 text-xs text-neutral-400">La saisie non envoyée reste dans cet onglet, par projet, pendant 24 heures après modification. Elle n’est jamais envoyée automatiquement.</p>
       {draftNotice && <p role="status" className="mt-2 text-sm text-amber-200">{draftNotice}</p>}
 
       <button type="button" disabled={loading || !preparationText || preparationText.length > 4000} onClick={prepareDevelopmentMission}
@@ -338,7 +338,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
                 onClick={() => editCommand(example)}
                 className="group inline-flex min-h-10 items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/40 px-3 text-left text-sm text-neutral-300 transition hover:border-amber-500/40 hover:bg-amber-500/5 hover:text-amber-200"
               >
-                <Sparkles className="h-3.5 w-3.5 shrink-0 text-neutral-500 transition group-hover:text-amber-400" />
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-neutral-400 transition group-hover:text-amber-400" />
                 <span>{example}</span>
               </button>
             ))}
@@ -409,17 +409,17 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
 
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Date</p>
+                  <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Date</p>
                   <p className="mt-1 text-sm font-medium text-white">{result.calendarEvent.dateISO}</p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Heure</p>
+                  <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Heure</p>
                   <p className="mt-1 text-sm font-medium text-white">
                     {result.calendarEvent.startTime} à {result.calendarEvent.endTime}
                   </p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-3">
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Rappels</p>
+                  <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Rappels</p>
                   <p className="mt-1 inline-flex items-center gap-2 text-sm font-medium text-white">
                     <Bell className="h-3.5 w-3.5 text-amber-300" />
                     {formatReminderLabel(result.calendarEvent.remindersMinutes)}
@@ -437,7 +437,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
               ) : null}
             </div>
           )}
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-500">
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-400">
             {result.modelId && <span>Modèle de routage : {result.modelId}</span>}
             {result.costMode && <span>Mode: {result.costMode}</span>}
             {result.storageMode && <span>Stockage: {formatStorageLabel(result.storageMode)}</span>}

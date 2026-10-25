@@ -93,13 +93,13 @@ export function ApprovalRailRealtime({
     >
       <header className="flex items-center justify-between gap-3 border-b border-zinc-800/80 px-4 py-3">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-amber-400/90">
+          <p className="font-mono text-xs uppercase tracking-[0.28em] text-amber-400/90">
             approval.rail
           </p>
           <h3 className="mt-0.5 font-mono text-sm text-zinc-100">Human-in-the-Loop</h3>
         </div>
         <span
-          className={`font-mono text-[10px] tracking-[0.18em] ${
+          className={`font-mono text-xs tracking-[0.18em] ${
             connectionLive ? "text-emerald-400" : "text-amber-400"
           }`}
         >
@@ -108,7 +108,7 @@ export function ApprovalRailRealtime({
       </header>
 
       <div className="space-y-3 p-4">
-        <p className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 font-mono text-[11px] leading-5 text-amber-200/90">
+        <p className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 font-mono text-xs leading-5 text-amber-200/90">
           <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           Aucune exécution sans clic CEO explicite. Approuver = seul déclencheur.
         </p>
@@ -146,10 +146,10 @@ export function ApprovalRailRealtime({
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-amber-300">
+                    <span className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-xs uppercase tracking-[0.16em] text-amber-300">
                       PENDING
                     </span>
-                    <span className="font-mono text-[10px] text-zinc-500">
+                    <span className="font-mono text-xs text-zinc-500">
                       {intent.createdAt.slice(0, 19).replace("T", " ")}
                     </span>
                   </div>
@@ -165,12 +165,12 @@ export function ApprovalRailRealtime({
                       </>
                     ) : null}
                   </p>
-                  <p className="mt-1 font-mono text-[11px] text-zinc-500">
+                  <p className="mt-1 font-mono text-xs text-zinc-500">
                     tool={intent.toolName} · autonomy={intent.autonomyLevel}
                     {intent.client ? ` · client=${intent.client}` : ""}
                   </p>
                   {typeof intent.estimatedCostUsd === "number" ? (
-                    <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] text-emerald-300">
+                    <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-xs text-emerald-300">
                       <span className="uppercase tracking-wider text-emerald-400/80">coût estimé</span>
                       <span className="font-bold text-emerald-200">
                         ${intent.estimatedCostUsd.toFixed(4)}
@@ -180,7 +180,7 @@ export function ApprovalRailRealtime({
                       ) : null}
                     </p>
                   ) : null}
-                  <p className="mt-1 truncate font-mono text-[10px] text-zinc-700">
+                  <p className="mt-1 truncate font-mono text-xs text-zinc-700">
                     {intent.intentId}
                   </p>
 
@@ -195,7 +195,7 @@ export function ApprovalRailRealtime({
                     </p>
                   ) : isConfirm ? (
                     <div className="mt-3 space-y-2 rounded-lg border border-zinc-700 bg-zinc-900/80 p-3">
-                      <p className="font-mono text-[11px] text-zinc-300">
+                      <p className="font-mono text-xs text-zinc-300">
                         Confirmer {isConfirm === "approve" ? "APPROVE + EXECUTE" : "REJECT"} ?
                         Friction positive requise.
                       </p>

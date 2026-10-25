@@ -33,7 +33,7 @@ const STATUS_CHIP: Record<string, { label: string; cls: string }> = {
   replied: { label: "A répondu 🔥", cls: "border-emerald-500/40 bg-emerald-500/15 text-emerald-200" },
   call_booked: { label: "Appel booké", cls: "border-violet-500/30 bg-violet-500/10 text-violet-300" },
   signed: { label: "SIGNÉ 💰", cls: "border-emerald-500/50 bg-emerald-500/20 text-emerald-100" },
-  lost: { label: "Perdu", cls: "border-neutral-800 bg-neutral-900 text-neutral-600" },
+  lost: { label: "Perdu", cls: "border-neutral-800 bg-neutral-900 text-neutral-400" },
 };
 
 export function Loi96PipelineBoard() {
@@ -77,15 +77,15 @@ export function Loi96PipelineBoard() {
   }
 
   if (targets === null && !error) {
-    return <p className="text-xs text-neutral-600">Chargement du pipeline…</p>;
+    return <p className="text-xs text-neutral-400">Chargement du pipeline…</p>;
   }
 
   return (
     <div className="flex flex-col gap-3">
       {meta ? (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-neutral-400">
           Objectif : <span className="font-semibold text-neutral-300">{meta.weeklyGoal}</span>
-          <span className="mx-2 text-neutral-700">·</span>
+          <span className="mx-2 text-neutral-400">·</span>
           Kill metric : {meta.killMetrics[0]}
         </p>
       ) : null}
@@ -110,19 +110,19 @@ export function Loi96PipelineBoard() {
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2">
                   <span className="truncate text-sm font-bold text-white">{target.name}</span>
-                  <span className="font-mono text-xs text-neutral-500">{target.domain}</span>
+                  <span className="font-mono text-xs text-neutral-400">{target.domain}</span>
                   <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${chip.cls}`}
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${chip.cls}`}
                   >
                     {chip.label}
                   </span>
-                  <span className="rounded-full border border-neutral-800 px-2 py-0.5 text-[11px] text-neutral-500">
+                  <span className="rounded-full border border-neutral-800 px-2 py-0.5 text-xs text-neutral-400">
                     T{target.tier}
                   </span>
                 </p>
-                <p className="mt-1 truncate text-xs text-neutral-500">{target.angle}</p>
+                <p className="mt-1 truncate text-xs text-neutral-400">{target.angle}</p>
                 {!target.contact?.includes("@") ? (
-                  <p className="mt-0.5 flex items-center gap-1 text-[11px] text-amber-400/80">
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-400/80">
                     <MailQuestion className="h-3 w-3" />
                     Pas de courriel direct — {target.contact ?? "contact à trouver"}
                   </p>
@@ -173,7 +173,7 @@ export function Loi96PipelineBoard() {
         })}
       </div>
 
-      <p className="border-t border-neutral-900 pt-2 text-[11px] leading-5 text-neutral-600">
+      <p className="border-t border-neutral-900 pt-2 text-xs leading-5 text-neutral-400">
         « Préparer » dépose le courriel d&apos;audit dans le Send Desk — rien ne part sans ton
         clic là-bas. Relay rédige, Sentinel valide, toi tu décides.
       </p>

@@ -131,9 +131,9 @@ export function NotesWorkspace() {
           Nouvelle note
         </button>
         {!loaded ? (
-          <p className="px-2 py-4 text-xs text-neutral-600">Chargement…</p>
+          <p className="px-2 py-4 text-xs text-neutral-400">Chargement…</p>
         ) : notes.length === 0 ? (
-          <p className="px-2 py-4 text-xs text-neutral-600">
+          <p className="px-2 py-4 text-xs text-neutral-400">
             Aucune note. Écris à droite — l&apos;enregistrement est automatique.
           </p>
         ) : (
@@ -151,10 +151,10 @@ export function NotesWorkspace() {
                   {note.pinned ? <Pin className="h-3 w-3 shrink-0 text-amber-400" /> : null}
                   {note.title}
                 </p>
-                <p className="mt-0.5 truncate text-[11px] text-neutral-500">
+                <p className="mt-0.5 truncate text-xs text-neutral-400">
                   {note.body.replace(/\n/g, " ").slice(0, 60) || "…"}
                 </p>
-                <p className="mt-1 text-[10px] text-neutral-600">
+                <p className="mt-1 text-xs text-neutral-400">
                   {new Date(note.updatedAt).toLocaleString("fr-CA", {
                     month: "short",
                     day: "numeric",
@@ -168,7 +168,7 @@ export function NotesWorkspace() {
                   type="button"
                   onClick={() => togglePin(note)}
                   title={note.pinned ? "Désépingler" : "Épingler"}
-                  className="rounded-md p-1 text-neutral-500 hover:text-amber-400"
+                  className="rounded-md p-1 text-neutral-400 hover:text-amber-400"
                 >
                   {note.pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
                 </button>
@@ -176,7 +176,7 @@ export function NotesWorkspace() {
                   type="button"
                   onClick={() => archive(note)}
                   title="Archiver"
-                  className="rounded-md p-1 text-neutral-500 hover:text-rose-400"
+                  className="rounded-md p-1 text-neutral-400 hover:text-rose-400"
                 >
                   <Archive className="h-3 w-3" />
                 </button>
@@ -195,9 +195,9 @@ export function NotesWorkspace() {
               scheduleSave(event.target.value, body);
             }}
             placeholder="Titre de la note…"
-            className="w-full bg-transparent text-lg font-bold text-white outline-none placeholder:text-neutral-600"
+            className="w-full bg-transparent text-lg font-bold text-white outline-none placeholder:text-neutral-400"
           />
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-neutral-500">
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-neutral-400">
             {saveStatus === "saving" ? (
               <>
                 <Loader2 className="h-3 w-3 animate-spin" /> Enregistrement…
@@ -222,7 +222,7 @@ export function NotesWorkspace() {
             scheduleSave(title, event.target.value);
           }}
           placeholder={"Capture l'idée maintenant, structure plus tard.\nTout est enregistré automatiquement."}
-          className="mt-3 min-h-[50vh] w-full flex-1 resize-none bg-transparent text-sm leading-7 text-neutral-200 outline-none placeholder:text-neutral-600"
+          className="mt-3 min-h-[50vh] w-full flex-1 resize-none bg-transparent text-sm leading-7 text-neutral-200 outline-none placeholder:text-neutral-400"
         />
       </section>
     </div>

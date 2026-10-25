@@ -31,7 +31,7 @@ function formatDuration(ms: number | null): string {
 function TimelineRow({ bar }: { bar: RunTimelineBar }) {
   return (
     <li className="flex items-center gap-3">
-      <span className="w-28 shrink-0 truncate text-[11px] text-neutral-400" title={bar.title}>
+      <span className="w-28 shrink-0 truncate text-xs text-neutral-400" title={bar.title}>
         {bar.title}
       </span>
       <span className="relative h-5 flex-1 rounded-md bg-white/[0.03]">
@@ -43,11 +43,11 @@ function TimelineRow({ bar }: { bar: RunTimelineBar }) {
           title={`${bar.title} — ${formatDuration(bar.durationMs)}${bar.isStale ? " · coincé" : ""}`}
         >
           {bar.isStale ? (
-            <span className="text-[9px] font-bold uppercase tracking-wide text-white">coincé</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-white">coincé</span>
           ) : null}
         </span>
       </span>
-      <span className="w-16 shrink-0 text-right tabular-nums text-[10px] text-neutral-500">
+      <span className="w-16 shrink-0 text-right tabular-nums text-xs text-neutral-400">
         {formatDuration(bar.durationMs)}
       </span>
     </li>
@@ -65,7 +65,7 @@ export function WorkflowRunTimeline({ board }: { board: WorkflowLiveBoard }) {
         <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-neutral-400">
           Chronologie des runs
         </h3>
-        <p className="text-[10px] text-neutral-500">largeur ∝ durée · ordre temporel</p>
+        <p className="text-xs text-neutral-400">largeur ∝ durée · ordre temporel</p>
       </div>
       <ol className="grid gap-1.5">
         {timeline.bars.map((bar) => (

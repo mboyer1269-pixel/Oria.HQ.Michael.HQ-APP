@@ -59,7 +59,7 @@ export default async function SkillsPage() {
         }
       >
         <HqSummaryRail>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
             Résumé
           </p>
           <div className="mt-3 grid gap-2">

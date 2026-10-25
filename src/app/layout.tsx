@@ -14,7 +14,6 @@ export const viewport: Viewport = {
   themeColor: "#0a0a0a",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -24,7 +23,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr-CA">
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <a href="#main-content" className="oria-skip-link">Aller au contenu</a>
+        {children}
+      </body>
     </html>
   );
 }

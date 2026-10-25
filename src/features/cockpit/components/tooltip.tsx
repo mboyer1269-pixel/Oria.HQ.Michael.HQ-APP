@@ -149,12 +149,12 @@ export function Tooltip({
         aria-hidden={!isOpen}
         className={`pointer-events-none absolute top-[calc(100%+10px)] z-50 w-60 rounded-xl border border-violet-500/40 bg-[#171b32]/95 p-3 text-left shadow-[0_24px_60px_-16px_rgba(0,0,0,.85)] backdrop-blur-md ${ALIGN[align]}`}
       >
-        <span className="block text-[9.5px] font-bold uppercase tracking-[0.16em] text-violet-300">
+        <span className="block text-xs font-bold uppercase tracking-[0.16em] text-violet-300">
           {title}
         </span>
-        <span className="mt-1.5 block text-xs leading-relaxed text-[#98a1c4]">{detail}</span>
+        <span className="mt-1.5 block text-xs leading-relaxed text-[#b4bbd6]">{detail}</span>
         {meta ? (
-          <span className="mt-2 block border-t border-white/10 pt-2 text-[11px] text-[#646c8e]">
+          <span className="mt-2 block border-t border-white/10 pt-2 text-xs text-[#a9b0cc]">
             {meta}
           </span>
         ) : null}

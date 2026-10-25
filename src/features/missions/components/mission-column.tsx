@@ -8,7 +8,7 @@ const columnAccents: Record<Mission["status"], string> = {
   needs_approval: "text-orange-300 border-orange-500/30",
   completed: "text-emerald-300 border-emerald-500/30",
   failed: "text-red-300 border-red-500/30",
-  cancelled: "text-neutral-500 border-neutral-700",
+  cancelled: "text-neutral-400 border-neutral-700",
 };
 
 const columnDots: Record<Mission["status"], string> = {
@@ -36,13 +36,13 @@ export function MissionColumn({ status, label, missions }: MissionColumnProps) {
       <header className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${accentClass} bg-neutral-950/60`}>
         <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
         <span className="text-xs font-semibold uppercase tracking-[0.18em]">{label}</span>
-        <span className="ml-auto rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] tabular-nums text-neutral-400">
+        <span className="ml-auto rounded-full bg-neutral-800 px-2 py-0.5 text-xs tabular-nums text-neutral-400">
           {missions.length}
         </span>
       </header>
 
       {missions.length === 0 ? (
-        <div className="flex h-20 items-center justify-center rounded-2xl border border-dashed border-neutral-800 text-xs text-neutral-700">
+        <div className="flex h-20 items-center justify-center rounded-2xl border border-dashed border-neutral-800 text-xs text-neutral-400">
           Aucune mission
         </div>
       ) : (

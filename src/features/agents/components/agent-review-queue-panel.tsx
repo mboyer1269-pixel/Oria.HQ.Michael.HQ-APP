@@ -25,7 +25,7 @@ const PRIORITY_BADGE: Record<
   },
   low: {
     label: "low",
-    className: "border-neutral-700 bg-neutral-900 text-neutral-500",
+    className: "border-neutral-700 bg-neutral-900 text-neutral-400",
   },
 };
 
@@ -67,7 +67,7 @@ function QueueItem({ item }: { item: AgentReviewQueueItem }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-white">{item.agentId}</span>
-            <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 font-mono text-[11px] text-neutral-500">
+            <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 font-mono text-xs text-neutral-400">
               {item.outcomeId}
             </span>
           </div>
@@ -77,7 +77,7 @@ function QueueItem({ item }: { item: AgentReviewQueueItem }) {
         </div>
 
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${badge.className}`}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${badge.className}`}
         >
           <PriorityIcon priority={item.priority} />
           {badge.label}
@@ -91,7 +91,7 @@ function QueueItem({ item }: { item: AgentReviewQueueItem }) {
           {item.riskFlags.map((flag) => (
             <li
               key={flag}
-              className="rounded-full border border-red-500/20 bg-red-500/8 px-2 py-0.5 font-mono text-[11px] text-red-400"
+              className="rounded-full border border-red-500/20 bg-red-500/8 px-2 py-0.5 font-mono text-xs text-red-400"
             >
               {flag}
             </li>
@@ -99,15 +99,15 @@ function QueueItem({ item }: { item: AgentReviewQueueItem }) {
         </ul>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-neutral-600">
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-400">
         <span>
           next:{" "}
           <span className="text-neutral-400">{item.nextAction.replace(/_/g, " ")}</span>
         </span>
         <span>·</span>
-        <span className="text-neutral-600">{item.status.replace(/_/g, " ")}</span>
+        <span className="text-neutral-400">{item.status.replace(/_/g, " ")}</span>
         <span>·</span>
-        <span className="text-neutral-600">approval required</span>
+        <span className="text-neutral-400">approval required</span>
       </div>
     </article>
   );
@@ -135,25 +135,25 @@ export function AgentReviewQueuePanel({ queue }: { queue: AgentReviewQueue }) {
         {/* Summary counts */}
         <div className="grid shrink-0 grid-cols-4 gap-2 text-sm lg:w-72">
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Total</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Total</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-white">
               {queue.totalItems}
             </p>
           </div>
           <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-red-500">Crit</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-red-500">Crit</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-red-300">
               {queue.criticalItems}
             </p>
           </div>
           <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-orange-500">High</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-orange-500">High</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-orange-300">
               {queue.highItems}
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Med</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Med</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-amber-300">
               {queue.mediumItems}
             </p>
@@ -163,8 +163,8 @@ export function AgentReviewQueuePanel({ queue }: { queue: AgentReviewQueue }) {
 
       {/* Safety banner */}
       <div className="mt-4 flex items-start gap-2 rounded-xl border border-neutral-800 bg-neutral-900/50 px-4 py-3">
-        <ShieldOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
-        <p className="text-xs leading-5 text-neutral-500">
+        <ShieldOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
+        <p className="text-xs leading-5 text-neutral-400">
           <span className="font-medium text-neutral-400">Read-only review queue.</span>{" "}
           No approvals, autonomy changes, or runtime execution are performed from this view.
           All items are advisory only and require explicit human decision.
@@ -175,7 +175,7 @@ export function AgentReviewQueuePanel({ queue }: { queue: AgentReviewQueue }) {
       <div className="mt-5">
         {queue.items.length === 0 ? (
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 px-4 py-8 text-center">
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm text-neutral-400">
               No agent review items are currently queued.
             </p>
           </div>

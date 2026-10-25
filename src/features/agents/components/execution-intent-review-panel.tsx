@@ -29,7 +29,7 @@ const ACTION_ERROR: Record<ActionKind, string> = {
   reject: "Rejet impossible.",
 };
 
-const labelClass = "text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500";
+const labelClass = "text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400";
 
 /**
  * CEO review surface for governed execution intents (/hq/agents).
@@ -121,7 +121,7 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
   // ── loading ────────────────────────────────────────────────────────────────
   if (listStatus === "loading") {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 text-sm text-neutral-500">
+      <div className="flex items-center gap-2 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 text-sm text-neutral-400">
         <Loader2 className="h-4 w-4 animate-spin" />
         Chargement des intentions d&apos;exécution…
       </div>
@@ -132,10 +132,10 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
   if (listStatus === "not_configured") {
     return (
       <div className="flex items-start gap-2 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
-        <PlugZap className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" />
+        <PlugZap className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" />
         <div>
           <p className="text-sm font-medium text-neutral-300">Execution rail not configured yet.</p>
-          <p className="mt-1 text-xs leading-5 text-neutral-500">
+          <p className="mt-1 text-xs leading-5 text-neutral-400">
             La table des intentions d&apos;exécution gouvernées n&apos;est pas disponible sur cet
             environnement (migration 0024 non appliquée). Aucune action n&apos;est possible ici tant
             que le rail n&apos;est pas configuré.
@@ -172,7 +172,7 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
       ) : null}
 
       {panelState === "empty" ? (
-        <p className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 text-xs text-neutral-600">
+        <p className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 text-xs text-neutral-400">
           Aucune intention d&apos;exécution en attente d&apos;approbation pour {agentId}.
         </p>
       ) : (
@@ -193,7 +193,7 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
                   <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
                     {row.agentId} · {row.skillId} · {row.status}
                   </span>
-                  <span className="flex items-center gap-1 font-mono text-xs text-neutral-600">
+                  <span className="flex items-center gap-1 font-mono text-xs text-neutral-400">
                     <Clock className="h-3 w-3" />
                     {row.createdAt.slice(0, 16).replace("T", " ")}
                   </span>
@@ -231,15 +231,15 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
                 </dl>
 
                 {row.payloadSummary.dataKeys.length > 0 ? (
-                  <p className="mt-2 text-xs text-neutral-600">
+                  <p className="mt-2 text-xs text-neutral-400">
                     <span className={labelClass}>Payload</span>{" "}
-                    <span className="font-mono text-neutral-500">
+                    <span className="font-mono text-neutral-400">
                       {row.payloadSummary.dataKeys.join(", ")}
                     </span>
                   </p>
                 ) : null}
 
-                <p className="mt-2 truncate font-mono text-[11px] text-neutral-700">{row.intentId}</p>
+                <p className="mt-2 truncate font-mono text-xs text-neutral-400">{row.intentId}</p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <button
@@ -292,7 +292,7 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
       <button
         type="button"
         onClick={handleRefresh}
-        className="inline-flex items-center gap-1.5 self-start text-xs text-neutral-500 transition hover:text-neutral-300"
+        className="inline-flex items-center gap-1.5 self-start text-xs text-neutral-400 transition hover:text-neutral-300"
       >
         <RefreshCw className="h-3 w-3" />
         Rafraîchir

@@ -64,6 +64,6 @@ export function MissionResultPanel({ output, source }: {
         </> : <p className="pb-3 text-xs text-neutral-400">Aucune différence de contenu dans ce reçu.</p>}
       </details>)}
     </div>}
-    <p className="mt-3 text-xs leading-5 text-neutral-500">{output.receipt ? "Atelier ouvre le même reçu persistant et les différences sélectionnées ci-dessus." : "Les fichiers, différences de code et aperçus exécutables ne sont pas encore reliés à ce dossier."}</p>
+    <p className="mt-3 text-xs leading-5 text-neutral-400">{output.receipt ? "Atelier ouvre le même reçu persistant et les différences sélectionnées ci-dessus." : "Les fichiers, différences de code et aperçus exécutables ne sont pas encore reliés à ce dossier."}</p>
   </section>;
 }

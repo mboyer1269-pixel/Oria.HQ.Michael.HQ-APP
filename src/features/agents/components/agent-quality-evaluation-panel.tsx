@@ -12,7 +12,7 @@ const READINESS_STYLE: Record<AgentQualityScorecard["readiness"], string> = {
   ready_to_measure: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
   needs_evidence: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   needs_knowledge_cleanup: "border-red-500/20 bg-red-500/10 text-red-300",
-  blocked_until_unlock: "border-neutral-700 bg-neutral-900 text-neutral-500",
+  blocked_until_unlock: "border-neutral-700 bg-neutral-900 text-neutral-400",
 };
 
 function formatMoney(cents: number | null): string {
@@ -32,47 +32,47 @@ function Scorecard({ scorecard }: { scorecard: AgentQualityScorecard }) {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-white">{scorecard.agentName}</h3>
-            <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-400">
+            <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-400">
               {scorecard.role}
             </span>
           </div>
-          <p className="mt-1 text-xs text-neutral-600">
+          <p className="mt-1 text-xs text-neutral-400">
             {scorecard.evidenceMode === "observed" ? "observed" : "baseline only"} · no execution authorized
           </p>
         </div>
-        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${READINESS_STYLE[scorecard.readiness]}`}>
+        <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${READINESS_STYLE[scorecard.readiness]}`}>
           {READINESS_LABEL[scorecard.readiness]}
         </span>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-3">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Quality</p>
+          <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Quality</p>
           <p className="mt-1 tabular-nums text-xl font-semibold text-white">
             {scorecard.overallQualityScore}
           </p>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-3">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Profit</p>
+          <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Profit</p>
           <p className="mt-1 text-xl font-semibold text-emerald-300">
             {formatMoney(scorecard.realizedProfitCents)}
           </p>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-3">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">CEO load</p>
+          <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">CEO load</p>
           <p className="mt-1 text-xl font-semibold text-amber-300">
             {formatMinutes(scorecard.ceoMinutesSaved)}
           </p>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 p-3">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Guardrails</p>
+          <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Guardrails</p>
           <p className="mt-1 text-xl font-semibold text-violet-300">
             {scorecard.guardrailViolations === null ? "baseline" : scorecard.guardrailViolations}
           </p>
         </div>
       </div>
 
-      <div className="mt-4 space-y-2 text-xs text-neutral-500">
+      <div className="mt-4 space-y-2 text-xs text-neutral-400">
         <p>{scorecard.dimensions.profitSignal.reason}</p>
         <p>{scorecard.dimensions.ceoLoadReduction.reason}</p>
         <p>{scorecard.dimensions.guardrailCompliance.reason}</p>
@@ -83,7 +83,7 @@ function Scorecard({ scorecard }: { scorecard: AgentQualityScorecard }) {
           {scorecard.evidenceGaps.map((gap) => (
             <li
               key={gap}
-              className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 font-mono text-[11px] text-amber-300"
+              className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 font-mono text-xs text-amber-300"
             >
               {gap}
             </li>
@@ -114,25 +114,25 @@ export function AgentQualityEvaluationPanel({ model }: { model: AgentQualityEval
 
         <div className="grid shrink-0 grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:w-[31rem]">
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Score avg</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Score avg</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-white">
               {model.summary.averageQualityScore}
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Observed</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Observed</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-emerald-300">
               {model.summary.observedScorecards}
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Profit</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Profit</p>
             <p className="mt-1 text-2xl font-semibold text-emerald-300">
               {formatMoney(model.summary.totalObservedProfitCents)}
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Execution</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Execution</p>
             <p className="mt-2 text-xs font-medium text-red-300">not authorized</p>
           </div>
         </div>
@@ -144,7 +144,7 @@ export function AgentQualityEvaluationPanel({ model }: { model: AgentQualityEval
         ))}
       </div>
 
-      <div className="mt-4 grid gap-2 text-xs text-neutral-500 md:grid-cols-3">
+      <div className="mt-4 grid gap-2 text-xs text-neutral-400 md:grid-cols-3">
         <p className="flex items-center gap-2">
           <Target className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
           Profit is only counted from observations, never invented from a blueprint.

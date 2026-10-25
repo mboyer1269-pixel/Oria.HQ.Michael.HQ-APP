@@ -43,7 +43,7 @@ function ReadinessCard({ item }: { item: ReadinessItem }) {
         <Tag tone={item.tone}>{item.value}</Tag>
       </div>
       <p className="mt-3 text-[13px] font-semibold text-[#eff1fb]">{item.label}</p>
-      <p className="mt-1.5 text-xs leading-5 text-[#98a1c4]">{item.detail}</p>
+      <p className="mt-1.5 text-xs leading-5 text-[#b4bbd6]">{item.detail}</p>
     </article>
   );
 }
@@ -108,7 +108,7 @@ export function MorningReadinessPanel({
           <h2 className="mt-1.5 text-[17px] font-bold text-[#eff1fb]">
             Snapshot pour demain matin
           </h2>
-          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[#98a1c4]">
+          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[#b4bbd6]">
             Runtime execution remains blocked. This cockpit does not approve, persist, or execute
             actions.
           </p>

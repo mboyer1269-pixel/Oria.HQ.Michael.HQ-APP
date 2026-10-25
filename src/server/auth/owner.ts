@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { serverEnv } from "@/lib/server-env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { asRoute, getLoginPath } from "@/server/auth/redirects";
+import { getLocalPreviewUser } from "@/server/auth/local-preview-user";
 
 export type OwnerAccess =
   | {
@@ -73,6 +74,8 @@ export async function getAuthenticatedActorId(): Promise<string | null> {
 }
 
 export async function requireOwnerAccess(nextPath = "/hq"): Promise<OwnerAccess> {
+  const previewUser = getLocalPreviewUser();
+  if (previewUser) return { status: "authorized", user: previewUser };
   const user = await getCurrentAuthUser();
 
   if (!user) {

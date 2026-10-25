@@ -16,7 +16,7 @@ const SHELL_SIZE = {
 
 export function HqPageShell({ children, size = "wide" }: HqPageShellProps) {
   return (
-    <main
+    <main id="main-content" tabIndex={-1}
       className={`mx-auto flex min-h-screen w-full ${SHELL_SIZE[size]} flex-col gap-5 px-4 py-5 sm:gap-6 md:px-8 md:py-8`}
     >
       {children}
@@ -59,7 +59,7 @@ export function HqPageHeader({
           {backHref ? (
             <Link
               href={backHref}
-              className="inline-flex items-center gap-1.5 text-xs text-neutral-500 transition hover:text-neutral-300"
+              className="inline-flex items-center gap-1.5 text-xs text-neutral-400 transition hover:text-neutral-300"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               {backLabel}
@@ -86,7 +86,7 @@ export function HqPageHeader({
 
 const WIDGET_TONES = {
   neutral: {
-    eyebrow: "text-neutral-500",
+    eyebrow: "text-neutral-400",
     bar: "from-neutral-500/60 via-neutral-500/20 to-transparent",
     iconChip: "border-white/10 bg-white/[0.04] text-neutral-300",
     glow: "",
@@ -162,7 +162,7 @@ export function HqWidget({
           <div className="min-w-0">
             {eyebrow ? (
               <p
-                className={`text-[10px] font-extrabold uppercase tracking-[0.22em] ${t.eyebrow}`}
+                className={`text-xs font-extrabold uppercase tracking-[0.22em] ${t.eyebrow}`}
               >
                 {eyebrow}
               </p>
@@ -253,7 +253,7 @@ export function HqMetric({
       ? "text-emerald-400"
       : delta?.direction === "down"
         ? "text-rose-400"
-        : "text-neutral-500";
+        : "text-neutral-400";
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] px-3 py-2 transition-colors hover:border-white/[0.12] hover:bg-white/[0.05]">
@@ -264,7 +264,7 @@ export function HqMetric({
       <span className="flex shrink-0 items-baseline gap-1.5">
         <span className="tabular-nums text-sm font-bold text-white">{value}</span>
         {delta ? (
-          <span className={`text-[10px] font-semibold ${deltaColor}`}>
+          <span className={`text-xs font-semibold ${deltaColor}`}>
             {delta.direction === "up" ? "▲" : delta.direction === "down" ? "▼" : "—"} {delta.text}
           </span>
         ) : null}

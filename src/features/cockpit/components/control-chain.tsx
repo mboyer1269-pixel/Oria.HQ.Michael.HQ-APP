@@ -50,7 +50,7 @@ const STATE_STYLE: Record<StageState, { ring: string; icon: string; dot: string 
   },
   future: {
     ring: "border-white/10 bg-white/[0.03]",
-    icon: "text-[#646c8e]",
+    icon: "text-[#a9b0cc]",
     dot: "bg-[#646c8e]",
   },
   locked: {
@@ -83,7 +83,7 @@ function LaneStages({ stages }: { stages: readonly ControlChainStage[] }) {
             <Tooltip
               title={stage.label}
               detail={stage.detail}
-              meta={<span className="font-semibold text-[#98a1c4]">{stage.meta}</span>}
+              meta={<span className="font-semibold text-[#b4bbd6]">{stage.meta}</span>}
               align={index === 0 ? "left" : index === stages.length - 1 ? "right" : "center"}
               className="min-w-0 flex-1"
             >
@@ -99,7 +99,7 @@ function LaneStages({ stages }: { stages: readonly ControlChainStage[] }) {
                   <span className="block truncate text-[12.5px] font-semibold text-[#eff1fb]">
                     {stage.label}
                   </span>
-                  <span className="flex items-center gap-1.5 text-[10.5px] text-[#646c8e]">
+                  <span className="flex items-center gap-1.5 text-xs text-[#a9b0cc]">
                     <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
                     {stage.meta}
                   </span>
@@ -108,7 +108,7 @@ function LaneStages({ stages }: { stages: readonly ControlChainStage[] }) {
             </Tooltip>
             {index < stages.length - 1 ? (
               <ChevronRight
-                className="hidden h-4 w-4 shrink-0 text-[#646c8e] sm:block"
+                className="hidden h-4 w-4 shrink-0 text-[#a9b0cc] sm:block"
                 aria-hidden="true"
               />
             ) : null}
@@ -132,14 +132,14 @@ function Lane({ lane }: { lane: ControlLane }) {
           <h4 className="mt-1 text-[13.5px] font-bold text-[#eff1fb]">{lane.headline}</h4>
         </div>
         {runtimeStage ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[#98a1c4]">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-[#b4bbd6]">
             <span className={`h-1.5 w-1.5 rounded-full ${STATE_STYLE[runtimeStage.state].dot}`} />
             {runtimeStage.label} · {runtimeStage.meta}
           </span>
         ) : null}
       </div>
       <LaneStages stages={lane.stages} />
-      <p className="mt-2 text-[10.5px] text-[#646c8e]">
+      <p className="mt-2 text-xs text-[#a9b0cc]">
         {lane.capabilityIds.length === 0
           ? "Aucun exécuteur n'emprunte cette voie."
           : `Exécuteurs sur cette voie : ${lane.capabilityIds.join(", ")}`}
@@ -163,7 +163,7 @@ export function ControlChain() {
           detail="Une approbation n'est pas une exécution, et toute exécution ne passe pas par une approbation. Chaque voie affiche ce qu'elle garantit et ce qu'elle ne garantit pas."
           align="right"
         >
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-[#98a1c4]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-[#b4bbd6]">
             {CONTROL_LANES.length} voies
           </span>
         </Tooltip>

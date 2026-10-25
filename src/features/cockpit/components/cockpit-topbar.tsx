@@ -26,7 +26,7 @@ export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
 
   return (
     <header className="sticky top-0 z-30 flex items-center gap-2 md:gap-3.5 border-b border-white/[0.06] bg-[#080b16]/75 px-3 md:px-5 py-3 backdrop-blur-xl">
-      <div className="text-[13px] text-[#646c8e]">
+      <div className="text-[13px] text-[#a9b0cc]">
         Oria HQ&nbsp;/&nbsp;<span className="text-[#eff1fb]">{crumb}</span>
       </div>
       <div className="flex-1" />
@@ -34,11 +34,11 @@ export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
         type="button"
         onClick={() => window.dispatchEvent(new CustomEvent("cockpit:open-palette"))}
         aria-label="Ouvrir la palette de navigation"
-        className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-[#141a2c]/60 px-3 text-xs font-semibold text-[#98a1c4] transition hover:border-white/20 hover:text-[#eff1fb]"
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-[#141a2c]/60 px-3 text-xs font-semibold text-[#b4bbd6] transition hover:border-white/20 hover:text-[#eff1fb]"
       >
         <Search className="h-3.5 w-3.5" aria-hidden="true" />
         <span className="hidden md:inline">Rechercher</span>
-        <kbd className="hidden rounded border border-white/10 bg-[#0b0f1d] px-1.5 py-0.5 font-mono text-[10px] text-[#646c8e] md:inline">
+        <kbd className="hidden rounded border border-white/10 bg-[#0b0f1d] px-1.5 py-0.5 font-mono text-xs text-[#a9b0cc] md:inline">
           ⌘K
         </kbd>
       </button>
@@ -48,7 +48,7 @@ export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
         detail={copy.jorisTooltip}
         align="right"
       >
-        <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141a2c]/60 px-3 py-1.5 text-xs font-semibold text-[#98a1c4]">
+        <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#141a2c]/60 px-3 py-1.5 text-xs font-semibold text-[#b4bbd6]">
           <Bot className="h-3.5 w-3.5 text-violet-400" aria-hidden="true" />
           {copy.jorisBadge}
         </span>

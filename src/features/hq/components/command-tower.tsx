@@ -100,12 +100,12 @@ const STATE_BADGE_STYLES: Record<string, string> = {
   pending: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   blocked: "border-red-500/20 bg-red-500/10 text-red-300",
   installed_unverified: "border-amber-500/20 bg-amber-500/10 text-amber-300",
-  future_candidate: "border-neutral-700 bg-neutral-900 text-neutral-500",
-  future_tool_corridor: "border-neutral-700 bg-neutral-900 text-neutral-500",
+  future_candidate: "border-neutral-700 bg-neutral-900 text-neutral-400",
+  future_tool_corridor: "border-neutral-700 bg-neutral-900 text-neutral-400",
   governed_live: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
   receiver_rejects: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   blocked_until_dispatch_mandate: "border-red-500/20 bg-red-500/10 text-red-300",
-  future_corridor: "border-neutral-700 bg-neutral-900 text-neutral-500",
+  future_corridor: "border-neutral-700 bg-neutral-900 text-neutral-400",
   probe_v1: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
   probe_unavailable: "border-amber-500/20 bg-amber-500/10 text-amber-300",
 };
@@ -113,7 +113,7 @@ const STATE_BADGE_STYLES: Record<string, string> = {
 function StateBadge({ value }: { value: string }) {
   const style = STATE_BADGE_STYLES[value] ?? STATE_BADGE_STYLES.empty;
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${style}`}>
+    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${style}`}>
       {value}
     </span>
   );
@@ -178,7 +178,7 @@ function MissionBriefCard({ model }: { model: CommandTowerModel }) {
           <UnavailableNote what="Le brief" />
         </div>
       ) : (
-        <p className="mt-3 text-sm text-neutral-500">
+        <p className="mt-3 text-sm text-neutral-400">
           Rien d&apos;urgent selon le Decision Spine. Prochain regard utile : la file de décisions.
         </p>
       )}
@@ -193,7 +193,7 @@ function DecisionQueueCard({ model }: { model: CommandTowerModel }) {
       {queue.state === "unavailable" ? (
         <UnavailableNote what="La file d'intents" />
       ) : queue.state === "empty" ? (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-neutral-400">
           Aucune décision en attente. Les nouveaux intents apparaissent ici dès qu&apos;un agent en
           propose un.
         </p>
@@ -208,11 +208,11 @@ function DecisionQueueCard({ model }: { model: CommandTowerModel }) {
                 <p className="text-sm font-medium text-white">
                   {item.agentId} · {item.skillId}
                 </p>
-                <span className="text-[11px] text-neutral-500">
+                <span className="text-xs text-neutral-400">
                   {formatLedgerActivityTimestamp(item.createdAt)}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-neutral-400">
                 {item.toolName} · autonomie {item.autonomyLevel} · requires approval
               </p>
             </li>
@@ -220,7 +220,7 @@ function DecisionQueueCard({ model }: { model: CommandTowerModel }) {
         </ul>
       )}
       {queue.overflowCount > 0 ? (
-        <p className="mt-3 text-xs text-neutral-500">
+        <p className="mt-3 text-xs text-neutral-400">
           + {queue.overflowCount} autre{queue.overflowCount > 1 ? "s" : ""} dans le rail
           d&apos;approbation ci-dessous.
         </p>
@@ -240,7 +240,7 @@ function RuntimeStatusCard({ model }: { model: CommandTowerModel }) {
             prompt envoyé, aucun token lu). Détection ≠ permission : aucun dispatch sans
             approbation.
             {runtime.probedAtIso ? (
-              <span className="text-neutral-600">
+              <span className="text-neutral-400">
                 {" "}
                 Preuves relevées {formatLedgerActivityTimestamp(runtime.probedAtIso)}.
               </span>
@@ -263,15 +263,15 @@ function RuntimeStatusCard({ model }: { model: CommandTowerModel }) {
               <p className="text-sm font-medium text-white">
                 {entry.label}
                 {entry.probe?.version ? (
-                  <span className="ml-2 text-[11px] font-normal text-neutral-500">
+                  <span className="ml-2 text-xs font-normal text-neutral-400">
                     {entry.probe.version}
                   </span>
                 ) : null}
               </p>
               <StateBadge value={entry.status} />
             </div>
-            <p className="mt-1 text-xs leading-5 text-neutral-500">{entry.note}</p>
-            <p className="mt-1 text-[11px] leading-4 text-neutral-600">preuve : {entry.evidence}</p>
+            <p className="mt-1 text-xs leading-5 text-neutral-400">{entry.note}</p>
+            <p className="mt-1 text-xs leading-4 text-neutral-400">preuve : {entry.evidence}</p>
           </li>
         ))}
       </ul>
@@ -292,7 +292,7 @@ function DispatchBoardCard({ model }: { model: CommandTowerModel }) {
               <p className="text-sm font-medium text-white">{corridor.label}</p>
               <StateBadge value={corridor.mode} />
             </div>
-            <p className="mt-1 text-xs leading-5 text-neutral-500">{corridor.note}</p>
+            <p className="mt-1 text-xs leading-5 text-neutral-400">{corridor.note}</p>
             {corridor.action ? (
               <Link
                 href={corridor.action.href as Route}
@@ -316,7 +316,7 @@ function EvidenceFeedCard({ model }: { model: CommandTowerModel }) {
       {feed.state === "unavailable" ? (
         <UnavailableNote what="Le ledger" />
       ) : feed.state === "empty" ? (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-neutral-400">
           Aucune preuve enregistrée pour l&apos;instant. Chaque action gouvernée écrira ici.
         </p>
       ) : (
@@ -328,11 +328,11 @@ function EvidenceFeedCard({ model }: { model: CommandTowerModel }) {
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm text-neutral-200">{item.summary}</p>
-                <span className="shrink-0 text-[11px] text-neutral-500">
+                <span className="shrink-0 text-xs text-neutral-400">
                   {formatLedgerActivityTimestamp(item.createdAt)}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-neutral-400">
                 {item.eventType ?? "non typé"}
                 {item.agentId ? ` · ${item.agentId}` : ""}
               </p>
@@ -345,7 +345,7 @@ function EvidenceFeedCard({ model }: { model: CommandTowerModel }) {
           Voir le ledger complet
         </a>
         {feed.source ? (
-          <span className="text-[11px] text-neutral-600">
+          <span className="text-xs text-neutral-400">
             source : {feed.source === "supabase" ? "Supabase" : "session locale"}
           </span>
         ) : null}
@@ -362,7 +362,7 @@ function ApprovalRailCard({ model }: { model: CommandTowerModel }) {
       eyebrow="6 · Approuver / Rejeter"
       badge={rail.state}
     >
-      <p className="mb-3 font-mono text-xs text-neutral-500">
+      <p className="mb-3 font-mono text-xs text-neutral-400">
         Le rail live (SSE) vit dans le Théâtre d&apos;exécution ci-dessus. Un clic CEO explicite
         reste le seul déclencheur — aucune exécution aveugle.
       </p>
@@ -387,9 +387,9 @@ function ParkingLotCard({ model }: { model: CommandTowerModel }) {
           >
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium text-neutral-300">{item.label}</p>
-              <span className="text-[11px] text-neutral-600">{item.evidence}</span>
+              <span className="text-xs text-neutral-400">{item.evidence}</span>
             </div>
-            <p className="mt-1 text-xs leading-5 text-neutral-500">{item.reason}</p>
+            <p className="mt-1 text-xs leading-5 text-neutral-400">{item.reason}</p>
           </li>
         ))}
       </ul>
@@ -456,7 +456,7 @@ export async function CommandTower() {
           </p>
           <h2 className="mt-1 text-2xl font-semibold text-white">Command Tower v1</h2>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-neutral-500">
+        <div className="flex items-center gap-2 text-xs text-neutral-400">
           <span className="inline-flex items-center gap-1 rounded-full border border-neutral-700 px-2 py-1">
             <Radar className="h-3 w-3" /> lecture seule
           </span>
@@ -478,7 +478,7 @@ export async function CommandTower() {
         <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-5">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-400">
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-emerald-400">
                 0 · Théâtre d&apos;exécution
               </p>
               <h3 className="mt-1 font-mono text-lg text-white">Realtime · HITL · no mocks</h3>
@@ -487,7 +487,7 @@ export async function CommandTower() {
                 service-role-only ; le serveur pousse la vérité sans ouvrir le Realtime client.
               </p>
             </div>
-            <span className="rounded border border-zinc-700 px-2 py-1 font-mono text-[10px] text-zinc-500">
+            <span className="rounded border border-zinc-700 px-2 py-1 font-mono text-xs text-zinc-500">
               workspace={context.workspace.id}
             </span>
           </div>

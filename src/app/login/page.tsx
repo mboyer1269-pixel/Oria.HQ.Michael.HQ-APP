@@ -23,7 +23,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 py-8 text-neutral-100 md:py-12">
+    <main id="main-content" tabIndex={-1} className="flex min-h-screen items-center justify-center bg-neutral-950 px-4 py-8 text-neutral-100 md:py-12">
       <section className="w-full max-w-md rounded-lg border border-amber-500/20 bg-neutral-950/90 p-5 shadow-2xl shadow-amber-950/20 sm:p-7">
         <div className="mb-7 space-y-5">
           <div className="flex items-start justify-between gap-4">
@@ -37,7 +37,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
 
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase text-neutral-500">Oria · Michael HQ</p>
+            <p className="text-xs font-semibold uppercase text-neutral-400">Oria · Michael HQ</p>
             <h1 className="text-2xl font-bold text-white sm:text-4xl">Connexion au workspace</h1>
             <p className="text-sm leading-6 text-neutral-400">
               Accès réservé. Entre ton email et ton mot de passe pour ouvrir Michael HQ.

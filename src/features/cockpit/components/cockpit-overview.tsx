@@ -51,12 +51,12 @@ function Tile({
           <span className={`grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-black/20 ${iconColor}`}>
             <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${tagClass}`}>{tag}</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tagClass}`}>{tag}</span>
         </div>
         <div className="mt-3.5 text-[40px] font-extrabold leading-none tracking-tight text-[#eff1fb] tabular-nums">
           {value}
         </div>
-        <div className="mt-2 text-[12.5px] text-[#98a1c4]">{label}</div>
+        <div className="mt-2 text-[12.5px] text-[#b4bbd6]">{label}</div>
       </div>
     </Tooltip>
   );

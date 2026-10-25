@@ -35,7 +35,7 @@ export default async function AtelierPage({ searchParams }: { searchParams: Prom
         description="Surface de lecture du résultat agent. Elle ouvre le reçu persistant de la mission sans relancer OpenHands ni valider le livrable à la place du propriétaire."
       >
         <HqSummaryRail>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Preuve</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Preuve</p>
           <div className="mt-3 grid gap-2">
             <HqMetric label="Mission" value={mission ? "trouvée" : "absente"} tone={mission ? "emerald" : "amber"} />
             <HqMetric label="Résultat" value={receipt ? receipt.report.executionState : "absent"} tone={receipt?.report.executionState === "agent_returned" ? "emerald" : "amber"} />
@@ -64,23 +64,23 @@ export default async function AtelierPage({ searchParams }: { searchParams: Prom
 
           <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-              <dt className="text-neutral-500">État agent</dt>
+              <dt className="text-neutral-400">État agent</dt>
               <dd className="mt-1 font-semibold text-emerald-200">{receipt.report.executionState}</dd>
             </div>
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-              <dt className="text-neutral-500">Résumé</dt>
+              <dt className="text-neutral-400">Résumé</dt>
               <dd className="mt-1 font-semibold text-neutral-200">{receipt.report.summary.status === "present" ? "présent" : "absent / non inventé"}</dd>
             </div>
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-              <dt className="text-neutral-500">Modèle ACP demandé</dt>
+              <dt className="text-neutral-400">Modèle ACP demandé</dt>
               <dd className="mt-1 break-all font-semibold text-white">{modelExecution?.requestedModelId ?? "inconnu"}</dd>
             </div>
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-              <dt className="text-neutral-500">Modèle ACP confirmé</dt>
+              <dt className="text-neutral-400">Modèle ACP confirmé</dt>
               <dd className="mt-1 break-all font-semibold text-white">{modelExecution?.acpConfirmedModelId ?? "inconnu"}</dd>
             </div>
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3 sm:col-span-2">
-              <dt className="text-neutral-500">Modèles fournisseur observés</dt>
+              <dt className="text-neutral-400">Modèles fournisseur observés</dt>
               <dd className="mt-1 break-all font-semibold text-neutral-200">{modelExecution?.observedModelIds?.join(", ") || "inconnus"}</dd>
             </div>
           </dl>

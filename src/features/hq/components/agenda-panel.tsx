@@ -127,9 +127,9 @@ export function AgendaPanel() {
 
         {!loading && !error && events.length === 0 && (
           <div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/40 p-5">
-            <CalendarDays className="h-6 w-6 text-neutral-500" />
+            <CalendarDays className="h-6 w-6 text-neutral-400" />
             <p className="mt-3 font-medium text-white">Aucun rendez-vous dans les 14 prochains jours.</p>
-            <p className="mt-1 text-sm leading-6 text-neutral-500">
+            <p className="mt-1 text-sm leading-6 text-neutral-400">
               Va au Command Center et essaie: “Joris, book un rendez-vous banque demain à 18:00”.
             </p>
             <a
@@ -147,14 +147,14 @@ export function AgendaPanel() {
               <div className="flex gap-3">
                 <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-200">
                   <CalendarCheck2 className="h-4 w-4" />
-                  <span className="mt-0.5 text-[10px] font-semibold uppercase">OK</span>
+                  <span className="mt-0.5 text-xs font-semibold uppercase">OK</span>
                 </div>
                 <div>
                   <p className="font-medium text-white">{event.title}</p>
                   <p className="mt-1 text-sm text-neutral-300">
                     {formatEventDate(event.dateISO)} · {event.startTime} à {event.endTime}
                   </p>
-                  <p className="mt-1 text-xs text-neutral-500">{event.dateISO}</p>
+                  <p className="mt-1 text-xs text-neutral-400">{event.dateISO}</p>
                 </div>
               </div>
               <span className="w-fit rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-300">

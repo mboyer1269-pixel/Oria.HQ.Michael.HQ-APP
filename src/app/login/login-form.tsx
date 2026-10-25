@@ -12,7 +12,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-3 text-sm font-bold text-neutral-950 shadow-sm transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500"
+      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-3 text-sm font-bold text-neutral-950 shadow-sm transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-400"
     >
       {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
       {pending ? "Connexion en cours..." : "Entrer dans Michael HQ"}
@@ -38,7 +38,7 @@ export function LoginForm({ initialState }: { initialState: LoginFormState }) {
           autoComplete="email"
           defaultValue={state.email}
           required
-          className="min-h-12 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10"
+          className="min-h-12 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10"
           placeholder="ton@email.com"
         />
       </div>
@@ -53,7 +53,7 @@ export function LoginForm({ initialState }: { initialState: LoginFormState }) {
           type="password"
           autoComplete="current-password"
           required
-          className="min-h-12 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-600 focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10"
+          className="min-h-12 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-white outline-none transition placeholder:text-neutral-400 focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/10"
           placeholder="Ton mot de passe"
         />
       </div>
@@ -70,7 +70,7 @@ export function LoginForm({ initialState }: { initialState: LoginFormState }) {
 
       <SubmitButton />
 
-      <p className="text-center text-xs leading-5 text-neutral-500">
+      <p className="text-center text-xs leading-5 text-neutral-400">
         Accès réservé au workspace privé. Aucun accès public n&apos;est offert ici.
       </p>
     </form>

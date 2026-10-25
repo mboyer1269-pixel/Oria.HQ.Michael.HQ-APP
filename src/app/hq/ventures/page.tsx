@@ -84,11 +84,11 @@ export default async function VenturesPage() {
         }
       >
         <HqSummaryRail>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs font-medium text-neutral-300">
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
             Lecture seule
           </span>
-          <p className="mt-3 text-xs leading-5 text-neutral-500">
+          <p className="mt-3 text-xs leading-5 text-neutral-400">
             Aucune écriture, aucune dépense, aucun envoi déclenché depuis cet écran.
           </p>
           <div className="mt-3 grid gap-2">

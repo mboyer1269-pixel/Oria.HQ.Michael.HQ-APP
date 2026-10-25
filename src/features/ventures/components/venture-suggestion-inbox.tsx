@@ -71,7 +71,7 @@ export function VentureSuggestionInbox({
             suggestions agent sans activer de mutation, de génération live ou de persistance.
           </p>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-[11px] font-medium text-cyan-200">
+        <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-200">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           Lecture seule
         </span>
@@ -79,7 +79,7 @@ export function VentureSuggestionInbox({
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Suggestions totales
           </p>
           <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
@@ -87,13 +87,13 @@ export function VentureSuggestionInbox({
           </p>
         </div>
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Limite visible
           </p>
           <p className="mt-2 text-2xl font-semibold tabular-nums text-white">{visibleLimit}</p>
         </div>
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Source
           </p>
           <p className="mt-2 text-sm text-neutral-300">
@@ -104,7 +104,7 @@ export function VentureSuggestionInbox({
           </p>
         </div>
         <div className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Score moyen
           </p>
           <p className="mt-2 text-2xl font-semibold tabular-nums text-white">
@@ -126,7 +126,7 @@ export function VentureSuggestionInbox({
             key={key}
             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${ACTION_TONE_CLASS[key]}`}
           >
-            <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">
+            <span className="font-semibold uppercase tracking-[0.12em] text-neutral-400">
               {NEXT_ACTION_LABELS[key]}
             </span>
             <span className="tabular-nums text-white">{count}</span>
@@ -147,17 +147,17 @@ export function VentureSuggestionInbox({
             >
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-950 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-950 px-2.5 py-1 text-xs font-medium text-neutral-300">
                     <Search className="h-3.5 w-3.5" aria-hidden="true" />
                     #{index + 1}
                   </span>
-                  <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-medium text-neutral-200">
+                  <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs font-medium text-neutral-200">
                     {suggestion.name}
                   </span>
-                  <span className="rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-[11px] font-medium text-neutral-400">
+                  <span className="rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-xs font-medium text-neutral-400">
                     {SOURCE_LABELS[suggestion.source]}
                   </span>
-                  <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${ACTION_TONE_CLASS[suggestion.suggestedNextAction]}`}>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${ACTION_TONE_CLASS[suggestion.suggestedNextAction]}`}>
                     {NEXT_ACTION_LABELS[suggestion.suggestedNextAction]}
                   </span>
                 </div>
@@ -166,7 +166,7 @@ export function VentureSuggestionInbox({
 
                 <dl className="grid gap-2 sm:grid-cols-2">
                   <div className="rounded-xl border border-neutral-800/80 bg-neutral-950/40 p-3">
-                    <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                    <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                       Client cible
                     </dt>
                     <dd className="mt-1 text-sm leading-6 text-neutral-300">
@@ -174,7 +174,7 @@ export function VentureSuggestionInbox({
                     </dd>
                   </div>
                   <div className="rounded-xl border border-neutral-800/80 bg-neutral-950/40 p-3">
-                    <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                    <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                       Canal principal
                     </dt>
                     <dd className="mt-1 text-sm leading-6 text-neutral-300">
@@ -182,7 +182,7 @@ export function VentureSuggestionInbox({
                     </dd>
                   </div>
                   <div className="rounded-xl border border-neutral-800/80 bg-neutral-950/40 p-3">
-                    <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                    <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                       Problème
                     </dt>
                     <dd className="mt-1 text-sm leading-6 text-neutral-300">
@@ -190,7 +190,7 @@ export function VentureSuggestionInbox({
                     </dd>
                   </div>
                   <div className="rounded-xl border border-neutral-800/80 bg-neutral-950/40 p-3">
-                    <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                    <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                       Offre
                     </dt>
                     <dd className="mt-1 text-sm leading-6 text-neutral-300">{suggestion.offer}</dd>
@@ -218,7 +218,7 @@ export function VentureSuggestionInbox({
 
                 {suggestion.riskNotes.length > 0 && (
                   <div className="rounded-xl border border-neutral-800/80 bg-neutral-950/40 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                       Notes de risque
                     </p>
                     <ul className="mt-2 space-y-1 text-sm leading-6 text-neutral-300">
@@ -229,8 +229,8 @@ export function VentureSuggestionInbox({
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 text-[11px] text-neutral-500">
-                  <CheckSquare2 className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+                <div className="flex items-center gap-2 text-xs text-neutral-400">
+                  <CheckSquare2 className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
                   <span>
                     Suggested by <span className="text-neutral-300">{suggestion.suggestedBy}</span>
                   </span>
