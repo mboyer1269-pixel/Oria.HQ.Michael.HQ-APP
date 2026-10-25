@@ -202,16 +202,21 @@ test('claude-code: subscription limit → step blocked (subscription_quota), nev
 test('claude-code SENT-412-17: init.apiKeySource ≠ "none" (paid API key injected by settings) → step killed at once, subscription_auth_required, no work committed', async () => {
   as({ id: 'u1' });
   knobs('FAKE_API_KEY_SOURCE=ANTHROPIC_API_KEY');
-  const dir = repo('rc17'); const t0 = Date.now();
+  const dir = repo('rc17');
+  // SENT-412-28: another mission on the same repo has uncommitted work; the quarantine must never touch it.
+  const other = A.createMission({ title: 'B', need: 'b', repoPath: dir, modelId: 'gpt-test', workspaceId: 'ws-a' });
+  writeFileSync(path.join(other.repo.worktree ?? dir, 'travail-de-B.txt'), 'B');
+  const t0 = Date.now();
   const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: dir, runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
   assert.equal(created.status, 202);
   const { missionId } = await created.json(); const m = await waitIdle(missionId); knobs('');
   assert.ok(Date.now() - t0 < 4000, 'killed on the init event, not after the paid session ran');
   assert.equal(m.status, 'failed'); assert.equal(m.steps[0].status, 'failed'); assert.equal(m.steps[0].reason, 'subscription_auth_required');
   assert.equal(m.steps[0].commitSha, null);
-  assert.equal(execFileSync('git', ['-C', dir, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim(), '1');
-  assert.equal(execFileSync('git', ['-C', dir, 'status', '--porcelain'], { encoding: 'utf8' }), '', 'clean tree');
-  const stash = execFileSync('git', ['-C', dir, 'stash', 'list', '--format=%H %s'], { encoding: 'utf8' }).trim();
+  assert.equal(execFileSync('git', ['-C', m.repo.worktree ?? dir, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim(), '1');
+  assert.equal(execFileSync('git', ['-C', m.repo.worktree ?? dir, 'status', '--porcelain'], { encoding: 'utf8' }), '', 'clean mission tree');
+  assert.match(execFileSync('git', ['-C', other.repo.worktree ?? dir, 'status', '--porcelain'], { encoding: 'utf8' }), /travail-de-B\.txt/, 'other mission untouched');
+  const stash = execFileSync('git', ['-C', m.repo.worktree ?? dir, 'stash', 'list', '--format=%H %s'], { encoding: 'utf8' }).trim();
   assert.ok(m.steps[0].quarantineRef && stash.startsWith(m.steps[0].quarantineRef), 'stash present, ref recorded');
   assert.match(stash, new RegExp(`atelier-quarantine-${missionId}-${m.steps[0].id}`));
 });

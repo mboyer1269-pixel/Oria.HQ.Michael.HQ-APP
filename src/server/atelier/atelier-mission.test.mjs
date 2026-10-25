@@ -116,3 +116,21 @@ test('SENT-412-18: runner test step env is minimal (no secrets, private HOME/TMP
   assert.deepEqual(Object.keys(e).sort(), ['CI', 'HOME', 'LANG', 'NODE_ENV', 'PATH', 'TEMP', 'TMP', 'TMPDIR', 'USERPROFILE', 'npm_config_cache']);
   assert.notEqual(e.HOME, '/home/real'); assert.ok(e.HOME.startsWith(root));
 });
+
+test('SENT-412-20: one git worktree per mission — B never moves A off its branch; HEAD/branch checked', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'atelier-wt-')); const repo = path.join(root, 'r');
+  const g = (...a) => execFileSync('git', ['-C', repo, '-c', 'user.email=a@b', '-c', 'user.name=a', ...a], { encoding: 'utf8' }).trim();
+  execFileSync('git', ['init', '-q', '-b', 'main', repo]); g('commit', '-q', '--allow-empty', '-m', 'i');
+  const ma = A.createMission({ title: 'A', need: 'a', repoPath: repo, modelId: 'm' }, root);
+  assert.ok(ma.repo.worktree && ma.repo.worktree !== repo, 'dedicated worktree');
+  writeFileSync(path.join(ma.repo.worktree, 'travail-de-A.txt'), 'A');
+  const mb = A.createMission({ title: 'B', need: 'b', repoPath: repo, modelId: 'm' }, root);
+  assert.equal(g('rev-parse', '--abbrev-ref', 'HEAD'), 'main', 'shared checkout untouched');
+  const wa = (...a) => execFileSync('git', ['-C', ma.repo.worktree, ...a], { encoding: 'utf8' }).trim();
+  assert.equal(wa('rev-parse', '--abbrev-ref', 'HEAD'), ma.repo.branch);
+  assert.match(wa('status', '--porcelain'), /travail-de-A\.txt/);
+  assert.equal(execFileSync('git', ['-C', mb.repo.worktree, 'status', '--porcelain'], { encoding: 'utf8' }), '');
+  assert.doesNotThrow(() => A.assertRepoHead(ma));
+  wa('switch', '-q', '-c', 'other');
+  assert.throws(() => A.assertRepoHead(ma), /repo_head_mismatch/);
+});

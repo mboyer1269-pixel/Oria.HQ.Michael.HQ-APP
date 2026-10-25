@@ -29,7 +29,7 @@ export type AtelierMission = {
   contract: typeof ATELIER_CONTRACT; id: string; workspaceId: string; createdBy: string | null;
   title: string; need: string; createdAt: string; updatedAt: string; status: MissionStatus;
   runtime: { runtimeId: RuntimeId; consumptionMode: "subscription"; authMode: "chatgpt_session" | "claude_ai_session"; requestedModelId: string };
-  repo: { path: string; baseBranch: string; branch: string; baseSha: string; headSha: string };
+  repo: { path: string; /** SENT-412-20: dedicated git worktree of this mission (absent on legacy missions) */ worktree?: string; baseBranch: string; branch: string; baseSha: string; headSha: string };
   sessionId: string | null; lock: AtelierLock | null; steps: AtelierStep[]; artifacts: AtelierArtifact[];
 };
 export type AtelierEvent = { seq: number; at: string; type: string; stepId?: string; data?: Record<string, unknown> };
@@ -212,14 +212,24 @@ export function createMission(input: { title: string; need: string; repoPath: st
   const baseBranch = git(input.repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]);
   const baseSha = git(input.repoPath, ["rev-parse", "HEAD"]);
   const branch = `atelier/${id.slice(0, 8)}`;
-  git(input.repoPath, ["switch", "-q", "-c", branch]);
+  // SENT-412-20: one worktree per mission (never switch the shared checkout: two missions can share a repo).
+  const worktree = join(missionDir(id, root), "worktree");
+  git(input.repoPath, ["worktree", "add", "-q", "-b", branch, worktree, baseSha]);
   const m: AtelierMission = { contract: ATELIER_CONTRACT, id, workspaceId: input.workspaceId ?? LEGACY_WORKSPACE, createdBy: input.createdBy ?? null,
     title: input.title, need: input.need, createdAt: now(), updatedAt: now(), status: "created",
     runtime: { runtimeId, consumptionMode: "subscription", authMode: runtimeId === "codex" ? "chatgpt_session" : "claude_ai_session", requestedModelId: input.modelId },
-    repo: { path: input.repoPath, baseBranch, branch, baseSha, headSha: baseSha }, sessionId: null, lock: null, steps: [], artifacts: [] };
+    repo: { path: input.repoPath, worktree, baseBranch, branch, baseSha, headSha: baseSha }, sessionId: null, lock: null, steps: [], artifacts: [] };
   save(m, root); logEvent(id, "mission_created", root, undefined, { runtimeId, requestedModelId: input.modelId, branch }); return m;
 }
 
+/** Where the agent and the runner work: the mission worktree (legacy missions: the repo itself). */
+export const workPath = (m: AtelierMission) => m.repo.worktree ?? m.repo.path;
+/** SENT-412-20: the work tree must still be on the mission branch at the recorded head (before each step and commit). */
+export function assertRepoHead(m: AtelierMission) {
+  const dir = workPath(m); let branch: string, head: string;
+  try { branch = git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]); head = git(dir, ["rev-parse", "HEAD"]); } catch { throw new Error("repo_head_mismatch"); }
+  if (branch !== m.repo.branch || head !== m.repo.headSha) throw new Error("repo_head_mismatch");
+}
 /** Signal 0 probe. EPERM = the pid exists but belongs to another user: it is ALIVE (SENT-412-7). */
 export const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
 /**
@@ -426,7 +436,8 @@ function release(m: AtelierMission, lockFile: string) {
 }
 
 function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
-  const repo = m.repo.path;
+  const repo = workPath(m);
+  assertRepoHead(m);
   git(repo, ["add", "-A"]);
   if (spawnSync("git", ["-C", repo, "diff", "--cached", "--quiet"]).status === 0) return;
   const diff = git(repo, ["diff", "--cached", "--stat", "-p"]);
@@ -439,9 +450,9 @@ function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
 /** SENT-412-17: set aside (never delete) whatever a paid session touched; the stash commit sha goes in step.quarantineRef. */
 function quarantine(m: AtelierMission, s: AtelierStep) {
   s.quarantineRef = null;
-  if (!git(m.repo.path, ["status", "--porcelain"])) return;
-  git(m.repo.path, ["stash", "push", "--include-untracked", "-m", `atelier-quarantine-${m.id}-${s.id}`]);
-  s.quarantineRef = git(m.repo.path, ["rev-parse", "stash@{0}"]);
+  if (!git(workPath(m), ["status", "--porcelain"])) return;
+  git(workPath(m), ["stash", "push", "--include-untracked", "-m", `atelier-quarantine-${m.id}-${s.id}`]);
+  s.quarantineRef = git(workPath(m), ["rev-parse", "stash@{0}"]);
 }
 export type StartedStep = { mission: AtelierMission; stepId: string; done: Promise<AtelierMission> };
 /**
@@ -458,6 +469,7 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
   const step: AtelierStep = { id: randomUUID(), kind: stepKind, status: "running", startedAt: now(), endedAt: null, executor: executorOf(m.runtime.runtimeId), sessionId: null,
     resumedFrom: null, requestedModelId: m.runtime.requestedModelId, observedModelId: null, exitCode: null, reason: null, commitSha: null };
   const { lockFile, lock } = acquire(m, step.id, !!opts.resume, root);
+  try { assertRepoHead(m); } catch (e) { release(m, lockFile); save(m, root); throw e; }
   if (opts.resume) {
     if (!m.sessionId) { release(m, lockFile); save(m, root); throw new Error("no_session_to_resume"); }
     step.sessionId = m.sessionId; step.resumedFrom = m.sessionId;
@@ -468,7 +480,7 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
   const transcriptName = `${step.id.slice(0, 8)}-${stepKind}.jsonl`;
   const tdir = join(missionDir(id, root), "artifacts"); mkdirSync(tdir, { recursive: true });
   const tfd = openSync(join(tdir, transcriptName), "a");
-  const child = spawn(binary, args, { cwd: m.repo.path, env: subscriptionEnvironment(process.env), detached: true, stdio: ["pipe", tfd, "pipe"] });
+  const child = spawn(binary, args, { cwd: workPath(m), env: subscriptionEnvironment(process.env), detached: true, stdio: ["pipe", tfd, "pipe"] });
   lock.childPid = child.pid ?? null; lock.childStart = child.pid ? procStartTime(child.pid) : null; writeFileSync(lockFile, JSON.stringify(lock)); m.lock = lock; save(m, root);
   child.stdin?.end(prompt);
   let stderr = ""; child.stderr?.on("data", c => { stderr = (stderr + c).slice(-4000); });
@@ -496,7 +508,7 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
     if (s.status === "failed" && s.reason === "subscription_quota") s.status = "blocked";
     if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript);
     hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);
-    if (stepKind === "spec" && existsSync(join(m.repo.path, "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(m.repo.path, "SPEC.md")), root);
+    if (stepKind === "spec" && existsSync(join(workPath(m), "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(workPath(m), "SPEC.md")), root);
     if (paidSession) quarantine(m, s); // never commit, never destroy: changes set aside in a named stash
     else commitIfChanged(m, s, root);
     m.status = s.status === "succeeded" ? "awaiting_review" : s.status === "interrupted" ? "interrupted" : s.status === "blocked" ? "blocked" : "failed";
@@ -537,14 +549,16 @@ export function runCommandStep(id: string, kind: "test" | "preview", command: st
   const m = loadMission(id, root);
   const step: AtelierStep = { id: randomUUID(), kind, status: "running", startedAt: now(), endedAt: null, executor: "runner", sessionId: null, resumedFrom: null,
     requestedModelId: null, observedModelId: null, exitCode: null, reason: null, commitSha: m.repo.headSha };
-  const { lockFile } = acquire(m, step.id, false, root); m.steps.push(step); save(m, root);
+  const { lockFile } = acquire(m, step.id, false, root);
+  try { assertRepoHead(m); } catch (e) { release(m, lockFile); save(m, root); throw e; }
+  m.steps.push(step); save(m, root);
   logEvent(id, "step_started", root, step.id, { kind });
-  const r = spawnSync(command[0], command.slice(1), { cwd: m.repo.path, encoding: "utf8", timeout: 120_000, killSignal: "SIGKILL", env: commandStepEnvironment(m.id, root) });
+  const r = spawnSync(command[0], command.slice(1), { cwd: workPath(m), encoding: "utf8", timeout: 120_000, killSignal: "SIGKILL", env: commandStepEnvironment(m.id, root) });
   step.exitCode = r.status; step.endedAt = now(); step.status = r.status === 0 ? "succeeded" : "failed";
   const log = `$ ${command.join(" ")}\n# HEAD ${m.repo.headSha}\n${r.stdout}\n${r.stderr}\n# exit ${r.status}\n`;
   addArtifact(m, step.id, kind === "test" ? "test_log" : "preview", `${step.id.slice(0, 8)}-${kind}.${kind === "test" ? "log" : "txt"}`, log, root);
-  if (kind === "preview" && opts.previewFile && existsSync(join(m.repo.path, opts.previewFile)))
-    addArtifact(m, step.id, "preview", `${step.id.slice(0, 8)}-${opts.previewFile.replace(/[^\w.-]/g, "_")}`, readFileSync(join(m.repo.path, opts.previewFile)), root);
+  if (kind === "preview" && opts.previewFile && existsSync(join(workPath(m), opts.previewFile)))
+    addArtifact(m, step.id, "preview", `${step.id.slice(0, 8)}-${opts.previewFile.replace(/[^\w.-]/g, "_")}`, readFileSync(join(workPath(m), opts.previewFile)), root);
   m.status = step.status === "succeeded" ? "awaiting_review" : "failed";
   release(m, lockFile); save(m, root);
   logEvent(id, "step_finished", root, step.id, { status: step.status, exitCode: r.status });

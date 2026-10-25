@@ -216,7 +216,7 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
     detail: "Propriétaire de l'espace ET titulaire de l'abonnement (ORIA_SUBSCRIPTION_OWNERS, défaut MICHAEL_HQ_OWNER_ID), opt-in local, login abonnement vérifié, refus si une clé API est présente ; dépôt git sous ORIA_ATELIER_REPOS_ROOT/<espace>, branche dédiée, verrou exclusif, reprise explicite ; aucun repli API payant.",
     evidence: {
       path: "src/server/atelier/atelier-mission.ts",
-      mustContain: "const child = spawn(binary, args, { cwd: m.repo.path, env: subscriptionEnvironment(process.env)",
+      mustContain: "const child = spawn(binary, args, { cwd: workPath(m), env: subscriptionEnvironment(process.env)",
       because: "Owner-only atelier routes reach codex/claude subprocesses only after the subscription-only check; runner-executed tests and git run in the mission repository.",
     },
   },
