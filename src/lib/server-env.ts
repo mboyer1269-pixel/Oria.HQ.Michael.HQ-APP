@@ -97,6 +97,9 @@ const serverEnvSchema = z.object({
   // Atelier (local subscription CLI missions): absolute store / allowed repos root.
   ORIA_ATELIER_ROOT: z.string().optional(),
   ORIA_ATELIER_REPOS_ROOT: z.string().optional(),
+  // Subscription quota meter: local log roots (tests/overrides). Defaults ~/.claude/projects, ~/.codex/sessions.
+  ORIA_CLAUDE_PROJECTS_DIR: z.string().optional(),
+  ORIA_CODEX_SESSIONS_DIR: z.string().optional(),
   // ORIA_SUBSCRIPTION_OWNERS is declared by #409 (lot-b/subscription-runtimes, base of this PR) — SENT-MERGE-1.
   // Read ONLY to refuse atelier execution when present (subscription-only rule); never used to authenticate.
   CODEX_API_KEY: z.string().optional(),
