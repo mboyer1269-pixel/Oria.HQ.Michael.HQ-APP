@@ -44,3 +44,23 @@ Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrig�
   timeout 120 s (SIGKILL). Ce n'est **pas** un bac à sable OS : même uid, un chemin absolu (ex. `~/.codex/auth.json`) reste lisible ;
   le timeout ne tue que le processus direct. Le `Bash(npm test:*)` autorisé à l'agent Claude hérite de l'environnement de la CLI
   (liste blanche, HOME réel nécessaire à la connexion claude.ai) : non confiné. Vrai confinement = conteneur / bubblewrap (hors lot).
+
+## Réaudit fa7c404 (SENT-412-20…29)
+- **Worktree par mission** : `git worktree add -b atelier/<id> <store>/<mission>/worktree <baseSha>` ; le checkout partagé n'est
+  jamais basculé. HEAD + branche vérifiés (`repo_head_mismatch`) avant chaque étape (sous verrou) et avant chaque commit. La
+  quarantaine ne touche que le worktree de la mission ; ref nommé `refs/atelier/quarantine/<mission>/<step>` = stash réellement produit.
+- **Claude, avant lancement** : `claude auth status` dans le worktree, même env enfant (liste blanche moins ANTHROPIC_*, OPENAI_*,
+  *_BASE_URL, *TOKEN*, *_KEY) ; refus si ce n'est pas claude.ai/firstParty. **Pendant** : stdout lu en flux ; init non abonnement → kill
+  du groupe ; pas d'init avant 30 s → kill ; init jamais vu → `subscription_auth_required` (fail closed), quarantaine, aucun commit.
+- **Marge résiduelle (412-21)** : pas de blocage réseau sans privilège (pas de netns/pare-feu par processus). Si un vecteur non couvert
+  par `--setting-sources ""`, la liste blanche d'env et la vérification `auth status` faisait passer la CLI en clé API, la requête
+  facturable partie entre l'émission de init et le SIGKILL (ordre de la ms, lecture en flux) n'est pas empêchée. Piste : proxy local
+  `HTTPS_PROXY` qui retient les CONNECT jusqu'à init validé (non fait : non validé sur la vraie CLI sans dépenser de quota).
+- **Agent Claude sans Bash (412-23)** : outils Read/Edit/Write/Glob/Grep ; refusés : Bash, WebFetch, WebSearch, et Read/Edit/Write sur
+  ~/.claude, ~/.codex, ~/.ssh, ~/.config, ~/.aws, ~/.npmrc, ~/.netrc, ~/.gitconfig, ~/.git-credentials. Les tests passent par l'étape
+  test du runner. Risque restant : Read par chemin absolu vers un autre fichier sensible non listé ; écriture limitée au cwd par acceptEdits.
+  Codex garde son shell dans son bac à sable `workspace-write` (HOME réel lisible par ce shell).
+- **Codex (412-24)** : `-c openai_base_url="https://chatgpt.com/backend-api/codex"` forcé (l'URL du config HOME est ignorée).
+- **Étape test (412-29)** : la commande est chef de son propre groupe (superviseur node) ; au timeout tout le groupe est tué.
+- La fermeture d'étape libère le verrou et sauvegarde l'état même si git lève (412-27).
+- La sortie de la CLI passe par un tube : si le runner meurt, l'enfant reçoit SIGPIPE à sa prochaine écriture (reprise explicite inchangée).
