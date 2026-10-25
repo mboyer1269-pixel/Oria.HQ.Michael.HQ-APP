@@ -1,6 +1,7 @@
+import { parseEmployeePreparationParams } from "@/core/employees/preparation";
 import { DevelopmentMissionForm } from "@/features/missions/components/development-mission-form";
 import { missionDossierId } from "@/features/missions/development-mission-handoff";
-import { createDevelopmentStore } from "@/server/missions/development-mission";
+import { createDevelopmentStore, projectDevelopmentMission } from "@/server/missions/development-mission";
 import { listMissionsForWorkspace } from "@/server/missions";
 import type { Mission } from "@/core/types";
 import type { Route } from "next";
@@ -37,6 +38,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
   const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
   const params = await searchParams;
   const filter = parseMissionPageFilter(params);
+  const employeePreparation = parseEmployeePreparationParams(params);
   const { missions, source, summary, filteredTotal, reviewTotal, pageNumber } = await listMissionPage({
     workspaceId: activeWorkspace.id,
     modeId: activeMode.id,
@@ -52,7 +54,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
       const candidate = source === "supabase"
         ? await createDevelopmentStore()?.load(activeWorkspace.id, requestedId)
         : (await listMissionsForWorkspace({ workspaceId: activeWorkspace.id, modeId: activeMode.id })).missions.find(mission => mission.id === requestedId);
-      if (candidate?.workspaceId === activeWorkspace.id && candidate.modeId === activeMode.id) requestedMission = candidate;
+      if (candidate?.workspaceId === activeWorkspace.id && candidate.modeId === activeMode.id) requestedMission = projectDevelopmentMission(candidate,{actorId:access.user.id,modeId:activeMode.id});
     } catch { requestedReadFailed = true; }
   }
 
@@ -94,7 +96,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
         </HqSummaryRail>
       </HqPageHeader>
 
-      <DevelopmentMissionForm workspaceId={activeWorkspace.id} />
+      {employeePreparation === "invalid" ? <p role="alert">Référence de profil invalide. Revenez à l’équipe pour préparer une mission.</p> : <DevelopmentMissionForm workspaceId={activeWorkspace.id} employeePreparation={employeePreparation ?? undefined} />}
       {params.mission !== undefined && <section id="requested-mission" aria-label="Mission demandée">
         {requestedMission ? <MissionDossier key={requestedMission.id} missions={[requestedMission]} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
           : <p role="status" className="rounded-xl border border-amber-500/30 p-4 text-sm text-amber-200">{requestedReadFailed ? "Lecture de cette mission indisponible. Actualise pour réessayer." : "Cette mission est introuvable dans le projet et le mode actifs."}</p>}
@@ -122,7 +124,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
           {filter.page > pages && <Link href={missionPageHref(filter, 1) as Route}>Revenir à la première page</Link>}
         </nav>
       </section>
-      <MissionDossier key={missionPageHref(filter)} missions={missions} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
+      <MissionDossier key={missionPageHref(filter)} missions={missions.map(mission=>projectDevelopmentMission(mission,{actorId:access.user.id,modeId:activeMode.id}))} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
       <OrchestrationProjection key={activeWorkspace.id} workspaceId={activeWorkspace.id} />
 
       {reviewTotal > 0 && <section className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-orange-100">

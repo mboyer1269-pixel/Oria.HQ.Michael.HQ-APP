@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { employeePreparationHref } from "@/core/employees/preparation";
 import { useEffect, useId, useRef, useState } from "react";
 import { EmployeeReadiness } from "@/features/employees/components/employee-readiness";
 import { readEmployeesAction, saveEmployeeAction } from "@/features/employees/actions";
@@ -226,7 +228,7 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
       <p className="whitespace-pre-wrap break-words text-sm leading-6 text-neutral-400">{employee.assignmentContext}</p>
       <p className="break-all text-xs text-neutral-400">ID : {employee.id} · Révision {employee.revision}</p>
       <EmployeeReadiness employee={employee} />
-      {employee.state === "draft" && <div className="flex flex-wrap gap-3"><button type="button" className={button} disabled={busy || Boolean(intention)} onClick={(event) => open(employee, event.currentTarget)}>Modifier {employee.displayName}</button><button type="button" className={button} disabled={busy} onClick={() => { setArchiveId(employee.id); setError(""); setNotice(""); }}>Archiver {employee.displayName}</button></div>}
+      {employee.state === "draft" && <div className="flex flex-wrap gap-3"><Link className={button} href={employeePreparationHref({version:1,employeeId:employee.id,revision:employee.revision,ventureId})}>Préparer une mission sans exécution</Link><button type="button" className={button} disabled={busy || Boolean(intention)} onClick={(event) => open(employee, event.currentTarget)}>Modifier {employee.displayName}</button><button type="button" className={button} disabled={busy} onClick={() => { setArchiveId(employee.id); setError(""); setNotice(""); }}>Archiver {employee.displayName}</button></div>}
       {archiveId === employee.id && <div className="space-y-3 rounded-xl border border-amber-500/30 p-3"><p className="text-sm text-neutral-200">Archiver ce profil sans supprimer son identité ni son affectation ?</p><div className="flex flex-wrap gap-3"><button type="button" className={button} disabled={busy} onClick={() => void save({ operation: "archive", id: employee.id, revision: employee.revision })}>Confirmer l’archivage</button><button type="button" className={button} disabled={busy} onClick={() => setArchiveId(null)}>Conserver le profil</button></div></div>}
     </article>)}</div>
   </section>;

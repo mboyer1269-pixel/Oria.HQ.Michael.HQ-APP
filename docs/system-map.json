@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 666,
-    "live": 615,
+    "sourceFiles": 668,
+    "live": 617,
     "testOnly": 5,
     "incubation": 46
   },
@@ -119,6 +119,7 @@
     "src/app/page.tsx",
     "src/config/ventures/loi96-profile.ts",
     "src/config/workspaces/michael-hq.config.ts",
+    "src/core/employees/preparation.ts",
     "src/core/employees/types.ts",
     "src/core/openhands-launch-contract.ts",
     "src/core/openhands-result-contract.ts",
@@ -460,6 +461,7 @@
     "src/server/decision-spine/next-best-action.ts",
     "src/server/documents/file-document-store-guard.ts",
     "src/server/employees/flag.ts",
+    "src/server/employees/preparation.ts",
     "src/server/employees/service.ts",
     "src/server/employees/store.ts",
     "src/server/hq/theatre-stream.ts",
