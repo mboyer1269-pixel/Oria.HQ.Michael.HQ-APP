@@ -73,7 +73,7 @@ export function SystemPopover() {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label="Posture système (lecture seule)"
-        className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition ${
+        className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 ${
           open
             ? "border-white/20 bg-[#141a2c]/80 text-[#eff1fb]"
             : "border-white/10 bg-[#141a2c]/60 text-[#98a1c4] hover:border-white/20 hover:text-[#eff1fb]"
