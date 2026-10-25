@@ -2,6 +2,7 @@ import "server-only";
 /**
  * Strict-JSON exchanges with the local Claude Code CLI on the owner's claude.ai SUBSCRIPTION.
  *
+ * Portions derived from Bennettxai/FounderOS (MIT), lib/creative-engine/claude.ts @ fb974bf — see NOTICE
  * Idea credited to FounderOS lib/creative-engine/claude.ts (https://github.com/Bennettxai/FounderOS, MIT):
  * strict JSON reply validated by a zod schema, one retry that feeds the validation error back, and a missing
  * binary reported as `{ ok: false }` instead of an exception. Implementation written for Oria (stream-json
