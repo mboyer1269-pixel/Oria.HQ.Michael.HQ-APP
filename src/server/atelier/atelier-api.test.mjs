@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, existsSync } from 'node:fs';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -37,7 +37,7 @@ function repo(name, ws = 'ws-a') {
 }
 const req = (url, body, headers = {}) => new Request(`http://local${url}`, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined });
 const params = missionId => ({ params: Promise.resolve({ missionId }) });
-const knobs = (v = '') => writeFileSync(path.join(process.env.HOME, 'fake.env'), v);
+const knobs = (v = '') => { writeFileSync(path.join(process.env.HOME, 'fake.env'), v); writeFileSync(path.join(bin, 'fake.env'), v); };
 const as = user => { globalThis.authzTestUser = user; };
 async function waitIdle(id) { for (let i = 0; i < 200; i++) { const m = A.loadMission(id); if (m.status !== 'running' && !A.currentLock(id)) return m; await new Promise(r => setTimeout(r, 50)); } throw new Error('timeout'); }
 async function sse(res) { const text = await res.text(); return text.split('\n\n').filter(Boolean).map(b => ({ event: /event: (\w+)/.exec(b)?.[1], data: JSON.parse(/data: (.*)/.exec(b)?.[1] ?? 'null') })); }
@@ -325,4 +325,17 @@ test('SENT-412-9: orphan reap never runs on a read or a refused mutation, only o
   await list.POST(req('/api/atelier/missions', {}, { 'x-oria-workspace': 'ws-a' })); // authorised owner action (400 body, after authz)
   await new Promise(r => child.on('exit', r));
   assert.equal(A.pidAlive(child.pid), false, 'reaped on the authorised owner action');
+});
+
+test('412-32: POST /missions/:id/close (owner) removes the mission worktree and prunes; member refused', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_OBSERVED=claude-test');
+  const r = repo('close32');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: r, runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); const m = await waitIdle(missionId);
+  assert.equal((await H.closeAtelierMission({ userId: 'u1', workspaceId: 'ws-b' }, missionId)).status, 404, 'other workspace');
+  const res = await H.closeAtelierMission({ userId: 'u1', workspaceId: 'ws-a', role: 'owner' }, missionId);
+  assert.equal(res.status, 200);
+  assert.ok(!existsSync(m.repo.worktree));
+  assert.equal(execFileSync('git', ['-C', r, 'worktree', 'list', '--porcelain'], { encoding: 'utf8' }).match(/^worktree /gm).length, 1);
 });

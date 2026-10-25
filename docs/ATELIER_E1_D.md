@@ -84,3 +84,19 @@ Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrig�
   /home réel). Refus Claude avant lancement = clé ou bascule payante dans l'env (ANTHROPIC_API_KEY, *_AUTH_TOKEN,
   CLAUDE_CODE_USE_BEDROCK/VERTEX/FOUNDRY, ANTHROPIC_BASE_URL) ou `apiKeyHelper`/`env` dans les réglages chargés (seuls les nôtres) ;
   pendant l'étape = `apiKeySource` de init. `auth status` n'est plus qu'un diagnostic de connexion.
+
+## Réaudit e3fb099 (SENT-412-36, 37, 32)
+- **412-36** : plus de repli silencieux. Sans bwrap utilisable, l'étape test n'est pas lancée (`sandbox_unavailable`,
+  `needs_human_review`) ; exécution sans bac à sable seulement via `POST /verify {"approveUnsandboxed": true}` (owner + titulaire),
+  tracée dans `unsandboxedApprovedBy`.
+- **412-37** : la CLI Codex tourne elle-même sous bwrap : système en lecture seule, `/tmp` et tout le HOME en tmpfs (donc
+  ~/.claude, ~/.ssh, ~/.config, ~/.aws… invisibles), dossiers du PATH et installation de Codex en lecture seule, ~/.codex = dossier
+  propre à la mission (`<mission>/codex-root/.codex`, sessions + notre `config.toml`), `~/.codex/auth.json` réel monté en lecture
+  seule, worktree en écriture. Réseau conservé (chatgpt.com). Sans bwrap : Codex refusé (`sandbox_unavailable`).
+  **Limite assumée** : le jeton ChatGPT de Codex (auth.json) reste lisible par le processus Codex et son shell ; plus ceux de Claude
+  ni ~/.ssh. auth.json étant en lecture seule, un rafraîchissement du jeton par Codex n'est pas réécrit (si la session expire,
+  se reconnecter hors Atelier avec `codex login`).
+- Transcripts et journaux de test : lisibles par les owners de l'espace seulement (403 `atelier_owner_only` pour un member).
+  Le flux d'événements reste lisible par les membres (statuts, sans contenu CLI).
+- **412-32** : `POST /missions/:id/close` (owner + titulaire) appelle `closeMission` : retire le worktree (refus si sale ou étape
+  vivante) puis prune. Pas de fermeture automatique : la fin de mission (revue) est une décision humaine.
