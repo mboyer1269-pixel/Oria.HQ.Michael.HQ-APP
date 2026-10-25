@@ -26,6 +26,8 @@ import {
 } from "@/server/ai/server-capability-catalog";
 
 export type ModelRouteInput = {
+  /** Binding-aware callers log the actual target at dispatch instead. */
+  suppressRouteLog?: boolean;
   message: string;
   requestedMode?: ModelMode;
   highImpact?: boolean;
@@ -107,6 +109,10 @@ export type BrainRouteRecord = {
   inputChars: number;
   outputChars?: number;
   timestamp: string;
+  runtimeId?: string;
+  consumptionMode?: "subscription" | "pay_per_use_api";
+  /** "binding" = actual dispatch target of an explicit selection; absent = legacy chooseModel decision. */
+  source?: "binding";
 };
 
 export type BrainRouteSink = (record: BrainRouteRecord) => void;
@@ -539,7 +545,7 @@ export function chooseModel(input: ModelRouteInput): ModelRouteDecision {
     note: "Sélection uniquement. Le poids relatif n'est pas un dollar et n'est pas ajouté au budget.",
   });
 
-  recordBrainRoute({
+  if (!input.suppressRouteLog) recordBrainRoute({
     model: decision.model,
     modelId: decision.modelId,
     mode: decision.mode,
@@ -549,4 +555,13 @@ export function chooseModel(input: ModelRouteInput): ModelRouteDecision {
   });
 
   return decision;
+}
+
+/** Records the bound target, never the cost-ladder's shadow candidate. */
+export function recordBoundBrainRoute(input: { provider: string; modelId: string; runtimeId: string; consumptionMode: "subscription" | "pay_per_use_api"; inputChars: number }): BrainRouteRecord {
+  const record: BrainRouteRecord = { provider: input.provider, model: input.modelId, runtimeId: input.runtimeId,
+    consumptionMode: input.consumptionMode, source: "binding", mode: "manual", routeReason: "Explicit bound model", via: "default",
+    inputChars: input.inputChars, timestamp: new Date().toISOString() };
+  brainRouteSink(record);
+  return record;
 }

@@ -30,9 +30,9 @@ export async function loadChatCapabilityCatalog():Promise<ServerCapabilityCatalo
 }
 export type ChatBinding={catalog:ServerCapabilityCatalog;approved:ApprovedServerBinding;callSubjectId:string};
 export type ChatBindingResolution={status:"ready";binding:ChatBinding}|{status:"blocked";reason:string};
-export type ChatExecutionReport=Pick<LlmJsonProviderResult,"requestedModelId"|"accountId"|"executedModelId"|"provider"|"usage"|"costSource"> & {reservationStatus:string;monetaryUsd:null};
+export type ChatExecutionReport=Pick<LlmJsonProviderResult,"requestedModelId"|"accountId"|"executedModelId"|"provider"|"usage"|"costSource"> & {consumptionMode:"pay_per_use_api";reservationStatus:string;monetaryUsd:null};
 export function projectChatExecution(result:LlmJsonProviderResult):ChatExecutionReport{return {
- requestedModelId:result.requestedModelId,accountId:result.accountId,executedModelId:result.executedModelId,
+ consumptionMode:"pay_per_use_api",requestedModelId:result.requestedModelId,accountId:result.accountId,executedModelId:result.executedModelId,
  provider:result.provider,usage:result.usage,costSource:result.costSource,reservationStatus:result.reservation.status,monetaryUsd:null,
 };}
 export function resolveChatModelBinding(catalog:ServerCapabilityCatalog|null,workspaceId:string,selection:ChatModelSelection|undefined,nowMs=Date.now(),budgetEnabled=callReservationConfigured()):ChatBindingResolution{
@@ -54,6 +54,6 @@ export function chatModelOptions(catalog:ServerCapabilityCatalog|null,workspaceI
  return (catalog?.entries??[]).filter(entry=>entry.workspaceId===workspaceId).map(entry=>{
   const selection={accountId:entry.accountId,modelId:entry.modelId,catalogRevision:catalog!.revision};
   const resolution=resolveChatModelBinding(catalog,workspaceId,selection,nowMs,budgetEnabled);
-  return {...selection,provider:entry.provider,billingKind:entry.billingKind,executable:resolution.status==="ready",reason:resolution.status==="blocked"?resolution.reason:null};
+  return {...selection,consumptionMode:entry.billingKind==="subscription"?"subscription" as const:"pay_per_use_api" as const,provider:entry.provider,billingKind:entry.billingKind,executable:resolution.status==="ready",reason:resolution.status==="blocked"?resolution.reason:null};
  });
 }

@@ -27,6 +27,9 @@ import {
 } from "@/features/hq/mission-draft-format";
 
 type ChatResponse = {
+  consumptionMode?: "subscription" | "pay_per_use_api";
+  executedModelId?: string | null;
+  runConfig?: {executionId:string;runtimeId:string;modelId:string} | null;
   chatExecution?: ChatExecutionReport;
   chatBindingStatus?: string;
   summary: string;
@@ -54,8 +57,8 @@ type ChatResponse = {
 type ErrorResponse = {
   error?: string;
 };
-type ChatModelOption={accountId:string;modelId:string;catalogRevision:string;provider:string;billingKind:string;executable:boolean;reason:string|null};
-const modelOptionKey=(option:ChatModelOption)=>JSON.stringify([option.accountId,option.modelId,option.catalogRevision]);
+type ChatModelOption={runtimeId?:string;consumptionMode:"subscription"|"pay_per_use_api";accountId:string;modelId:string;catalogRevision:string;provider:string;billingKind:string;executable:boolean;reason:string|null};
+const modelOptionKey=(option:ChatModelOption)=>JSON.stringify([option.runtimeId??option.accountId,option.modelId,option.catalogRevision]);
 
 function formatReminderLabel(remindersMinutes: number[]) {
   return remindersMinutes.map((minutes) => `${minutes} min`).join(" + ");
@@ -222,7 +225,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, locale: "fr-CA", ...(()=>{
           const selected=modelOptions.find(option=>option.executable&&modelOptionKey(option)===modelSelection);
-          return selected?{modelSelection:{accountId:selected.accountId,modelId:selected.modelId,catalogRevision:selected.catalogRevision}}:{};
+          return selected?.runtimeId?{subscriptionSelection:{runtimeId:selected.runtimeId,modelId:selected.modelId,catalogRevision:selected.catalogRevision}}:selected?{modelSelection:{accountId:selected.accountId,modelId:selected.modelId,catalogRevision:selected.catalogRevision}}:{};
         })() }),
       });
 
@@ -282,7 +285,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
       <label className="mb-3 block text-sm text-neutral-300">Compte et modèle pour la réponse IA
         <select value={modelSelection} onChange={event=>setModelSelection(event.target.value)} disabled={loading||!modelOptions.some(option=>option.executable)} className="mt-2 min-h-11 w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-sm text-white disabled:opacity-60">
           <option value="">Sans appel IA — commandes déterministes disponibles</option>
-          {modelOptions.map(option=><option key={modelOptionKey(option)} value={modelOptionKey(option)} disabled={!option.executable}>{option.provider} · {option.modelId} · compte {option.accountId}{option.executable?"":` — indisponible (${option.reason})`}</option>)}
+          {modelOptions.map(option=><option key={modelOptionKey(option)} value={modelOptionKey(option)} disabled={!option.executable}>{option.provider} · {option.modelId} · {option.consumptionMode} · {option.runtimeId??`compte ${option.accountId}`}{option.executable?"":` — indisponible (${option.reason})`}</option>)}
         </select>
       </label>
       <p className="mb-3 text-xs text-neutral-400">{!modelsLoaded?"Lecture des qualifications serveur…":!modelOptions.some(option=>option.executable)?"Aucun accès compte/modèle admissible pour ce chat. Les commandes calendrier et missions restent disponibles.":"Choisis explicitement un accès qualifié. Le serveur revérifie le compte, le modèle, la révision et le budget à l’envoi. Aucun repli payant automatique."} Les quotas disponibles ne sont pas mesurés ici.</p>
@@ -366,6 +369,8 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
 
           {dossierHref && <Link href={dossierHref} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-amber-200 underline">Ouvrir le dossier de cette mission</Link>}
           {result.chatBindingStatus&&<p className="mt-3 text-sm text-amber-200">Réponse IA non disponible : {result.chatBindingStatus}. Aucun autre compte ou modèle n’a été choisi automatiquement.</p>}
+          {result.consumptionMode&&<p className="mt-3 text-xs text-neutral-300">Consommation : {result.consumptionMode}</p>}
+          {result.runConfig&&<p className="mt-2 text-xs text-neutral-300">Runtime : {result.runConfig.runtimeId} · Modèle demandé : {result.runConfig.modelId} · Modèle observé : {result.executedModelId??"Non rapporté"} · Exécution : {result.runConfig.executionId}</p>}
           {result.chatExecution&&<dl className="mt-3 grid gap-2 text-xs text-neutral-300 sm:grid-cols-2">
             <div><dt>Compte demandé</dt><dd className="break-all">{result.chatExecution.accountId??"Non lié"}</dd></div>
             <div><dt>Modèle demandé</dt><dd>{result.chatExecution.requestedModelId??"Inconnu"}</dd></div>

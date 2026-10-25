@@ -58,6 +58,9 @@ export const INTRINSIC_ENV_NAMES = new Set([
   "NODE_ENV",
   "NEXT_PHASE",
   "PATH",
+  // OS-provided subprocess environment, never application credentials/config.
+  "HOME", "USERPROFILE", "SYSTEMROOT", "WINDIR", "TMP", "TEMP", "TMPDIR",
+  "LANG", "LC_ALL", "TERM",
   // Hosting-platform markers. The code probes them to detect where it runs; an
   // operator never sets them, so they are not configuration.
   "VERCEL",
