@@ -1,0 +1,26 @@
+{
+ "asset": "scout-corps",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.4208,
+   "cy": 0.3035,
+   "rx": 0.0404,
+   "ry": 0.051,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#eaceb9"
+  },
+  {
+   "cx": 0.6714,
+   "cy": 0.3116,
+   "rx": 0.0354,
+   "ry": 0.05,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#f3d9c4"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

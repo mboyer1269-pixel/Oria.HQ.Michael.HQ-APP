@@ -1,0 +1,26 @@
+{
+ "asset": "exp-ori-clin",
+ "cligne": false,
+ "raison": "clin d'œil",
+ "yeux": [
+  {
+   "cx": 0.4308,
+   "cy": 0.618,
+   "rx": 0.0612,
+   "ry": 0.025,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#ecd1bf"
+  },
+  {
+   "cx": 0.7368,
+   "cy": 0.6236,
+   "rx": 0.0426,
+   "ry": 0.0604,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#efd8cb"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

@@ -160,3 +160,20 @@ Les avatars SVG simples sont remplacés par des astres génératifs (`remake/ext
 
 ## 11. Familles d'avatars (Billy Boutons, Astrolabe, Glyphe)
 Voir `familles/FAMILLES.md`. Pages : `mockups/famille-{billy,astrolabe,glyphe}.html`, sélecteur `mockups/avatars-attribution.html`. Captures `captures/familles/`, vidéos `captures/familles/video/`. axe : 0 violation sur 8 analyses (4 pages × 1440/390).
+
+## 12. Avatars v2 — hybride Billy × Astrolabe, couleur en tokens, atelier
+Voir `avatars-v2/RECHERCHE-AVATARS.md`. Pages `mockups/avatars-v2-galerie.html`, `mockups/avatars-v2.html`. Captures `captures/avatars-v2/`, vidéos `captures/avatars-v2/video/avatars-v2-demo-{1440,390}.webm`. axe : 0 violation sur 6 analyses (2 pages + mode marque × 1440/390).
+
+## §13 Avatars — famille « Billy Figurine » (recommandée)
+Images de Michael détourées (aucun redessin), couches d'état CSS/SVG, recoloration de l'image par masque de saturation
+piloté par `--agent-accent` / `--brand-accent`. Décision, fichiers, props React (`famille`, `variante`, `pose`, `couleur`,
+état via `useAgentState`) et limites : `avatars-v2/FIGURINE.md`. Preuves : `captures/figurine/` (1440/390, animé et
+mouvement réduit, axe 0, vidéos < 6 Mo).
+
+## 14. Avatars v3 — noms, animations, relais (révision 4)
+- Préférences : `{version:3, agents:{[agentId]:{agentId, displayName, famille, variante, pose, couleur}}, marque, options}` ; `agentId` immuable, `displayName` 1–32 caractères (doublon signalé). Détails : `avatars-v2/FIGURINE.md` « Révision 4 ».
+- États dérivés **uniquement** des événements réels via `useAgentState(agentId)` ; aucune animation sans événement.
+- Délégation : sur `delegation.created`, appeler `window.oriaRelay(fromId, toId)` (comète dans l'orbite).
+- Micro : niveau RMS via AnalyserNode seulement si l'utilisateur a autorisé le micro.
+- Perf : transform/opacity, pause hors écran (IntersectionObserver), mouvement réduit respecté ; son désactivé par défaut.
+- Clignement (rév. 5) : purement décoratif, au repos ; données `avatars-v2/figurine/yeux/*.json` ; voir FIGURINE.md « Clignement des yeux ». Aucun événement n'est requis ni émis.

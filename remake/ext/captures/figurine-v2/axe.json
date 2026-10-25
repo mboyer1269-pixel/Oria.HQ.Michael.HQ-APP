@@ -1,0 +1,86 @@
+{
+ "avatars-v2-galerie-1440": [],
+ "avatars-v2-1440": [],
+ "renommage-1440": {
+  "noms": [
+   "ORI",
+   "Neo",
+   "Neo",
+   "SCOUT",
+   "Échos de Pulse",
+   "AEGIS"
+  ],
+  "msgs": [
+   "Modification annulée.",
+   "Renommé : « Neo ».",
+   "Attention : « Neo » est déjà le nom de l'agent nexus — accepté, mais ambigu.",
+   "Le nom ne peut pas être vide.",
+   "Renommé : « Échos de Pulse ».",
+   ""
+  ],
+  "alt": "Neo, figurine Billy (corps entier) — état : au repos",
+  "mini": "ORI\nEn attente d'une mission.\nNeo\nEn attente d'une mission.\nNeo\nEn attente d'une mission.\nSCOUT\nEn attente d'une mission",
+  "orbit": [
+   "ORI",
+   "Neo",
+   "Neo",
+   "SCOUT",
+   "Échos de Pulse",
+   "AEGIS"
+  ]
+ },
+ "avatars-v2-renommage-1440": [],
+ "avatars-v2-marque-1440": [],
+ "galerie-noms-1440": ",,ORI,,,Neo,,Neo,,,SCOUT,,,Échos de Pulse,,,AEGIS",
+ "avatars-v2-galerie-390": [],
+ "avatars-v2-390": [],
+ "renommage-390": {
+  "noms": [
+   "ORI",
+   "Neo",
+   "Neo",
+   "SCOUT",
+   "Échos de Pulse",
+   "AEGIS"
+  ],
+  "msgs": [
+   "Modification annulée.",
+   "Renommé : « Neo ».",
+   "Attention : « Neo » est déjà le nom de l'agent nexus — accepté, mais ambigu.",
+   "Le nom ne peut pas être vide.",
+   "Renommé : « Échos de Pulse ».",
+   ""
+  ],
+  "alt": "Neo, figurine Billy (corps entier) — état : au repos",
+  "mini": "ORI\nEn attente d'une mission.\nNeo\nEn attente d'une mission.\nNeo\nEn attente d'une mission.\nSCOUT\nEn attente d'une mission",
+  "orbit": [
+   "ORI",
+   "Neo",
+   "Neo",
+   "SCOUT",
+   "Échos de Pulse",
+   "AEGIS"
+  ]
+ },
+ "avatars-v2-renommage-390": [],
+ "avatars-v2-marque-390": [],
+ "galerie-noms-390": ",,ORI,,,Neo,,Neo,,,SCOUT,,,Échos de Pulse,,,AEGIS",
+ "errs": [
+  "avatars-v2-galerie console: Access to XMLHttpRequest at 'file:///workspace/oria-design/remake/ext/avatars-v2/figurine/masks.css' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-experimental-site-token-provider, chrome-extension, chrome-untrusted, data, http, https, isolated-app.",
+  "avatars-v2-galerie console: Failed to load resource: net::ERR_FAILED",
+  "avatars-v2 console: Access to XMLHttpRequest at 'file:///workspace/oria-design/remake/ext/avatars-v2/figurine/masks.css' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-experimental-site-token-provider, chrome-extension, chrome-untrusted, data, http, https, isolated-app.",
+  "avatars-v2 console: Failed to load resource: net::ERR_FAILED",
+  "avatars-v2 console: Access to XMLHttpRequest at 'file:///workspace/oria-design/remake/ext/avatars-v2/figurine/masks.css' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-experimental-site-token-provider, chrome-extension, chrome-untrusted, data, http, https, isolated-app.",
+  "avatars-v2 console: Failed to load resource: net::ERR_FAILED",
+  "avatars-v2 console: Access to XMLHttpRequest at 'file:///workspace/oria-design/remake/ext/avatars-v2/figurine/masks.css' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-experimental-site-token-provider, chrome-extension, chrome-untrusted, data, http, https, isolated-app.",
+  "avatars-v2 console: Failed to load resource: net::ERR_FAILED",
+  "avatars-v2-galerie console: Access to XMLHttpRequest at 'file:///workspace/oria-design/remake/ext/avatars-v2/figurine/masks.css' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-experimental-site-token-provider, chrome-extension, chrome-untrusted, data, http, https, isolated-app.",
+  "avatars-v2-galerie console: Failed to load resource: net::ERR_FAILED",
+  "avatars-v2 console: Access to XMLHttpRequest at 'file:///workspace/oria-design/remake/ext/avatars-v2/figurine/masks.css' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-experimental-site-token-provider, chrome-extension, chrome-untrusted, data, http, https, isolated-app.",
+  "avatars-v2 console: Failed to load resource: net::ERR_FAILED",
+  "avatars-v2 console: Access to XMLHttpRequest at 'file:///workspace/oria-design/remake/ext/avatars-v2/figurine/masks.css' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-experimental-site-token-provider, chrome-extension, chrome-untrusted, data, http, https, isolated-app.",
+  "avatars-v2 console: Failed to load resource: net::ERR_FAILED",
+  "avatars-v2 console: Access to XMLHttpRequest at 'file:///workspace/oria-design/remake/ext/avatars-v2/figurine/masks.css' from origin 'null' has been blocked by CORS policy: Cross origin requests are only supported for protocol schemes: chrome, chrome-experimental-site-token-provider, chrome-extension, chrome-untrusted, data, http, https, isolated-app.",
+  "avatars-v2 console: Failed to load resource: net::ERR_FAILED"
+ ]
+}

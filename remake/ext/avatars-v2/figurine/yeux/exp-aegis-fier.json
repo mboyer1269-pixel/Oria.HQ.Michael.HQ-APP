@@ -1,0 +1,26 @@
+{
+ "asset": "exp-aegis-fier",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.217,
+   "cy": 0.6168,
+   "rx": 0.037,
+   "ry": 0.0954,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#e4d5c8"
+  },
+  {
+   "cx": 0.5229,
+   "cy": 0.61,
+   "rx": 0.0457,
+   "ry": 0.0979,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#e5dacd"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

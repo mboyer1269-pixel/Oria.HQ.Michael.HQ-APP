@@ -1,0 +1,26 @@
+{
+ "asset": "nexus-tete-64",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.3594,
+   "cy": 0.5447,
+   "rx": 0.0598,
+   "ry": 0.0938,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#8296d0"
+  },
+  {
+   "cx": 0.7287,
+   "cy": 0.5217,
+   "rx": 0.0502,
+   "ry": 0.084,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#a9b1d0"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py), reprise de nexus-tete"
+}

@@ -1,0 +1,26 @@
+{
+ "asset": "scout-buste",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.4209,
+   "cy": 0.4613,
+   "rx": 0.0408,
+   "ry": 0.0792,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#eaceb9"
+  },
+  {
+   "cx": 0.6717,
+   "cy": 0.4736,
+   "rx": 0.0348,
+   "ry": 0.0764,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#f3d9c4"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

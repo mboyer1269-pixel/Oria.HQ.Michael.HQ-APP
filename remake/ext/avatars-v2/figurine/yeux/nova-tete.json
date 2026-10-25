@@ -1,0 +1,26 @@
+{
+ "asset": "nova-tete",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.2707,
+   "cy": 0.469,
+   "rx": 0.0681,
+   "ry": 0.1055,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#dfc5bf"
+  },
+  {
+   "cx": 0.6899,
+   "cy": 0.4337,
+   "rx": 0.0817,
+   "ry": 0.0254,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#ecd7cf"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

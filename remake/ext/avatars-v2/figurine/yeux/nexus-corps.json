@@ -1,0 +1,26 @@
+{
+ "asset": "nexus-corps",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.3618,
+   "cy": 0.2929,
+   "rx": 0.0398,
+   "ry": 0.0519,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#8296d1"
+  },
+  {
+   "cx": 0.6135,
+   "cy": 0.279,
+   "rx": 0.034,
+   "ry": 0.0471,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#aab2d0"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

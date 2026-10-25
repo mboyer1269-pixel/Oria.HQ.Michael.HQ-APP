@@ -1,0 +1,26 @@
+{
+ "asset": "ori-buste",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.4869,
+   "cy": 0.3444,
+   "rx": 0.0398,
+   "ry": 0.075,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#d4c2b7"
+  },
+  {
+   "cx": 0.7215,
+   "cy": 0.3891,
+   "rx": 0.0409,
+   "ry": 0.0764,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#e7d6ca"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

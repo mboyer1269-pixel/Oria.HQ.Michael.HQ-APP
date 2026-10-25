@@ -1,0 +1,26 @@
+{
+ "asset": "exp-aegis-garde",
+ "cligne": false,
+ "raison": "regard plissé, détection non fiable",
+ "yeux": [
+  {
+   "cx": 0.2089,
+   "cy": 0.5515,
+   "rx": 0.0553,
+   "ry": 0.0287,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#e6dace"
+  },
+  {
+   "cx": 0.5001,
+   "cy": 0.527,
+   "rx": 0.0632,
+   "ry": 0.0374,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#e7dfd0"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

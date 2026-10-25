@@ -1,0 +1,26 @@
+{
+ "asset": "aegis-buste",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.2864,
+   "cy": 0.3614,
+   "rx": 0.0256,
+   "ry": 0.0736,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#c1b8b3"
+  },
+  {
+   "cx": 0.465,
+   "cy": 0.3607,
+   "rx": 0.0302,
+   "ry": 0.0736,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#d9cdc4"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

@@ -1,0 +1,26 @@
+{
+ "asset": "ori-tete-64",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.381,
+   "cy": 0.4311,
+   "rx": 0.0581,
+   "ry": 0.0918,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#d4c1b7"
+  },
+  {
+   "cx": 0.7246,
+   "cy": 0.4855,
+   "rx": 0.0601,
+   "ry": 0.0918,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#e7d6ca"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py), reprise de ori-tete"
+}

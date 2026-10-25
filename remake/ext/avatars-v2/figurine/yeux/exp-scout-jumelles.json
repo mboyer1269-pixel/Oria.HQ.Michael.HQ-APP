@@ -1,0 +1,7 @@
+{
+ "asset": "exp-scout-jumelles",
+ "cligne": false,
+ "raison": "yeux cachés par les jumelles",
+ "yeux": [],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}
