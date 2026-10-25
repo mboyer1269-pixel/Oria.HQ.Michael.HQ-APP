@@ -33,16 +33,16 @@ function PlaceholderSlot({ index }: { index: number }) {
     >
       <div className="flex min-h-[140px] w-full flex-col justify-between rounded-2xl border border-dashed border-white/10 bg-black/10 p-4">
         <div className="flex items-center justify-between">
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-black/20 text-[#646c8e]">
+          <span className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-black/20 text-[#a9b0cc]">
             <Sparkles className="h-4 w-4" aria-hidden="true" />
           </span>
-          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-[#646c8e]">
+          <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs font-semibold text-[#a9b0cc]">
             #{index}
           </span>
         </div>
         <div>
-          <p className="text-[13px] font-semibold text-[#98a1c4]">Slot à brancher</p>
-          <p className="mt-0.5 text-[11px] text-[#646c8e]">en attente du repository</p>
+          <p className="text-[13px] font-semibold text-[#b4bbd6]">Slot à brancher</p>
+          <p className="mt-0.5 text-xs text-[#a9b0cc]">en attente du repository</p>
         </div>
       </div>
     </Tooltip>
@@ -56,7 +56,7 @@ export function VentureSuggestions() {
         <div>
           <Eyebrow>Portefeuille · aperçu</Eyebrow>
           <h3 className="mt-1.5 text-[16px] font-bold text-[#eff1fb]">Ventures</h3>
-          <p className="mt-1 text-[12.5px] text-[#646c8e]">
+          <p className="mt-1 text-[12.5px] text-[#a9b0cc]">
             Ce cockpit ne lit pas encore le repository ventures. Ouvre le Venture Engine pour voir
             les cartes sauvegardées, les suggestions et les décisions CEO.
           </p>
@@ -73,7 +73,7 @@ export function VentureSuggestions() {
           </span>
           <div>
             <p className="text-sm font-bold text-[#eff1fb]">Nouvelle venture</p>
-            <p className="mt-0.5 text-[11.5px] text-[#98a1c4]">ouvrir le Venture Engine</p>
+            <p className="mt-0.5 text-xs text-[#b4bbd6]">ouvrir le Venture Engine</p>
           </div>
         </Link>
 

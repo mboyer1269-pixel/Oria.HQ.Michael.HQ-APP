@@ -167,9 +167,9 @@ function SendDeskCard({ item }: { item: SendDeskItem }) {
           <h3 className="mt-2 truncate text-sm font-bold text-white sm:text-base">
             {item.subject}
           </h3>
-          <p className="mt-0.5 text-xs text-neutral-500">
+          <p className="mt-0.5 text-xs text-neutral-400">
             À : <span className="text-neutral-300">{item.recipient}</span>
-            {item.ventureId ? <span className="ml-2 text-neutral-600">· {item.ventureId}</span> : null}
+            {item.ventureId ? <span className="ml-2 text-neutral-400">· {item.ventureId}</span> : null}
           </p>
         </div>
 
@@ -185,14 +185,14 @@ function SendDeskCard({ item }: { item: SendDeskItem }) {
 
       {expanded ? (
         <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
             Message complet — c&apos;est exactement ce qui partira
           </p>
           <p className="mt-2 text-sm font-semibold text-neutral-200">{item.subject}</p>
           <pre className="mt-2 max-h-96 overflow-y-auto whitespace-pre-wrap break-words font-sans text-sm leading-6 text-neutral-300">
             {item.body}
           </pre>
-          <p className="mt-3 border-t border-neutral-800 pt-2 text-xs text-neutral-600">
+          <p className="mt-3 border-t border-neutral-800 pt-2 text-xs text-neutral-400">
             Consentement : {item.consentBasis} · Audience : {item.audienceType} · Le contenu est
             verrouillé par hash — toute modification invalide l&apos;approbation.
           </p>
@@ -200,7 +200,7 @@ function SendDeskCard({ item }: { item: SendDeskItem }) {
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 text-xs text-neutral-500">
+        <div className="min-w-0 text-xs text-neutral-400">
           {sendState.phase === "sent" ? (
             <span className="text-emerald-400">
               {sendState.alreadySent ? "Déjà envoyé (clic dédupliqué). " : "Envoyé. "}
@@ -280,9 +280,9 @@ export function SendDeskQueue({ items }: { items: SendDeskItem[] }) {
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/40 p-8 text-center">
-        <ShieldCheck className="mx-auto h-8 w-8 text-neutral-700" />
+        <ShieldCheck className="mx-auto h-8 w-8 text-neutral-400" />
         <p className="mt-3 text-sm font-semibold text-neutral-300">La file est vide.</p>
-        <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-neutral-500">
+        <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-neutral-400">
           Relay (ou toi, via <code className="text-neutral-400">POST /api/outbound/queue</code>)
           dépose ici les messages prêts. Rien ne part jamais sans ton clic.
         </p>
@@ -301,7 +301,7 @@ export function SendDeskQueue({ items }: { items: SendDeskItem[] }) {
       ) : null}
       {done.length > 0 ? (
         <details className="group" open={pending.length === 0}>
-          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-neutral-500 transition hover:text-neutral-300">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-neutral-400 transition hover:text-neutral-300">
             Historique ({done.length})
           </summary>
           <div className="mt-3 flex flex-col gap-3">

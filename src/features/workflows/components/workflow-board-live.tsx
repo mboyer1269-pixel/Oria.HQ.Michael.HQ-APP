@@ -58,7 +58,7 @@ export function WorkflowBoardLive({
 
   return (
     <div className="grid gap-3">
-      <div className="flex items-center gap-2 text-[11px] text-neutral-500">
+      <div className="flex items-center gap-2 text-xs text-neutral-400">
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />

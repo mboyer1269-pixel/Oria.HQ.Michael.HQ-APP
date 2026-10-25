@@ -41,12 +41,12 @@ function TaskCard({
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-semibold text-neutral-300">
+        <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs font-semibold text-neutral-300">
           {role}
         </span>
       </div>
       <p className="mt-2 text-sm leading-6 text-neutral-300">{task}</p>
-      <p className="mt-2 text-xs leading-5 text-neutral-500">
+      <p className="mt-2 text-xs leading-5 text-neutral-400">
         <span className="font-semibold text-neutral-400">Expected output:</span> {expectedOutput}
       </p>
     </div>
@@ -107,20 +107,20 @@ export function VentureRevenueValidationWorkQueuePanel({
 
               <div className="grid gap-2 sm:grid-cols-2 lg:min-w-80 lg:grid-cols-2">
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     <Users className="h-3.5 w-3.5" aria-hidden="true" />
                     Channel
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">{item.validationChannel}</p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Duration
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">{item.durationDays} days</p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Budget cap
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">
@@ -128,7 +128,7 @@ export function VentureRevenueValidationWorkQueuePanel({
                   </p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Profitability
                   </span>
                   <p className="mt-1 tabular-nums text-sm font-semibold text-white">
@@ -140,7 +140,7 @@ export function VentureRevenueValidationWorkQueuePanel({
 
             <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Why this queue item
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">{item.priorityReason}</p>
@@ -151,7 +151,7 @@ export function VentureRevenueValidationWorkQueuePanel({
               </div>
 
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Handoff order
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">
@@ -182,9 +182,9 @@ export function VentureRevenueValidationWorkQueuePanel({
       <div className="mt-4 flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900/60 px-3 py-2 text-xs text-neutral-400">
         <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         Local work assignments only. No send, no publish, no CRM writes.
-        <Lock className="h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
-        <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
-        <Target className="h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+        <Lock className="h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
+        <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
+        <Target className="h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
       </div>
     </section>
   );

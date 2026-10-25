@@ -139,14 +139,14 @@ export default async function CashActionReviewPage() {
         }
       >
         <HqSummaryRail>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs font-medium text-neutral-300">
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
             Humain dans la boucle
           </span>
-          <p className="mt-3 text-xs leading-5 text-neutral-500">
+          <p className="mt-3 text-xs leading-5 text-neutral-400">
             Approbation requise. Aucune exécution, aucun envoi, aucune dépense déclenchés ici.
           </p>
-          <div className="mt-3 flex items-center gap-1.5 text-[10px] text-neutral-600">
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-neutral-400">
             <Cpu className="h-3 w-3 shrink-0" aria-hidden="true" />
             Relay — file préparée
           </div>

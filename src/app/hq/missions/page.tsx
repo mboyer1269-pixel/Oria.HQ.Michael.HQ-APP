@@ -81,7 +81,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
         }
       >
         <HqSummaryRail>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Résumé global du mode actif</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Résumé global du mode actif</p>
           <div className="mt-3 grid gap-2">
             <HqMetric label="Total" value={summary.total} />
             <HqMetric label="En cours" value={summary.running} tone="amber" />
@@ -159,8 +159,8 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
       </HqWidget>
 
       <footer className="rounded-2xl border border-white/[0.07] bg-neutral-950/60 px-4 py-3">
-        <p className="text-xs leading-5 text-neutral-600">
-          <span className="font-medium text-neutral-500">
+        <p className="text-xs leading-5 text-neutral-400">
+          <span className="font-medium text-neutral-400">
             Source: {source === "supabase" ? "Supabase" : "données locales"} —{" "}
           </span>
           Le statut provient de la source indiquée. Le suivi Paperclip et les preuves de résultat se consultent séparément.

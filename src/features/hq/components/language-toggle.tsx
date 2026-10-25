@@ -29,7 +29,7 @@ export function LanguageToggle({ language, setLanguage, mounted }: LanguageToggl
       type="button"
       onClick={() => setLanguage(next)}
       aria-label={`Changer la langue — ${getUICopy(next).languageLabel}`}
-      className="inline-flex w-[52px] items-center justify-center rounded-full border border-white/10 bg-[#141a2c]/60 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-[#98a1c4] transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
+      className="inline-flex w-[52px] items-center justify-center rounded-full border border-white/10 bg-[#141a2c]/60 px-2.5 py-1.5 text-xs font-bold uppercase tracking-widest text-[#b4bbd6] transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50"
     >
       {copy.toggleShort}
     </button>

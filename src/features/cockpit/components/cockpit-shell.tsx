@@ -73,12 +73,12 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
       <Tooltip title={item.tipTitle} detail={item.tipDetail} meta={item.tipMeta} align="left" className="w-full">
         <span
           aria-disabled="true"
-          className={`${base} w-full cursor-not-allowed border-transparent text-[#5a6080] opacity-60`}
+          className={`${base} w-full cursor-not-allowed border-transparent text-[#a9b0cc] opacity-60`}
         >
           <Icon className="h-[17px] w-[17px] shrink-0" aria-hidden="true" />
           <span className="hidden md:inline">{item.label}</span>
           {item.tipMeta ? (
-            <span className="ml-auto hidden rounded-full border border-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#646c8e] md:inline">
+            <span className="ml-auto hidden rounded-full border border-white/10 px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-[#a9b0cc] md:inline">
               {item.tipMeta}
             </span>
           ) : null}
@@ -89,7 +89,7 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
 
   const state = active
     ? "border-violet-500/40 bg-gradient-to-br from-violet-500/22 to-indigo-500/[0.13] text-white"
-    : "border-transparent text-[#98a1c4] hover:border-white/10 hover:bg-white/[0.04] hover:text-[#eff1fb]";
+    : "border-transparent text-[#b4bbd6] hover:border-white/10 hover:bg-white/[0.04] hover:text-[#eff1fb]";
   return (
     <Tooltip title={item.tipTitle} detail={item.tipDetail} meta={item.tipMeta} align="left" className="w-full">
       <Link href={item.href as Route} aria-label={item.label} aria-current={active ? "page" : undefined} className={`${base} ${state} w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400`}>
@@ -140,27 +140,27 @@ export function CockpitShell({
           </svg>
           <span className="hidden md:block">
             <span className="block text-[15px] font-bold text-[#eff1fb]">ORIA HQ</span>
-            <span className="block text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#646c8e]">
+            <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-[#a9b0cc]">
               Michael
             </span>
           </span>
         </div>
 
-        <p className="hidden px-2.5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#646c8e] md:block">
+        <p className="hidden px-2.5 pb-1.5 pt-3 text-xs font-bold uppercase tracking-[0.2em] text-[#a9b0cc] md:block">
           Pilotage
         </p>
         {pilotage.map((item) => (
           <SidebarLink key={item.key} item={item} active={item.key === active} />
         ))}
 
-        <p className="hidden px-2.5 pb-1.5 pt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#646c8e] md:block">
+        <p className="hidden px-2.5 pb-1.5 pt-3 text-xs font-bold uppercase tracking-[0.2em] text-[#a9b0cc] md:block">
           Espace
         </p>
         {espace.map((item) => (
           <SidebarLink key={item.key} item={item} active={item.key === active} />
         ))}
 
-        <div className="mt-auto hidden border-t border-white/[0.06] pt-3 text-[11.5px] leading-relaxed text-[#646c8e] md:block">
+        <div className="mt-auto hidden border-t border-white/[0.06] pt-3 text-xs leading-relaxed text-[#a9b0cc] md:block">
           <span className="text-emerald-400">●</span> workspace actif · human-on-the-loop
         </div>
       </aside>

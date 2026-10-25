@@ -129,22 +129,22 @@ export function AgentScoreSnapshotPanel() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-semibold text-slate-100">{snapshot.agentId}</span>
                   <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                    className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
                       BAND_STYLE[snapshot.operatorScoreBand] ??
                       "border-slate-700 bg-slate-800 text-slate-300"
                     }`}
                   >
                     {snapshot.totalOperatorScore}/100 · {snapshot.operatorScoreBand}
                   </span>
-                  <span className="text-[10px] text-slate-500">{snapshot.operatorStatus}</span>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-xs text-slate-500">{snapshot.operatorStatus}</span>
+                  <span className="text-xs text-slate-500">
                     {snapshot.outcomeCount} preuve(s)
                   </span>
                 </div>
 
                 <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
                   {Object.entries(snapshot.dimensionScores).map(([dimension, value]) => (
-                    <li key={dimension} className="text-[11px] text-slate-400">
+                    <li key={dimension} className="text-xs text-slate-400">
                       <span className="text-slate-500">{dimension}</span>{" "}
                       <span className="font-medium text-slate-300">{value}</span>
                     </li>

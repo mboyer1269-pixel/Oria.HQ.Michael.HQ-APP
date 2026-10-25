@@ -48,10 +48,10 @@ export function HqOverviewWidgets() {
                 <Icon className={`h-4 w-4 ${tone.icon}`} aria-hidden="true" />
                 {card.title}
               </span>
-              <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-[11px] font-bold ${tone.chip}`}>
+              <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-xs font-bold ${tone.chip}`}>
                 {card.value}
               </span>
-              <p className="text-xs leading-5 text-neutral-500">{card.detail}</p>
+              <p className="text-xs leading-5 text-neutral-400">{card.detail}</p>
             </article>
           );
         })}

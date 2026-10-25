@@ -123,7 +123,7 @@ export default async function AgentsPage() {
         }
       >
         <HqSummaryRail>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
             Résumé
           </p>
           <div className="mt-3 grid gap-2">
@@ -182,7 +182,7 @@ export default async function AgentsPage() {
       <HqWidget title="Mapping Agent → Skills" eyebrow="Control map" icon={Network}>
         <div className="mb-3 flex items-center justify-between gap-2">
           <span
-            className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+            className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
               mappingReport.valid
                 ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
                 : "border-amber-500/20 bg-amber-500/10 text-amber-300"
@@ -207,7 +207,7 @@ export default async function AgentsPage() {
               {mappingReport.unclaimed.map((id) => (
                 <li
                   key={id}
-                  className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 font-mono text-[11px] text-amber-300"
+                  className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 font-mono text-xs text-amber-300"
                 >
                   {id}
                 </li>

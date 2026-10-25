@@ -233,12 +233,12 @@ export function CashActionReviewClient({
       </div>
 
       {preparedQueueUnavailable && (
-        <div className="rounded-xl border border-neutral-700/60 bg-neutral-900/40 px-3 py-2 text-[11px] text-neutral-400">
+        <div className="rounded-xl border border-neutral-700/60 bg-neutral-900/40 px-3 py-2 text-xs text-neutral-400">
           File préparée indisponible. Réessayez plus tard ; aucun modèle n’a été lancé.
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400">
         <span>
           {sourceMode === "prepared_queue"
             ? `${packets.length} action${packets.length > 1 ? "s" : ""} préparée${packets.length > 1 ? "s" : ""} par Relay · file de revue · préparé ${generatedAt}`
@@ -285,12 +285,12 @@ export function CashActionReviewClient({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-white">{packet.targetBuyer}</h3>
-                <p className="mt-0.5 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                <p className="mt-0.5 text-xs uppercase tracking-[0.18em] text-neutral-400">
                   {packet.buyerType.replace(/_/g, " ")} · {packet.packetId}
                 </p>
               </div>
               <span
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
                   decision === "approved_for_manual_action"
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                     : decision === "rejected_needs_refinement"
@@ -320,13 +320,13 @@ export function CashActionReviewClient({
 
             <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 p-4">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
                   Outreach draft — copy &amp; send yourself
                 </span>
                 <button
                   type="button"
                   onClick={() => copyText(packet.packetId, packet.outreachDraft)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] text-neutral-300 transition hover:border-neutral-600 hover:text-white"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs text-neutral-300 transition hover:border-neutral-600 hover:text-white"
                 >
                   <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
                   {copiedId === packet.packetId ? "Copied" : "Copy"}
@@ -335,7 +335,7 @@ export function CashActionReviewClient({
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-200">
                 {packet.outreachDraft}
               </p>
-              <p className="mt-2 text-[11px] text-neutral-500">
+              <p className="mt-2 text-xs text-neutral-400">
                 Expects <span className="text-neutral-300">{packet.expectedCashSignal.replace(/_/g, " ")}</span> ·
                 evidence needed: {packet.requiredEvidence.map((e) => e.replace(/_/g, " ")).join(", ")}
               </p>
@@ -371,7 +371,7 @@ export function CashActionReviewClient({
 
             {priorProof.length > 0 && (
               <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
                   Captured proof on record ({priorProof.length})
                 </span>
                 <ul className="mt-2 flex flex-col gap-1.5">
@@ -379,7 +379,7 @@ export function CashActionReviewClient({
                     const s = summarizeCapturedSignal(intake);
                     return (
                       <li key={`${intake.signalId}-${i}`} className="text-xs text-neutral-300">
-                        <span className={`mr-2 rounded px-1.5 py-0.5 text-[10px] ${CLASS_STYLES[s.classification]}`}>
+                        <span className={`mr-2 rounded px-1.5 py-0.5 text-xs ${CLASS_STYLES[s.classification]}`}>
                           {s.classification.replace(/_/g, " ")}
                         </span>
                         {intake.signalType.replace(/_/g, " ")} · {intake.referenceId}
@@ -412,7 +412,7 @@ export function CashActionReviewClient({
 
             {decision === "approved_for_manual_action" && (
               <div className="flex flex-col gap-3 rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
                   Record the signal that came back
                 </span>
 
@@ -511,7 +511,7 @@ export function CashActionReviewClient({
                       )}
                       {result.summary.headline}
                     </span>
-                    <p className="text-[11px] opacity-90">
+                    <p className="text-xs opacity-90">
                       classification: {result.summary.classification.replace(/_/g, " ")} · trust: {result.summary.trustLevel}
                       {result.summary.becameRealCash
                         ? ` · real cash booked: ${formatCents(result.summary.cashAmountCents)}`
@@ -532,7 +532,7 @@ export function CashActionReviewClient({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">{label}</dt>
+      <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">{label}</dt>
       <dd className="text-sm leading-6 text-neutral-200">{value}</dd>
     </div>
   );
@@ -561,7 +561,7 @@ const RECOMMENDATION_STYLES: Record<string, string> = {
   support: "text-emerald-400",
   refine: "text-amber-400",
   pause: "text-amber-400",
-  abstain: "text-neutral-500",
+  abstain: "text-neutral-400",
   needs_ceo_decision: "text-sky-400",
   kill_candidate: "text-red-400",
   veto: "text-red-400",
@@ -580,13 +580,13 @@ function CouncilSection({
     <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Users className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <Users className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Council Run #{council.runIndex}
           </span>
           {council.runId && council.runPhase && (
             <span
-              className="inline-flex items-center gap-1 rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[10px] text-neutral-400"
+              className="inline-flex items-center gap-1 rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-400"
               title={council.runId}
             >
               Durable · {phaseLabel(council.runPhase)}
@@ -594,21 +594,21 @@ function CouncilSection({
           )}
         </div>
         <span
-          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${READINESS_STYLES[council.readiness]}`}
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${READINESS_STYLES[council.readiness]}`}
         >
           {READINESS_LABELS[council.readiness]}
         </span>
       </div>
 
       <p className="mt-3 text-xs leading-5 text-neutral-300">
-        <span className="text-neutral-500">Recommended action: </span>
+        <span className="text-neutral-400">Recommended action: </span>
         {council.recommendedManualAction}
       </p>
 
       <button
         type="button"
         onClick={onToggle}
-        className="mt-3 inline-flex items-center gap-1 text-[10px] text-neutral-500 transition hover:text-neutral-300"
+        className="mt-3 inline-flex items-center gap-1 text-xs text-neutral-400 transition hover:text-neutral-300"
       >
         {expanded ? (
           <ChevronDown className="h-3 w-3" aria-hidden="true" />
@@ -623,19 +623,19 @@ function CouncilSection({
           {council.turns.map((turn) => (
             <li key={turn.roleId} className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <span className="min-w-[64px] text-[10px] font-semibold text-neutral-400">
+                <span className="min-w-[64px] text-xs font-semibold text-neutral-400">
                   {getCouncilRoleDisplayName(turn.roleId)}
                 </span>
                 <span
-                  className={`text-[10px] font-medium ${RECOMMENDATION_STYLES[turn.recommendation] ?? "text-neutral-400"}`}
+                  className={`text-xs font-medium ${RECOMMENDATION_STYLES[turn.recommendation] ?? "text-neutral-400"}`}
                 >
                   {turn.recommendation.replace(/_/g, " ")}
                 </span>
-                <span className="ml-auto text-[10px] text-neutral-600">
+                <span className="ml-auto text-xs text-neutral-400">
                   {Math.round(turn.confidenceScore)}%
                 </span>
               </div>
-              <p className="text-[11px] leading-4 text-neutral-500">{turn.outputSummary}</p>
+              <p className="text-xs leading-4 text-neutral-400">{turn.outputSummary}</p>
             </li>
           ))}
         </ul>
@@ -699,16 +699,16 @@ function HermesPlanSection({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Send className="h-3.5 w-3.5 text-indigo-400" aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-300/80">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-300/80">
             Relay Outreach Plan
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-medium text-indigo-200">
+          <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-200">
             {channelLabel}
           </span>
           <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium ${statusStyle}`}
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${statusStyle}`}
           >
             {statusLabel}
           </span>
@@ -717,12 +717,12 @@ function HermesPlanSection({
 
       {/* Always-visible summary line: who sends, and the governance posture. */}
       <p className="mt-3 text-xs leading-5 text-neutral-300">
-        <span className="text-neutral-500">Sender: </span>
+        <span className="text-neutral-400">Sender: </span>
         {hermes.senderRecommendation}
       </p>
 
       {hermes.requiresCeoApproval && hermes.requiresManualSend && hermes.noExecutionAuthorized && (
-        <p className="mt-2 inline-flex items-center gap-1.5 text-[10px] text-neutral-500">
+        <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-neutral-400">
           <ShieldCheck className="h-3 w-3 text-emerald-400" aria-hidden="true" />
           Relay prepares · CEO approves · manual send only · no automatic execution
         </p>
@@ -731,7 +731,7 @@ function HermesPlanSection({
       <button
         type="button"
         onClick={onToggle}
-        className="mt-3 inline-flex items-center gap-1 text-[10px] text-neutral-500 transition hover:text-neutral-300"
+        className="mt-3 inline-flex items-center gap-1 text-xs text-neutral-400 transition hover:text-neutral-300"
       >
         {expanded ? (
           <ChevronDown className="h-3 w-3" aria-hidden="true" />
@@ -759,13 +759,13 @@ function HermesPlanSection({
 
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
                 Message draft — copy &amp; send yourself
               </span>
               <button
                 type="button"
                 onClick={onCopyMessage}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] text-neutral-300 transition hover:border-neutral-600 hover:text-white"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs text-neutral-300 transition hover:border-neutral-600 hover:text-white"
               >
                 <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
                 {copiedKey === copyKey ? "Copied" : "Copy"}
@@ -777,7 +777,7 @@ function HermesPlanSection({
           </div>
 
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-300/80">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/80">
               Manual send instructions
             </span>
             <p className="mt-1.5 text-xs leading-5 text-amber-100/90">

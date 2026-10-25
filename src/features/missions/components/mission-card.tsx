@@ -33,7 +33,7 @@ function AutonomyBar({ level }: { level: Mission["autonomyLevel"] }) {
           }`}
         />
       ))}
-      <span className="ml-1 text-[10px] tabular-nums text-neutral-500">{level}/5</span>
+      <span className="ml-1 text-xs tabular-nums text-neutral-400">{level}/5</span>
     </div>
   );
 }
@@ -48,12 +48,12 @@ export function MissionCard({ mission }: { mission: Mission }) {
         <h3 className="text-sm font-semibold leading-5 text-white">{mission.title}</h3>
         <div className="flex shrink-0 flex-col items-end gap-1">
           {calendarDraft ? (
-            <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+            <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
               Calendrier confirmé
             </span>
           ) : null}
           {mission.requiresApproval && !calendarDraft ? (
-            <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+            <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300">
               Approbation requise
             </span>
           ) : null}
@@ -63,14 +63,14 @@ export function MissionCard({ mission }: { mission: Mission }) {
       <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-400">{mission.objective}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className={`rounded-md border px-2 py-0.5 text-[10px] font-medium ${riskColors[mission.riskLevel]}`}>
+        <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${riskColors[mission.riskLevel]}`}>
           {riskLabels[mission.riskLevel]}
         </span>
-        <span className="rounded-md border border-neutral-700 bg-neutral-800/60 px-2 py-0.5 text-[10px] text-neutral-400">
+        <span className="rounded-md border border-neutral-700 bg-neutral-800/60 px-2 py-0.5 text-xs text-neutral-400">
           {agentLabel}
         </span>
         {mission.costBudgetCents !== undefined && (
-          <span className="rounded-md border border-neutral-700 px-2 py-0.5 text-[10px] text-neutral-500">
+          <span className="rounded-md border border-neutral-700 px-2 py-0.5 text-xs text-neutral-400">
             {(mission.costBudgetCents / 100).toFixed(2)} $
           </span>
         )}
@@ -80,16 +80,16 @@ export function MissionCard({ mission }: { mission: Mission }) {
         <AutonomyBar level={mission.autonomyLevel} />
       </div>
 
-      <p className="mt-3 text-[10px] leading-4 text-neutral-600">
-        <span className="font-medium text-neutral-500">Sortie attendue: </span>
+      <p className="mt-3 text-xs leading-4 text-neutral-400">
+        <span className="font-medium text-neutral-400">Sortie attendue: </span>
         {mission.expectedOutput.length > 80
           ? mission.expectedOutput.slice(0, 80) + "…"
           : mission.expectedOutput}
       </p>
 
       {calendarDraft ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px]">
-          <span className="font-mono text-neutral-500">{mission.id}</span>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-mono text-neutral-400">{mission.id}</span>
           <Link
             href={"/hq#ledger-activity" as Route}
             className="font-semibold text-emerald-400/90 underline-offset-2 hover:underline"
@@ -101,7 +101,7 @@ export function MissionCard({ mission }: { mission: Mission }) {
 
       {mission.status === "completed" && mission.result && (
         <div className="mt-3 rounded-lg border border-emerald-500/15 bg-emerald-500/5 p-2">
-          <p className="text-[10px] leading-4 text-emerald-300">
+          <p className="text-xs leading-4 text-emerald-300">
             {typeof mission.result["summary"] === "string"
               ? mission.result["summary"]
               : "Mission complétée."}

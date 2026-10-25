@@ -15,7 +15,7 @@ const STATUS_STYLES: Record<SkillStatus, { badge: string; dot: string; label: st
     Icon: AlertCircle,
   },
   planned: {
-    badge: "border-neutral-700 bg-neutral-900 text-neutral-500",
+    badge: "border-neutral-700 bg-neutral-900 text-neutral-400",
     dot: "bg-neutral-600",
     label: "Planifié",
     Icon: Clock,
@@ -31,7 +31,7 @@ export function SkillCard({ skill }: { skill: SkillProfile }) {
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-medium text-white">{skill.label}</h3>
         <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${status.badge}`}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${status.badge}`}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
           {status.label}
@@ -40,14 +40,14 @@ export function SkillCard({ skill }: { skill: SkillProfile }) {
 
       <p className="text-xs leading-5 text-neutral-400">{skill.description}</p>
 
-      <div className="flex items-center justify-between text-xs text-neutral-600">
+      <div className="flex items-center justify-between text-xs text-neutral-400">
         <span>Autonomie {skill.autonomyLevel}/5</span>
         <span>{skill.assignedRoles.join(", ")}</span>
       </div>
 
       {skill.outputConstraint && (
-        <p className="flex items-start gap-1.5 border-t border-neutral-800/60 pt-2 text-xs text-neutral-600">
-          <StatusIcon className="mt-0.5 h-3 w-3 shrink-0 text-neutral-700" aria-hidden="true" />
+        <p className="flex items-start gap-1.5 border-t border-neutral-800/60 pt-2 text-xs text-neutral-400">
+          <StatusIcon className="mt-0.5 h-3 w-3 shrink-0 text-neutral-400" aria-hidden="true" />
           {skill.outputConstraint}
         </p>
       )}

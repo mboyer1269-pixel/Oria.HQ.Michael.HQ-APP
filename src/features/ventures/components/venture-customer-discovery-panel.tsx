@@ -36,7 +36,7 @@ function DiscoveryList({
 }) {
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
         {title}
       </span>
       <ul className="mt-2 space-y-1">
@@ -108,26 +108,26 @@ export function VentureCustomerDiscoveryPanel({
 
               <div className="grid gap-2 sm:grid-cols-2 lg:min-w-80 lg:grid-cols-2">
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     <Users className="h-3.5 w-3.5" aria-hidden="true" />
                     ICP
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">{item.icp}</p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Persona
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">{item.persona}</p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Discovery channel
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">{item.discoveryChannel}</p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     CEO decision
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">{item.nextCeoDecision}</p>
@@ -137,7 +137,7 @@ export function VentureCustomerDiscoveryPanel({
 
             <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Why relevant
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">{item.whyRelevant}</p>
@@ -152,7 +152,7 @@ export function VentureCustomerDiscoveryPanel({
               </div>
 
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   What to ask
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">
@@ -178,8 +178,8 @@ export function VentureCustomerDiscoveryPanel({
       <div className="mt-4 flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900/60 px-3 py-2 text-xs text-neutral-400">
         <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         Local discovery target list only. No CRM, no scrape, no contact automation.
-        <Lock className="h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
-        <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+        <Lock className="h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
+        <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
       </div>
     </section>
   );

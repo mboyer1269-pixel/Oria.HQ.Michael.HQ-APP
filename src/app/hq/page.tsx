@@ -161,7 +161,7 @@ export default async function HqPage() {
         <HqSummaryRail>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Statut</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-400">Statut</p>
               <div className="mt-3 space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-emerald-300">
                   <CheckCircle2 className="h-4 w-4" />
@@ -253,22 +253,22 @@ export default async function HqPage() {
 
         <aside className="space-y-4">
           <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500">À venir</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">À venir</p>
             <h2 className="mt-2 text-xl font-semibold text-white">Packs vendables</h2>
             <div className="mt-4 space-y-3">
               {comingSoonModules.map((module) => (
                 <article key={module.title} className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/40 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="font-semibold text-white">{module.title}</h3>
-                    <span className="rounded-full border border-neutral-700 px-2 py-1 text-[11px] text-neutral-500">
+                    <span className="rounded-full border border-neutral-700 px-2 py-1 text-xs text-neutral-400">
                       à venir
                     </span>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-neutral-500">{module.text}</p>
+                  <p className="mt-2 text-sm leading-6 text-neutral-400">{module.text}</p>
                   <button
                     type="button"
                     disabled
-                    className="mt-4 inline-flex min-h-10 w-full cursor-not-allowed items-center justify-center rounded-lg border border-neutral-800 px-3 text-sm font-semibold text-neutral-600"
+                    className="mt-4 inline-flex min-h-10 w-full cursor-not-allowed items-center justify-center rounded-lg border border-neutral-800 px-3 text-sm font-semibold text-neutral-400"
                   >
                     Pas encore disponible
                   </button>
@@ -288,11 +288,11 @@ export default async function HqPage() {
               <div key={model.id} className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium text-white">{model.label}</p>
-                  <span className="rounded-full bg-neutral-800 px-2 py-1 text-[11px] text-neutral-400">
+                  <span className="rounded-full bg-neutral-800 px-2 py-1 text-xs text-neutral-400">
                     {model.provider}
                   </span>
                 </div>
-                <p className="mt-1 text-xs leading-5 text-neutral-500">{model.defaultUse}</p>
+                <p className="mt-1 text-xs leading-5 text-neutral-400">{model.defaultUse}</p>
               </div>
             ))}
           </div>
@@ -305,7 +305,7 @@ export default async function HqPage() {
             {permissionRules.map((rule) => (
               <div key={rule.id} className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-3">
                 <p className="text-sm font-medium text-white">{rule.action}</p>
-                <p className="mt-1 text-xs text-neutral-500">
+                <p className="mt-1 text-xs text-neutral-400">
                   Niveau {rule.level}/5 · {rule.requiresConfirmation ? "confirmation" : "sans friction"}
                 </p>
               </div>
@@ -329,7 +329,7 @@ export default async function HqPage() {
           {billionaireBoard.map((figure) => (
             <article key={figure.id} className="rounded-2xl border border-neutral-800 bg-neutral-900/70 p-4">
               <h3 className="font-semibold text-white">{figure.name}</h3>
-              <p className="mt-1 text-xs leading-5 text-neutral-500">{figure.domain}</p>
+              <p className="mt-1 text-xs leading-5 text-neutral-400">{figure.domain}</p>
               <p className="mt-3 text-xs text-amber-300">{figure.frameworks.slice(0, 2).join(" · ")}</p>
             </article>
           ))}

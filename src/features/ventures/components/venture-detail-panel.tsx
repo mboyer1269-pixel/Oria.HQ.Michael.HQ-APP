@@ -81,9 +81,9 @@ function Field({
 }) {
   return (
     <div className="flex items-start gap-2">
-      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
           {label}
         </p>
         <div className="mt-1 text-sm leading-6 text-neutral-300">{children}</div>
@@ -119,28 +119,28 @@ export function VentureDetailPanel({
       <header className="flex flex-col gap-3 border-b border-neutral-800/60 pb-4">
         <div className="flex flex-wrap items-center gap-2">
           {!actions && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs font-medium text-neutral-300">
               <Eye className="h-3.5 w-3.5" aria-hidden="true" />
               Lecture seule
             </span>
           )}
           {statusBadge && (
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STATUS_BADGE_CLASS[statusBadge.tone]}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${STATUS_BADGE_CLASS[statusBadge.tone]}`}
             >
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               {statusBadge.label}
             </span>
           )}
           {isLocalDraft && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-300">
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
               {LOCAL_DRAFT_VENTURE_LABEL}
             </span>
           )}
         </div>
         <h3 className="text-lg font-semibold leading-snug text-white">{card.name}</h3>
-        <div className="flex flex-wrap gap-2 text-[11px] text-neutral-400">
+        <div className="flex flex-wrap gap-2 text-xs text-neutral-400">
           <span className="rounded-full border border-neutral-800 bg-neutral-900/70 px-2 py-0.5">
             Statut : <span className="text-neutral-200">{STATUS_LABELS[card.status]}</span>
           </span>
@@ -170,27 +170,27 @@ export function VentureDetailPanel({
 
       <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4">
         <div className="flex items-center gap-2 text-neutral-400">
-          <Gauge className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <Gauge className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Score
           </span>
         </div>
         {card.score ? (
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
             <span className="tabular-nums text-white">{card.score.overallScore}/100</span>
-            <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300">
+            <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-300">
               Recommandation : {RECOMMENDATION_LABELS[card.score.recommendation]}
             </span>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-neutral-500">Pas encore scoré.</p>
+          <p className="mt-2 text-sm text-neutral-400">Pas encore scoré.</p>
         )}
       </section>
 
       <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4">
         <div className="flex items-center gap-2 text-neutral-400">
-          <FileText className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <FileText className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Plan de validation
           </span>
         </div>
@@ -198,11 +198,11 @@ export function VentureDetailPanel({
           <div className="mt-3 space-y-3 text-sm leading-6 text-neutral-300">
             <div className="flex flex-wrap gap-3 text-xs text-neutral-400">
               <span className="inline-flex items-center gap-1.5">
-                <CalendarRange className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+                <CalendarRange className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
                 Fenêtre <span className="tabular-nums text-white">{plan.windowDays} jours</span>
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <CircleDollarSign className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+                <CircleDollarSign className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
                 Budget cap{" "}
                 <span className="tabular-nums text-white">
                   {formatBudgetCents(plan.budgetCapCents)}
@@ -216,7 +216,7 @@ export function VentureDetailPanel({
               </p>
             )}
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                 Métriques de succès
               </p>
               {plan.successMetrics.length > 0 ? (
@@ -226,19 +226,19 @@ export function VentureDetailPanel({
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 text-neutral-500">—</p>
+                <p className="mt-1 text-neutral-400">—</p>
               )}
             </div>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-neutral-500">Aucun plan de validation défini.</p>
+          <p className="mt-2 text-sm text-neutral-400">Aucun plan de validation défini.</p>
         )}
       </section>
 
       <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4">
         <div className="flex items-center gap-2 text-neutral-400">
-          <ShieldCheck className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <ShieldCheck className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Critères de kill
           </span>
         </div>
@@ -248,21 +248,21 @@ export function VentureDetailPanel({
               <li key={criterion.id}>
                 <span className="font-semibold text-neutral-400">{criterion.metric}</span>{" "}
                 {criterion.threshold}{" "}
-                <span className="text-neutral-500">
+                <span className="text-neutral-400">
                   ({criterion.evaluationWindowDays} jours · {criterion.consequence})
                 </span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-neutral-500">Aucun critère de kill défini.</p>
+          <p className="mt-2 text-sm text-neutral-400">Aucun critère de kill défini.</p>
         )}
       </section>
 
       <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4">
         <div className="flex items-center gap-2 text-neutral-400">
-          <ShieldCheck className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <ShieldCheck className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Profil d&apos;autonomie
           </span>
         </div>
@@ -271,7 +271,7 @@ export function VentureDetailPanel({
             <li key={rule.domain} className="flex items-center justify-between gap-3">
               <span className="text-neutral-300">{rule.domain}</span>
               <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
                   rule.riskTier === "forbidden"
                     ? "border-red-500/20 bg-red-500/10 text-red-300"
                     : rule.requiresApproval
@@ -289,7 +289,7 @@ export function VentureDetailPanel({
           ))}
         </ul>
         {card.autonomyProfile.notes && (
-          <p className="mt-2 text-[11px] leading-5 text-neutral-500">
+          <p className="mt-2 text-xs leading-5 text-neutral-400">
             {card.autonomyProfile.notes}
           </p>
         )}
@@ -297,8 +297,8 @@ export function VentureDetailPanel({
 
       <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4">
         <div className="flex items-center gap-2 text-neutral-400">
-          <Bot className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <Bot className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Agents assignés
           </span>
         </div>
@@ -307,21 +307,21 @@ export function VentureDetailPanel({
             {card.assignedAgents.map((agent) => (
               <li key={agent.agentId}>
                 <span className="font-semibold text-neutral-200">{agent.role}</span>{" "}
-                <span className="text-neutral-500">
+                <span className="text-neutral-400">
                   ({agent.agentId} · {AGENT_STATUS_LABELS[agent.status]})
                 </span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-neutral-500">Aucun agent assigné.</p>
+          <p className="mt-2 text-sm text-neutral-400">Aucun agent assigné.</p>
         )}
       </section>
 
       <section className="rounded-2xl border border-neutral-800/80 bg-neutral-900/40 p-4">
         <div className="flex items-center gap-2 text-neutral-400">
-          <ScrollText className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <ScrollText className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
             Décisions
           </span>
         </div>
@@ -331,12 +331,12 @@ export function VentureDetailPanel({
               <li key={decision.id}>
                 <span className="font-semibold text-neutral-200">{decision.type}</span> —{" "}
                 {decision.summary}{" "}
-                <span className="text-neutral-500">({decision.decidedBy})</span>
+                <span className="text-neutral-400">({decision.decidedBy})</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-sm text-neutral-500">Aucune décision enregistrée.</p>
+          <p className="mt-2 text-sm text-neutral-400">Aucune décision enregistrée.</p>
         )}
       </section>
 
@@ -346,7 +346,7 @@ export function VentureDetailPanel({
 
       {actions}
 
-      <footer className="mt-auto border-t border-neutral-800/60 pt-3 text-[11px] leading-5 text-neutral-500">
+      <footer className="mt-auto border-t border-neutral-800/60 pt-3 text-xs leading-5 text-neutral-400">
         {actions
           ? "Édition, archivage et kill passent par le repository. Aucune suppression définitive, aucune dépense, aucun envoi externe."
           : "Vue en lecture seule — aucune action (éditer, supprimer, activer, dépenser) n'est déclenchée depuis ce panneau."}

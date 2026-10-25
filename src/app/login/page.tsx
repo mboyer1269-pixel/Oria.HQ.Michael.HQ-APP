@@ -37,7 +37,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
 
           <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase text-neutral-500">Oria · Michael HQ</p>
+            <p className="text-xs font-semibold uppercase text-neutral-400">Oria · Michael HQ</p>
             <h1 className="text-2xl font-bold text-white sm:text-4xl">Connexion au workspace</h1>
             <p className="text-sm leading-6 text-neutral-400">
               Accès réservé. Entre ton email et ton mot de passe pour ouvrir Michael HQ.

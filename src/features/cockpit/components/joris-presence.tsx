@@ -84,12 +84,12 @@ export function JorisPresence({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[12px] font-bold text-[#eff1fb]">Joris</span>
           <span
-            className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${tokens.badge}`}
+            className={`rounded-full border px-2 py-0.5 text-xs font-bold ${tokens.badge}`}
           >
             {label}
           </span>
         </div>
-        <p className="mt-0.5 truncate text-[11px] text-[#6f7899]">{detail}</p>
+        <p className="mt-0.5 truncate text-xs text-[#a9b0cc]">{detail}</p>
       </div>
     </div>
   );

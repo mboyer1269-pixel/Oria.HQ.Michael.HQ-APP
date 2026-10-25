@@ -112,7 +112,7 @@ export function ContactLeadForm() {
 
         <div className="grid gap-3 md:grid-cols-2">
           <label className="space-y-2 text-sm font-medium text-neutral-200">
-            Téléphone <span className="text-neutral-500">(optionnel)</span>
+            Téléphone <span className="text-neutral-400">(optionnel)</span>
             <input
               name="phone"
               maxLength={40}
@@ -122,7 +122,7 @@ export function ContactLeadForm() {
             />
           </label>
           <label className="space-y-2 text-sm font-medium text-neutral-200">
-            Entreprise <span className="text-neutral-500">(optionnel)</span>
+            Entreprise <span className="text-neutral-400">(optionnel)</span>
             <input
               name="company"
               maxLength={160}
@@ -154,11 +154,11 @@ export function ContactLeadForm() {
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <p className="text-xs leading-5 text-neutral-500">Confidentiel · Aucun spam · Suivi humain</p>
+          <p className="text-xs leading-5 text-neutral-400">Confidentiel · Aucun spam · Suivi humain</p>
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 font-semibold text-neutral-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 md:w-auto"
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 font-semibold text-neutral-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-400 md:w-auto"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             {loading ? "Envoi en cours..." : "Envoyer la demande"}

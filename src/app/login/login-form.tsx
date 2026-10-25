@@ -12,7 +12,7 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-3 text-sm font-bold text-neutral-950 shadow-sm transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500"
+      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-3 text-sm font-bold text-neutral-950 shadow-sm transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-400"
     >
       {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
       {pending ? "Connexion en cours..." : "Entrer dans Michael HQ"}
@@ -70,7 +70,7 @@ export function LoginForm({ initialState }: { initialState: LoginFormState }) {
 
       <SubmitButton />
 
-      <p className="text-center text-xs leading-5 text-neutral-500">
+      <p className="text-center text-xs leading-5 text-neutral-400">
         Accès réservé au workspace privé. Aucun accès public n&apos;est offert ici.
       </p>
     </form>

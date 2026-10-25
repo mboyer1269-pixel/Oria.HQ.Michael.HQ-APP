@@ -116,7 +116,7 @@ export function VehicleMakeModelSelects({
   }
 
   const labelClass =
-    size === "sm" ? "text-[10px] font-semibold text-neutral-500" : "text-[11px] font-semibold text-neutral-400";
+    size === "sm" ? "text-xs font-semibold text-neutral-400" : "text-xs font-semibold text-neutral-400";
 
   if (loadState === "loading") {
     return (

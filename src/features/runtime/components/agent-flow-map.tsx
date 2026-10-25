@@ -264,11 +264,11 @@ export function AgentFlowMap({ data }: { data: AgentFlowData }) {
       </div>
 
       <aside className="flex max-h-[420px] flex-col gap-1.5 overflow-y-auto rounded-2xl border border-white/[0.07] bg-black/25 p-3">
-        <p className="px-1 text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-500">
+        <p className="px-1 text-xs font-extrabold uppercase tracking-[0.22em] text-neutral-400">
           Trace récente — survole pour voir le chemin
         </p>
         {data.recentEvents.length === 0 ? (
-          <p className="px-1 py-3 text-xs text-neutral-600">
+          <p className="px-1 py-3 text-xs text-neutral-400">
             Aucun événement ledger encore. Le premier envoi du Send Desk allumera ce graphe.
           </p>
         ) : (
@@ -290,18 +290,18 @@ export function AgentFlowMap({ data }: { data: AgentFlowData }) {
                     : "border-white/[0.05] bg-white/[0.02] hover:border-white/15"
                 }`}
               >
-                <p className="flex items-center gap-1.5 text-[11px] font-semibold text-neutral-200">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-neutral-200">
                   <Bot className="h-3 w-3 shrink-0 text-sky-400" />
                   {event.agentId ?? "système"}
-                  <span className="text-neutral-600">→</span>
+                  <span className="text-neutral-400">→</span>
                   <ShieldCheck className="h-3 w-3 shrink-0 text-amber-400" />
-                  <span className="text-neutral-600">→</span>
+                  <span className="text-neutral-400">→</span>
                   <SurfaceIcon className="h-3 w-3 shrink-0 text-emerald-400" />
-                  <span className="text-neutral-600">→</span>
+                  <span className="text-neutral-400">→</span>
                   <ScrollText className="h-3 w-3 shrink-0 text-violet-400" />
                 </p>
-                <p className="mt-1 truncate text-[11px] text-neutral-400">{event.summary}</p>
-                <p className="mt-0.5 text-[10px] tabular-nums text-neutral-600">
+                <p className="mt-1 truncate text-xs text-neutral-400">{event.summary}</p>
+                <p className="mt-0.5 text-xs tabular-nums text-neutral-400">
                   {event.actionType} ·{" "}
                   {new Date(event.createdAt).toLocaleTimeString("fr-CA", {
                     hour: "2-digit",

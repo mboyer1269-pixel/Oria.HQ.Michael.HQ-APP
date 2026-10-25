@@ -18,7 +18,7 @@ export default async function DocumentsDashboard() {
       <section className="rounded-3xl border border-neutral-800 bg-neutral-950/80 p-6 md:p-8">
         <Link
           href={"/hq" as Route}
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-500 transition hover:text-neutral-300"
+          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 transition hover:text-neutral-300"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Michael HQ

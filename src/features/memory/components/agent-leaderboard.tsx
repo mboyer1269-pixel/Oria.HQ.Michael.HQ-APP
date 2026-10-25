@@ -26,7 +26,7 @@ export function AgentLeaderboard({ scores }: { scores: AgentScore[] }) {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Agent Leaderboard</p>
           <h2 className="mt-2 text-xl font-semibold text-white">Performance des agents Hermes</h2>
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs text-neutral-400">
             Score = impact revenu + outputs acceptés + vitesse + qualité + efficience coût − incidents − rework.
           </p>
         </div>
@@ -36,7 +36,7 @@ export function AgentLeaderboard({ scores }: { scores: AgentScore[] }) {
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-neutral-500">
+            <tr className="text-left text-xs uppercase tracking-wide text-neutral-400">
               <th className="pb-2 pr-3 font-medium">#</th>
               <th className="pb-2 pr-3 font-medium">Agent</th>
               <th className="pb-2 pr-3 text-right font-medium">Score</th>
@@ -49,10 +49,10 @@ export function AgentLeaderboard({ scores }: { scores: AgentScore[] }) {
           <tbody>
             {ranked.map((agent, index) => (
               <tr key={agent.agentId} className="border-t border-neutral-800/80">
-                <td className="py-3 pr-3 text-neutral-500">{index + 1}</td>
+                <td className="py-3 pr-3 text-neutral-400">{index + 1}</td>
                 <td className="py-3 pr-3">
                   <p className="font-medium text-white">{agent.agentName}</p>
-                  <p className="mt-0.5 max-w-xs text-[11px] leading-4 text-neutral-500">{agent.notes}</p>
+                  <p className="mt-0.5 max-w-xs text-xs leading-4 text-neutral-400">{agent.notes}</p>
                 </td>
                 <td className={`py-3 pr-3 text-right text-base font-bold tabular-nums ${scoreClass(agent.score)}`}>
                   {agent.score}
@@ -69,7 +69,7 @@ export function AgentLeaderboard({ scores }: { scores: AgentScore[] }) {
                       {agent.riskIncidents}
                     </span>
                   ) : (
-                    <span className="text-neutral-600">0</span>
+                    <span className="text-neutral-400">0</span>
                   )}
                 </td>
               </tr>
@@ -78,7 +78,7 @@ export function AgentLeaderboard({ scores }: { scores: AgentScore[] }) {
         </table>
       </div>
 
-      <p className="mt-3 text-[11px] text-neutral-600">
+      <p className="mt-3 text-xs text-neutral-400">
         Un agent peut scorer haut sans cash direct s&apos;il protège la holding (ex. Hermes Auditor).
       </p>
     </section>

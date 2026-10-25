@@ -63,7 +63,7 @@ export function MissionSystemStatus() {
       aria-label="Mission system status"
       className="rounded-2xl border border-neutral-800 bg-neutral-950/60 px-4 py-3"
     >
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
         État du système
       </p>
       <ul className="flex flex-wrap gap-2">
@@ -78,7 +78,7 @@ export function MissionSystemStatus() {
               <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${styles.dot}`} aria-hidden="true" />
               <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
               <span className="font-medium">{item.label}</span>
-              <span className="text-neutral-500">—</span>
+              <span className="text-neutral-400">—</span>
               <span className="opacity-70">{item.detail}</span>
             </li>
           );

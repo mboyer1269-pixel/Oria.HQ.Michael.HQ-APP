@@ -57,7 +57,7 @@ const GUARDRAIL_ITEMS = [
 function StatusPill({ level, label }: { level: SnapshotLevel; label?: string }) {
   const style = LEVEL_STYLES[level];
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] ${style.badge}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${style.badge}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} aria-hidden="true" />
       {label ?? style.text}
     </span>
@@ -67,7 +67,7 @@ function StatusPill({ level, label }: { level: SnapshotLevel; label?: string }) 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 px-3 py-2">
-      <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">{label}</p>
+      <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">{label}</p>
       <p className="mt-1 tabular-nums text-lg font-semibold text-white">{value}</p>
     </div>
   );
@@ -119,9 +119,9 @@ export async function OperatorSnapshot() {
           </p>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 px-4 py-3">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Workspace</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-neutral-400">Workspace</p>
           <p className="mt-1 font-mono text-sm text-white">{activeWorkspace.id}</p>
-          <p className="mt-1 text-xs text-neutral-500">Missions : {source === "supabase" ? "Supabase" : "locale"}</p>
+          <p className="mt-1 text-xs text-neutral-400">Missions : {source === "supabase" ? "Supabase" : "locale"}</p>
         </div>
       </div>
 
@@ -140,7 +140,7 @@ export async function OperatorSnapshot() {
           <FactRow label="VPS" value="non déployé" level="locked" />
           <FactRow label="Canary" value={RUNTIME_HEALTH_ECHO_SKILL_ID} level="enabled" />
           <FactRow label="Mode" value="dry-run / lecture seule" level="partial" />
-          <p className="mt-3 font-mono text-xs text-neutral-500">
+          <p className="mt-3 font-mono text-xs text-neutral-400">
             {LOCAL_RUNTIME_ID} · {LOCAL_RUNTIME_VERSION}
           </p>
         </article>
@@ -176,7 +176,7 @@ export async function OperatorSnapshot() {
             {GUARDRAIL_ITEMS.map((item) => (
               <div key={item.code} className="rounded-lg border border-neutral-800 bg-neutral-950/60 px-3 py-2">
                 <p className="text-xs font-medium text-white">{item.label}</p>
-                <p className="mt-1 font-mono text-[11px] text-emerald-200">{item.code}</p>
+                <p className="mt-1 font-mono text-xs text-emerald-200">{item.code}</p>
               </div>
             ))}
           </div>

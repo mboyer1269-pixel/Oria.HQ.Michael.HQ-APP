@@ -109,7 +109,7 @@ export function PrivateHqOverview() {
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-neutral-700 bg-neutral-950 text-amber-300">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <span className="rounded-md border border-neutral-700 px-2 py-1 text-[11px] text-neutral-400">
+                  <span className="rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-400">
                     {zone.status}
                   </span>
                 </div>
@@ -132,7 +132,7 @@ export function PrivateHqOverview() {
                     </a>
                   )
                 ) : (
-                  <span className="mt-4 inline-flex text-sm font-semibold text-neutral-600" aria-disabled="true">
+                  <span className="mt-4 inline-flex text-sm font-semibold text-neutral-400" aria-disabled="true">
                     {zone.cta}
                   </span>
                 )}

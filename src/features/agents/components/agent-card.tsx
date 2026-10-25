@@ -44,7 +44,7 @@ const STATUS_STYLES: Record<AgentStatus, { badge: string; dot: string; label: st
     label: "Verrouillé",
   },
   planned: {
-    badge: "border-neutral-700 bg-neutral-900 text-neutral-500",
+    badge: "border-neutral-700 bg-neutral-900 text-neutral-400",
     dot: "bg-neutral-600",
     label: "Planifié",
   },
@@ -74,11 +74,11 @@ export function AgentCard({ agent }: { agent: AgentProfile }) {
                 agent.name
               )}
             </h3>
-            <p className="text-xs text-neutral-500">{agent.tagline}</p>
+            <p className="text-xs text-neutral-400">{agent.tagline}</p>
           </div>
         </div>
         <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${status.badge}`}
+          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${status.badge}`}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
           {status.label}
@@ -87,7 +87,7 @@ export function AgentCard({ agent }: { agent: AgentProfile }) {
 
       <p className="text-sm leading-6 text-neutral-400">{agent.description}</p>
 
-      <div className="flex items-center justify-between gap-2 text-xs text-neutral-500">
+      <div className="flex items-center justify-between gap-2 text-xs text-neutral-400">
         <span className="flex items-center gap-1.5">
           <Eye className="h-3.5 w-3.5" aria-hidden="true" />
           {agent.skillIds.length} skill{agent.skillIds.length !== 1 ? "s" : ""}
@@ -98,8 +98,8 @@ export function AgentCard({ agent }: { agent: AgentProfile }) {
       {agent.constraints.length > 0 && (
         <ul className="space-y-1 border-t border-neutral-800/60 pt-3">
           {agent.constraints.map((c) => (
-            <li key={c} className="flex items-start gap-1.5 text-xs text-neutral-600">
-              <Lock className="mt-0.5 h-3 w-3 shrink-0 text-neutral-700" aria-hidden="true" />
+            <li key={c} className="flex items-start gap-1.5 text-xs text-neutral-400">
+              <Lock className="mt-0.5 h-3 w-3 shrink-0 text-neutral-400" aria-hidden="true" />
               {c}
             </li>
           ))}

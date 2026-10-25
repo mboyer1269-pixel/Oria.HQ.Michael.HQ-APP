@@ -36,10 +36,10 @@ export function AgentVentureWorkbenchWithForm() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Analyse a New Opportunity
           </h2>
-          <p className="text-[11px] text-neutral-500">
+          <p className="text-xs text-neutral-400">
             Local draft only — nothing is saved, sent, or executed.
           </p>
         </div>
@@ -48,10 +48,10 @@ export function AgentVentureWorkbenchWithForm() {
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Revenue Priority Queue
           </h2>
-          <p className="text-[11px] text-neutral-500">
+          <p className="text-xs text-neutral-400">
             Ranked locally from the current workbench items against the revenue operating loop.
             Read-only. No execution authorized.
           </p>
@@ -61,10 +61,10 @@ export function AgentVentureWorkbenchWithForm() {
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Venture Offer Builder
           </h2>
-          <p className="text-[11px] text-neutral-500">
+          <p className="text-xs text-neutral-400">
             Drafts a buyer-facing offer from each local workbench item. Read-only. No execution
             authorized.
           </p>
@@ -74,10 +74,10 @@ export function AgentVentureWorkbenchWithForm() {
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Customer Discovery Target List
           </h2>
-          <p className="text-[11px] text-neutral-500">
+          <p className="text-xs text-neutral-400">
             Ranked local segments, personas, and questions for discovery. Read-only. No contact or
             CRM writes.
           </p>
@@ -87,10 +87,10 @@ export function AgentVentureWorkbenchWithForm() {
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Revenue Validation Sprint Planner
           </h2>
-          <p className="text-[11px] text-neutral-500">
+          <p className="text-xs text-neutral-400">
             Drafts a validation sprint from the current workbench items. Read-only. No execution
             authorized.
           </p>
@@ -100,10 +100,10 @@ export function AgentVentureWorkbenchWithForm() {
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Revenue Validation Agent Work Queue
           </h2>
-          <p className="text-[11px] text-neutral-500">
+          <p className="text-xs text-neutral-400">
             Draft tasks for Research, Offer, Sales, Ops, and Finance agents. Read-only. No
             execution authorized.
           </p>
@@ -113,10 +113,10 @@ export function AgentVentureWorkbenchWithForm() {
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Agent Venture Workbench
           </h2>
-          <p className="text-[11px] text-neutral-500">
+          <p className="text-xs text-neutral-400">
             {draftItem
               ? "Live draft (first card) + example workbenches. Read-only. No execution authorized."
               : "Prepared by agents for CEO review. Read-only. No execution authorized."}

@@ -305,10 +305,10 @@ export function VentureCommandCenterClient({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
             Cartes ventures
           </h2>
-          <p className="mt-1 text-[11px] text-neutral-500">
+          <p className="mt-1 text-xs text-neutral-400">
             {savedCards.length > 0
               ? `${savedCards.length} candidate${savedCards.length > 1 ? "s" : ""} sauvegardée${
                   savedCards.length > 1 ? "s" : ""
@@ -371,7 +371,7 @@ export function VentureCommandCenterClient({
             return (
               <div key={display.card.id} className="flex flex-col gap-1.5">
                 <span
-                  className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${TONE_BADGE_CLASS[badge.tone]}`}
+                  className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${TONE_BADGE_CLASS[badge.tone]}`}
                 >
                   {display.kind === "demo" ? (
                     <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
@@ -415,7 +415,7 @@ export function VentureCommandCenterClient({
               <p className="text-sm font-medium text-neutral-300">
                 Sélectionne une carte pour voir le détail
               </p>
-              <p className="text-xs leading-5 text-neutral-500">
+              <p className="text-xs leading-5 text-neutral-400">
                 Crée une candidate via « Nouvelle venture », puis édite, archive ou tue une venture
                 sauvegardée depuis son panneau de détail.
               </p>

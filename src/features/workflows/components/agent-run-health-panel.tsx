@@ -52,7 +52,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 px-3 py-2">
-      <p className="text-[10px] uppercase tracking-[0.14em] text-neutral-500">{label}</p>
+      <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">{label}</p>
       <p className={`mt-0.5 tabular-nums text-base font-semibold ${tone}`}>{value}</p>
     </div>
   );
@@ -78,7 +78,7 @@ function HealthCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold text-white">{name}</h3>
-        <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+        <div className="flex items-center gap-1.5 text-xs text-neutral-400">
           <span className="tabular-nums">{health.total} run{health.total > 1 ? "s" : ""}</span>
           {hasStuck ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-bold uppercase tracking-wide text-rose-200">
@@ -98,7 +98,7 @@ function HealthCard({
         <Stat label="Taux d'échec" value={`${health.failureRatePct}%`} tone={failureTone(health.failureRatePct)} />
       </div>
 
-      <p className="mt-2.5 flex items-center gap-1.5 text-[11px] text-neutral-500">
+      <p className="mt-2.5 flex items-center gap-1.5 text-xs text-neutral-400">
         <Clock className="h-3 w-3" />
         Dernier run : {formatLastRun(health.lastRunAtMs, nowMs)}
       </p>
@@ -121,7 +121,7 @@ export function AgentRunHealthPanel({
     return (
       <div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/40 px-5 py-8 text-center">
         <p className="text-sm font-semibold text-neutral-300">Aucun run observé</p>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-neutral-400">
           La santé des agents s&apos;allumera dès que des runs réels seront projetés depuis le ledger.
         </p>
       </div>
@@ -166,7 +166,7 @@ function RollupStat({
 }) {
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-neutral-400">
         <Icon className="h-3 w-3" />
         {label}
       </p>

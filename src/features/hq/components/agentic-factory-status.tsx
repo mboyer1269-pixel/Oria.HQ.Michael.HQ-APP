@@ -111,7 +111,7 @@ export function AgenticFactoryStatus() {
     <section className="rounded-3xl border border-neutral-800 bg-neutral-950/70 p-5">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-500">Antigravity</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-neutral-400">Antigravity</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">Agentic Factory Status</h2>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-neutral-500/20 bg-neutral-500/10 px-3 py-1 text-xs text-neutral-300">
@@ -130,16 +130,16 @@ export function AgenticFactoryStatus() {
               <p className="mt-1 text-xs leading-5 text-neutral-400">{item.description}</p>
             </div>
             <div>
-              <div className={`mt-4 inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide font-medium ${item.badge}`}>
+              <div className={`mt-4 inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-xs uppercase tracking-wide font-medium ${item.badge}`}>
                 {item.state}
               </div>
-              <p className="mt-1.5 text-[10px] leading-4 text-neutral-600">source : {item.source}</p>
+              <p className="mt-1.5 text-xs leading-4 text-neutral-400">source : {item.source}</p>
             </div>
           </article>
         ))}
       </div>
 
-      <p className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/40 p-3 text-[11px] leading-5 text-neutral-400">
+      <p className="mt-4 rounded-2xl border border-neutral-800 bg-neutral-900/40 p-3 text-xs leading-5 text-neutral-400">
         <span className="font-semibold text-neutral-300">Périmètre de l&apos;inventaire —</span>{" "}
         couvre {INVENTORY_SCOPE.covers}. Exclut {INVENTORY_SCOPE.excludes}. Les comptes
         ci-dessus portent sur ce périmètre, pas sur l&apos;ensemble du runtime.
@@ -153,11 +153,11 @@ export function AgenticFactoryStatus() {
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-medium text-white">{capability.label}</p>
-              <span className="text-[11px] text-neutral-400">
+              <span className="text-xs text-neutral-400">
                 {EFFECT_LABEL[capability.effect]} · {GATE_LABEL[capability.gate]}
               </span>
             </div>
-            <p className="mt-1 text-xs leading-5 text-neutral-500">{capability.detail}</p>
+            <p className="mt-1 text-xs leading-5 text-neutral-400">{capability.detail}</p>
           </li>
         ))}
       </ul>

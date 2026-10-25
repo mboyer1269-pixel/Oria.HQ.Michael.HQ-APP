@@ -23,7 +23,7 @@ function SkillChips({
   };
 
   if (items.length === 0) {
-    return emptyLabel ? <p className="text-xs text-neutral-600">{emptyLabel}</p> : null;
+    return emptyLabel ? <p className="text-xs text-neutral-400">{emptyLabel}</p> : null;
   }
 
   return (
@@ -32,7 +32,7 @@ function SkillChips({
         <li
           key={item.id}
           title={item.reason}
-          className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${styles[tone]}`}
+          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${styles[tone]}`}
         >
           {item.label}
           <span className="ml-1 text-current/60">· {STATUS_LABEL[item.status]}</span>
@@ -62,25 +62,25 @@ export function AgentAutonomyPolicyPanel({ model }: { model: AgentAutonomyCockpi
 
         <div className="grid shrink-0 grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:w-[31rem]">
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Autonomes</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Autonomes</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-emerald-300">
               {model.summary.autonomousCapabilities}
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Approbation</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Approbation</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-amber-300">
               {model.summary.approvalRequiredCapabilities}
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Bloquees</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Bloquees</p>
             <p className="mt-1 tabular-nums text-2xl font-semibold text-red-300">
               {model.summary.blockedCapabilities}
             </p>
           </div>
           <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-neutral-500">Modele</p>
+            <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Modele</p>
             <p className="mt-2 text-xs font-medium text-violet-300">
               {model.summary.providerModeLabel}
             </p>
@@ -90,7 +90,7 @@ export function AgentAutonomyPolicyPanel({ model }: { model: AgentAutonomyCockpi
 
       <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_18rem]">
         <div className="overflow-hidden rounded-xl border border-neutral-800">
-          <div className="hidden grid-cols-[1.05fr_1fr_1fr] gap-3 border-b border-neutral-800 bg-neutral-900/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500 md:grid">
+          <div className="hidden grid-cols-[1.05fr_1fr_1fr] gap-3 border-b border-neutral-800 bg-neutral-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-400 md:grid">
             <span>Agent</span>
             <span>Autonome</span>
             <span>Approbation / blocage</span>
@@ -104,12 +104,12 @@ export function AgentAutonomyPolicyPanel({ model }: { model: AgentAutonomyCockpi
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-white">{agent.name}</span>
-                    <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-400">
+                    <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-400">
                       {agent.role}
                     </span>
-                    <span className="text-xs text-neutral-500">L{agent.autonomyLevel}/5</span>
+                    <span className="text-xs text-neutral-400">L{agent.autonomyLevel}/5</span>
                   </div>
-                  <p className="mt-1 text-xs text-neutral-600">
+                  <p className="mt-1 text-xs text-neutral-400">
                     Provider lock-in: non · execution directe: non
                   </p>
                 </div>
@@ -136,7 +136,7 @@ export function AgentAutonomyPolicyPanel({ model }: { model: AgentAutonomyCockpi
                       {agent.missingSkillIds.map((id) => (
                         <li
                           key={id}
-                          className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 font-mono text-[11px] text-red-300"
+                          className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 font-mono text-xs text-red-300"
                         >
                           missing: {id}
                         </li>
@@ -158,7 +158,7 @@ export function AgentAutonomyPolicyPanel({ model }: { model: AgentAutonomyCockpi
             {model.blockedCapabilities.map((capability) => (
               <li key={capability.id} className="text-xs leading-5 text-neutral-400">
                 <span className="font-medium text-red-200">{capability.label}</span>
-                <span className="text-neutral-600"> · </span>
+                <span className="text-neutral-400"> · </span>
                 {capability.description}
               </li>
             ))}
@@ -166,7 +166,7 @@ export function AgentAutonomyPolicyPanel({ model }: { model: AgentAutonomyCockpi
         </aside>
       </div>
 
-      <div className="mt-4 grid gap-2 text-xs text-neutral-500 md:grid-cols-3">
+      <div className="mt-4 grid gap-2 text-xs text-neutral-400 md:grid-cols-3">
         <p className="flex items-center gap-2">
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
           Analyse, plans, recherche et brouillons internes peuvent monter haut en autonomie.

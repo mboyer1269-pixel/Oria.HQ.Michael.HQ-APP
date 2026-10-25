@@ -114,20 +114,20 @@ function ChainlineRail({
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {path.steps.map((step, index) => (
           <span key={`${step.stage}-${step.targetId}`} className="flex items-center gap-1.5">
-            {index > 0 && <span className="text-neutral-700">→</span>}
+            {index > 0 && <span className="text-neutral-400">→</span>}
             <button
               type="button"
               onClick={() => step.resolved && onSelect(step.targetId)}
-              className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+              className={`rounded-full border px-2 py-0.5 text-xs transition ${
                 step.targetId === selectedId
                   ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                   : step.resolved
                     ? "border-neutral-700 bg-neutral-900 text-neutral-300 hover:border-neutral-500"
-                    : "cursor-default border-dashed border-neutral-800 text-neutral-600"
+                    : "cursor-default border-dashed border-neutral-800 text-neutral-400"
               }`}
               title={step.resolved ? step.label : `Non résolu: ${step.label}`}
             >
-              <span className="mr-1 uppercase tracking-wide text-[9px] text-neutral-500">
+              <span className="mr-1 uppercase tracking-wide text-xs text-neutral-400">
                 {step.stage}
               </span>
               {truncate(step.label, 28)}
@@ -136,7 +136,7 @@ function ChainlineRail({
         ))}
       </div>
       {path.missingStages.length > 0 && (
-        <p className="mt-2 text-[11px] text-neutral-600">
+        <p className="mt-2 text-xs text-neutral-400">
           Étapes absentes : {path.missingStages.join(", ")}
         </p>
       )}
@@ -277,7 +277,7 @@ export function MemoryVaultExplorer({
               <p className="text-sm text-neutral-400">
                 Sélectionne un nœud pour voir le détail, les backlinks et la chainline.
               </p>
-              <p className="text-xs text-neutral-600">
+              <p className="text-xs text-neutral-400">
                 {graph.nodes.filter((n) => !n.missing).length} entrées ·{" "}
                 {graph.edges.length} liens · {graph.orphanIds.length} orphelins
               </p>
@@ -286,7 +286,7 @@ export function MemoryVaultExplorer({
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <TypeBadge type={selectedNode.type} />
-                <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-500">
+                <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-400">
                   {selectedNode.status}
                 </span>
               </div>
@@ -294,7 +294,7 @@ export function MemoryVaultExplorer({
                 {selectedNode.title}
               </h3>
               {selectedNode.missing ? (
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs text-neutral-400">
                   Cible référencée mais sans entrée dans la vault — à créer.
                 </p>
               ) : selectedEntry ? (
@@ -307,7 +307,7 @@ export function MemoryVaultExplorer({
                       {selectedEntry.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-500"
+                          className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-400"
                         >
                           #{tag}
                         </span>
@@ -315,20 +315,20 @@ export function MemoryVaultExplorer({
                     </div>
                   )}
                   {selectedEntry.sourceRefs.length > 0 && (
-                    <div className="text-xs text-neutral-600">
-                      <span className="text-neutral-500">Refs:</span>{" "}
+                    <div className="text-xs text-neutral-400">
+                      <span className="text-neutral-400">Refs:</span>{" "}
                       {selectedEntry.sourceRefs.join(" · ")}
                     </div>
                   )}
                   {selectedEntry.filePath && (
-                    <p className="truncate text-xs text-neutral-700">{selectedEntry.filePath}</p>
+                    <p className="truncate text-xs text-neutral-400">{selectedEntry.filePath}</p>
                   )}
                 </>
               ) : null}
 
               {selectedEntry && selectedEntry.links.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
                     Liens sortants
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -337,7 +337,7 @@ export function MemoryVaultExplorer({
                         key={`${link.refKind ?? link.targetType ?? ""}:${link.targetId}`}
                         type="button"
                         onClick={() => setSelectedId(link.targetId)}
-                        className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300 transition hover:border-neutral-500"
+                        className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-300 transition hover:border-neutral-500"
                       >
                         {truncate(link.raw, 36)}
                       </button>
@@ -348,7 +348,7 @@ export function MemoryVaultExplorer({
 
               {selectedBacklinks.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
                     Backlinks
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -357,7 +357,7 @@ export function MemoryVaultExplorer({
                         key={id}
                         type="button"
                         onClick={() => setSelectedId(id)}
-                        className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300 transition hover:border-neutral-500"
+                        className="rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-300 transition hover:border-neutral-500"
                       >
                         {truncate(entryById.get(id)?.title ?? id, 36)}
                       </button>
@@ -373,7 +373,7 @@ export function MemoryVaultExplorer({
       {/* Chainlines */}
       {selectedChainlines.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-neutral-400">
             Chainlines — source → note → décision → action → ledger → PR → next
           </p>
           {selectedChainlines.map((path) => (

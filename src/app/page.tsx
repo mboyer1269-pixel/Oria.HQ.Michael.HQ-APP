@@ -88,7 +88,7 @@ export default function Home() {
             {guarantees.map((guarantee) => {
               const Icon = guarantee.icon;
               return (
-                <li key={guarantee.text} className="inline-flex items-center gap-2 text-xs text-neutral-500">
+                <li key={guarantee.text} className="inline-flex items-center gap-2 text-xs text-neutral-400">
                   <Icon className="h-3.5 w-3.5 text-emerald-400/80" />
                   {guarantee.text}
                 </li>
@@ -116,7 +116,7 @@ export default function Home() {
         })}
       </section>
 
-      <footer className="border-t border-neutral-900 py-6 text-center text-xs text-neutral-600">
+      <footer className="border-t border-neutral-900 py-6 text-center text-xs text-neutral-400">
         Oria HQ — vos agents agissent dans des corridors approuvés. Rien ne part sans votre clic.
       </footer>
     </main>

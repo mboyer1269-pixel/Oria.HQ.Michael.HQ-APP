@@ -45,7 +45,7 @@ export function MissionFlowLegend() {
       aria-label="Légende des flux mission"
       className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
         Lire le pipeline
       </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">

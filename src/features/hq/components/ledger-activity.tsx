@@ -26,14 +26,14 @@ const EVENT_TYPE_STYLES: Record<LedgerEventType, string> = {
 function EventTypeBadge({ eventType }: { eventType: LedgerEventType | undefined }) {
   if (!eventType) {
     return (
-      <span className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-400">
+      <span className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-400">
         Non typé
       </span>
     );
   }
 
   return (
-    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${EVENT_TYPE_STYLES[eventType]}`}>
+    <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${EVENT_TYPE_STYLES[eventType]}`}>
       {getLedgerEventTypeLabel(eventType)}
     </span>
   );
@@ -49,15 +49,15 @@ function MissionTraceBadge({ trace }: { trace: LedgerMissionTrace }) {
   return (
     <div className="space-y-1">
       <span
-        className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-medium ${MISSION_TRACE_STYLES[trace.kind]}`}
+        className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${MISSION_TRACE_STYLES[trace.kind]}`}
       >
         {getMissionTraceLabel(trace)}
       </span>
       {trace.kind === "linked" && trace.missionStatus ? (
-        <p className="text-[11px] text-neutral-500">{trace.missionStatus}</p>
+        <p className="text-xs text-neutral-400">{trace.missionStatus}</p>
       ) : null}
       {trace.kind === "unknown_ref" && trace.missionId ? (
-        <p className="font-mono text-[11px] text-amber-100/80">{trace.missionId}</p>
+        <p className="font-mono text-xs text-amber-100/80">{trace.missionId}</p>
       ) : null}
     </div>
   );
@@ -98,12 +98,12 @@ export async function LedgerActivity() {
           </p>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-900/50 px-4 py-3">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Source</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-neutral-400">Source</p>
           <p className="mt-1 flex items-center gap-2 text-sm text-white">
             <DatabaseZap className="h-4 w-4 text-sky-300" />
             {source === "supabase" ? "Supabase" : "Session locale"}
           </p>
-          <p className="mt-1 font-mono text-xs text-neutral-500">{entries.length} entrée(s)</p>
+          <p className="mt-1 font-mono text-xs text-neutral-400">{entries.length} entrée(s)</p>
         </div>
       </div>
 
@@ -113,13 +113,13 @@ export async function LedgerActivity() {
           <span>
             <span className="font-medium text-emerald-200">{traceSummary.linked}</span> liée(s)
           </span>
-          <span className="text-neutral-600">·</span>
+          <span className="text-neutral-400">·</span>
           <span>
             <span className="font-medium text-neutral-200">{traceSummary.orphan}</span> orpheline(s)
           </span>
           {traceSummary.unknownRef > 0 ? (
             <>
-              <span className="text-neutral-600">·</span>
+              <span className="text-neutral-400">·</span>
               <span>
                 <span className="font-medium text-amber-200">{traceSummary.unknownRef}</span> réf. inconnue(s)
               </span>
@@ -131,7 +131,7 @@ export async function LedgerActivity() {
       {entries.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed border-neutral-800 bg-neutral-900/40 px-4 py-8 text-center">
           <p className="text-sm text-neutral-300">Aucun événement ledger pour ce workspace.</p>
-          <p className="mt-2 text-xs leading-6 text-neutral-500">
+          <p className="mt-2 text-xs leading-6 text-neutral-400">
             En local, lance <span className="font-mono text-neutral-400">npm run smoke:joris</span> ou réserve via Joris
             pour voir decision + action apparaître ici.
           </p>
@@ -139,7 +139,7 @@ export async function LedgerActivity() {
       ) : (
         <div className="mt-5 overflow-x-auto rounded-lg border border-neutral-800">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-neutral-800 bg-neutral-900/70 text-[11px] uppercase tracking-[0.14em] text-neutral-500">
+            <thead className="border-b border-neutral-800 bg-neutral-900/70 text-xs uppercase tracking-[0.14em] text-neutral-400">
               <tr>
                 <th className="px-4 py-3 font-medium">Quand</th>
                 <th className="px-4 py-3 font-medium">Type</th>
@@ -184,7 +184,7 @@ export async function LedgerActivity() {
                         ) : null}
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-neutral-500">
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-neutral-400">
                       {formatLedgerStorageLabel(entry.storageMode)}
                     </td>
                   </tr>

@@ -23,9 +23,9 @@ export function GovernanceBar() {
     <div
       role="note"
       aria-label="Posture de gouvernance, lecture seule"
-      className="flex h-10 shrink-0 items-center gap-3 overflow-x-auto border-b border-white/[0.06] bg-[#080b16]/60 px-5 text-[11.5px] backdrop-blur-xl"
+      className="flex h-10 shrink-0 items-center gap-3 overflow-x-auto border-b border-white/[0.06] bg-[#080b16]/60 px-5 text-xs backdrop-blur-xl"
     >
-      <span className="flex shrink-0 items-center gap-1.5 font-semibold text-[#98a1c4]">
+      <span className="flex shrink-0 items-center gap-1.5 font-semibold text-[#b4bbd6]">
         <GitBranch className="h-3.5 w-3.5 text-violet-400" aria-hidden="true" />
         Gouvernance
       </span>
@@ -37,9 +37,9 @@ export function GovernanceBar() {
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#646c8e]" aria-hidden="true" />
               <span className="font-semibold text-[#c9cee4]">{step.label}</span>
-              <span className="hidden text-[#646c8e] sm:inline">{step.note}</span>
+              <span className="hidden text-[#a9b0cc] sm:inline">{step.note}</span>
             </span>
-            <ChevronRight className="h-3 w-3 shrink-0 text-[#3a4061]" aria-hidden="true" />
+            <ChevronRight className="h-3 w-3 shrink-0 text-[#a9b0cc]" aria-hidden="true" />
           </span>
         ))}
         {/* Terminal step is explicitly locked — no live execution from here. */}
@@ -50,7 +50,7 @@ export function GovernanceBar() {
         </span>
       </span>
 
-      <span className="ml-auto hidden shrink-0 items-center gap-2 text-[#646c8e] lg:flex">
+      <span className="ml-auto hidden shrink-0 items-center gap-2 text-[#a9b0cc] lg:flex">
         Lecture seule · aucune action directe
       </span>
     </div>

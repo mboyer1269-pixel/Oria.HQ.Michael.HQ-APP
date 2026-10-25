@@ -15,7 +15,7 @@ function Swimlane({ swimlane }: { swimlane: WorkflowAgentSwimlane }) {
     <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.03] to-black/30 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-sm font-bold text-white">{swimlane.agentName}</h3>
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold">
+        <div className="flex items-center gap-1.5 text-xs font-semibold">
           {swimlane.staleRunCount > 0 ? (
             <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-rose-200">
               {swimlane.staleRunCount} coincé{swimlane.staleRunCount > 1 ? "s" : ""}
@@ -58,7 +58,7 @@ export function WorkflowBoardPanel({
     return (
       <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.02] px-5 py-8 text-center">
         <p className="text-sm font-semibold text-neutral-300">Aucun run actif</p>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-neutral-400">
           Les lignes d&apos;étapes apparaîtront ici dès qu&apos;un workflow émettra des événements
           de run.
         </p>
@@ -83,7 +83,7 @@ export function WorkflowBoardPanel({
       </div>
 
       {note ? (
-        <p className="rounded-xl border border-amber-500/15 bg-amber-500/[0.05] px-3.5 py-2.5 text-[11px] leading-5 text-amber-200/80">
+        <p className="rounded-xl border border-amber-500/15 bg-amber-500/[0.05] px-3.5 py-2.5 text-xs leading-5 text-amber-200/80">
           {note}
         </p>
       ) : null}
@@ -118,7 +118,7 @@ function BoardStat({
   }[tone];
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">{label}</p>
       <p className={`mt-1 tabular-nums text-lg font-extrabold ${accent}`}>{value}</p>
     </div>
   );

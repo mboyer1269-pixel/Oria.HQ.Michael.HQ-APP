@@ -107,9 +107,9 @@ export function VentureAssetPanel({
     <section className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-neutral-500" />
+          <Package className="h-4 w-4 text-neutral-400" />
           <h4 className="text-sm font-bold text-white">Actifs opérationnels</h4>
-          <span className="text-xs text-neutral-600">({active.length} actifs)</span>
+          <span className="text-xs text-neutral-400">({active.length} actifs)</span>
         </div>
         <button
           type="button"
@@ -123,7 +123,7 @@ export function VentureAssetPanel({
 
       {readiness.recommended.length > 0 ? (
         <div className="mt-3 rounded-xl border border-neutral-800 bg-neutral-900/50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
             Préparation pour « {ventureStatus} » — {readiness.present.length}/
             {readiness.recommended.length}
           </p>
@@ -136,7 +136,7 @@ export function VentureAssetPanel({
                   className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${
                     present
                       ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                      : "border-neutral-700 bg-neutral-900 text-neutral-500"
+                      : "border-neutral-700 bg-neutral-900 text-neutral-400"
                   }`}
                 >
                   {present ? (
@@ -151,7 +151,7 @@ export function VentureAssetPanel({
           </ul>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-neutral-600">
+        <p className="mt-3 text-xs text-neutral-400">
           Rien d&apos;exigé à ce stade — on ajoute les actifs au fur et à mesure que la venture
           prouve sa valeur.
         </p>
@@ -175,13 +175,13 @@ export function VentureAssetPanel({
               value={label}
               onChange={(event) => setLabel(event.target.value)}
               placeholder="Libellé (ex. Courriel support clients)"
-              className="rounded-lg border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-xs text-neutral-200 placeholder:text-neutral-600"
+              className="rounded-lg border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-xs text-neutral-200 placeholder:text-neutral-400"
             />
             <input
               value={value}
               onChange={(event) => setValue(event.target.value)}
               placeholder="Valeur (ex. support@maboutique.com)"
-              className="rounded-lg border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-xs text-neutral-200 placeholder:text-neutral-600 sm:col-span-2"
+              className="rounded-lg border border-neutral-700 bg-neutral-950 px-2.5 py-2 text-xs text-neutral-200 placeholder:text-neutral-400 sm:col-span-2"
             />
           </div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -210,7 +210,7 @@ export function VentureAssetPanel({
       ) : null}
 
       {records === null ? (
-        <p className="mt-3 text-xs text-neutral-600">Chargement…</p>
+        <p className="mt-3 text-xs text-neutral-400">Chargement…</p>
       ) : active.length > 0 ? (
         <ul className="mt-3 flex flex-col gap-2">
           {active.map((record) => (
@@ -224,12 +224,12 @@ export function VentureAssetPanel({
                 ) : record.kind === "domain" ? (
                   <Globe className="h-3.5 w-3.5 shrink-0 text-violet-400" />
                 ) : (
-                  <Package className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+                  <Package className="h-3.5 w-3.5 shrink-0 text-neutral-400" />
                 )}
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-neutral-200">
                     {record.label}
-                    <span className="ml-2 font-normal text-neutral-500">
+                    <span className="ml-2 font-normal text-neutral-400">
                       {VENTURE_ASSET_KIND_LABELS[record.kind]}
                     </span>
                   </p>
@@ -241,7 +241,7 @@ export function VentureAssetPanel({
                 onClick={() => retire(record.id)}
                 disabled={isPending}
                 title="Retirer (conservé dans l'historique)"
-                className="rounded-lg border border-neutral-800 p-1.5 text-neutral-500 transition hover:border-rose-500/40 hover:text-rose-400"
+                className="rounded-lg border border-neutral-800 p-1.5 text-neutral-400 transition hover:border-rose-500/40 hover:text-rose-400"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -249,11 +249,11 @@ export function VentureAssetPanel({
           ))}
         </ul>
       ) : (
-        <p className="mt-3 text-xs text-neutral-600">Aucun actif pour l&apos;instant.</p>
+        <p className="mt-3 text-xs text-neutral-400">Aucun actif pour l&apos;instant.</p>
       )}
 
       {closeout.length > 0 ? (
-        <p className="mt-3 border-t border-neutral-800 pt-2 text-xs text-neutral-600">
+        <p className="mt-3 border-t border-neutral-800 pt-2 text-xs text-neutral-400">
           Si cette venture est tuée : {closeout.length} actif(s) à fermer —{" "}
           {closeout.map((record) => record.label).join(", ")}.
         </p>

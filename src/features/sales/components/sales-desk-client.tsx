@@ -122,7 +122,7 @@ function EmptyPanel({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/40 p-6 text-center">
       <p className="text-sm font-semibold text-neutral-300">{title}</p>
-      <p className="mt-2 text-xs leading-5 text-neutral-500">{detail}</p>
+      <p className="mt-2 text-xs leading-5 text-neutral-400">{detail}</p>
     </div>
   );
 }
@@ -132,7 +132,7 @@ function VehiclePhoto({ src, alt }: { src?: string; alt: string }) {
   if (!src || broken) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-950">
-        <ImageOff className="h-8 w-8 text-neutral-700" />
+        <ImageOff className="h-8 w-8 text-neutral-400" />
       </div>
     );
   }
@@ -561,32 +561,32 @@ export function SalesDeskClient({
             <div className="flex flex-wrap items-center gap-2">
               <p className="truncate text-sm font-semibold text-white">{lead.fullName}</p>
               {livreHint === "today_appt" ? (
-                <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-200">
+                <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-200">
                   Essai aujourd&apos;hui
                 </span>
               ) : null}
               {livreHint === "needs_slot" ? (
-                <span className="rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fuchsia-200">
+                <span className="rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-fuchsia-200">
                   Sans RDV
                 </span>
               ) : null}
               {due ? (
-                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-300">
                   Dû
                 </span>
               ) : null}
               <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${SOURCE_CHIP[lead.source] ?? SOURCE_CHIP.manual_other}`}
+                className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${SOURCE_CHIP[lead.source] ?? SOURCE_CHIP.manual_other}`}
               >
                 {SOURCE_LABEL[lead.source] ?? lead.source}
               </span>
             </div>
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="mt-1 text-xs text-neutral-400">
               {lead.phone ?? lead.email ?? "—"} · {lead.stage} · score {score}
               {lead.interestedModels[0] ? ` · ${lead.interestedModels[0]}` : ""}
             </p>
           </div>
-          <Phone className="h-4 w-4 shrink-0 text-neutral-600" />
+          <Phone className="h-4 w-4 shrink-0 text-neutral-400" />
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -626,7 +626,7 @@ export function SalesDeskClient({
               const reason = window.prompt("Raison de la perte ?");
               if (reason?.trim()) void markOutcome(lead.leadId, "lost", { lostReason: reason.trim() });
             }}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-neutral-800 px-3 text-xs font-semibold text-neutral-500 hover:border-rose-500/40 hover:text-rose-300 disabled:opacity-40"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-neutral-800 px-3 text-xs font-semibold text-neutral-400 hover:border-rose-500/40 hover:text-rose-300 disabled:opacity-40"
           >
             Lost
           </button>
@@ -634,14 +634,14 @@ export function SalesDeskClient({
 
         {expanded && draft ? (
           <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
               Draft {draft.channel.toUpperCase()} → {draft.to}
             </p>
             <pre className="mt-2 whitespace-pre-wrap font-sans text-xs leading-5 text-neutral-200">{draft.body}</pre>
             <button
               type="button"
               onClick={() => void flashCopy(`draft-${lead.leadId}`, draft.body)}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-[11px] font-semibold text-neutral-300 hover:border-amber-500/40 hover:text-amber-200"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-neutral-700 bg-neutral-900 px-2.5 py-1.5 text-xs font-semibold text-neutral-300 hover:border-amber-500/40 hover:text-amber-200"
             >
               <ClipboardCopy className="h-3.5 w-3.5" />
               {copiedId === `draft-${lead.leadId}` ? "Copié" : "Copier le message"}
@@ -656,26 +656,26 @@ export function SalesDeskClient({
     <div className="flex flex-col gap-6">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-rose-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-rose-300/80">Relances dues</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-rose-300/80">Relances dues</p>
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{dueCount}</p>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-amber-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-300/80">Créneaux livre</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-amber-300/80">Créneaux livre</p>
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{weekAppointmentCount}</p>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-sky-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-sky-300/80">Leads actifs</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-300/80">Leads actifs</p>
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{activeLeadCount}</p>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-emerald-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-300/80">Neufs / occasions</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-300/80">Neufs / occasions</p>
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">
             {newCount}
-            <span className="text-lg font-semibold text-neutral-500"> / {usedCount}</span>
+            <span className="text-lg font-semibold text-neutral-400"> / {usedCount}</span>
           </p>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-teal-500/[0.10] via-black/25 to-black/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-teal-300/80">Fiches formation</p>
+          <p className="text-xs font-bold uppercase tracking-[0.12em] text-teal-300/80">Fiches formation</p>
           <p className="mt-1 text-3xl font-extrabold tracking-tight text-white">{learningOnLot.length}</p>
         </div>
       </div>
@@ -731,12 +731,12 @@ export function SalesDeskClient({
 
         <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
           <label className="relative block min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
             <input
               value={inventoryFilter}
               onChange={(e) => setInventoryFilter(e.target.value)}
               placeholder="Filtrer : Trax, Terrain, Bolt, stock…"
-              className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-2.5 pl-10 pr-3 text-sm text-white outline-none ring-sky-500/30 placeholder:text-neutral-600 focus:ring-2"
+              className="w-full rounded-xl border border-neutral-800 bg-neutral-950 py-2.5 pl-10 pr-3 text-sm text-white outline-none ring-sky-500/30 placeholder:text-neutral-400 focus:ring-2"
             />
           </label>
           <div className="flex flex-wrap gap-1.5">
@@ -751,7 +751,7 @@ export function SalesDeskClient({
                 key={id}
                 type="button"
                 onClick={() => setConditionFilter(id)}
-                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   conditionFilter === id
                     ? "border-sky-500/40 bg-sky-500/15 text-sky-100"
                     : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-600"
@@ -779,13 +779,13 @@ export function SalesDeskClient({
                   {debrief.byMake.slice(0, 6).map((m) => (
                     <span
                       key={m.make}
-                      className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[11px] font-semibold text-neutral-200"
+                      className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-xs font-semibold text-neutral-200"
                     >
                       {m.make} · {m.count}
                     </span>
                   ))}
                 </div>
-                <ul className="mt-3 space-y-1 text-[11px] leading-5 text-neutral-400">
+                <ul className="mt-3 space-y-1 text-xs leading-5 text-neutral-400">
                   {debrief.operatorNotes.slice(0, 3).map((note) => (
                     <li key={note}>• {note}</li>
                   ))}
@@ -809,8 +809,8 @@ export function SalesDeskClient({
                           <p className="truncate text-xs font-semibold text-white">
                             {h.year} {h.make} {h.model}
                           </p>
-                          <p className="text-[11px] text-amber-300">{formatPrice(h.priceCad)}</p>
-                          <p className="mt-0.5 line-clamp-2 text-[10px] text-neutral-500">{h.reason}</p>
+                          <p className="text-xs text-amber-300">{formatPrice(h.priceCad)}</p>
+                          <p className="mt-0.5 line-clamp-2 text-xs text-neutral-400">{h.reason}</p>
                         </div>
                       </button>
                     ))}
@@ -827,7 +827,7 @@ export function SalesDeskClient({
               <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-teal-300" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-teal-100">Formation — modèles neufs sur ton lot</p>
-                <p className="mt-1 text-[11px] leading-5 text-neutral-400">
+                <p className="mt-1 text-xs leading-5 text-neutral-400">
                   Microlearning vendeur : must-know, walkaround, objections (Chevy / Buick / GMC).
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -844,7 +844,7 @@ export function SalesDeskClient({
                             ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
                         });
                       }}
-                      className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                         activeKnowledge?.id === card.id
                           ? "border-teal-400/50 bg-teal-500/20 text-teal-50"
                           : "border-teal-500/25 bg-black/30 text-teal-100 hover:border-teal-400/40"
@@ -879,7 +879,7 @@ export function SalesDeskClient({
               <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
               <div>
                 <p className="text-sm font-bold text-violet-100">Brief marché (AutoTrader Gatineau)</p>
-                <p className="mt-1 text-[11px] leading-5 text-neutral-400">
+                <p className="mt-1 text-xs leading-5 text-neutral-400">
                   Listes liées marque → modèle (catalogue API). Aucune saisie libre.
                 </p>
               </div>
@@ -910,14 +910,14 @@ export function SalesDeskClient({
             <div id="sales-market-brief" className="mt-4 grid gap-4 lg:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold text-violet-200">{marketBrief.frenchSummary}</p>
-                <ul className="mt-2 space-y-1.5 text-[11px] leading-5 text-neutral-300">
+                <ul className="mt-2 space-y-1.5 text-xs leading-5 text-neutral-300">
                   {marketBrief.talkingPoints.map((t) => (
                     <li key={t}>• {t}</li>
                   ))}
                 </ul>
                 {marketBrief.onLotComparables.length > 0 ? (
                   <div className="mt-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+                    <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
                       Sur ton lot
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -926,7 +926,7 @@ export function SalesDeskClient({
                           key={v.stockId}
                           type="button"
                           onClick={() => void prepareListing(v)}
-                          className="rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-[11px] text-neutral-200 hover:border-amber-500/40"
+                          className="rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-1.5 text-xs text-neutral-200 hover:border-amber-500/40"
                         >
                           {v.stockId} · {v.year} {v.model} · {formatPrice(v.priceCad)}
                         </button>
@@ -938,7 +938,7 @@ export function SalesDeskClient({
                   href={marketBrief.sourceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-1 text-[11px] text-violet-300 hover:text-violet-200"
+                  className="mt-3 inline-flex items-center gap-1 text-xs text-violet-300 hover:text-violet-200"
                 >
                   Ouvrir AutoTrader <ExternalLink className="h-3 w-3" />
                 </a>
@@ -954,13 +954,13 @@ export function SalesDeskClient({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold text-white">{c.title}</p>
-                      <p className="text-[11px] text-amber-300">
+                      <p className="text-xs text-amber-300">
                         {formatPrice(c.priceCad)}
                         {c.mileageKm !== undefined
                           ? ` · ${new Intl.NumberFormat("fr-CA").format(c.mileageKm)} km`
                           : ""}
                       </p>
-                      <p className="truncate text-[10px] text-neutral-500">
+                      <p className="truncate text-xs text-neutral-400">
                         {c.dealerName ?? "—"} · badge {c.priceBadge ?? "—"}
                       </p>
                     </div>
@@ -1000,19 +1000,19 @@ export function SalesDeskClient({
                       <p className="text-sm font-bold leading-tight text-white">{title}</p>
                       <p className="mt-1 text-xs font-semibold text-amber-300">{formatPrice(v.priceCad)}</p>
                     </div>
-                    <span className="absolute left-2 top-2 rounded-full border border-white/10 bg-black/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-neutral-200 backdrop-blur">
+                    <span className="absolute left-2 top-2 rounded-full border border-white/10 bg-black/60 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-neutral-200 backdrop-blur">
                       {v.condition === "new" ? "Neuf" : v.condition === "cpo" ? "CPO" : "Occasion"}
                     </span>
                     {hasKnowledge && v.condition === "new" ? (
-                      <span className="absolute right-2 top-2 rounded-full border border-teal-400/30 bg-teal-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-100 backdrop-blur">
+                      <span className="absolute right-2 top-2 rounded-full border border-teal-400/30 bg-teal-500/20 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-teal-100 backdrop-blur">
                         Formation
                       </span>
                     ) : null}
                   </div>
                   <div className="flex items-center justify-between gap-2 p-3">
                     <div className="min-w-0">
-                      <p className="truncate font-mono text-[11px] text-neutral-400">{v.stockId}</p>
-                      <p className="truncate text-[11px] text-neutral-600">
+                      <p className="truncate font-mono text-xs text-neutral-400">{v.stockId}</p>
+                      <p className="truncate text-xs text-neutral-400">
                         {v.photoUrls.length} photo{v.photoUrls.length === 1 ? "" : "s"}
                         {v.listingUrl ? " · lien site" : ""}
                       </p>
@@ -1033,7 +1033,7 @@ export function SalesDeskClient({
                         <button
                           type="button"
                           onClick={() => openKnowledge(v)}
-                          className="inline-flex min-h-9 items-center rounded-lg border border-teal-500/40 bg-teal-500/10 px-2.5 text-[11px] font-bold text-teal-100 hover:bg-teal-500/20"
+                          className="inline-flex min-h-9 items-center rounded-lg border border-teal-500/40 bg-teal-500/10 px-2.5 text-xs font-bold text-teal-100 hover:bg-teal-500/20"
                           title="Formation modèle"
                         >
                           Apprendre
@@ -1043,7 +1043,7 @@ export function SalesDeskClient({
                         type="button"
                         disabled={listingBusy === v.stockId}
                         onClick={() => void prepareListing(v)}
-                        className="inline-flex min-h-9 items-center rounded-lg bg-amber-500 px-3 text-[11px] font-bold text-neutral-950 hover:bg-amber-400 disabled:opacity-40"
+                        className="inline-flex min-h-9 items-center rounded-lg bg-amber-500 px-3 text-xs font-bold text-neutral-950 hover:bg-amber-400 disabled:opacity-40"
                       >
                         {listingBusy === v.stockId ? "…" : "Fiche FB"}
                       </button>
@@ -1058,7 +1058,7 @@ export function SalesDeskClient({
                             vehicle: v,
                           })
                         }
-                        className="inline-flex min-h-9 items-center rounded-lg border border-violet-500/40 bg-violet-500/10 px-2.5 text-[11px] font-bold text-violet-200 hover:bg-violet-500/20 disabled:opacity-40"
+                        className="inline-flex min-h-9 items-center rounded-lg border border-violet-500/40 bg-violet-500/10 px-2.5 text-xs font-bold text-violet-200 hover:bg-violet-500/20 disabled:opacity-40"
                         title="Comparer au marché AutoTrader"
                       >
                         Marché
@@ -1072,7 +1072,7 @@ export function SalesDeskClient({
         )}
 
         {filteredVehicles.length === 0 && localVehicles.length > 0 ? (
-          <p className="mt-3 text-center text-xs text-neutral-500">Aucun véhicule ne correspond au filtre.</p>
+          <p className="mt-3 text-center text-xs text-neutral-400">Aucun véhicule ne correspond au filtre.</p>
         ) : null}
 
         {listingPacket ? (
@@ -1101,12 +1101,12 @@ export function SalesDeskClient({
 
                 {/* Flow copier-coller étape par étape */}
                 <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-300/80">
+                  <p className="text-xs font-bold uppercase tracking-wide text-amber-300/80">
                     Publication en 4 étapes (copie dans l&apos;ordre)
                   </p>
                   <ol className="mt-2 space-y-2">
                     <li className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">1</span>
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-200">1</span>
                       <button
                         type="button"
                         disabled={photoPackBusy || listingPacket.photoUrls.length === 0}
@@ -1120,12 +1120,12 @@ export function SalesDeskClient({
                         )}
                         Photos (ZIP → galerie)
                       </button>
-                      <span className="text-[11px] text-neutral-500">
+                      <span className="text-xs text-neutral-400">
                         Couverture = avant 3/4 · 8-12 photos · odomètre inclus
                       </span>
                     </li>
                     <li className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">2</span>
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-200">2</span>
                       <button
                         type="button"
                         onClick={() => void flashCopy("listing-title", listingPacket.title)}
@@ -1145,10 +1145,10 @@ export function SalesDeskClient({
                       >
                         {copiedId === "listing-price" ? "Copié ✓" : "Copier prix"}
                       </button>
-                      <span className="text-[11px] text-neutral-500">Champs remplis = plus de reach</span>
+                      <span className="text-xs text-neutral-400">Champs remplis = plus de reach</span>
                     </li>
                     <li className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">3</span>
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-200">3</span>
                       <button
                         type="button"
                         onClick={() => void flashCopy("listing-desc", listingPacket.description)}
@@ -1156,12 +1156,12 @@ export function SalesDeskClient({
                       >
                         {copiedId === "listing-desc" ? "Copié ✓" : "Copier description"}
                       </button>
-                      <span className="text-[11px] text-neutral-500">
+                      <span className="text-xs text-neutral-400">
                         Hook 2 lignes → puces → confiance → CTA essai
                       </span>
                     </li>
                     <li className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-200">4</span>
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-200">4</span>
                       <button
                         type="button"
                         onClick={() => void flashCopy("listing-full", listingChecklist(listingPacket))}
@@ -1170,7 +1170,7 @@ export function SalesDeskClient({
                         <ClipboardCopy className="h-3.5 w-3.5" />
                         {copiedId === "listing-full" ? "Copié ✓" : "Checklist complète"}
                       </button>
-                      <span className="text-[11px] text-neutral-500">
+                      <span className="text-xs text-neutral-400">
                         Publie → marque publié → réponds en &lt; 5 min
                       </span>
                     </li>
@@ -1179,13 +1179,13 @@ export function SalesDeskClient({
 
                 {listingPacket.marketplaceFieldsFr?.length ? (
                   <details className="mt-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
-                    <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wide text-neutral-400">
+                    <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-neutral-400">
                       Champs Marketplace ({listingPacket.marketplaceFieldsFr.length}) — tout remplir
                     </summary>
                     <ul className="mt-2 grid gap-1 sm:grid-cols-2">
                       {listingPacket.marketplaceFieldsFr.map((f) => (
-                        <li key={f.field} className="text-[11px] text-neutral-300">
-                          <span className="text-neutral-500">{f.field} :</span> {f.value}
+                        <li key={f.field} className="text-xs text-neutral-300">
+                          <span className="text-neutral-400">{f.field} :</span> {f.value}
                         </li>
                       ))}
                     </ul>
@@ -1195,7 +1195,7 @@ export function SalesDeskClient({
                 <pre className="mt-3 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-black/30 p-3 font-sans text-xs leading-5 text-neutral-300">
                   {listingPacket.description}
                 </pre>
-                <p className="mt-2 text-[11px] text-neutral-500">
+                <p className="mt-2 text-xs text-neutral-400">
                   Oria ne publie pas sur Facebook — copie / upload manuel uniquement.
                 </p>
               </div>
@@ -1213,7 +1213,7 @@ export function SalesDeskClient({
             </span>
             <div>
               <h2 className="text-sm font-bold text-white">File du matin</h2>
-              <p className="text-[11px] text-neutral-500">Relances dues — prepare SMS (Activix lundi)</p>
+              <p className="text-xs text-neutral-400">Relances dues — prepare SMS (Activix lundi)</p>
             </div>
           </div>
           <div className="flex max-h-[28rem] flex-col gap-3 overflow-y-auto pr-1">
@@ -1239,33 +1239,33 @@ export function SalesDeskClient({
             </span>
             <div>
               <h2 className="text-sm font-bold text-white">Capture rapide</h2>
-              <p className="text-[11px] text-neutral-500">Temporaire — Activix dès lundi</p>
+              <p className="text-xs text-neutral-400">Temporaire — Activix dès lundi</p>
             </div>
           </div>
 
           <form onSubmit={(e) => void captureLead(e)} className="flex flex-col gap-3">
             <label className="block">
-              <span className="text-[11px] font-semibold text-neutral-400">Nom</span>
+              <span className="text-xs font-semibold text-neutral-400">Nom</span>
               <input
                 required
                 value={form.fullName}
                 onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none ring-amber-500/40 placeholder:text-neutral-600 focus:ring-2"
+                className="mt-1 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none ring-amber-500/40 placeholder:text-neutral-400 focus:ring-2"
                 placeholder="Sam Gagnon"
               />
             </label>
             <label className="block">
-              <span className="text-[11px] font-semibold text-neutral-400">Téléphone</span>
+              <span className="text-xs font-semibold text-neutral-400">Téléphone</span>
               <input
                 required
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none ring-amber-500/40 placeholder:text-neutral-600 focus:ring-2"
+                className="mt-1 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-white outline-none ring-amber-500/40 placeholder:text-neutral-400 focus:ring-2"
                 placeholder="819-555-0199"
               />
             </label>
             <label className="block">
-              <span className="text-[11px] font-semibold text-neutral-400">Source</span>
+              <span className="text-xs font-semibold text-neutral-400">Source</span>
               <select
                 value={form.source}
                 onChange={(e) => setForm((f) => ({ ...f, source: e.target.value as LeadSource }))}
@@ -1280,7 +1280,7 @@ export function SalesDeskClient({
               </select>
             </label>
             <label className="block">
-              <span className="text-[11px] font-semibold text-neutral-400">Stock (optionnel)</span>
+              <span className="text-xs font-semibold text-neutral-400">Stock (optionnel)</span>
               <select
                 value={form.stockId}
                 onChange={(e) => setForm((f) => ({ ...f, stockId: e.target.value }))}
@@ -1295,7 +1295,7 @@ export function SalesDeskClient({
               </select>
             </label>
             <label className="block">
-              <span className="text-[11px] font-semibold text-neutral-400">Note</span>
+              <span className="text-xs font-semibold text-neutral-400">Note</span>
               <textarea
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}

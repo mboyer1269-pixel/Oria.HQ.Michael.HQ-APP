@@ -85,7 +85,7 @@ export function VenturePrioritizationQueuePanel({
 
               <div className="grid gap-2 sm:grid-cols-2 lg:min-w-80 lg:grid-cols-3">
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     <Gauge className="h-3.5 w-3.5" aria-hidden="true" />
                     Profitability
                   </span>
@@ -94,7 +94,7 @@ export function VenturePrioritizationQueuePanel({
                   </p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Expected revenue
                   </span>
                   <p className="mt-1 text-sm font-semibold text-white">
@@ -102,7 +102,7 @@ export function VenturePrioritizationQueuePanel({
                   </p>
                 </div>
                 <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 px-3 py-2">
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                     First dollar
                   </span>
@@ -115,7 +115,7 @@ export function VenturePrioritizationQueuePanel({
 
             <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Recommendation
                 </span>
                 <p className="mt-1 text-sm font-semibold text-white">
@@ -127,7 +127,7 @@ export function VenturePrioritizationQueuePanel({
               </div>
 
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Why it ranks here
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">
@@ -138,7 +138,7 @@ export function VenturePrioritizationQueuePanel({
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Offer clarity
                 </span>
                 <p className="mt-1 tabular-nums text-sm font-semibold text-white">
@@ -146,7 +146,7 @@ export function VenturePrioritizationQueuePanel({
                 </p>
               </div>
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Acquisition ease
                 </span>
                 <p className="mt-1 tabular-nums text-sm font-semibold text-white">
@@ -154,7 +154,7 @@ export function VenturePrioritizationQueuePanel({
                 </p>
               </div>
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Estimated margin
                 </span>
                 <p className="mt-1 tabular-nums text-sm font-semibold text-white">
@@ -162,7 +162,7 @@ export function VenturePrioritizationQueuePanel({
                 </p>
               </div>
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Validation cost
                 </span>
                 <p className="mt-1 text-sm font-semibold text-white">
@@ -173,7 +173,7 @@ export function VenturePrioritizationQueuePanel({
 
             <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Revenue ranking note
                 </span>
                 <p className="mt-1 text-sm leading-6 text-neutral-300">
@@ -184,7 +184,7 @@ export function VenturePrioritizationQueuePanel({
               </div>
 
               <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-3">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
                   Blockers
                 </span>

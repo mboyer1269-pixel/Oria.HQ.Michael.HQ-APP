@@ -26,8 +26,8 @@ const STEP_NODE_STYLE: Record<WorkflowStepStatus, string> = {
   done: "border-emerald-400/70 bg-emerald-400/80 text-[#04140d]",
   active: "border-violet-300 bg-violet-500/30 text-violet-100 animate-pulse",
   failed: "border-rose-400/80 bg-rose-500/70 text-white",
-  skipped: "border-dashed border-neutral-500/60 bg-transparent text-neutral-500",
-  pending: "border-white/15 bg-white/[0.03] text-neutral-500",
+  skipped: "border-dashed border-neutral-500/60 bg-transparent text-neutral-400",
+  pending: "border-white/15 bg-white/[0.03] text-neutral-400",
 };
 
 function connectorClass(status: WorkflowStepStatus): string {
@@ -71,7 +71,7 @@ function StepLine({ lane }: { lane: WorkflowRunLane }) {
             <div className="flex items-center">
               <span
                 title={`${step.label} — ${step.detail}`}
-                className={`relative z-10 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${STEP_NODE_STYLE[step.status]} ${
+                className={`relative z-10 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${STEP_NODE_STYLE[step.status]} ${
                   isCurrent ? "ring-2 ring-violet-400/50 ring-offset-2 ring-offset-[#080a16]" : ""
                 }`}
               >
@@ -82,10 +82,10 @@ function StepLine({ lane }: { lane: WorkflowRunLane }) {
               ) : null}
             </div>
             <div className="min-w-0 pr-2">
-              <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+              <p className="truncate text-xs font-semibold uppercase tracking-wide text-neutral-400">
                 {step.label}
               </p>
-              <p className="truncate text-[11px] text-neutral-500" title={step.detail}>
+              <p className="truncate text-xs text-neutral-400" title={step.detail}>
                 {duration ?? step.detail}
               </p>
             </div>
@@ -115,26 +115,26 @@ export function RunLane({ lane }: { lane: WorkflowRunLane }) {
       >
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-neutral-100">{lane.title}</p>
-          <p className="truncate text-[11px] text-neutral-500" title={lane.trigger}>
+          <p className="truncate text-xs text-neutral-400" title={lane.trigger}>
             {lane.trigger}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {lane.isStale ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-200">
+            <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-rose-200">
               Coincé{idle ? ` · ${idle}` : ""}
             </span>
           ) : null}
-          <span className="tabular-nums text-[11px] font-semibold text-neutral-400">
+          <span className="tabular-nums text-xs font-semibold text-neutral-400">
             {lane.progressPct}%
           </span>
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${style.chip}`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${style.chip}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
             {style.label}
           </span>
-          <span className="text-neutral-500" aria-hidden>
+          <span className="text-neutral-400" aria-hidden>
             {open ? "▾" : "▸"}
           </span>
         </div>
@@ -150,9 +150,9 @@ export function RunLane({ lane }: { lane: WorkflowRunLane }) {
               <li key={step.key} className="flex items-start justify-between gap-3 text-[12px]">
                 <div className="min-w-0">
                   <span className="font-semibold text-neutral-300">{step.label}</span>
-                  <span className="text-neutral-500"> — {step.detail}</span>
+                  <span className="text-neutral-400"> — {step.detail}</span>
                 </div>
-                <span className="shrink-0 tabular-nums text-[11px] text-neutral-500">
+                <span className="shrink-0 tabular-nums text-xs text-neutral-400">
                   {duration ?? step.status}
                 </span>
               </li>

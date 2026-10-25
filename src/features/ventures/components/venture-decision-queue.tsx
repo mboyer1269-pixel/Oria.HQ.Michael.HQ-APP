@@ -24,7 +24,7 @@ export function VentureDecisionQueue({
             d&apos;attention sans déclencher d&apos;action.
           </p>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-neutral-700 bg-neutral-900 px-3 py-1 text-[11px] font-medium text-neutral-300">
+        <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-neutral-700 bg-neutral-900 px-3 py-1 text-xs font-medium text-neutral-300">
           <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
           Lecture seule
         </span>
@@ -44,18 +44,18 @@ export function VentureDecisionQueue({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-950 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-950 px-2.5 py-1 text-xs font-medium text-neutral-300">
                       <ListTodo className="h-3.5 w-3.5" aria-hidden="true" />
                       #{index + 1}
                     </span>
-                    <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-[11px] font-medium text-neutral-300">
+                    <span className="rounded-full border border-neutral-700 bg-neutral-900 px-2.5 py-1 text-xs font-medium text-neutral-300">
                       {item.name}
                     </span>
-                    <span className="rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
+                    <span className="rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1 text-xs font-medium text-neutral-400">
                       Statut: {item.status}
                     </span>
                     {item.recommendation && (
-                      <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-300">
+                      <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-300">
                         Recommandation: {item.recommendation}
                       </span>
                     )}
@@ -65,7 +65,7 @@ export function VentureDecisionQueue({
                 </div>
                 {typeof item.score === "number" && (
                   <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs text-neutral-300">
-                    <Gauge className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+                    <Gauge className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
                     <span className="tabular-nums text-white">{item.score}/100</span>
                   </div>
                 )}

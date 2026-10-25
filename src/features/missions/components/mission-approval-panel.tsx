@@ -30,22 +30,22 @@ function ApprovalCard({ mission }: { mission: Mission }) {
           <h3 className="font-semibold text-white">{mission.title}</h3>
           <p className="mt-1 text-sm leading-6 text-neutral-400">{mission.objective}</p>
         </div>
-        <span className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-medium ${riskColors[mission.riskLevel]}`}>
+        <span className={`shrink-0 rounded-md border px-2 py-1 text-xs font-medium ${riskColors[mission.riskLevel]}`}>
           {riskLabels[mission.riskLevel]}
         </span>
       </div>
 
       <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-2">
         <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3">
-          <dt className="text-neutral-500">Agent assigné</dt>
+          <dt className="text-neutral-400">Agent assigné</dt>
           <dd className="mt-1 font-medium text-neutral-200">{agentLabel}</dd>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3">
-          <dt className="text-neutral-500">Niveau d&apos;autonomie</dt>
+          <dt className="text-neutral-400">Niveau d&apos;autonomie</dt>
           <dd className="mt-1 font-medium text-neutral-200">{mission.autonomyLevel} / 5</dd>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-950/60 p-3 sm:col-span-2">
-          <dt className="text-neutral-500">Sortie attendue</dt>
+          <dt className="text-neutral-400">Sortie attendue</dt>
           <dd className="mt-1 text-neutral-300">{mission.expectedOutput}</dd>
         </div>
         <div className="rounded-lg border border-orange-500/15 bg-orange-500/5 p-3 sm:col-span-2">
@@ -87,7 +87,7 @@ export function MissionApprovalPanel({ missions }: MissionApprovalPanelProps) {
             Examinez le dossier, le compte et les limites avant de décider. Le lancement reste distinct.
           </p>
         </div>
-        <span className="shrink-0 rounded-full border border-neutral-700 px-3 py-1 text-[11px] font-medium text-neutral-500">
+        <span className="shrink-0 rounded-full border border-neutral-700 px-3 py-1 text-xs font-medium text-neutral-400">
           Décision du propriétaire
         </span>
       </div>

@@ -65,7 +65,7 @@ const STATUS_BADGE: Record<string, string> = {
   active: "border-sky-500/20 bg-sky-500/10 text-sky-300",
   paused: "border-amber-500/20 bg-amber-500/10 text-amber-300",
   completed: "border-teal-500/20 bg-teal-500/10 text-teal-300",
-  abandoned: "border-neutral-700 bg-neutral-900 text-neutral-500",
+  abandoned: "border-neutral-700 bg-neutral-900 text-neutral-400",
 };
 
 const WORK_ITEM_STATUS_BADGE: Record<string, string> = {
@@ -73,7 +73,7 @@ const WORK_ITEM_STATUS_BADGE: Record<string, string> = {
   in_progress: "border-sky-500/20 bg-sky-500/10 text-sky-300",
   blocked: "border-red-500/20 bg-red-500/10 text-red-300",
   completed: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
-  skipped: "border-neutral-700 bg-neutral-900 text-neutral-500",
+  skipped: "border-neutral-700 bg-neutral-900 text-neutral-400",
 };
 
 const WORK_ITEM_TYPE_BADGE: Record<string, string> = {
@@ -121,7 +121,7 @@ function Section({
   return (
     <section className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
       <div className="mb-4 flex items-center gap-2">
-        <span className="text-neutral-500">{icon}</span>
+        <span className="text-neutral-400">{icon}</span>
         <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400">
           {title}
         </h3>
@@ -138,7 +138,7 @@ function Section({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
         {label}
       </span>
       <span className="text-sm leading-6 text-neutral-300">{children}</span>
@@ -153,7 +153,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Chip({ className, children }: { className: string; children: React.ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${className}`}
     >
       {children}
     </span>
@@ -192,7 +192,7 @@ function WorkItemCard({ item }: { item: AgentVentureWorkbenchItem["workstream"][
           </div>
           <span className="text-sm font-medium leading-5 text-white">{item.title}</span>
         </div>
-        <span className="mt-1 shrink-0 text-neutral-500">
+        <span className="mt-1 shrink-0 text-neutral-400">
           {open ? (
             <ChevronUp className="h-4 w-4" aria-hidden="true" />
           ) : (
@@ -232,7 +232,7 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
   if (items.length === 0) {
     return (
       <div className="flex min-h-32 items-center justify-center rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/40 px-6 py-10 text-center">
-        <p className="text-sm text-neutral-500">No workbench items to display.</p>
+        <p className="text-sm text-neutral-400">No workbench items to display.</p>
       </div>
     );
   }
@@ -278,11 +278,11 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex items-start gap-2">
-                  <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+                  <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
                   <Field label="Target customer">{item.brief.targetCustomer}</Field>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+                  <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
                   <Field label="Problem">
                     <span className="italic text-neutral-400">{item.brief.problem}</span>
                   </Field>
@@ -292,7 +292,7 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
                 </div>
                 <Field label="Revenue model">{item.brief.revenueModel.replace(/_/g, " ")}</Field>
                 <div className="flex items-start gap-2">
-                  <CircleDollarSign className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+                  <CircleDollarSign className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
                   <Field label="Estimated revenue">
                     {formatCents(item.brief.estimatedRevenuePotentialCents)}/yr potential
                   </Field>
@@ -301,19 +301,19 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
                   {formatCents(item.brief.estimatedValidationCostCents)} to validate
                 </Field>
                 <div className="flex items-start gap-2">
-                  <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+                  <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
                   <Field label="Speed to first dollar">
                     {item.brief.speedToFirstDollarDays} days to first dollar
                   </Field>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Gauge className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
+                  <Gauge className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
                   <Field label="Confidence">{item.brief.confidenceScore}% confidence</Field>
                 </div>
 
                 {/* Risk level */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Risk level
                   </span>
                   <Chip className={RISK_BADGE[item.brief.risk.riskLevel] ?? "border-neutral-700 bg-neutral-900 text-neutral-400"}>
@@ -323,7 +323,7 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
 
                 {/* Recommended decision */}
                 <div className="flex flex-col gap-1">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Recommended decision
                   </span>
                   <Chip className={DECISION_BADGE[item.brief.recommendedDecision] ?? "border-neutral-700 bg-neutral-900 text-neutral-400"}>
@@ -335,7 +335,7 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
               {/* Evidence */}
               {item.brief.evidence.length > 0 && (
                 <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Evidence
                   </span>
                   {item.brief.evidence.length <= 3 ? (
@@ -357,7 +357,7 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
 
               {/* Next action */}
               <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Next action
                 </span>
                 <p className="mt-1 text-sm font-medium text-white">{item.brief.nextAction.actionLabel}</p>
@@ -366,23 +366,23 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
 
               {/* Brief score */}
               <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                   Brief score
                 </span>
                 <div className="mt-2 flex flex-wrap gap-4 text-xs text-neutral-400">
                   <span className="flex items-center gap-1.5">
-                    <Gauge className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-                    <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">Overall</span>
+                    <Gauge className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+                    <span className="font-semibold uppercase tracking-[0.12em] text-neutral-400">Overall</span>
                     <span className="tabular-nums text-white">{item.briefScore.overallScore}/100</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <CircleDollarSign className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-                    <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">Revenue</span>
+                    <CircleDollarSign className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+                    <span className="font-semibold uppercase tracking-[0.12em] text-neutral-400">Revenue</span>
                     <span className="tabular-nums text-white">{item.briefScore.revenuePotentialScore}/100</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Zap className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-                    <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">Speed</span>
+                    <Zap className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+                    <span className="font-semibold uppercase tracking-[0.12em] text-neutral-400">Speed</span>
                     <span className="tabular-nums text-white">{item.briefScore.speedScore}/100</span>
                   </span>
                   <Chip className={DECISION_BADGE[item.briefScore.recommendation] ?? "border-neutral-700 bg-neutral-900 text-neutral-400"}>
@@ -422,13 +422,13 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
               <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span className="flex items-center gap-2 text-xs text-neutral-400">
-                    <Gauge className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-                    <span className="font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                    <Gauge className="h-3.5 w-3.5 text-neutral-400" aria-hidden="true" />
+                    <span className="font-semibold uppercase tracking-[0.12em] text-neutral-400">
                       Readiness
                     </span>
                     <span className="tabular-nums text-lg font-bold text-white">
                       {item.workstreamReadiness.overallReadinessScore}
-                      <span className="text-xs font-normal text-neutral-500">/100</span>
+                      <span className="text-xs font-normal text-neutral-400">/100</span>
                     </span>
                   </span>
                   {item.workstreamReadiness.isReadyForCEOReview ? (
@@ -456,7 +456,7 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
               {/* Blockers */}
               {item.workstreamReadiness.blockers.length > 0 && (
                 <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-neutral-400">
                     Blockers
                   </span>
                   <ul className="mt-1 space-y-1">
@@ -511,12 +511,12 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
                     <p className="mt-1 text-xs leading-5 text-neutral-400">{kpi.description}</p>
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-400">
                       <span>
-                        <span className="text-neutral-500">Target: </span>
+                        <span className="text-neutral-400">Target: </span>
                         <span className="tabular-nums text-white">{kpi.targetValue} {kpi.unit}</span>
                       </span>
                       {kpi.currentValue !== null && (
                         <span>
-                          <span className="text-neutral-500">Current: </span>
+                          <span className="text-neutral-400">Current: </span>
                           <span className="tabular-nums text-white">{kpi.currentValue} {kpi.unit}</span>
                         </span>
                       )}
@@ -553,7 +553,7 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
                       </Chip>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-neutral-400">{gate.description}</p>
-                    <p className="mt-1 text-xs text-neutral-500">
+                    <p className="mt-1 text-xs text-neutral-400">
                       <span className="font-semibold text-neutral-400">Required before: </span>
                       {gate.requiredBefore}
                     </p>
@@ -583,21 +583,21 @@ export function AgentVentureWorkbench({ items }: { items: AgentVentureWorkbenchI
                   type="button"
                   disabled
                   aria-disabled="true"
-                  className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-500 opacity-50"
+                  className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-400 opacity-50"
                 >
                   <Lock className="h-4 w-4" aria-hidden="true" />
                   Save as Candidate
-                  <span className="text-[11px] text-neutral-600">(Future feature)</span>
+                  <span className="text-xs text-neutral-400">(Future feature)</span>
                 </button>
                 <button
                   type="button"
                   disabled
                   aria-disabled="true"
-                  className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-500 opacity-50"
+                  className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-400 opacity-50"
                 >
                   <Lock className="h-4 w-4" aria-hidden="true" />
                   Submit for CEO Review
-                  <span className="text-[11px] text-neutral-600">(Future feature)</span>
+                  <span className="text-xs text-neutral-400">(Future feature)</span>
                 </button>
               </div>
               <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/8 px-3 py-2 text-xs text-red-400">

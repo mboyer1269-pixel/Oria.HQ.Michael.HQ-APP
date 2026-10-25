@@ -74,7 +74,7 @@ function MemoryEntryCard({ entry }: { entry: MemoryVaultEntry }) {
           {typeIcon(entry.type)}
           {trustLevelBadge(entry.trustLevel)}
         </div>
-        <span className="flex items-center gap-1 text-xs text-neutral-600">
+        <span className="flex items-center gap-1 text-xs text-neutral-400">
           <Clock className="h-3 w-3" />
           {entry.updatedAt.slice(0, 10)}
         </span>
@@ -84,15 +84,15 @@ function MemoryEntryCard({ entry }: { entry: MemoryVaultEntry }) {
       {entry.tags.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {entry.tags.map((tag) => (
-            <span key={tag} className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-500">
+            <span key={tag} className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-xs text-neutral-400">
               #{tag}
             </span>
           ))}
         </div>
       )}
       {entry.sourceRef && (
-        <p className="mt-2 truncate text-xs text-neutral-600">
-          <span className="text-neutral-500">Ref:</span> {entry.sourceRef}
+        <p className="mt-2 truncate text-xs text-neutral-400">
+          <span className="text-neutral-400">Ref:</span> {entry.sourceRef}
         </p>
       )}
     </div>
@@ -139,13 +139,13 @@ export default async function MemoryPage() {
         description={
           <>
           Corpus local historique : entrées temporaires + vault fichiers{" "}
-          <code className="text-neutral-500">memory/</code>. Seules les entrées{" "}
+          <code className="text-neutral-400">memory/</code>. Seules les entrées{" "}
           <span className="text-emerald-400">vérifiées</span> sont injectées dans le contexte de Joris.
           </>
         }
       >
         <HqSummaryRail>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
             Vault
           </p>
           <div className="mt-3 grid gap-2">
@@ -205,7 +205,7 @@ export default async function MemoryPage() {
             <div className="overflow-x-auto rounded-2xl border border-neutral-800 bg-neutral-950/60">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-neutral-800 text-neutral-500">
+                  <tr className="border-b border-neutral-800 text-neutral-400">
                     <th className="px-3 py-2 font-semibold">Agent</th>
                     <th className="px-3 py-2 font-semibold">Signaux</th>
                     <th className="px-3 py-2 font-semibold">Win rate</th>
@@ -238,7 +238,7 @@ export default async function MemoryPage() {
             </div>
             {learningLoop.proposals.length > 0 && (
               <div className="flex flex-col gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
                   Leçons proposées — approbation CEO requise avant entrée dans la vault
                 </p>
                 {learningLoop.proposals.map((proposal) => (
@@ -256,7 +256,7 @@ export default async function MemoryPage() {
                     </div>
                     <h3 className="mt-2 text-sm font-semibold text-white">{proposal.title}</h3>
                     <p className="mt-1 text-xs leading-5 text-neutral-400">{proposal.content}</p>
-                    <p className="mt-2 truncate text-xs text-neutral-600">
+                    <p className="mt-2 truncate text-xs text-neutral-400">
                       Candidats: {proposal.sourceRefs.join(", ")}
                     </p>
                   </div>
@@ -264,7 +264,7 @@ export default async function MemoryPage() {
               </div>
             )}
             {learningLoop.duplicatesSkipped > 0 && (
-              <p className="text-xs text-neutral-600">
+              <p className="text-xs text-neutral-400">
                 {learningLoop.duplicatesSkipped} leçon(s) déjà dans la vault — non re-proposées.
               </p>
             )}
@@ -273,14 +273,14 @@ export default async function MemoryPage() {
       </HqWidget>
 
       <HqWidget title="Entrées runtime" eyebrow="Contexte Joris (read-only)" icon={BookOpen}>
-        <div className="mb-3 flex flex-wrap gap-2 text-xs text-neutral-500">
+        <div className="mb-3 flex flex-wrap gap-2 text-xs text-neutral-400">
           <span>{verifiedCount} vérifiées</span>
           <span>·</span>
           <span>{proposedCount} en attente</span>
         </div>
         {vaultEntries.length === 0 ? (
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950/60 p-8 text-center">
-            <p className="text-sm text-neutral-500">Aucune entrée dans la vault pour ce workspace.</p>
+            <p className="text-sm text-neutral-400">Aucune entrée dans la vault pour ce workspace.</p>
           </div>
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
@@ -291,7 +291,7 @@ export default async function MemoryPage() {
         )}
       </HqWidget>
 
-      <p className="mt-8 text-center text-xs text-neutral-700">
+      <p className="mt-8 text-center text-xs text-neutral-400">
         Sources : règles initiales, mémoire temporaire et fichiers de référence. Les entrées du corpus local historique ne prouvent pas une synchronisation avec Memex Core.
       </p>
     </CockpitShell>

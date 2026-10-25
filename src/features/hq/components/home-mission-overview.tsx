@@ -49,11 +49,11 @@ export function HomeMissionOverview({ missions, missionSource, activity, activit
                 <details key={mission.id} className="rounded-xl border border-neutral-800 p-3">
                   <summary className="cursor-pointer break-words text-sm font-medium text-neutral-100">{mission.title}<span className="ml-2 text-xs font-normal text-amber-200">{labels[mission.status]}</span></summary>
                   <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-400">{mission.objective}</p>
-                  <p className="mt-2 text-xs text-neutral-500">Mise à jour : {dateLabel(mission.updatedAt)}</p>
+                  <p className="mt-2 text-xs text-neutral-400">Mise à jour : {dateLabel(mission.updatedAt)}</p>
                 </details>
               ))}
         </div>
-        <p className="mt-4 text-xs text-neutral-500">Les statuts sont déclarés ; la validation du livrable reste dans le dossier.</p>
+        <p className="mt-4 text-xs text-neutral-400">Les statuts sont déclarés ; la validation du livrable reste dans le dossier.</p>
         <Link href="/hq/missions" className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-amber-300 hover:underline">Ouvrir les dossiers de mission →</Link>
       </section>
       <section id="ledger-activity" aria-labelledby="home-activity-title" className="min-w-0 rounded-2xl border border-neutral-800 bg-neutral-950/50 p-5">
@@ -61,7 +61,7 @@ export function HomeMissionOverview({ missions, missionSource, activity, activit
         <p className="mt-1 text-xs text-neutral-400">{sourceLabel(activitySource)} · espace de travail</p>
         {activitySource === "unavailable" ? <p className="mt-4 text-sm text-amber-200">Le journal est indisponible. Utilise Actualiser pour réessayer.</p>
           : activity.length === 0 ? <p className="mt-4 text-sm text-neutral-400">Aucune activité enregistrée dans cette source.</p>
-            : <ol className="mt-4 divide-y divide-neutral-800">{activity.map((entry) => <li key={entry.id} className="py-3 first:pt-0"><p className="break-words text-sm text-neutral-300">{entry.summary}</p><time dateTime={entry.createdAt} className="mt-1 block text-xs text-neutral-500">{dateLabel(entry.createdAt)}</time></li>)}</ol>}
+            : <ol className="mt-4 divide-y divide-neutral-800">{activity.map((entry) => <li key={entry.id} className="py-3 first:pt-0"><p className="break-words text-sm text-neutral-300">{entry.summary}</p><time dateTime={entry.createdAt} className="mt-1 block text-xs text-neutral-400">{dateLabel(entry.createdAt)}</time></li>)}</ol>}
         <Link href="/hq/activity" className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-amber-300 hover:underline">Consulter le journal détaillé →</Link>
       </section>
     </div>

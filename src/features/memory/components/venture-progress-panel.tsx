@@ -48,7 +48,7 @@ export function VentureProgressPanel({ ventures }: { ventures: VentureProgress[]
               <div className="flex items-start justify-between gap-3">
                 <h3 className="font-semibold text-white">{venture.name}</h3>
                 <span
-                  className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${statusClass[venture.status]}`}
+                  className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${statusClass[venture.status]}`}
                 >
                   {statusLabel[venture.status]}
                 </span>
@@ -57,7 +57,7 @@ export function VentureProgressPanel({ ventures }: { ventures: VentureProgress[]
               <p className="mt-2 text-xs leading-5 text-neutral-400">{venture.summary}</p>
 
               <div className="mt-3">
-                <div className="flex items-center justify-between text-[11px] text-neutral-500">
+                <div className="flex items-center justify-between text-xs text-neutral-400">
                   <span>MRR</span>
                   <span className="tabular-nums">
                     {fromCents(venture.mrrCurrentCents)} / {fromCents(venture.mrrTargetCents)}
@@ -68,12 +68,12 @@ export function VentureProgressPanel({ ventures }: { ventures: VentureProgress[]
                 </div>
               </div>
 
-              <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">
+              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-amber-400/80">
                 Prochaine action
               </p>
               <p className="mt-0.5 text-xs leading-5 text-neutral-400">{venture.nextAction}</p>
 
-              <p className="mt-2 text-[11px] text-neutral-600">Risque : {venture.riskStatus}</p>
+              <p className="mt-2 text-xs text-neutral-400">Risque : {venture.riskStatus}</p>
             </article>
           );
         })}

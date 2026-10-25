@@ -52,18 +52,18 @@ function KpiRow({ row }: { row: KpiLinkRow }) {
     <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3.5 py-2.5">
       <div className="min-w-0">
         <p className="truncate text-[13px] font-semibold text-neutral-100">{row.label}</p>
-        <p className="truncate text-[11px] text-neutral-500" title={row.note ?? undefined}>
+        <p className="truncate text-xs text-neutral-400" title={row.note ?? undefined}>
           Cible {row.target.raw}
-          {row.note ? <span className="text-neutral-600"> · {row.note}</span> : null}
+          {row.note ? <span className="text-neutral-400"> · {row.note}</span> : null}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <div className="text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">Réel</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Réel</p>
           <p className="tabular-nums text-sm font-bold text-white">{actualLabel}</p>
         </div>
         <span
-          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${style.chip}`}
+          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold uppercase tracking-wide ${style.chip}`}
         >
           {style.label}
         </span>
@@ -103,7 +103,7 @@ export function KpiObservationPanel({
         />
       </div>
 
-      <p className="text-[11px] leading-5 text-neutral-500">
+      <p className="text-xs leading-5 text-neutral-400">
         {report.measuredCount} KPI calculé{report.measuredCount > 1 ? "s" : ""} sur observations
         réelles · {report.awaitingCount} en attente d&apos;observations · {report.unboundCount}{" "}
         binding{report.unboundCount > 1 ? "s" : ""} à définir.
@@ -147,7 +147,7 @@ function KpiStat({
   }[tone];
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">{label}</p>
       <p className={`mt-1 tabular-nums text-lg font-extrabold ${accent}`}>{value}</p>
     </div>
   );

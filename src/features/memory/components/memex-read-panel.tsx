@@ -39,7 +39,7 @@ export function MemexReadPanel() {
     <div role="status" className="mt-4 text-sm text-neutral-400">{state === "ready" ? `${records.length} résultat(s) dans ${sampled} entrée(s) consultée(s). ${records.length === 0 ? "Aucune correspondance dans cet échantillon." : "Publication et exactitude non vérifiées indépendamment par HQ."}` : messages[state]}</div>
     <ul className="mt-4 space-y-3">{records.map(record => <li key={record.id} className="rounded-xl border border-neutral-800 p-4">
       <h3 className="break-words font-medium text-white">{record.title || "Entrée sans titre"}</h3>
-      <p className="mt-1 text-xs text-neutral-500">{record.type} · Confiance déclarée : {record.confidence === null ? "inconnue" : record.confidence}</p>
+      <p className="mt-1 text-xs text-neutral-400">{record.type} · Confiance déclarée : {record.confidence === null ? "inconnue" : record.confidence}</p>
       <p className="mt-3 whitespace-pre-wrap break-words text-sm text-neutral-300">{record.content || "Aucun texte consultable dans cette entrée."}</p>
       <details className="mt-3 text-xs text-neutral-400"><summary className="cursor-pointer">Provenance</summary><p className="mt-2 break-words">{record.provenance || "Source non renseignée"}</p><p className="mt-1 break-words">Référence : {record.id}</p><p className="mt-1">Mise à jour : {record.updatedAt || "inconnue"}</p></details>
     </li>)}</ul>
