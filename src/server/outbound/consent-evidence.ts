@@ -3,8 +3,12 @@ import type { OutboundBatch } from "./outbound-types.ts";
 /** HTTP evidence is an assertion, never a trusted record, even from the owner. */
 export function neutralizeClientConsent(input: Pick<OutboundBatch, "consentBasis"> & Partial<Pick<OutboundBatch, "consentProvenance">>) {
   return {
-    // Preserve express as the existing manual Sales Desk attestation, not verified proof.
-    consentBasis: input.consentBasis === "implied_verified" ? "manual_review_required" as const : input.consentBasis,
+    // A client-declared basis is a label, not proof. There is no server-side
+    // evidence store to resolve it yet, so both "express" and "implied_verified"
+    // fall back to manual review and can never mint an approval token.
+    consentBasis: input.consentBasis === "implied_verified" || input.consentBasis === "express"
+      ? "manual_review_required" as const
+      : input.consentBasis,
     consentProvenance: (input.consentProvenance ?? []).map((ref) => ({ ...ref, isVerified: false })),
   };
 }
