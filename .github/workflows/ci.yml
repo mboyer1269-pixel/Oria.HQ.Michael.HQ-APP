@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - builder/review-node22-security-20261023
+      - builder/ui-consolidated-review-20261024
   push:
     branches:
       - main
