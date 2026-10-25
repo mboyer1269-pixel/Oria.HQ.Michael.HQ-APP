@@ -253,6 +253,23 @@ test('claude-code SENT-412-22: init later than the deadline → group killed, su
   const s = m.steps.at(-1); assert.equal(s.status, 'failed'); assert.equal(s.reason, 'subscription_auth_required'); assert.equal(s.commitSha, null);
 });
 
+test('SENT-412-20: agent moved the work tree to another branch → no commit (repo_head_mismatch)', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_OBSERVED=claude-test\nFAKE_SWITCH_BRANCH=hijack');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('rc20'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); const m = await waitIdle(missionId); knobs('');
+  assert.equal(m.steps[0].status, 'failed'); assert.equal(m.steps[0].reason, 'repo_head_mismatch'); assert.equal(m.steps[0].commitSha, null);
+  assert.equal(execFileSync('git', ['-C', A.workPath(m), 'rev-list', '--count', 'hijack'], { encoding: 'utf8' }).trim(), '1', 'nothing committed on the hijacked branch');
+});
+
+test('SENT-412-27: git throws while closing the step → lock released, state saved', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_OBSERVED=claude-test\nFAKE_BREAK_GIT=1');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('rc27'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); const m = await waitIdle(missionId); knobs('');
+  assert.equal(A.currentLock(missionId), null); assert.equal(m.status, 'failed'); assert.equal(m.steps[0].status, 'failed');
+});
+
 test('claude-code refusals: ANTHROPIC_API_KEY set, or auth method not claude.ai → 503 before any spawn', async () => {
   const ctx = { userId: 'u1', workspaceId: 'ws-a' };
   const base = { title: 'T', need: 'N', repoPath: repo('rc4'), runtimeId: 'claude-code', modelId: 'claude-test' };

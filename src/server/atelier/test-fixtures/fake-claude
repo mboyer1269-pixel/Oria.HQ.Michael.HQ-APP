@@ -27,6 +27,8 @@ fi
 echo "{\"type\":\"assistant\",\"message\":{\"model\":\"$OBS\",\"content\":[{\"type\":\"text\",\"text\":\"travail\"}]},\"session_id\":\"$SID\"}"
 [ -n "$FAKE_SLEEP" ] && sleep "$FAKE_SLEEP"
 echo "claude step $$" >> work.txt
+[ -n "$FAKE_SWITCH_BRANCH" ] && git switch -q -c "$FAKE_SWITCH_BRANCH"
+[ -n "$FAKE_BREAK_GIT" ] && mv .git .git.broken
 echo "{\"type\":\"assistant\",\"message\":{\"model\":\"$OBS\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Write\"}]},\"session_id\":\"$SID\"}"
 echo "{\"type\":\"rate_limit_event\",\"rate_limit_info\":{\"status\":\"allowed\"},\"session_id\":\"$SID\"}"
 echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"session_id\":\"$SID\",\"modelUsage\":{\"$MODEL\":{}}}"
