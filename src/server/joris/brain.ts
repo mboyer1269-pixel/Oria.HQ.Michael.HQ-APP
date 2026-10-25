@@ -498,7 +498,7 @@ export async function runJorisCommand(
 
   if (intent === "brief.generate") {
     const memory = await getMemoryContext();
-    const brief = await buildCeoBriefSnapshot();
+    const brief = await buildCeoBriefSnapshot(ctx);
     const briefSummary = memory.memoryContext
       ? `${brief.headline} ${brief.focusLine}\n\n${memory.memoryContext}`
       : `${brief.headline} ${brief.focusLine}`;

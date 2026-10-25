@@ -63,6 +63,7 @@ export type CreateAgentOutcomeInput = {
 
 /** Input to update an outcome (CEO evaluates the result). */
 export type UpdateAgentOutcomeInput = {
+  workspaceId: string;
   id: string;
   outcome: AgentOutcomeStatus;
   revenueCad?: number;

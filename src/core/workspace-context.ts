@@ -1,3 +1,4 @@
+import { resolveAuthzContext, getAuthorizedWorkspaceConfig } from "@/server/auth/authz-context";
 import type { ActiveWorkspaceContext, Workspace } from "@/core/types";
 import {
   getDefaultAssistantProfile,
@@ -6,14 +7,7 @@ import {
 } from "@/core/workspaces/registry";
 import { getServerUserContext, type ServerUserContext } from "@/server/auth/user-context";
 
-/**
- * The active workspace + user context for a server-side request.
- *
- * Forward-compatible with multi-workspace: today we always resolve to the
- * single default workspace, but call sites that depend on `workspace` will
- * keep working when we add a real workspace resolver (e.g. from the URL or a
- * session claim).
- */
+/** Active workspace and user context for server-side operations. */
 export type WorkspaceContext = ActiveWorkspaceContext & {
   workspace: Workspace;
   userId: string;
@@ -21,18 +15,27 @@ export type WorkspaceContext = ActiveWorkspaceContext & {
 };
 
 /**
- * Resolve the active workspace context.
- *
- * This is a thin wrapper around the existing single-owner `getServerUserContext`.
- * Existing call sites can stay on `getServerUserContext` while new code starts
- * using `getActiveWorkspaceContext`. Phase 6 routes everything through this
- * function via a context-firewall middleware.
+ * Explicit identities/selections are authorized; no-argument callers retain the
+ * configured owner's declared workspace default for backward compatibility.
+ * HTTP boundaries should supply the authenticated user and selected workspace.
  */
-export function getActiveWorkspaceContext(): WorkspaceContext {
-  const user = getServerUserContext();
-  const workspace = getDefaultWorkspace({ ownerUserId: user.userId });
-  const activeMode = getDefaultWorkspaceMode(workspace);
-  const activeAgentProfile = getDefaultAssistantProfile(workspace);
+export function getActiveWorkspaceContext(opts?: { workspaceId?: string; userId?: string; email?: string; emailVerified?: boolean }): WorkspaceContext {
+  const user: ServerUserContext = opts?.userId
+    ? { userId: opts.userId, email: opts.email, storagePreference: "supabase" }
+    : getServerUserContext();
+  // No arguments preserves the configured owner's declared default for legacy callers.
+  // This is never a fallback for an unknown explicitly requested workspace.
+  const authz = opts ? resolveAuthzContext({ ...user, emailVerified: opts.emailVerified === true }, opts.workspaceId) : undefined;
+  const config = authz ? getAuthorizedWorkspaceConfig(authz.workspaceId) : undefined;
+  const workspace = config ? {
+    id: config.slug, slug: config.slug, displayName: config.displayName,
+    ownerUserId: user.userId, modes: config.modes, defaultAssistantId: config.defaultAssistantId,
+  } : getDefaultWorkspace({ ownerUserId: user.userId });
+  const activeMode = config ? workspace.modes.find((m) => m.id === config.defaultModeId)! : getDefaultWorkspaceMode(workspace);
+  const activeAgentProfile = config ? {
+    id: config.defaultAssistantId, workspaceId: workspace.id, name: config.defaultAssistantName,
+    runtimeId: config.defaultAssistantRuntimeId, allowedTools: config.defaultAssistantAllowedTools,
+  } : getDefaultAssistantProfile(workspace);
 
   return {
     activeWorkspace: workspace,

@@ -3,7 +3,8 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { serverEnv } from "@/lib/server-env";
+import { configuredMemberships, membershipsForUser, resolveAuthzContext, WorkspaceAccessError, type AuthzContext, type Identity } from "@/server/auth/authz-context";
+import { DEFAULT_WORKSPACE_SLUG } from "@/core/workspaces/registry";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { asRoute, getLoginPath } from "@/server/auth/redirects";
 
@@ -17,17 +18,23 @@ export type OwnerAccess =
       user: User;
     };
 
-export function hasOwnerAuthConfig() {
-  return Boolean(serverEnv.michaelHqOwnerId || serverEnv.michaelHqOwnerEmail);
+/** Authorization identity of a Supabase user: the email counts only once confirmed. */
+export function authzIdentity(user: Pick<User, "id" | "email" | "email_confirmed_at">): Identity {
+  return { userId: user.id, email: user.email, emailVerified: Boolean(user.email && user.email_confirmed_at) };
 }
 
-export function isOwnerUser(user: User) {
-  const email = user.email?.trim().toLowerCase();
+export function hasOwnerAuthConfig() {
+  return configuredMemberships().some((m) => m.role === "owner" && m.workspaceId === DEFAULT_WORKSPACE_SLUG);
+}
 
-  return Boolean(
-    (serverEnv.michaelHqOwnerId && user.id === serverEnv.michaelHqOwnerId) ||
-      (serverEnv.michaelHqOwnerEmail && email === serverEnv.michaelHqOwnerEmail),
-  );
+/**
+ * Legacy owner gate: legacy routes still resolve the default workspace context, so
+ * only an owner of that default workspace may pass. Owners of other workspaces must
+ * go through requireWorkspaceApiSession, which scopes data to their workspace.
+ */
+export function isOwnerUser(user: User) {
+  return membershipsForUser(authzIdentity(user)).some((m) =>
+    m.role === "owner" && m.workspaceId === DEFAULT_WORKSPACE_SLUG);
 }
 
 export async function getCurrentAuthUser() {
@@ -129,4 +136,17 @@ export async function requireOwnerApiSession(): Promise<NextResponse | null> {
   }
 
   return null;
+}
+
+/** Header takes precedence over query; both are untrusted workspace selectors. */
+export async function requireWorkspaceApiSession(request?: Request): Promise<{ ctx: AuthzContext; user: User } | NextResponse> {
+  const user = await getCurrentAuthUser();
+  if (!user) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  const requested = request?.headers.get("x-oria-workspace") ?? (request ? new URL(request.url).searchParams.get("workspace") : null);
+  try {
+    return { ctx: resolveAuthzContext(authzIdentity(user), requested ?? undefined), user };
+  } catch (error) {
+    if (!(error instanceof WorkspaceAccessError)) throw error;
+    return NextResponse.json({ error: error.message, code: error.code }, { status: 403 });
+  }
 }
