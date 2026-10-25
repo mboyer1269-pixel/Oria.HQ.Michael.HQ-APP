@@ -160,3 +160,6 @@ Les avatars SVG simples sont remplacés par des astres génératifs (`remake/ext
 
 ## 11. Familles d'avatars (Billy Boutons, Astrolabe, Glyphe)
 Voir `familles/FAMILLES.md`. Pages : `mockups/famille-{billy,astrolabe,glyphe}.html`, sélecteur `mockups/avatars-attribution.html`. Captures `captures/familles/`, vidéos `captures/familles/video/`. axe : 0 violation sur 8 analyses (4 pages × 1440/390).
+
+## 12. Avatars v2 — hybride Billy × Astrolabe, couleur en tokens, atelier
+Voir `avatars-v2/RECHERCHE-AVATARS.md`. Pages `mockups/avatars-v2-galerie.html`, `mockups/avatars-v2.html`. Captures `captures/avatars-v2/`, vidéos `captures/avatars-v2/video/avatars-v2-demo-{1440,390}.webm`. axe : 0 violation sur 6 analyses (2 pages + mode marque × 1440/390).
