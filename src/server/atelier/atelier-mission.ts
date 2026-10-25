@@ -101,13 +101,26 @@ export function agentEnvironment(env = process.env): NodeJS.ProcessEnv {
  * project/settings overrides — the in-step protection is the init stream guard (apiKeySource) + the cleaned env.
  */
 export function assertSubscriptionOnly(runtimeId: RuntimeId = "codex", env = process.env, run = spawnSync) {
-  const leaked = API_KEYS.filter(k => env[k]);
+  const leaked = [...API_KEYS, ...(runtimeId === "claude-code" ? CLAUDE_PAID_SWITCHES : [])].filter(k => env[k]);
   if (leaked.length) throw new Error(`api_key_present:${leaked.join(",")}`);
+  // SENT-412-31: the real pre-launch refusal is the env (above) + the settings Claude will load (only ours: --setting-sources "").
+  if (runtimeId === "claude-code") assertClaudeLoadedSettings(agentInvocation("claude-code", "x", null).args);
   const s = run(runtimeId === "codex" ? "codex" : "claude", runtimeId === "codex" ? ["login", "status"] : ["auth", "status"], { encoding: "utf8", env: agentEnvironment(env), timeout: 20_000 });
   const out = `${s.stdout ?? ""}${s.stderr ?? ""}`;
   if (runtimeId === "codex") { if (!/logged in using chatgpt/i.test(out) || /api[ _-]?key/i.test(out)) throw new Error("subscription_auth_required"); return; }
   try { const j = JSON.parse(String(s.stdout)); if (j.loggedIn === true && j.authMethod === "claude.ai" && (!j.apiProvider || j.apiProvider === "firstParty")) return; } catch { /* fallthrough */ }
   throw new Error("subscription_auth_required");
+}
+const AGENT_HARNESS_DENY = ["package.json", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", ".npmrc", ".yarnrc", ".yarnrc.yml"]
+  .flatMap(f => [f, `**/${f}`]).flatMap(f => [`Edit(${f})`, `Write(${f})`]).join(",");
+const CLAUDE_PAID_SWITCHES = ["CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY", "ANTHROPIC_BASE_URL"];
+/** 412-31: settings actually loaded by the CLI = only `--settings` (user/project/local disabled); no apiKeyHelper, no env. */
+export function assertClaudeLoadedSettings(args: string[]) {
+  const i = args.indexOf("--setting-sources"); const j = args.indexOf("--settings");
+  if (i < 0 || args[i + 1] !== "") throw new Error("subscription_auth_required");
+  let st: Record<string, unknown> = {};
+  try { st = j < 0 ? {} : JSON.parse(args[j + 1]); } catch { throw new Error("subscription_auth_required"); }
+  if ((typeof st.apiKeyHelper === "string" && st.apiKeyHelper !== "") || (st.apiKeyHelper != null && typeof st.apiKeyHelper !== "string") || st.env) throw new Error("subscription_auth_required");
 }
 export function agentInvocation(runtimeId: RuntimeId, modelId: string, resumeSession: string | null): { binary: string; args: string[] } {
   if (runtimeId === "codex") {
@@ -119,7 +132,8 @@ export function agentInvocation(runtimeId: RuntimeId, modelId: string, resumeSes
   const args = ["-p", "--model", modelId, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
     // SENT-412-23: no shell at all (tests run in the runner's confined test step); file tools denied on credential dirs.
     "--allowedTools", "Read,Edit,Write,Glob,Grep",
-    "--disallowedTools", "Bash,WebFetch,WebSearch,Read(~/.claude/**),Edit(~/.claude/**),Write(~/.claude/**),Grep(~/.claude/**),Glob(~/.claude/**),Read(~/.codex/**),Edit(~/.codex/**),Write(~/.codex/**),Grep(~/.codex/**),Glob(~/.codex/**),Read(~/.ssh/**),Edit(~/.ssh/**),Write(~/.ssh/**),Grep(~/.ssh/**),Glob(~/.ssh/**),Read(~/.config/**),Edit(~/.config/**),Write(~/.config/**),Grep(~/.config/**),Glob(~/.config/**),Read(~/.aws/**),Edit(~/.aws/**),Write(~/.aws/**),Grep(~/.aws/**),Glob(~/.aws/**),Read(~/.npmrc),Edit(~/.npmrc),Write(~/.npmrc),Grep(~/.npmrc),Glob(~/.npmrc),Read(~/.netrc),Edit(~/.netrc),Write(~/.netrc),Grep(~/.netrc),Glob(~/.netrc),Read(~/.gitconfig),Edit(~/.gitconfig),Write(~/.gitconfig),Grep(~/.gitconfig),Glob(~/.gitconfig),Read(~/.git-credentials),Edit(~/.git-credentials),Write(~/.git-credentials),Grep(~/.git-credentials),Glob(~/.git-credentials)",
+    // 412-30 (Ronny): the agent cannot touch what decides what `npm test` runs.
+    "--disallowedTools", `Bash,WebFetch,WebSearch,${AGENT_HARNESS_DENY},Read(~/.claude/**),Edit(~/.claude/**),Write(~/.claude/**),Grep(~/.claude/**),Glob(~/.claude/**),Read(~/.codex/**),Edit(~/.codex/**),Write(~/.codex/**),Grep(~/.codex/**),Glob(~/.codex/**),Read(~/.ssh/**),Edit(~/.ssh/**),Write(~/.ssh/**),Grep(~/.ssh/**),Glob(~/.ssh/**),Read(~/.config/**),Edit(~/.config/**),Write(~/.config/**),Grep(~/.config/**),Glob(~/.config/**),Read(~/.aws/**),Edit(~/.aws/**),Write(~/.aws/**),Grep(~/.aws/**),Glob(~/.aws/**),Read(~/.npmrc),Edit(~/.npmrc),Write(~/.npmrc),Grep(~/.npmrc),Glob(~/.npmrc),Read(~/.netrc),Edit(~/.netrc),Write(~/.netrc),Grep(~/.netrc),Glob(~/.netrc),Read(~/.gitconfig),Edit(~/.gitconfig),Write(~/.gitconfig),Grep(~/.gitconfig),Glob(~/.gitconfig),Read(~/.git-credentials),Edit(~/.git-credentials),Write(~/.git-credentials),Grep(~/.git-credentials),Glob(~/.git-credentials)`,
     "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
     // SENT-412-17: never load user/project/local settings (their `env`, apiKeyHelper, skills, plugins could switch to the paid API).
     "--setting-sources", "", "--settings", '{"disableAllHooks":true,"apiKeyHelper":""}'];

@@ -89,3 +89,22 @@ test('412-35: Grep/Glob are denied on credential dirs too', () => {
   const a = A.agentInvocation('claude-code', 'm', null).args; const denied = a[a.indexOf('--disallowedTools') + 1].split(',');
   for (const d of ['Grep(~/.claude/**)', 'Glob(~/.claude/**)', 'Grep(~/.codex/**)', 'Glob(~/.codex/**)']) assert.ok(denied.includes(d), d);
 });
+
+test('412-30 (Ronny): agent denied Edit/Write on package.json, lockfiles, .npmrc; test step env holds no real credentials', () => {
+  const deny = A.agentInvocation('claude-code', 'm', null).args.at(A.agentInvocation('claude-code', 'm', null).args.indexOf('--disallowedTools') + 1).split(',');
+  for (const f of ['package.json', '**/package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.npmrc', '**/.npmrc'])
+    for (const t of ['Edit', 'Write']) assert.ok(deny.includes(`${t}(${f})`), `${t}(${f})`);
+  const root = mkdtempSync(path.join(tmpdir(), 'h-env-'));
+  const e = A.commandStepEnvironment('11111111-1111-4111-8111-111111111111', root, { PATH: '/bin', HOME: '/home/real', ANTHROPIC_API_KEY: 'k', OPENAI_API_KEY: 'k', GH_TOKEN: 't', AWS_SECRET_ACCESS_KEY: 's', NPM_TOKEN: 'n' });
+  assert.notEqual(e.HOME, '/home/real');
+  assert.deepEqual(Object.keys(e).filter(k => /KEY|TOKEN|SECRET/i.test(k)), []);
+});
+
+test('412-31 (Ronny): pre-launch refusal = API key / paid switch in env, or apiKeyHelper in loaded settings — not auth status', () => {
+  const never = () => { throw new Error('auth status must not decide'); };
+  assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: '/bin', ANTHROPIC_API_KEY: 'k' }, never), /api_key_present/);
+  assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: '/bin', CLAUDE_CODE_USE_BEDROCK: '1' }, never), /api_key_present/);
+  assert.doesNotThrow(() => A.assertClaudeLoadedSettings(A.agentInvocation('claude-code', 'm', null).args));
+  assert.throws(() => A.assertClaudeLoadedSettings(['--setting-sources', '', '--settings', '{"apiKeyHelper":"/bin/echo sk"}']), /subscription_auth_required/);
+  assert.throws(() => A.assertClaudeLoadedSettings(['--settings', '{}']), /subscription_auth_required/, 'user/project settings not disabled');
+});

@@ -79,3 +79,8 @@ Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrig�
 - **Quarantaine (412-34)** : `git add -A` + `git stash create` → ref nommé vérifié (arbre = arbre de travail), puis seulement remise
   à HEAD du worktree ; `refs/stash` n'est jamais touché.
 - **412-35** : Grep/Glob refusés aussi sur les chemins sensibles ; lancement refusé (`repo_symlink_escape`) si un lien symbolique sort du worktree.
+- **Ajouts Ronny** : l'agent Claude n'a ni Edit ni Write sur package.json, lockfiles, .npmrc/.yarnrc (racine et `**/`), en plus de
+  `test_harness_changed` ; l'étape test n'hérite d'aucun identifiant (HOME privé, env limité à PATH/LANG/LC_ALL/TERM, bwrap sans
+  /home réel). Refus Claude avant lancement = clé ou bascule payante dans l'env (ANTHROPIC_API_KEY, *_AUTH_TOKEN,
+  CLAUDE_CODE_USE_BEDROCK/VERTEX/FOUNDRY, ANTHROPIC_BASE_URL) ou `apiKeyHelper`/`env` dans les réglages chargés (seuls les nôtres) ;
+  pendant l'étape = `apiKeySource` de init. `auth status` n'est plus qu'un diagnostic de connexion.
