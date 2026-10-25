@@ -169,3 +169,10 @@ Images de Michael détourées (aucun redessin), couches d'état CSS/SVG, recolor
 piloté par `--agent-accent` / `--brand-accent`. Décision, fichiers, props React (`famille`, `variante`, `pose`, `couleur`,
 état via `useAgentState`) et limites : `avatars-v2/FIGURINE.md`. Preuves : `captures/figurine/` (1440/390, animé et
 mouvement réduit, axe 0, vidéos < 6 Mo).
+
+## 14. Avatars v3 — noms, animations, relais (révision 4)
+- Préférences : `{version:3, agents:{[agentId]:{agentId, displayName, famille, variante, pose, couleur}}, marque, options}` ; `agentId` immuable, `displayName` 1–32 caractères (doublon signalé). Détails : `avatars-v2/FIGURINE.md` « Révision 4 ».
+- États dérivés **uniquement** des événements réels via `useAgentState(agentId)` ; aucune animation sans événement.
+- Délégation : sur `delegation.created`, appeler `window.oriaRelay(fromId, toId)` (comète dans l'orbite).
+- Micro : niveau RMS via AnalyserNode seulement si l'utilisateur a autorisé le micro.
+- Perf : transform/opacity, pause hors écran (IntersectionObserver), mouvement réduit respecté ; son désactivé par défaut.

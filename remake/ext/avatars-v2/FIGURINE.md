@@ -86,3 +86,52 @@ CSS : reprendre `figurine.CSS` (+ `.ov2.fg svg{height:auto}`) tel quel. Préfér
 - Recoloration : sur une couleur très sombre, le néon devient terne (le mode « couleur » garde la luminance) ; le contrôle
   AA de l'atelier éclaircit automatiquement les couleurs trop sombres.
 - `file://` : pas de recoloration (CORS des masques) — sans effet en production HTTP.
+
+---
+
+# Révision 4 — noms éditables, animations liées à l'activité, finition
+
+## Noms : `agentId` stable + `displayName` libre
+```ts
+type AgentPrefs = { agentId: 'ori'|'nexus'|'nova'|'scout'|'pulse'|'aegis'; // clé technique, jamais modifiée
+  displayName: string;   // 1–32 caractères après trim, non vide ; doublon accepté mais signalé
+  famille: string; variante: string; pose: string; couleur: string };
+// localStorage 'oria-avatars-v3' (démo) — en prod : table user_prefs, même forme
+{ version: 3, agents: Record<agentId, AgentPrefs>, marque: { actif, couleur }, options: { expressionsEtat, son } }
+```
+- Renommage dans l'atelier (champ « Nom affiché ») **ou** en ligne sur la carte : clic / Entrée / Espace / F2 ouvre l'éditeur, **Entrée valide, Échap annule**, perte de focus = valider.
+- Le rôle d'origine reste visible en sous-titre (« NEXUS — Développement »).
+- Propagation : `alt`, `aria-label`, légendes, fil de discussion, orbite, galerie (lit le même stockage).
+- Composant React : `<AgentAvatar agentId displayName famille variante couleur state={useAgentState(agentId)} />` — `displayName` sert à l'`alt` ; toutes les clés logiques (événements, routes, logs) utilisent `agentId`.
+
+## Animations (transform + opacity uniquement, une seule fois par transition)
+| État | Mise en scène | Déclencheur réel |
+|---|---|---|
+| toute transition | anticipation → étirement → retour (squash & stretch) | changement de `state` |
+| repos | micro-idles rares (reflet du casque, coup d'œil) toutes 6–14 s | aucun flux actif |
+| écoute | ondes ; si micro autorisé, le néon suit le niveau RMS réel (`--lvl`) | MediaRecorder actif |
+| réflexion | 8 particules qui forment le glyphe du rôle | 1er chunk / mission queued |
+| exécution | cadran à facettes, chaque nouvelle facette « clique » avec micro-pulsation | `ledger.append` (étape terminée) |
+| bloqué | sablier sur le casque | needs_approval |
+| terminé | célébration propre au rôle (couronne, `</>`, étincelles, étoile, graphique, bouclier) puis badge | completed |
+| erreur | affaissement puis badge | failed / runner_died |
+| délégation | comète de la couleur de l'émetteur dans l'orbite | `window.oriaRelay(fromId,toId)` sur `delegation.created` |
+
+- Regard (parallaxe ±3 px) vers le curseur ou le focus clavier ; coupé en mouvement réduit.
+- `IntersectionObserver` : tout avatar hors écran est mis en pause (`.fg-off`), y compris les animations « une fois ».
+- Mouvement réduit (système ou case de l'atelier) : aucune animation, états statiques distincts (anneau, glyphe, sablier, badges).
+- Son discret (WebAudio, pas de fichier) **désactivé par défaut**.
+- Expressions de l'affiche liées à un état : option, uniquement quand le geste correspond (pouce → terminé, jumelles → réflexion, casque audio → écoute, garde → bloqué, ampoule → exécution).
+
+## Recoloration sous file://
+Les masques sont livrés en data-URI dans `figurine/masks.css` (classes `.fm-<asset>`, 517 Ko) : plus aucune requête CORS, la recoloration fonctionne en ouvrant le HTML en local.
+
+## Surprise : photo de profil PNG 512 px
+Bouton par carte : export canvas de la figurine à la couleur choisie + nom affiché, prêt pour Slack/Teams (`FG.exportPNG`). Exemple : `captures/figurine-v2/exemple-photo-profil-nova.png`.
+
+## Limites (révision 4)
+- Pas de clignement d'yeux : l'image est un raster, il faudrait redessiner les paupières ; les micro-idles se limitent au reflet et au regard.
+- Micro réel non démontrable en capture headless (permission) ; la vidéo montre les ondes d'exemple.
+- Export PNG : nécessite HTTP(S) (canvas « tainted » sous file://), message clair sinon.
+- Expressions de l'affiche : source ~120 px, nettes jusqu'à 120 px seulement.
+- Les animations « une fois » hors écran sont différées jusqu'à l'apparition (voulu).
