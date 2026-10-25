@@ -29,7 +29,11 @@ const serverEnvSchema = z.object({
   // Owner identity — required in production
   ORIA_WORKSPACE_MEMBERS: z.string().optional(),
   ORIA_OPEN_PERSONAL_SPACES: z.string().optional(),
+  // "1" only after migration 0032 (contact_leads.workspace_id) is applied.
+  ORIA_CONTACT_LEADS_WORKSPACE_SCOPED: z.string().optional(),
   MICHAEL_HQ_OWNER_ID: z.string().min(1).optional(),
+  // Comma-separated user ids allowed to spend the local CLI subscriptions; default MICHAEL_HQ_OWNER_ID.
+  ORIA_SUBSCRIPTION_OWNERS: z.string().optional(),
   MICHAEL_HQ_OWNER_EMAIL: z.string().email().optional(),
   // Notifications
   CONTACT_NOTIFICATION_EMAIL: z.string().email().optional(),
@@ -60,6 +64,7 @@ const serverEnvSchema = z.object({
   // Opt-in feature flags. Each gates a capability that is OFF unless the flag
   // is exactly "1"; they are declared here so the schema is the full inventory
   // of what the environment can change, not a partial one.
+  NEXT_PUBLIC_ORIA_DEMO_MODE: z.enum(["0", "1"]).optional(),
   ORIA_ENABLE_MEMEX_READONLY: z.enum(["0", "1"]).optional(),
     ORIA_ENABLE_MEMEX_HTTP_READONLY: z.enum(["0", "1"]).optional(),
     MEMEX_HTTP_ENDPOINT: z.string().optional(),

@@ -582,7 +582,7 @@ function CouncilSection({
         <div className="flex items-center gap-2">
           <Users className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            Council Run #{council.runIndex}
+            Conseil simulé — démo #{council.runIndex}
           </span>
           {council.runId && council.runPhase && (
             <span

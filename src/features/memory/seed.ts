@@ -1,3 +1,4 @@
+import { isDemoMode } from "@/lib/demo-mode";
 import type {
   AgentScore,
   DailyLog,
@@ -10,7 +11,7 @@ import type {
 // persistence, no live figures. Replaced by real summaries once the Memory Log
 // Contract and Supabase persistence land.
 
-export const memorySubjects: MemorySubject[] = [
+const demo_memorySubjects: MemorySubject[] = [
   {
     id: "sovra",
     title: "SOVRA Operating Model",
@@ -120,7 +121,7 @@ export const memorySubjects: MemorySubject[] = [
   },
 ];
 
-export const recentDailyLogs: DailyLog[] = [
+const demo_recentDailyLogs: DailyLog[] = [
   {
     date: "2026-05-23",
     summary:
@@ -183,8 +184,8 @@ export const recentDailyLogs: DailyLog[] = [
   },
 ];
 
-export const moneyboard: Moneyboard = {
-  periodLabel: "Cette semaine (mock)",
+const demoMoneyboard: Moneyboard = {
+  periodLabel: "Cette semaine — démo",
   moneyInCents: 0,
   moneyOutCents: 2230,
   pipelineEstimatedCents: 169700,
@@ -202,7 +203,7 @@ export const moneyboard: Moneyboard = {
   ],
 };
 
-export const agentLeaderboard: AgentScore[] = [
+const demo_agentLeaderboard: AgentScore[] = [
   {
     agentId: "sentinel",
     agentName: "Sentinel",
@@ -271,7 +272,7 @@ export const agentLeaderboard: AgentScore[] = [
   },
 ];
 
-export const ventureProgress: VentureProgress[] = [
+const demo_ventureProgress: VentureProgress[] = [
   {
     id: "suivia",
     name: "Suivia AP/AR",
@@ -303,3 +304,13 @@ export const ventureProgress: VentureProgress[] = [
     riskStatus: "Non démarré.",
   },
 ];
+
+export const memorySubjects = isDemoMode() ? demo_memorySubjects.map((row) => ({ ...row, provenance: "simulated" as const, title: `Démo — ${row.title}` })) : [];
+
+export const recentDailyLogs = isDemoMode() ? demo_recentDailyLogs.map((row) => ({ ...row, provenance: "simulated" as const, summary: `Démo — ${row.summary}` })) : [];
+
+export const agentLeaderboard = isDemoMode() ? demo_agentLeaderboard.map((row) => ({ ...row, provenance: "simulated" as const, agentName: `Démo — ${row.agentName}` })) : [];
+
+export const ventureProgress = isDemoMode() ? demo_ventureProgress.map((row) => ({ ...row, provenance: "simulated" as const, name: `Démo — ${row.name}` })) : [];
+
+export const moneyboard = isDemoMode() ? { ...demoMoneyboard, provenance: "simulated" as const } : null;

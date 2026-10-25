@@ -1,6 +1,7 @@
+import { isDemoMode } from "@/lib/demo-mode";
 import type { Mission } from "@/core/types";
 
-export const mockMissions: Mission[] = [
+const demoMissions: Mission[] = [
   {
     id: "mission_ceo_brief_2026_05_21",
     workspaceId: "michael-hq",
@@ -110,3 +111,7 @@ export const KANBAN_COLUMNS: { status: Mission["status"]; label: string }[] = [
   { status: "completed", label: "Terminé" },
   { status: "failed", label: "Échoué" },
 ];
+
+export const mockMissions = isDemoMode()
+  ? demoMissions.map((mission) => ({ ...mission, provenance: "simulated" as const, title: `Démo — ${mission.title}` }))
+  : [];

@@ -66,3 +66,12 @@ The smoke prints the recorded config, observed model and reply. It is never run 
 
 Official invocation references: [Codex CLI](https://developers.openai.com/codex/cli/reference)
 and [Claude Code CLI](https://code.claude.com/docs/en/cli-reference).
+
+## Holder-only access
+
+Selecting a subscription runtime (POST `subscriptionSelection`) and listing the
+subscription options (GET) are reserved to the subscription holder:
+`ORIA_SUBSCRIPTION_OWNERS` (comma-separated user ids), defaulting to
+`MICHAEL_HQ_OWNER_ID`. Anyone else gets 403 `{ error, code: "SUBSCRIPTION_OWNER_ONLY" }`
+before any CLI is spawned; an empty configuration admits nobody. This keeps the
+path safe once #410 opens `/api/joris/chat` to other workspace owners and members.

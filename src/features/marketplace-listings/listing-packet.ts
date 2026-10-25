@@ -125,30 +125,30 @@ export function prepareListingFromStock(input: {
   // 1) Hook — first 2 lines shown before « Voir plus » must sell the click.
   const hook =
     v.condition === "new"
-      ? `${title} neuf, en stock à Gatineau — prêt pour un essai cette semaine.`
+      ? `${title} neuf — disponibilité et essai à confirmer auprès de la concession.`
       : mileage
-        ? `${title} · ${mileage} — inspecté, prêt à partir, à ${priceLine}.`
-        : `${title} — inspecté, prêt à partir, à ${priceLine}.`;
+        ? `${title} · ${mileage} — disponibilité à confirmer, à ${priceLine}.`
+        : `${title} — disponibilité à confirmer, à ${priceLine}.`;
 
   // 2) Key feature bullets (5-8) — what buyers filter on.
   const bullets = [
-    `Condition : ${conditionLabel}${v.condition === "new" ? " · garantie GM complète" : " · inspection concession"}`,
+    `Condition : ${conditionLabel}`,
     mileage ? `Kilométrage : ${mileage}` : null,
     v.exteriorColor ? `Couleur extérieure : ${v.exteriorColor}` : null,
     v.trim ? `Version : ${v.trim}` : null,
-    "Financement sur place · échange accepté · taux compétitifs GM",
+    "Financement et reprise : conditions à confirmer auprès de la concession",
     `Stock : ${v.stockNumber ?? v.stockId}${v.vin ? ` · NIV : ${v.vin}` : ""}`,
   ].filter((b): b is string => b !== null);
 
   // 3) Trust & condition — transparency reduces tire-kickers.
   const trustBlock =
     v.condition === "new"
-      ? "Véhicule neuf de concession — dossier complet, aucune surprise. Rapport et fiche technique disponibles sur demande."
-      : "Historique et inspection disponibles sur demande (CARFAX sur place). On divulgue tout avant votre déplacement — zéro surprise.";
+      ? "Véhicule neuf — demandez la fiche technique et les conditions de garantie à la concession."
+      : "Historique et inspection : disponibilité à confirmer avant votre déplacement.";
 
   // 4) CTA — schedule the test drive (fills the livre).
   const cta =
-    "Répondez à cette annonce pour réserver votre essai routier — réponse rapide, créneaux cette semaine.";
+    "Répondez à cette annonce pour demander un essai routier — disponibilités à confirmer avec la concession.";
 
   const description = [
     hook,

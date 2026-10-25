@@ -89,7 +89,9 @@ export type ContactLeadRow = {
   created_at: string;
 };
 
-export type ContactLeadInsert = Omit<ContactLeadRow, "id" | "created_at"> & {
+// workspace_id is omitted until migration 0032 is applied (ORIA_CONTACT_LEADS_WORKSPACE_SCOPED).
+export type ContactLeadInsert = Omit<ContactLeadRow, "id" | "created_at" | "workspace_id"> & {
+  workspace_id?: string;
   id?: string;
   created_at?: string;
 };

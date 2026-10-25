@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { isDemoMode, DEMO_DATA_LABEL, EMPTY_DATA_LABEL } from "@/lib/demo-mode";
 import {
-  AGENT_VENTURE_WORKBENCH_ITEMS,
+  getAgentVentureWorkbenchItems,
   type AgentVentureWorkbenchItem,
 } from "../agent-venture-workbench-data";
 import { buildAgentVentureDiscoveryTargetList } from "../agent-customer-discovery-target-list";
@@ -22,9 +23,11 @@ export function AgentVentureWorkbenchWithForm() {
   const [draftItem, setDraftItem] =
     useState<AgentVentureWorkbenchItem | null>(null);
 
+  const demoMode = isDemoMode();
+  const samples = getAgentVentureWorkbenchItems(demoMode);
   const items: AgentVentureWorkbenchItem[] = draftItem
-    ? [draftItem, ...AGENT_VENTURE_WORKBENCH_ITEMS]
-    : AGENT_VENTURE_WORKBENCH_ITEMS;
+    ? [draftItem, ...samples]
+    : samples;
 
   const prioritizationQueue = buildAgentVenturePrioritizationQueue(items);
   const offerDrafts = buildAgentVentureOfferDrafts(items);
@@ -34,6 +37,8 @@ export function AgentVentureWorkbenchWithForm() {
 
   return (
     <div className="flex flex-col gap-8">
+      {demoMode && <p role="status">{DEMO_DATA_LABEL}</p>}
+      {items.length === 0 && <p role="status">{EMPTY_DATA_LABEL}</p>}
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
@@ -118,8 +123,8 @@ export function AgentVentureWorkbenchWithForm() {
           </h2>
           <p className="text-[11px] text-neutral-500">
             {draftItem
-              ? "Live draft (first card) + example workbenches. Read-only. No execution authorized."
-              : "Prepared by agents for CEO review. Read-only. No execution authorized."}
+              ? "Local draft for review. Nothing is saved or executed."
+              : "Read-only. No execution authorized."}
           </p>
         </div>
         <AgentVentureWorkbench items={items} />

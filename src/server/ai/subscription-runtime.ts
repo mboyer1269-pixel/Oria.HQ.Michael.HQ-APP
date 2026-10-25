@@ -23,7 +23,8 @@ type Dependencies = { spawn?: SubscriptionSpawner; env?: NodeJS.ProcessEnv; time
 /** Allowlist rather than a credential-name blacklist: cloud credentials, API
  * overrides, NODE_OPTIONS, proxies and injected auth tokens never reach a CLI. */
 export function subscriptionEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return { NODE_ENV: "production", ...Object.fromEntries(["PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "WINDIR", "TMP", "TEMP", "TMPDIR", "LANG", "LC_ALL", "TERM"].flatMap(key => env[key] === undefined ? [] : [[key, env[key]]])) };
+  // UTF-8 locale is forced (not inherited) so French accents survive stdin/stdout.
+  return { NODE_ENV: "production", ...Object.fromEntries(["PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "WINDIR", "TMP", "TEMP", "TMPDIR", "TERM"].flatMap(key => env[key] === undefined ? [] : [[key, env[key]]])), LANG: "C.UTF-8", LC_ALL: "C.UTF-8" };
 }
 export function subscriptionArguments(config: SubscriptionRunConfig): string[] {
   return config.runtimeId === "codex"
@@ -52,10 +53,14 @@ function runProcess(binary: string, args: string[], prompt: string, cwd: string,
     const timer = setTimeout(() => finish("timeout"), timeoutMs);
     child.on("error", () => finish("binary_unavailable"));
     child.stdin.on("error", () => finish("stdin_failed"));
+    // Decode as UTF-8 with a StringDecoder: a multibyte char split across two
+    // chunks must not turn into U+FFFD (String(chunk) per chunk would).
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
     child.stdout.on("data", chunk => { stdout += String(chunk); if (stdout.length + stderr.length > 1_048_576) finish("output_limit"); });
     child.stderr.on("data", chunk => { stderr += String(chunk); if (stdout.length + stderr.length > 1_048_576) finish("output_limit"); });
     child.on("close", code => finish(code === 0 ? undefined : "nonzero_exit"));
-    child.stdin.end(prompt);
+    child.stdin.end(prompt, "utf8");
   });
 }
 function subscriptionAuth(runtimeId: SubscriptionSelection["runtimeId"], result: ProcessResult): boolean {
@@ -76,8 +81,17 @@ export function parseSubscriptionReply(runtimeId: SubscriptionSelection["runtime
   const reported = events.findLast(e => typeof e.model === "string");
   return { text, executedModelId: reported?.model ?? null };
 }
+/** One CLI execution at a time for this server process (SENT-409-1). A second
+ * concurrent turn is refused with reason "runtime_busy" (route answers 429). */
+let cliInFlight = false;
+export function subscriptionRuntimeBusy(): boolean { return cliInFlight; }
 /** The only dispatch boundary. No API client or fallback callback is accepted. */
 export async function runSubscriptionTurn(selection: SubscriptionSelection, prompt: string, catalog: SubscriptionCatalog | null, deps: Dependencies = {}): Promise<SubscriptionTurn> {
+  if (cliInFlight) return { status: "blocked", summary: "Tour BLOQUÉ : une exécution CLI est déjà en cours. Réessaie dans un instant.", consumptionMode: "subscription", executedModelId: null, runConfig: null, reason: "runtime_busy" };
+  cliInFlight = true;
+  try { return await runSubscriptionTurnExclusive(selection, prompt, catalog, deps); } finally { cliInFlight = false; }
+}
+async function runSubscriptionTurnExclusive(selection: SubscriptionSelection, prompt: string, catalog: SubscriptionCatalog | null, deps: Dependencies = {}): Promise<SubscriptionTurn> {
   let runConfig: SubscriptionRunConfig | null = null;
   const blocked = (reason: string): SubscriptionTurn => ({ status: "blocked", summary: `Tour BLOQUÉ : abonnement CLI indisponible (${reason}). Aucun appel API payant ni remplacement de modèle.`, consumptionMode: "subscription", executedModelId: null, runConfig, reason });
   const env = { ...(deps.env ?? process.env) };

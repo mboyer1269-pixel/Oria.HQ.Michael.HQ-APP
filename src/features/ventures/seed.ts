@@ -26,7 +26,7 @@ const NEUTRAL_TIMESTAMP = "2026-05-31T00:00:00.000Z";
  *   pre-authorized.
  * - `assignedAgents` use neutral role IDs only, no real persona names.
  */
-export const ventureSeedCards: VentureCard[] = [
+const sampleCards: VentureCard[] = [
   {
     id: "venture-sample-candidate-marketplace-automation",
     name: "Candidate Marketplace Automation",
@@ -446,3 +446,5 @@ export const ventureSeedCards: VentureCard[] = [
     updatedAt: NEUTRAL_TIMESTAMP,
   },
 ];
+
+export const ventureSeedCards = sampleCards.map((card) => ({ ...card, provenance: "simulated" as const }));

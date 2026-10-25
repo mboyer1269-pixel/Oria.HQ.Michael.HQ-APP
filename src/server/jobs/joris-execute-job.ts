@@ -25,6 +25,20 @@ export type JorisExecuteEventData = {
   locale: "fr-CA";
 };
 
+/**
+ * The only sanctioned way to build a `joris/execute` event. Identity and
+ * workspace come exclusively from the server-resolved session context
+ * (`requireWorkspaceApiSession`), never from a request body; the job re-checks
+ * membership on receipt. No emitter exists yet (the chat route is synchronous).
+ */
+export function buildJorisExecuteEvent(
+  session: { ctx: { userId: string; workspaceId: string } },
+  message: string,
+): { name: "joris/execute"; data: JorisExecuteEventData } {
+  if (!session?.ctx?.userId || !session.ctx.workspaceId) throw new Error("Missing server session context");
+  return { name: "joris/execute", data: { userId: session.ctx.userId, workspaceId: session.ctx.workspaceId, message, locale: "fr-CA" } };
+}
+
 export function resolveJorisJobContext(data: JorisExecuteEventData) {
   try {
     if (!data.userId || !data.workspaceId) throw new Error("Missing job authorization context");

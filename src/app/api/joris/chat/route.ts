@@ -3,7 +3,7 @@ import { runSubscriptionTurn } from "@/server/ai/subscription-runtime";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { requireWorkspaceApiSession } from "@/server/auth/owner";
+import { authzIdentity, requireWorkspaceApiSession } from "@/server/auth/owner";
 import { isSubscriptionOwner } from "@/server/ai/subscription-owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
@@ -21,7 +21,7 @@ const requestSchema = z.object({
 export async function GET(request: Request) {
   const session = await requireWorkspaceApiSession(request);
   if (session instanceof NextResponse) return session;
-  const ctx = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
+  const ctx = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email, emailVerified: authzIdentity(session.user).emailVerified });
   const catalog=await loadChatCapabilityCatalog();
   return NextResponse.json({options:[...chatModelOptions(catalog,ctx.workspace.id),...(session.ctx.role==="owner"&&isSubscriptionOwner(session.ctx.userId)?subscriptionOptions(await loadSubscriptionCatalog()):[])],status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
 }
@@ -41,13 +41,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
+    const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email, emailVerified: authzIdentity(session.user).emailVerified });
     if (parsed.data.subscriptionSelection) {
       // The CLI runs on a personal subscription: workspace owner AND subscription owner only (SENT-X-1, SENT-412-8).
       if (session.ctx.role !== "owner" || !isSubscriptionOwner(session.ctx.userId)) {
         return NextResponse.json({ error: "Abonnement CLI réservé à son titulaire.", code: "SUBSCRIPTION_OWNER_ONLY" }, { status: 403 });
       }
-      return NextResponse.json(await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog()));
+      const turn = await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog());
+      return NextResponse.json(turn, turn.reason === "runtime_busy" ? { status: 429, headers: { "Retry-After": "5" } } : undefined);
     }
     const catalog=await loadChatCapabilityCatalog();
     const binding=resolveChatModelBinding(catalog,workspaceContext.workspace.id,parsed.data.modelSelection);

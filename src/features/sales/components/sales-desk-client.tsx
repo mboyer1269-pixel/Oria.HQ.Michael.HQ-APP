@@ -502,7 +502,7 @@ export function SalesDeskClient({
           fullName: form.fullName,
           phone: form.phone,
           source: form.source,
-          consentBasis: "express",
+          consentBasis: "unknown",
           interestedStockIds: form.stockId ? [form.stockId] : [],
           interestedModels: form.stockId
             ? [

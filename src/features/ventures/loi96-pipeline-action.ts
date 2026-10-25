@@ -123,7 +123,7 @@ export async function prepareLoi96AuditAction(input: {
     body: email.body,
     subVoie: "cold_email",
     audienceType: "cold_prospect",
-    consentBasis: "implied_verified",
+    consentBasis: "unknown",
     recipientLocalHour: new Date().getHours(),
   });
   if (!built.ok) return { status: "error", message: built.reason };

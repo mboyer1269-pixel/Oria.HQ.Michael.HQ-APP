@@ -1,4 +1,6 @@
 -- Prepared only: NOT APPLIED. Runtime membership remains configuration-first.
+-- After applying (and running _verify), set ORIA_CONTACT_LEADS_WORKSPACE_SCOPED=1;
+-- before that the app keeps contact_leads in legacy michael-hq-only mode.
 begin;
 create table public.workspace_members (
   workspace_id text not null,

@@ -19,6 +19,7 @@ const {
 function makeBatch(overrides = {}) {
   return {
     consentBasis: "implied_verified",
+    consentProvenance: [{ kind: "email_reply", source: "crm", referenceId: "consent-record-1", capturedAt: "2026-06-01T12:00:00Z", summary: "Recorded right to contact", isVerified: true }],
     audienceType: "warm_lead",
     unsubscribeMechanism: "present",
     ...overrides,

@@ -29,11 +29,25 @@ export type ContactLeadRepository = {
 export class ContactLeadRepositoryError extends Error {
   constructor(
     message: string,
-    public readonly code: "CONTACT_LEAD_WRITE_FAILED",
+    public readonly code: "CONTACT_LEAD_WRITE_FAILED" | "CONTACT_LEAD_WORKSPACE_UNAVAILABLE",
   ) {
     super(message);
     this.name = "ContactLeadRepositoryError";
   }
+}
+
+/**
+ * Deploy-order guard (SENT-410-2). `contact_leads.workspace_id` only exists once
+ * migration 0032 is applied; the operator then sets
+ * ORIA_CONTACT_LEADS_WORKSPACE_SCOPED=1. Until then the Supabase repository runs
+ * in legacy mode: every existing row belongs to the workspace 0032 backfills
+ * (`michael-hq`), writes omit the column, that workspace reads unfiltered and any
+ * other workspace is refused (writes) or sees nothing (reads). No lead is lost
+ * and nothing leaks across workspaces.
+ */
+export const LEGACY_CONTACT_LEADS_WORKSPACE = "michael-hq";
+export function isContactLeadsWorkspaceColumnReady(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.ORIA_CONTACT_LEADS_WORKSPACE_SCOPED === "1";
 }
 
 const localContactLeads: (ContactLead & { workspaceId: string })[] = [];
@@ -113,10 +127,17 @@ function createSupabaseContactLeadRepository(): ContactLeadRepository {
   return {
     mode: "supabase",
     async create(input) {
-      const { data, error } = await supabase
+      const scoped = isContactLeadsWorkspaceColumnReady();
+      if (!scoped && input.workspaceId !== LEGACY_CONTACT_LEADS_WORKSPACE) {
+        throw new ContactLeadRepositoryError(
+          "Contact leads are not workspace-scoped yet (migration 0032 pending).",
+          "CONTACT_LEAD_WORKSPACE_UNAVAILABLE",
+        );
+      }
+      const insert = supabase
         .from("contact_leads")
         .insert({
-          workspace_id: input.workspaceId,
+          ...(scoped ? { workspace_id: input.workspaceId } : {}),
           name: input.name,
           email: input.email,
           phone: normalizeOptionalText(input.phone),
@@ -125,9 +146,8 @@ function createSupabaseContactLeadRepository(): ContactLeadRepository {
           source: input.source ?? "suivia-contact-form",
           status: input.status ?? "new",
         })
-        .select()
-        .eq("workspace_id", input.workspaceId)
-        .single();
+        .select();
+      const { data, error } = await (scoped ? insert.eq("workspace_id", input.workspaceId) : insert).single();
 
       if (error) {
         throw new ContactLeadRepositoryError(error.message, "CONTACT_LEAD_WRITE_FAILED");
@@ -137,7 +157,11 @@ function createSupabaseContactLeadRepository(): ContactLeadRepository {
     },
     async listRecent(input) {
       const limit = input.limit ?? 10;
-      let query = supabase.from("contact_leads").select().eq("workspace_id", input.workspaceId).order("created_at", { ascending: false }).limit(limit);
+      const scoped = isContactLeadsWorkspaceColumnReady();
+      if (!scoped && input.workspaceId !== LEGACY_CONTACT_LEADS_WORKSPACE) return [];
+      let query = supabase.from("contact_leads").select();
+      if (scoped) query = query.eq("workspace_id", input.workspaceId);
+      query = query.order("created_at", { ascending: false }).limit(limit);
 
       if (input.status) {
         query = query.eq("status", input.status);

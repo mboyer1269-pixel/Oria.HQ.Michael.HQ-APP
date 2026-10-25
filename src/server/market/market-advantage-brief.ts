@@ -1,6 +1,6 @@
 // Market advantage brief — stock/market → sales talking points (prepare-only).
 // Informed by public AutoTrader comps + AutoTrader merchandising research
-// (Great Price badge ≈ +60% leads; 11+ photos ≈ +185% leads).
+// Recommendations use observed listing data without unsourced conversion claims.
 
 import type { VehicleStock } from "@/features/inventory/vehicle-stock";
 import { findComparableOnLot } from "@/features/inventory/inventory-debrief";
@@ -90,11 +90,11 @@ export function buildMarketAdvantageBrief(input: {
     );
     if (greatPriceCount > 0) {
       talkingPoints.push(
-        `${greatPriceCount} annonces badge « Great price » — AutoTrader rapporte ~+60% leads sur ces badges. Prix trop haut = tu disparais.`,
+        `${greatPriceCount} annonces badge « Great price » — compare les prix et les caractéristiques avant de positionner ton annonce.`,
       );
     }
     talkingPoints.push(
-      `Merchandising : 11+ photos = ~+185% leads (guide AutoTrader). Enrichis la VDP avant publish Marketplace.`,
+      `Merchandising : vérifie les photos et enrichis la fiche véhicule avant publication Marketplace.`,
     );
   }
 

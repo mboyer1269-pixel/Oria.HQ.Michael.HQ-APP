@@ -1,5 +1,7 @@
 "use client";
 
+import { isDemoMode } from "@/lib/demo-mode";
+
 import { useMemo, useState, useTransition } from "react";
 import { AlertTriangle, Archive, CheckCircle2, FlaskConical, Plus, Skull } from "lucide-react";
 import type { LocalDraftVentureInput } from "../draft";
@@ -132,7 +134,7 @@ export function VentureCommandCenterClient({
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const showDemo = savedCards.length === 0 && !loadError;
+  const showDemo = isDemoMode() && savedCards.length === 0 && !loadError;
 
   const displayCards: DisplayCard[] = useMemo(() => {
     const failed: DisplayCard[] = failedCards.map((card) => ({ kind: "failed", card }));
@@ -301,7 +303,7 @@ export function VentureCommandCenterClient({
     <section className="flex flex-col gap-4">
       <VentureSummaryPanel cockpit={cockpit} />
       <VentureDecisionQueue items={cockpit.decisionQueue} />
-      <VentureSuggestionInbox suggestions={suggestions} />
+      <VentureSuggestionInbox suggestions={isDemoMode() ? suggestions : suggestions.filter((suggestion) => suggestion.source !== "simulated")} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -315,7 +317,9 @@ export function VentureCommandCenterClient({
                 }`
               : loadError
                 ? "Chargement indisponible"
-                : `${seedCards.length} exemple${seedCards.length > 1 ? "s" : ""} démo (non sauvegardé${
+                : !showDemo
+                  ? "Aucune donnée — rien n’a encore été enregistré"
+                  : `${seedCards.length} exemple${seedCards.length > 1 ? "s" : ""} démo (non sauvegardé${
                     seedCards.length > 1 ? "s" : ""
                   })`}
             {failedCards.length > 0
