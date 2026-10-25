@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { requireOwnerApiSession } from "@/server/auth/owner";
+import { requireWorkspaceApiSession } from "@/server/auth/owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
@@ -14,16 +14,17 @@ const requestSchema = z.object({
   modelSelection: chatModelSelectionSchema.optional(),
 }).strict();
 
-export async function GET() {
-  const authResponse=await requireOwnerApiSession();if(authResponse)return authResponse;
-  const ctx=getActiveWorkspaceContext();
+export async function GET(request: Request) {
+  const session = await requireWorkspaceApiSession(request);
+  if (session instanceof NextResponse) return session;
+  const ctx = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
   const catalog=await loadChatCapabilityCatalog();
   return NextResponse.json({options:chatModelOptions(catalog,ctx.workspace.id),status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(request: Request) {
-  const authResponse = await requireOwnerApiSession();
-  if (authResponse) return authResponse;
+  const session = await requireWorkspaceApiSession(request);
+  if (session instanceof NextResponse) return session;
 
   const body = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(body);
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const workspaceContext = getActiveWorkspaceContext();
+    const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
     const catalog=await loadChatCapabilityCatalog();
     const binding=resolveChatModelBinding(catalog,workspaceContext.workspace.id,parsed.data.modelSelection);
     const result = await runJorisCommand(parsed.data.message, workspaceContext, undefined, binding);

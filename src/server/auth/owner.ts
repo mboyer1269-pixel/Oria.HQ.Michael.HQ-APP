@@ -3,7 +3,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { serverEnv } from "@/lib/server-env";
+import { configuredMemberships, membershipsForUser, resolveAuthzContext, WorkspaceAccessError, type AuthzContext } from "@/server/auth/authz-context";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { asRoute, getLoginPath } from "@/server/auth/redirects";
 
@@ -18,16 +18,12 @@ export type OwnerAccess =
     };
 
 export function hasOwnerAuthConfig() {
-  return Boolean(serverEnv.michaelHqOwnerId || serverEnv.michaelHqOwnerEmail);
+  return configuredMemberships().some((m) => m.role === "owner" && !m.workspaceId.startsWith("personal:"));
 }
 
 export function isOwnerUser(user: User) {
-  const email = user.email?.trim().toLowerCase();
-
-  return Boolean(
-    (serverEnv.michaelHqOwnerId && user.id === serverEnv.michaelHqOwnerId) ||
-      (serverEnv.michaelHqOwnerEmail && email === serverEnv.michaelHqOwnerEmail),
-  );
+  return membershipsForUser({ userId: user.id, email: user.email }).some((m) =>
+    m.role === "owner" && !m.workspaceId.startsWith("personal:"));
 }
 
 export async function getCurrentAuthUser() {
@@ -129,4 +125,17 @@ export async function requireOwnerApiSession(): Promise<NextResponse | null> {
   }
 
   return null;
+}
+
+/** Header takes precedence over query; both are untrusted workspace selectors. */
+export async function requireWorkspaceApiSession(request?: Request): Promise<{ ctx: AuthzContext; user: User } | NextResponse> {
+  const user = await getCurrentAuthUser();
+  if (!user) return NextResponse.json({ error: "Authentification requise." }, { status: 401 });
+  const requested = request?.headers.get("x-oria-workspace") ?? (request ? new URL(request.url).searchParams.get("workspace") : null);
+  try {
+    return { ctx: resolveAuthzContext({ userId: user.id, email: user.email }, requested ?? undefined), user };
+  } catch (error) {
+    if (!(error instanceof WorkspaceAccessError)) throw error;
+    return NextResponse.json({ error: error.message, code: error.code }, { status: 403 });
+  }
 }

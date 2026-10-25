@@ -18,9 +18,33 @@ export function listWorkspaceConfigs(): readonly WorkspaceConfig[] {
   return WORKSPACE_CONFIGS;
 }
 
-/** Resolve a workspace config by slug; falls back to the default config. */
+export class UnknownWorkspaceError extends Error {
+  constructor(public readonly workspaceId: string) {
+    super(`Unknown workspace: ${workspaceId}`);
+    this.name = "UnknownWorkspaceError";
+  }
+}
+
+/** Minimal workspace with no company association or inherited business tools. */
+export function createWorkspaceConfig(slug: string): WorkspaceConfig {
+  return {
+    slug, displayName: slug.startsWith("personal:") ? "Personnel" : slug,
+    defaultModeId: "personal", modes: [{ id: "personal", label: "Personnel" }],
+    defaultAssistantId: "assistant", defaultAssistantName: "Assistant",
+    defaultAssistantRuntimeId: "joris-brain", defaultAssistantAllowedTools: [],
+  };
+}
+
+export function findWorkspaceConfigBySlug(slug: string): WorkspaceConfig | undefined {
+  if (slug.startsWith("personal:") && slug.slice(9).trim()) return createWorkspaceConfig(slug);
+  return WORKSPACE_CONFIGS.find((config) => config.slug === slug);
+}
+
+/** Explicit selection never falls back to the default. */
 export function getWorkspaceConfigBySlug(slug: string): WorkspaceConfig {
-  return WORKSPACE_CONFIGS.find((config) => config.slug === slug) ?? ACTIVE_WORKSPACE_CONFIG;
+  const config = findWorkspaceConfigBySlug(slug);
+  if (!config) throw new UnknownWorkspaceError(slug);
+  return config;
 }
 
 export const DEFAULT_WORKSPACE_SLUG = ACTIVE_WORKSPACE_CONFIG.slug;

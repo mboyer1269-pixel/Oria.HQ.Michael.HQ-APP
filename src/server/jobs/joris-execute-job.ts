@@ -1,3 +1,5 @@
+import { NonRetriableError } from "inngest";
+import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { inngest } from "./inngest-client";
 import type { CommandResult } from "@/core/types";
 
@@ -23,6 +25,15 @@ export type JorisExecuteEventData = {
   locale: "fr-CA";
 };
 
+export function resolveJorisJobContext(data: JorisExecuteEventData) {
+  try {
+    if (!data.userId || !data.workspaceId) throw new Error("Missing job authorization context");
+    return getActiveWorkspaceContext({ userId: data.userId, workspaceId: data.workspaceId });
+  } catch (error) {
+    throw new NonRetriableError(error instanceof Error ? error.message : "Invalid job authorization context");
+  }
+}
+
 export const jorisExecuteJob = inngest.createFunction(
   {
     id: "joris-execute",
@@ -34,12 +45,11 @@ export const jorisExecuteJob = inngest.createFunction(
   },
   { event: "joris/execute" },
   async ({ event, step }): Promise<CommandResult> => {
+    const workspaceContext = resolveJorisJobContext(event.data);
     // Import lazily to avoid circular dependencies during build.
     const { runJorisCommand } = await import("@/server/joris/brain");
-    const { getActiveWorkspaceContext } = await import("@/core/workspace-context");
 
     const result = await step.run("run-joris-command", async () => {
-      const workspaceContext = getActiveWorkspaceContext();
       return runJorisCommand(event.data.message, workspaceContext);
     });
 
