@@ -157,3 +157,6 @@ Captures : `captures/avatar-etats-{1440,390}.png` (mouvement réduit), `captures
 ## 10. Astrolabe — signature avatar (voir AVATAR-ORIA.md)
 
 Les avatars SVG simples sont remplacés par des astres génératifs (`remake/ext/astre.py`), avec les mêmes 7 états et la même correspondance événement → état (§9). axe : 0 violation sur 28 analyses (14 pages × 1440/390). Vidéo : `captures/video/astrolabe-{1440,390}.webm`.
+
+## 11. Familles d'avatars (Billy Boutons, Astrolabe, Glyphe)
+Voir `familles/FAMILLES.md`. Pages : `mockups/famille-{billy,astrolabe,glyphe}.html`, sélecteur `mockups/avatars-attribution.html`. Captures `captures/familles/`, vidéos `captures/familles/video/`. axe : 0 violation sur 8 analyses (4 pages × 1440/390).
