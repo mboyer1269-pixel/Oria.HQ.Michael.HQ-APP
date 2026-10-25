@@ -1,0 +1,11 @@
+{
+  "id": "329674b0-12c3-4464-8dc3-9451e7baa3ce",
+  "status": "awaiting_review",
+  "branch": "atelier/329674b0",
+  "headSha": "9f1ecd6e69e7ef50b42f65e61f431215877e6a4a",
+  "sessionId": "01a1724d-bb9d-7bf2-a9f7-63e72a180ea0",
+  "steps": [
+    "spec:succeeded:gpt-5.6-luna:9f1ecd6"
+  ],
+  "artifacts": 4
+}

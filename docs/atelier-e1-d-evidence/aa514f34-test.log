@@ -1,0 +1,85 @@
+$ npm test
+# HEAD d3909431159f9270e689da409e42a9629a9ee7f6
+
+> test
+> node --test
+
+TAP version 13
+# Subtest: importe le module ESM et expose les trois fonctions
+ok 1 - importe le module ESM et expose les trois fonctions
+  ---
+  duration_ms: 0.818751
+  type: 'test'
+  ...
+# Subtest: formate les montants en dollars canadiens au format québécois
+ok 2 - formate les montants en dollars canadiens au format québécois
+  ---
+  duration_ms: 11.567946
+  type: 'test'
+  ...
+# Subtest: calcule sans pourboire, avec un pourcentage entier et décimal
+ok 3 - calcule sans pourboire, avec un pourcentage entier et décimal
+  ---
+  duration_ms: 0.619647
+  type: 'test'
+  ...
+# Subtest: arrondit à l’entier inférieur, supérieur et half-up
+ok 4 - arrondit à l’entier inférieur, supérieur et half-up
+  ---
+  duration_ms: 0.10433
+  type: 'test'
+  ...
+# Subtest: calcule le total et compose avec le partage
+ok 5 - calcule le total et compose avec le partage
+  ---
+  duration_ms: 0.23567
+  type: 'test'
+  ...
+# Subtest: partage exactement un total, avec reste, à un convive et à beaucoup de convives
+ok 6 - partage exactement un total, avec reste, à un convive et à beaucoup de convives
+  ---
+  duration_ms: 0.183435
+  type: 'test'
+  ...
+# Subtest: conserve la somme et limite l’écart à un centime
+ok 7 - conserve la somme et limite l’écart à un centime
+  ---
+  duration_ms: 3.110433
+  type: 'test'
+  ...
+# Subtest: rejette les nombres non finis ou d’un mauvais type
+ok 8 - rejette les nombres non finis ou d’un mauvais type
+  ---
+  duration_ms: 0.565366
+  type: 'test'
+  ...
+# Subtest: rejette les montants négatifs et non entiers
+ok 9 - rejette les montants négatifs et non entiers
+  ---
+  duration_ms: 0.265616
+  type: 'test'
+  ...
+# Subtest: rejette les pourcentages négatifs et les nombres de convives invalides
+ok 10 - rejette les pourcentages négatifs et les nombres de convives invalides
+  ---
+  duration_ms: 0.306223
+  type: 'test'
+  ...
+# Subtest: ne dépend d’aucun paquet runtime externe
+ok 11 - ne dépend d’aucun paquet runtime externe
+  ---
+  duration_ms: 0.563232
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 71.210385
+
+
+# exit 0

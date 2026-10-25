@@ -1,0 +1,14 @@
+{
+  "id": "1d06ec13-d860-43fa-8053-fc5c1f045a01",
+  "status": "awaiting_review",
+  "branch": "atelier/1d06ec13",
+  "headSha": "9822659f851ac2368d00fc4d804f4d0b4d892489",
+  "sessionId": "01a1725b-689d-7a81-af7d-34b0c11ac60c",
+  "steps": [
+    "spec:succeeded:gpt-5.6-luna:26b670b",
+    "code:succeeded:gpt-5.6-luna:9822659",
+    "test:succeeded:-:9822659",
+    "preview:succeeded:-:9822659"
+  ],
+  "artifacts": 10
+}

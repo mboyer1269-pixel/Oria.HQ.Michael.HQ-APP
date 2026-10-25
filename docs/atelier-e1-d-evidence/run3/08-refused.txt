@@ -1,0 +1,5 @@
+== SSE end after restart
+event: end
+data: {"status":"running","lock":{"live":false,"stepId":"8b5b6b58-3cb3-4eb4-8c3e-9d168df9f10f"}}
+== POST steps without resume
+{"error":"Exécution précédente interrompue : utiliser /resume.","code":"stale_lock_requires_explicit_resume"} HTTP 409

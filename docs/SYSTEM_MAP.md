@@ -14,18 +14,18 @@
 
 | Class | Files |
 |---|---|
-| LIVE | 597 |
+| LIVE | 615 |
 | TEST_ONLY | 5 |
-| INCUBATION | 46 |
-| **Total source** | **648** |
+| INCUBATION | 44 |
+| **Total source** | **664** |
 
 ## Incubation by area (built, not wired)
 
 | Area | Incubation files |
 |---|---|
-| server/agents | 9 |
 | features/cockpit | 7 |
 | features/memory | 7 |
+| server/agents | 7 |
 | features/ventures | 5 |
 | features/missions | 3 |
 | features/hq | 2 |
@@ -77,8 +77,6 @@ These are healthy to keep — they are tested scaffolding. But nothing in the ru
 - `src/scripts/process-document.ts`
 - `src/server/agents/evidence/runtime-evidence-pack.ts`
 - `src/server/agents/models/hermes-codex-connection-probe.ts`
-- `src/server/agents/providers/adapter-provider-contract.ts`
-- `src/server/agents/providers/cli-runtime-provider-contract.ts`
 - `src/server/agents/providers/mailbox-provider-contract.ts`
 - `src/server/agents/providers/tool-provider-contract.ts`
 - `src/server/agents/providers/web-automation-provider-contract.ts`

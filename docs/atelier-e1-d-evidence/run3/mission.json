@@ -1,0 +1,261 @@
+{
+  "contract": "atelier-mission/v1",
+  "id": "dd374e2e-9cd5-426a-89d4-d5379e4decb6",
+  "workspaceId": "michael-hq",
+  "createdBy": "michael",
+  "title": "Calculatrice de pourboire v3",
+  "need": "Petite bibliothèque JS ESM sans dépendance : pourboire et partage d'addition entre N personnes (arrondi au cent), en euros, tests node --test.",
+  "createdAt": "2026-10-25T09:36:34.103Z",
+  "updatedAt": "2026-10-25T09:39:13.335Z",
+  "status": "awaiting_review",
+  "runtime": {
+    "runtimeId": "codex",
+    "consumptionMode": "subscription",
+    "authMode": "chatgpt_session",
+    "requestedModelId": "gpt-5.6-luna"
+  },
+  "repo": {
+    "path": "/home/box/oria-atelier-repos/tip-calc-3",
+    "baseBranch": "main",
+    "branch": "atelier/dd374e2e",
+    "baseSha": "40298ca19d77a9bab279e9e5871cd9ce72866207",
+    "headSha": "f9f0f6bd3463a1add0a2a1d26a667b7bdf650500"
+  },
+  "sessionId": "01a1726c-e312-7ab2-93c1-4cc50a870bcb",
+  "lock": null,
+  "steps": [
+    {
+      "id": "848c2298-ad8f-42e6-b270-06772fa13e9a",
+      "kind": "spec",
+      "status": "succeeded",
+      "startedAt": "2026-10-25T09:36:34.159Z",
+      "endedAt": "2026-10-25T09:37:00.803Z",
+      "executor": "codex_cli",
+      "sessionId": "01a1726b-44ae-7903-8c3e-049bd81fb3ef",
+      "resumedFrom": null,
+      "requestedModelId": "gpt-5.6-luna",
+      "observedModelId": "gpt-5.6-luna",
+      "exitCode": 0,
+      "reason": null,
+      "commitSha": "c5cb479e02ebd3e3750b29aabf88c75750e60162"
+    },
+    {
+      "id": "ecb6b2b1-b3e9-4a80-b861-7e426c23639e",
+      "kind": "test",
+      "status": "succeeded",
+      "startedAt": "2026-10-25T09:37:07.876Z",
+      "endedAt": "2026-10-25T09:37:08.017Z",
+      "executor": "runner",
+      "sessionId": null,
+      "resumedFrom": null,
+      "requestedModelId": null,
+      "observedModelId": null,
+      "exitCode": 0,
+      "reason": null,
+      "commitSha": "c5cb479e02ebd3e3750b29aabf88c75750e60162"
+    },
+    {
+      "id": "bb341559-85b9-490a-9828-fb36650c9ec2",
+      "kind": "code",
+      "status": "succeeded",
+      "startedAt": "2026-10-25T09:37:20.617Z",
+      "endedAt": "2026-10-25T09:38:07.119Z",
+      "executor": "codex_cli",
+      "sessionId": "01a1726b-f731-7750-8157-f0802d44108c",
+      "resumedFrom": null,
+      "requestedModelId": "gpt-5.6-luna",
+      "observedModelId": "gpt-5.6-luna",
+      "exitCode": 0,
+      "reason": null,
+      "commitSha": "6dff42cff072a7b183d8968b15393e15862fb318"
+    },
+    {
+      "id": "b4b301c1-b90e-4eb4-a285-e833269496c3",
+      "kind": "test",
+      "status": "succeeded",
+      "startedAt": "2026-10-25T09:38:12.127Z",
+      "endedAt": "2026-10-25T09:38:12.321Z",
+      "executor": "runner",
+      "sessionId": null,
+      "resumedFrom": null,
+      "requestedModelId": null,
+      "observedModelId": null,
+      "exitCode": 0,
+      "reason": null,
+      "commitSha": "6dff42cff072a7b183d8968b15393e15862fb318"
+    },
+    {
+      "id": "8b5b6b58-3cb3-4eb4-8c3e-9d168df9f10f",
+      "kind": "revision",
+      "status": "interrupted",
+      "startedAt": "2026-10-25T09:38:20.993Z",
+      "endedAt": "2026-10-25T09:38:49.059Z",
+      "executor": "codex_cli",
+      "sessionId": "01a1726c-e312-7ab2-93c1-4cc50a870bcb",
+      "resumedFrom": null,
+      "requestedModelId": "gpt-5.6-luna",
+      "observedModelId": "gpt-5.6-luna",
+      "exitCode": null,
+      "reason": "runner_died",
+      "commitSha": null
+    },
+    {
+      "id": "36a12b73-dc87-4143-862f-1f7cef7ab3ea",
+      "kind": "revision",
+      "status": "succeeded",
+      "startedAt": "2026-10-25T09:38:49.059Z",
+      "endedAt": "2026-10-25T09:39:12.800Z",
+      "executor": "codex_cli",
+      "sessionId": "01a1726c-e312-7ab2-93c1-4cc50a870bcb",
+      "resumedFrom": "01a1726c-e312-7ab2-93c1-4cc50a870bcb",
+      "requestedModelId": "gpt-5.6-luna",
+      "observedModelId": "gpt-5.6-luna",
+      "exitCode": 0,
+      "reason": null,
+      "commitSha": "f9f0f6bd3463a1add0a2a1d26a667b7bdf650500"
+    },
+    {
+      "id": "36754ef5-37a4-43bf-bbaa-db68670f4437",
+      "kind": "test",
+      "status": "succeeded",
+      "startedAt": "2026-10-25T09:39:13.140Z",
+      "endedAt": "2026-10-25T09:39:13.335Z",
+      "executor": "runner",
+      "sessionId": null,
+      "resumedFrom": null,
+      "requestedModelId": null,
+      "observedModelId": null,
+      "exitCode": 0,
+      "reason": null,
+      "commitSha": "f9f0f6bd3463a1add0a2a1d26a667b7bdf650500"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "9f47d79f-42b2-4c40-8d71-0c288feab1de",
+      "kind": "transcript",
+      "stepId": "848c2298-ad8f-42e6-b270-06772fa13e9a",
+      "path": "artifacts/848c2298-spec.jsonl",
+      "sha256": "51c20e7b7022bbc226f6d2b4c566d10342006279d260bcb20b6fc8079b8bb980",
+      "bytes": 7292,
+      "createdAt": "2026-10-25T09:37:00.805Z"
+    },
+    {
+      "id": "b1693a6f-1e42-4b9c-bf6c-5347e5c85f27",
+      "kind": "spec",
+      "stepId": "848c2298-ad8f-42e6-b270-06772fa13e9a",
+      "path": "artifacts/848c2298-SPEC.md",
+      "sha256": "ff25ca4d611e7ef0826602537b999370ffa22b5fd607f7b44304630db9c01503",
+      "bytes": 3520,
+      "createdAt": "2026-10-25T09:37:00.805Z"
+    },
+    {
+      "id": "5e2115b9-8f2c-4f7f-bc8c-37f6b58c4c76",
+      "kind": "diff",
+      "stepId": "848c2298-ad8f-42e6-b270-06772fa13e9a",
+      "path": "artifacts/848c2298-spec.diff",
+      "sha256": "ab04d731b6e9903e100dd65278275b9aa685377df0d9e78dd17fa9e89b7f663b",
+      "bytes": 3808,
+      "createdAt": "2026-10-25T09:37:00.823Z"
+    },
+    {
+      "id": "cb5553c7-632d-4134-b601-6788a6db2e40",
+      "kind": "commit",
+      "stepId": "848c2298-ad8f-42e6-b270-06772fa13e9a",
+      "path": "artifacts/848c2298-commit.txt",
+      "sha256": "6584b49a3718615fb91e0f6468faf3777c638cc80a2c6c4593e3a63446bfba1b",
+      "bytes": 41,
+      "createdAt": "2026-10-25T09:37:00.823Z"
+    },
+    {
+      "id": "7cd99dfa-1376-4872-b088-a6ac732a98ae",
+      "kind": "test_log",
+      "stepId": "ecb6b2b1-b3e9-4a80-b861-7e426c23639e",
+      "path": "artifacts/ecb6b2b1-test.log",
+      "sha256": "7a8862be8b01f9a2d296da236addc23c89eb0ea065676683070772d7d109a031",
+      "bytes": 210,
+      "createdAt": "2026-10-25T09:37:08.018Z"
+    },
+    {
+      "id": "a501a881-1e2a-4c29-a821-3f2544b15119",
+      "kind": "transcript",
+      "stepId": "bb341559-85b9-490a-9828-fb36650c9ec2",
+      "path": "artifacts/bb341559-code.jsonl",
+      "sha256": "f4414ee5da8d4a5db44abe5d7534307fe9462e5e8f9b1b0112e17dbdd9862a41",
+      "bytes": 11720,
+      "createdAt": "2026-10-25T09:38:07.121Z"
+    },
+    {
+      "id": "872e56dc-04e4-4412-aa38-11b93e54e0e4",
+      "kind": "diff",
+      "stepId": "bb341559-85b9-490a-9828-fb36650c9ec2",
+      "path": "artifacts/bb341559-code.diff",
+      "sha256": "2ee5ea4e254f254b9348ecad35e9e505674983a62a12fe2dc66c5f3679317591",
+      "bytes": 7470,
+      "createdAt": "2026-10-25T09:38:07.139Z"
+    },
+    {
+      "id": "637c55ef-35dd-4ad6-afb1-1eaa956256f4",
+      "kind": "commit",
+      "stepId": "bb341559-85b9-490a-9828-fb36650c9ec2",
+      "path": "artifacts/bb341559-commit.txt",
+      "sha256": "50c6471b3a2322cc96996e68973a323ec3a2fa22cdf2207759dc69e805185bc3",
+      "bytes": 41,
+      "createdAt": "2026-10-25T09:38:07.139Z"
+    },
+    {
+      "id": "16a945a7-50f5-4b4b-a19f-3b905d65bb66",
+      "kind": "test_log",
+      "stepId": "b4b301c1-b90e-4eb4-a285-e833269496c3",
+      "path": "artifacts/b4b301c1-test.log",
+      "sha256": "5510f3698d9e1662269a636dd23860418d6544bb35b7b5ac21223e6995fd4499",
+      "bytes": 1956,
+      "createdAt": "2026-10-25T09:38:12.321Z"
+    },
+    {
+      "id": "b6785c7e-bc79-47c5-9755-6689f3570d2c",
+      "kind": "transcript",
+      "stepId": "8b5b6b58-3cb3-4eb4-8c3e-9d168df9f10f",
+      "path": "artifacts/8b5b6b58-revision.jsonl",
+      "sha256": "2ac8a0b2b9842784b6b6e221b263cb7f0bd9380b14ae385637ffab008ff85f22",
+      "bytes": 19054,
+      "createdAt": "2026-10-25T09:38:49.061Z"
+    },
+    {
+      "id": "d68f85ec-cec2-460c-8dca-9aa01760543a",
+      "kind": "transcript",
+      "stepId": "36a12b73-dc87-4143-862f-1f7cef7ab3ea",
+      "path": "artifacts/36a12b73-revision.jsonl",
+      "sha256": "13fbad9349755ef51a4a133e1cdfa917a017b1cdbf5f732c330ec38492912e18",
+      "bytes": 7743,
+      "createdAt": "2026-10-25T09:39:12.801Z"
+    },
+    {
+      "id": "974243fc-a186-430d-9739-9e333b9e5a05",
+      "kind": "diff",
+      "stepId": "36a12b73-dc87-4143-862f-1f7cef7ab3ea",
+      "path": "artifacts/36a12b73-revision.diff",
+      "sha256": "10fbfdf06d66c50dc1114d11a733278ce334d004d9b1745b1d83cfd10327d0da",
+      "bytes": 7739,
+      "createdAt": "2026-10-25T09:39:12.823Z"
+    },
+    {
+      "id": "1196a8c2-cefc-4016-8697-794e8b1fd13c",
+      "kind": "commit",
+      "stepId": "36a12b73-dc87-4143-862f-1f7cef7ab3ea",
+      "path": "artifacts/36a12b73-commit.txt",
+      "sha256": "d50b202cadd1ae94619e10817c7c6c20008857165e37674458188cd499955ecb",
+      "bytes": 41,
+      "createdAt": "2026-10-25T09:39:12.823Z"
+    },
+    {
+      "id": "0fe7be4b-5700-4d21-a87b-c61970441ce6",
+      "kind": "test_log",
+      "stepId": "36754ef5-37a4-43bf-bbaa-db68670f4437",
+      "path": "artifacts/36754ef5-test.log",
+      "sha256": "aa74d7a09b397b34f45d49be5edba03f92725df3f93cac44a446a92f4d2ce6f8",
+      "bytes": 2135,
+      "createdAt": "2026-10-25T09:39:13.335Z"
+    }
+  ]
+}

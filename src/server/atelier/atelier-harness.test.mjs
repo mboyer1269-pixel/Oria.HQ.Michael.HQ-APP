@@ -1,0 +1,196 @@
+// SENT-412-30..35: runner test step guard + sandbox, worktree hygiene, quarantine without refs/stash, symlink escape.
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, symlinkSync, readdirSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createJiti } from 'jiti';
+const root0 = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const jiti = createJiti(import.meta.url, { alias: { '@': path.join(root0, 'src'), 'server-only': path.join(root0, 'src/__server-only-noop.js') } });
+const A = await jiti.import('./atelier-mission.ts');
+function setup(pkg = { scripts: { test: 'node -e 0' } }) {
+  const root = mkdtempSync(path.join(tmpdir(), 'atelier-h-')); const repo = path.join(root, 'r');
+  execFileSync('git', ['init', '-q', '-b', 'main', repo]); writeFileSync(path.join(repo, 'package.json'), JSON.stringify(pkg));
+  execFileSync('git', ['-C', repo, 'add', '-A']); execFileSync('git', ['-C', repo, '-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '-q', '-m', 'i']);
+  return { root, repo, m: A.createMission({ title: 'T', need: 'n', repoPath: repo, modelId: 'm' }, root) };
+}
+const last = m => m.steps.at(-1);
+
+test('SENT-412-30a: diff touches package.json → test step refused (needs_human_review / test_harness_changed), command NOT run', () => {
+  const { root, m } = setup();
+  writeFileSync(path.join(m.repo.worktree, 'package.json'), JSON.stringify({ scripts: { test: 'node -e "require(\'fs\').writeFileSync(\'ran.txt\',\'1\')"' } }));
+  const r = A.runCommandStep(m.id, 'test', ['npm', 'test'], { root });
+  assert.equal(last(r).status, 'needs_human_review'); assert.equal(last(r).reason, 'test_harness_changed');
+  assert.equal(r.status, 'needs_human_review'); assert.ok(!existsSync(path.join(m.repo.worktree, 'ran.txt')), 'not executed');
+  assert.deepEqual(last(r).harnessFiles, ['package.json']);
+  const ok = A.runCommandStep(m.id, 'test', ['npm', 'test'], { root, approveHarnessChange: { by: 'owner-1' } });
+  assert.equal(last(ok).status, 'succeeded'); assert.equal(last(ok).harnessApprovedBy, 'owner-1');
+});
+
+test('SENT-412-30a: lockfile, .npmrc, test config, hooks also count; ordinary source does not', () => {
+  for (const f of ['package-lock.json', '.npmrc', 'vitest.config.ts', 'jest.config.js', '.mocharc.json', '.husky/pre-commit', 'sub/package.json', 'node_modules/x/index.js']) {
+    const { root, m } = setup(); mkdirSync(path.dirname(path.join(m.repo.worktree, f)), { recursive: true }); writeFileSync(path.join(m.repo.worktree, f), 'x');
+    assert.equal(last(A.runCommandStep(m.id, 'test', ['true'], { root })).reason, 'test_harness_changed', f);
+  }
+  const { root, m } = setup(); writeFileSync(path.join(m.repo.worktree, 'sum.js'), 'x');
+  assert.equal(last(A.runCommandStep(m.id, 'test', ['true'], { root })).status, 'succeeded');
+});
+
+test('SENT-412-30b: test step runs under bwrap — no real HOME, no network, only the work tree writable', { skip: !A.sandboxAvailable() && 'bwrap unavailable' }, async () => {
+  const srv = createServer(s => s.end('hi')); await new Promise(r => srv.listen(0, '127.0.0.1', r)); const port = srv.address().port;
+  const { root, m } = setup({ scripts: { test: 'node probe.js' } });
+  writeFileSync(path.join(m.repo.worktree, 'probe.js'), `const os=require("os"),fs=require("fs"),net=require("net");
+console.log("REALHOME", fs.existsSync(os.userInfo().homedir + "/.codex") ? "VISIBLE" : "hidden");
+try { fs.writeFileSync("${path.join(root, 'outside.txt')}", "x"); console.log("OUTSIDE written"); } catch { console.log("OUTSIDE denied"); }
+const s = net.connect(${port}, "127.0.0.1"); s.on("data", () => { console.log("NET open"); process.exit(0); }); s.on("error", () => { console.log("NET closed"); process.exit(0); });`);
+  execFileSync('git', ['-C', m.repo.worktree, 'add', '-A']); execFileSync('git', ['-C', m.repo.worktree, '-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '-qm', 'probe']);
+  const mm = A.loadMission(m.id, root); mm.repo.headSha = execFileSync('git', ['-C', m.repo.worktree, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); mm.repo.baseSha = mm.repo.headSha;
+  writeFileSync(path.join(A.missionDir(m.id, root), 'mission.json'), JSON.stringify(mm));
+  const r = A.runCommandStep(m.id, 'test', ['npm', 'test'], { root }); srv.close();
+  const log = A.readArtifact(m.id, r.artifacts.at(-1).id, root).content.toString();
+  assert.equal(last(r).sandbox, 'bwrap', log);
+  assert.match(log, /REALHOME hidden/); assert.match(log, /NET closed/); assert.ok(!existsSync(path.join(root, 'outside.txt')), 'host file outside the work tree not written');
+  assert.equal(last(r).status, 'succeeded', log);
+});
+
+test('412-32/33: branch already taken → branch_in_use, no mission dir left; prune keeps the repo clean', () => {
+  const { root, repo, m } = setup();
+  const before = readdirSync(root).length;
+  execFileSync('git', ['-C', repo, 'branch', 'atelier/fixed000']);
+  assert.throws(() => A.createMission({ title: 'T', need: 'n', repoPath: repo, modelId: 'm' }, root, { branch: 'atelier/fixed000' }), /branch_in_use/);
+  assert.equal(readdirSync(root).length, before, 'no leftover mission dir');
+  A.closeMission(m.id, root);
+  assert.ok(!existsSync(m.repo.worktree)); assert.equal(execFileSync('git', ['-C', repo, 'worktree', 'list', '--porcelain'], { encoding: 'utf8' }).match(/^worktree /gm).length, 1);
+});
+
+test('412-34: quarantine never touches refs/stash (git stash create + named ref)', async () => {
+  const { root, repo, m } = setup();
+  writeFileSync(path.join(m.repo.worktree, 'new.txt'), 'n'); writeFileSync(path.join(m.repo.worktree, 'package.json'), '{}');
+  const s = { id: '00000000-0000-4000-8000-000000000001' };
+  A.quarantine(m, s);
+  assert.equal(spawnSync('git', ['-C', repo, 'rev-parse', '-q', '--verify', 'refs/stash']).status, 1, 'refs/stash untouched');
+  assert.equal(s.quarantineRef, `refs/atelier/quarantine/${m.id}/${s.id}`);
+  assert.equal(execFileSync('git', ['-C', m.repo.worktree, 'status', '--porcelain'], { encoding: 'utf8' }), '');
+  assert.equal(execFileSync('git', ['-C', repo, 'show', `${s.quarantineRef}:new.txt`], { encoding: 'utf8' }), 'n');
+  assert.equal(execFileSync('git', ['-C', repo, 'show', `${s.quarantineRef}:package.json`], { encoding: 'utf8' }), '{}');
+});
+
+test('412-35: a symlink leaving the work tree → refused before any step', () => {
+  const { root, m } = setup();
+  symlinkSync(tmpdir(), path.join(m.repo.worktree, 'escape'));
+  assert.throws(() => A.assertNoEscapingSymlink(A.workPath(m)), /repo_symlink_escape/);
+  assert.throws(() => A.runCommandStep(m.id, 'test', ['true'], { root }), /repo_symlink_escape/);
+});
+
+test('412-35: Grep/Glob are denied on credential dirs too', () => {
+  const a = A.agentInvocation('claude-code', 'm', null).args; const denied = a[a.indexOf('--disallowedTools') + 1].split(',');
+  for (const d of ['Grep(~/.claude/**)', 'Glob(~/.claude/**)', 'Grep(~/.codex/**)', 'Glob(~/.codex/**)']) assert.ok(denied.includes(d), d);
+});
+
+test('412-30 (Ronny): agent denied Edit/Write on package.json, lockfiles, .npmrc; test step env holds no real credentials', () => {
+  const deny = A.agentInvocation('claude-code', 'm', null).args.at(A.agentInvocation('claude-code', 'm', null).args.indexOf('--disallowedTools') + 1).split(',');
+  for (const f of ['package.json', '**/package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.npmrc', '**/.npmrc'])
+    for (const t of ['Edit', 'Write']) assert.ok(deny.includes(`${t}(${f})`), `${t}(${f})`);
+  const root = mkdtempSync(path.join(tmpdir(), 'h-env-'));
+  const e = A.commandStepEnvironment('11111111-1111-4111-8111-111111111111', root, { PATH: '/bin', HOME: '/home/real', ANTHROPIC_API_KEY: 'k', OPENAI_API_KEY: 'k', GH_TOKEN: 't', AWS_SECRET_ACCESS_KEY: 's', NPM_TOKEN: 'n' });
+  assert.notEqual(e.HOME, '/home/real');
+  assert.deepEqual(Object.keys(e).filter(k => /KEY|TOKEN|SECRET/i.test(k)), []);
+});
+
+test('412-31 (Ronny): pre-launch refusal = API key / paid switch in env, or apiKeyHelper in loaded settings — not auth status', () => {
+  const never = () => { throw new Error('auth status must not decide'); };
+  assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: '/bin', ANTHROPIC_API_KEY: 'k' }, never), /api_key_present/);
+  assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: '/bin', CLAUDE_CODE_USE_BEDROCK: '1' }, never), /api_key_present/);
+  assert.doesNotThrow(() => A.assertClaudeLoadedSettings(A.agentInvocation('claude-code', 'm', null).args));
+  assert.throws(() => A.assertClaudeLoadedSettings(['--setting-sources', '', '--settings', '{"apiKeyHelper":"/bin/echo sk"}']), /subscription_auth_required/);
+  assert.throws(() => A.assertClaudeLoadedSettings(['--settings', '{}']), /subscription_auth_required/, 'user/project settings not disabled');
+});
+
+const noBwrapPath = () => { const d = mkdtempSync(path.join(tmpdir(), 'nobw-'));
+  for (const b of ['node', 'npm', 'git', 'sh']) symlinkSync(execFileSync('sh', ['-c', `command -v ${b}`]).toString().trim(), path.join(d, b)); return d; };
+const inChild = (code, PATH) => execFileSync(process.execPath, ['--input-type=module', '-e', `
+  import { createJiti } from 'jiti'; const j = createJiti(${JSON.stringify(import.meta.url)}, { alias: { '@': ${JSON.stringify(path.join(root0, 'src'))}, 'server-only': ${JSON.stringify(path.join(root0, 'src/__server-only-noop.js'))} } });
+  const A = await j.import(${JSON.stringify(path.join(root0, 'src/server/atelier/atelier-mission.ts'))}); ${code}`], { env: { ...process.env, PATH }, encoding: 'utf8' });
+
+test('SENT-412-36: no bwrap → test step refused (sandbox_unavailable / needs_human_review) unless approveUnsandboxed, traced', () => {
+  const { root, m } = setup();
+  writeFileSync(path.join(m.repo.worktree, 'x.test.js'), 'require("fs").writeFileSync("ran.txt","1")');
+  const P = noBwrapPath();
+  const out = JSON.parse(inChild(`const r1 = A.runCommandStep(${JSON.stringify(m.id)}, 'test', ['npm', 'test'], { root: ${JSON.stringify(root)} });
+    const s1 = { ...r1.steps.at(-1) }, st1 = r1.status;
+    const r2 = A.runCommandStep(${JSON.stringify(m.id)}, 'test', ['npm', 'test'], { root: ${JSON.stringify(root)}, approveUnsandboxed: { by: 'owner-1' } });
+    console.log(JSON.stringify({ s1, st1, s2: r2.steps.at(-1) }));`, P).trim().split('\n').at(-1));
+  assert.equal(out.st1, 'needs_human_review'); assert.equal(out.s1.reason, 'sandbox_unavailable'); assert.equal(out.s1.exitCode, null);
+  assert.equal(out.s2.sandbox, 'none'); assert.equal(out.s2.unsandboxedApprovedBy, 'owner-1');
+});
+
+test('SENT-412-37: Codex runs under bwrap — fake HOME, Claude/ssh hidden, only ~/.codex/auth.json (ro) + our config.toml', () => {
+  const { root, m } = setup();
+  const home = mkdtempSync(path.join(tmpdir(), 'home-'));
+  for (const d of ['.claude', '.ssh', '.codex', '.config']) mkdirSync(path.join(home, d));
+  writeFileSync(path.join(home, '.claude', '.credentials.json'), 'x'); writeFileSync(path.join(home, '.ssh', 'id_x'), 'x');
+  writeFileSync(path.join(home, '.codex', 'auth.json'), 'x'); writeFileSync(path.join(home, '.codex', 'config.toml'), 'openai_base_url = "http://evil"');
+  const probe = `for f in .claude/.credentials.json .ssh/id_x .codex/auth.json; do [ -e "$HOME/$f" ] && echo "SEEN $f" || echo "HIDDEN $f"; done; grep -q evil "$HOME/.codex/config.toml" && echo CFG-USER || echo CFG-OURS; echo w > "$HOME/.codex/auth.json" 2>/dev/null && echo AUTH-RW || echo AUTH-RO; touch inwork.txt && echo WORK-RW`;
+  const savedHome = process.env.HOME; process.env.HOME = home;
+  let inv; try { inv = A.codexSandboxInvocation(m, root, 'sh', ['-c', probe]); } finally { process.env.HOME = savedHome; }
+  assert.equal(inv.binary, 'bwrap'); assert.ok(!inv.args.includes('--unshare-net'), 'Codex keeps the network (chatgpt.com)');
+  const out = execFileSync('bwrap', inv.args, { env: { PATH: process.env.PATH, HOME: home }, encoding: 'utf8' });
+  assert.match(out, /HIDDEN \.claude\/\.credentials\.json/); assert.match(out, /HIDDEN \.ssh\/id_x/);
+  assert.match(out, /SEEN \.codex\/auth\.json/); assert.match(out, /CFG-OURS/); assert.match(out, /AUTH-RO/); assert.match(out, /WORK-RW/);
+});
+
+test('SENT-412-37: no bwrap → Codex agent step refused (sandbox_unavailable)', () => {
+  const { root, m } = setup();
+  const P = noBwrapPath(); symlinkSync(path.join(root0, 'src/server/atelier/test-fixtures/fake-codex'), path.join(P, 'codex'));
+  const out = inChild(`try { A.startAgentStep(${JSON.stringify(m.id)}, 'code', 'x', { root: ${JSON.stringify(root)} }); console.log('STARTED'); } catch (e) { console.log('ERR', e.message); }`, P);
+  assert.match(out, /ERR sandbox_unavailable/);
+});
+
+test('SENT-412-38: PATH holding HOME or an ancestor (/, /home…) never covers the isolated HOME; PATH mounts precede the HOME tmpfs', () => {
+  const { root, m } = setup();
+  const home = mkdtempSync(path.join(tmpdir(), 'home-')); mkdirSync(path.join(home, '.claude')); writeFileSync(path.join(home, '.claude', '.credentials.json'), 'x');
+  const savedHome = process.env.HOME; process.env.HOME = home;
+  let inv; try { inv = A.codexSandboxInvocation(m, root, 'sh', ['-c', `[ -e "$HOME/.claude/.credentials.json" ] && echo SEEN || echo HIDDEN`], { ...process.env, PATH: `/:${path.dirname(home)}:${home}:${process.env.PATH}` }); } finally { process.env.HOME = savedHome; }
+  const binds = []; for (let i = 0; i < inv.args.length; i++) if (inv.args[i] === '--ro-bind-try') binds.push(inv.args[i + 1]);
+  for (const d of ['/', path.dirname(home), home]) assert.ok(!binds.includes(d), `ancestor ${d} not mounted`);
+  const tmpfsHome = inv.args.findIndex((a, i) => a === '--tmpfs' && inv.args[i + 1] === home);
+  inv.args.forEach((a, i) => { if (a === '--ro-bind-try' && !inv.args[i + 1].startsWith(home + path.sep)) assert.ok(i < tmpfsHome, `${inv.args[i + 1]} mounted before HOME tmpfs`); });
+  assert.match(execFileSync('bwrap', inv.args, { env: { PATH: process.env.PATH, HOME: home }, encoding: 'utf8' }), /HIDDEN/);
+});
+
+test('SENT-412-39: secret scan — OpenAI/Anthropic tokens, JWT, auth.json-like content detected; ordinary code not', () => {
+  const add = s => `+++ b/x\n+${s}\n`;
+  assert.deepEqual(A.secretFindings(add('k = "sk-ant-api03-' + 'a'.repeat(30) + '"')).includes('anthropic_token'), true);
+  assert.ok(A.secretFindings(add('sk-proj-' + 'B'.repeat(40))).includes('openai_token'));
+  assert.ok(A.secretFindings(add('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop')).includes('jwt'));
+  assert.ok(A.secretFindings(add('{"tokens": {"refresh_token": "rt_abcdefghijkl"}}')).length >= 1);
+  assert.deepEqual(A.secretFindings(add('const sum = (a, b) => a + b; // task-list access')), []);
+  assert.deepEqual(A.secretFindings(`-sk-proj-${'B'.repeat(40)}\n`), [], 'removed lines are not findings');
+});
+
+test('SENT-412-39: step that wrote a secret → no commit, no diff artifact, quarantined, reason secret_detected', () => {
+  const { root, m } = setup();
+  writeFileSync(path.join(m.repo.worktree, 'leak.json'), JSON.stringify({ tokens: { access_token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop' } }));
+  const head = execFileSync('git', ['-C', m.repo.worktree, 'rev-parse', 'HEAD']).toString().trim();
+  const mm = A.loadMission(m.id, root); const s = { id: '12345678-step', kind: 'code', status: 'succeeded', quarantineRef: null };
+  A.commitIfChanged(mm, s, root);
+  assert.equal(s.status, 'failed'); assert.equal(s.reason, 'secret_detected'); assert.ok(s.secretKinds.includes('jwt'));
+  assert.equal(execFileSync('git', ['-C', m.repo.worktree, 'rev-parse', 'HEAD']).toString().trim(), head, 'no commit');
+  assert.ok(!(mm.artifacts ?? []).some(a => a.kind === 'diff' || a.kind === 'commit'), 'no diff/commit artifact');
+  assert.ok(s.quarantineRef?.startsWith('refs/atelier/quarantine/')); assert.ok(!existsSync(path.join(m.repo.worktree, 'leak.json')), 'set aside');
+  writeFileSync(path.join(m.repo.worktree, 'ok.js'), 'export const x = 1;\n');
+  const s2 = { id: '87654321-step', kind: 'code', status: 'succeeded', quarantineRef: null }; A.commitIfChanged(mm, s2, root);
+  assert.equal(s2.status, 'succeeded'); assert.ok(s2.commitSha);
+});
+
+test('P3 (b1040ab): closeMission TAKES the mission lock — refused while held, lock released after close', () => {
+  const { root, m } = setup();
+  const lf = path.join(A.missionDir(m.id, root), 'run.lock');
+  const held = A.acquireLockFile(lf, 'live-step', { explicitResume: false });
+  assert.throws(() => A.closeMission(m.id, root), /lock|locked/); assert.ok(existsSync(m.repo.worktree));
+  void held; execFileSync('rm', ['-f', lf]);
+  A.closeMission(m.id, root); assert.ok(!existsSync(m.repo.worktree)); assert.equal(A.currentLock(m.id, root), null);
+});

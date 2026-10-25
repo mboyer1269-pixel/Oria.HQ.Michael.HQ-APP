@@ -1,0 +1,38 @@
+event: snapshot
+data: {"contract":"atelier-mission/v1","id":"380b9d17-3be6-45c9-a4f5-d46918cc34e3","workspaceId":"michael-hq","createdBy":"michael","title":"Calculatrice de pourboire (replay claude-code)","need":"Minuscule module JS ESM sans dépendance : pourboire(montant, pct) arrondi au cent, en euros ; 2 tests node --test.","createdAt":"2026-10-25T11:41:17.710Z","updatedAt":"2026-10-25T11:41:54.636Z","status":"running","runtime":{"runtimeId":"claude-code","consumptionMode":"subscription","authMode":"claude_ai_session","requestedModelId":"claude-haiku-4-5-20251001"},"repo":{"path":"/home/box/oria-atelier-repos/michael-hq/tip-calc-1792928473","baseBranch":"main","branch":"atelier/380b9d17","baseSha":"d86bcf27920c89f152239eaa818e805e0b790bae","headSha":"d1f6bbc23763eb6f7c07348593e66e9d8167479a"},"sessionId":"6b58753a-e5a9-44b9-be30-8ab1a1082b84","lock":{"runnerPid":724644,"runnerStart":"5518140","childPid":725330,"childStart":"5522262","token":"c92a7e9d-80f2-453a-a629-6e3c0692ed25","stepId":"a7d6bdf8-afd9-4dfd-8ec6-6cf131728926","since":"2026-10-25T11:41:54.633Z"},"steps":[{"id":"acfd72f8-82a7-4fe2-a897-901385ee651d","kind":"spec","status":"succeeded","startedAt":"2026-10-25T11:41:17.869Z","endedAt":"2026-10-25T11:41:30.390Z","executor":"claude_code_cli","sessionId":"0ed705d7-046f-424b-873d-47fed6c9e746","resumedFrom":null,"requestedModelId":"claude-haiku-4-5-20251001","observedModelId":"claude-haiku-4-5-20251001","exitCode":0,"reason":null,"commitSha":"03a5caef33c217fcbfa715f6ca4b65174496f6e5"},{"id":"dbcdebee-561c-46d7-8165-190fd0632f1b","kind":"code","status":"succeeded","startedAt":"2026-10-25T11:41:30.668Z","endedAt":"2026-10-25T11:41:53.980Z","executor":"claude_code_cli","sessionId":"6b58753a-e5a9-44b9-be30-8ab1a1082b84","resumedFrom":null,"requestedModelId":"claude-haiku-4-5-20251001","observedModelId":"claude-haiku-4-5-20251001","exitCode":0,"reason":null,"commitSha":"d1f6bbc23763eb6f7c07348593e66e9d8167479a"},{"id":"f1af1470-fee5-4219-8c39-bd20e207569c","kind":"test","status":"succeeded","startedAt":"2026-10-25T11:41:54.252Z","endedAt":"2026-10-25T11:41:54.443Z","executor":"runner","sessionId":null,"resumedFrom":null,"requestedModelId":null,"observedModelId":null,"exitCode":0,"reason":null,"commitSha":"d1f6bbc23763eb6f7c07348593e66e9d8167479a"},{"id":"a7d6bdf8-afd9-4dfd-8ec6-6cf131728926","kind":"revision","status":"running","startedAt":"2026-10-25T11:41:54.633Z","endedAt":null,"executor":"claude_code_cli","sessionId":null,"resumedFrom":null,"requestedModelId":"claude-haiku-4-5-20251001","observedModelId":null,"exitCode":null,"reason":null,"commitSha":null}],"artifacts":[{"id":"9eb9cd48-4112-4db0-9774-1009e62f1175","kind":"transcript","stepId":"acfd72f8-82a7-4fe2-a897-901385ee651d","path":"artifacts/acfd72f8-spec.jsonl","sha256":"a6d1d569dcc015af82c3b2369a84c90320cad8ca1a0d5c3d4b72c14c30d8c8f4","bytes":54667,"createdAt":"2026-10-25T11:41:30.391Z"},{"id":"08feda87-74d0-4d93-9a20-c4ab99a09e0a","kind":"spec","stepId":"acfd72f8-82a7-4fe2-a897-901385ee651d","path":"artifacts/acfd72f8-SPEC.md","sha256":"d7701fb739b6784d5fc47ad7c0c673171728b94df758d37d7c22a7f3d3545661","bytes":1298,"createdAt":"2026-10-25T11:41:30.391Z"},{"id":"93aeea04-20d0-41cb-b394-37b19f204303","kind":"diff","stepId":"acfd72f8-82a7-4fe2-a897-901385ee651d","path":"artifacts/acfd72f8-spec.diff","sha256":"b1b6a32a9cf35e6152fe36e0dc6a63c7626f3188ece11059543b8c3e0284b661","bytes":1562,"createdAt":"2026-10-25T11:41:30.411Z"},{"id":"04ef8b01-adc7-472e-bcb0-018afa54ca91","kind":"commit","stepId":"acfd72f8-82a7-4fe2-a897-901385ee651d","path":"artifacts/acfd72f8-commit.txt","sha256":"d3bb253bcea8722697bf03f57e8bf06596788fe1effea170f8b6a3a5d6f9d302","bytes":41,"createdAt":"2026-10-25T11:41:30.411Z"},{"id":"586d7556-5f45-4de9-93c5-27a8c364f523","kind":"transcript","stepId":"dbcdebee-561c-46d7-8165-190fd0632f1b","path":"artifacts/dbcdebee-code.jsonl","sha256":"d124ff84083635095b6334dfa74213a9e2c33e0df08ea0d833610cf3dcce8372","bytes":75199,"createdAt":"2026-10-25T11:41:53.981Z"},{"id":"a3bf0f1c-cb2f-4ac1-99fe-c05f2244f16f","kind":"diff","stepId":"dbcdebee-561c-46d7-8165-190fd0632f1b","path":"artifacts/dbcdebee-code.diff","sha256":"d568df095c8d9f9a9215cdcb3db9d7cb0b5ff61902aacdf039b907a137f0f633","bytes":1123,"createdAt":"2026-10-25T11:41:54.000Z"},{"id":"510556eb-5b1d-46cf-8de9-a58638490a37","kind":"commit","stepId":"dbcdebee-561c-46d7-8165-190fd0632f1b","path":"artifacts/dbcdebee-commit.txt","sha256":"3ea09e488f315e9532879176ed4976ab532ab70f134001499ad48dd4a0e0003c","bytes":41,"createdAt":"2026-10-25T11:41:54.000Z"},{"id":"d5fcc79e-31d4-44d4-92d6-60a1a5528fc8","kind":"test_log","stepId":"f1af1470-fee5-4219-8c39-bd20e207569c","path":"artifacts/f1af1470-test.log","sha256":"fc6254eac7e7a94dee82edd7ed2c61085b24983b68ba77841ebb471225f1df95","bytes":505,"createdAt":"2026-10-25T11:41:54.443Z"}],"modelProof":{"requested":"claude-haiku-4-5-20251001","observed":"claude-haiku-4-5-20251001","matches":true}}
+
+id: 1
+event: mission
+data: {"seq":1,"at":"2026-10-25T11:41:17.711Z","type":"mission_created","data":{"runtimeId":"claude-code","requestedModelId":"claude-haiku-4-5-20251001","branch":"atelier/380b9d17"}}
+
+id: 2
+event: mission
+data: {"seq":2,"at":"2026-10-25T11:41:17.872Z","type":"step_started","stepId":"acfd72f8-82a7-4fe2-a897-901385ee651d","data":{"kind":"spec","resumedFrom":null,"runtimeId":"claude-code","requestedModelId":"claude-haiku-4-5-20251001"}}
+
+id: 3
+event: mission
+data: {"seq":3,"at":"2026-10-25T11:41:30.412Z","type":"step_finished","stepId":"acfd72f8-82a7-4fe2-a897-901385ee651d","data":{"status":"succeeded","reason":null,"observedModelId":"claude-haiku-4-5-20251001","commitSha":"03a5caef33c217fcbfa715f6ca4b65174496f6e5","sessionId":"0ed705d7-046f-424b-873d-47fed6c9e746"}}
+
+id: 4
+event: mission
+data: {"seq":4,"at":"2026-10-25T11:41:30.669Z","type":"step_started","stepId":"dbcdebee-561c-46d7-8165-190fd0632f1b","data":{"kind":"code","resumedFrom":null,"runtimeId":"claude-code","requestedModelId":"claude-haiku-4-5-20251001"}}
+
+id: 5
+event: mission
+data: {"seq":5,"at":"2026-10-25T11:41:54.000Z","type":"step_finished","stepId":"dbcdebee-561c-46d7-8165-190fd0632f1b","data":{"status":"succeeded","reason":null,"observedModelId":"claude-haiku-4-5-20251001","commitSha":"d1f6bbc23763eb6f7c07348593e66e9d8167479a","sessionId":"6b58753a-e5a9-44b9-be30-8ab1a1082b84"}}
+
+id: 6
+event: mission
+data: {"seq":6,"at":"2026-10-25T11:41:54.252Z","type":"step_started","stepId":"f1af1470-fee5-4219-8c39-bd20e207569c","data":{"kind":"test"}}
+
+id: 7
+event: mission
+data: {"seq":7,"at":"2026-10-25T11:41:54.443Z","type":"step_finished","stepId":"f1af1470-fee5-4219-8c39-bd20e207569c","data":{"status":"succeeded","exitCode":0}}
+
+id: 8
+event: mission
+data: {"seq":8,"at":"2026-10-25T11:41:54.634Z","type":"step_started","stepId":"a7d6bdf8-afd9-4dfd-8ec6-6cf131728926","data":{"kind":"revision","resumedFrom":null,"runtimeId":"claude-code","requestedModelId":"claude-haiku-4-5-20251001"}}
+
+event: agent
+data: {"stepId":"a7d6bdf8-afd9-4dfd-8ec6-6cf131728926","kind":"message","text":"Je vais d'abord explorer la structure du projet pour comprendre le code actuel."}
+

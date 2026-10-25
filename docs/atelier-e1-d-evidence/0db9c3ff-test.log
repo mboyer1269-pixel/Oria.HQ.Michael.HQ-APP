@@ -1,0 +1,79 @@
+$ npm test
+# HEAD d980971e5c3d1a3f1b3a2e4e5d1857db1fd745de
+
+> test
+> node --test
+
+TAP version 13
+# Subtest: importe le module ESM et expose les trois fonctions
+ok 1 - importe le module ESM et expose les trois fonctions
+  ---
+  duration_ms: 0.732827
+  type: 'test'
+  ...
+# Subtest: calcule sans pourboire, avec un pourcentage entier et décimal
+ok 2 - calcule sans pourboire, avec un pourcentage entier et décimal
+  ---
+  duration_ms: 1.415144
+  type: 'test'
+  ...
+# Subtest: arrondit à l’entier inférieur, supérieur et half-up
+ok 3 - arrondit à l’entier inférieur, supérieur et half-up
+  ---
+  duration_ms: 0.145004
+  type: 'test'
+  ...
+# Subtest: calcule le total et compose avec le partage
+ok 4 - calcule le total et compose avec le partage
+  ---
+  duration_ms: 1.346224
+  type: 'test'
+  ...
+# Subtest: partage exactement un total, avec reste, à un convive et à beaucoup de convives
+ok 5 - partage exactement un total, avec reste, à un convive et à beaucoup de convives
+  ---
+  duration_ms: 0.235361
+  type: 'test'
+  ...
+# Subtest: conserve la somme et limite l’écart à un centime
+ok 6 - conserve la somme et limite l’écart à un centime
+  ---
+  duration_ms: 4.235754
+  type: 'test'
+  ...
+# Subtest: rejette les nombres non finis ou d’un mauvais type
+ok 7 - rejette les nombres non finis ou d’un mauvais type
+  ---
+  duration_ms: 0.523741
+  type: 'test'
+  ...
+# Subtest: rejette les montants négatifs et non entiers
+ok 8 - rejette les montants négatifs et non entiers
+  ---
+  duration_ms: 0.137172
+  type: 'test'
+  ...
+# Subtest: rejette les pourcentages négatifs et les nombres de convives invalides
+ok 9 - rejette les pourcentages négatifs et les nombres de convives invalides
+  ---
+  duration_ms: 0.278812
+  type: 'test'
+  ...
+# Subtest: ne dépend d’aucun paquet runtime externe
+ok 10 - ne dépend d’aucun paquet runtime externe
+  ---
+  duration_ms: 0.753539
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 79.83277
+
+
+# exit 0

@@ -1,0 +1,8 @@
+dd374e2e-9cd5-426a-89d4-d5379e4decb6 awaiting_review {'requested': 'gpt-5.6-luna', 'observed': 'gpt-5.6-luna', 'matches': True}
+spec succeeded codex_cli None 01a1726b-44ae-7903-8c3e-049bd81fb3ef gpt-5.6-luna c5cb479 None
+test succeeded runner None None None c5cb479 None
+code succeeded codex_cli None 01a1726b-f731-7750-8157-f0802d44108c gpt-5.6-luna 6dff42c None
+test succeeded runner None None None 6dff42c None
+revision interrupted codex_cli None 01a1726c-e312-7ab2-93c1-4cc50a870bcb gpt-5.6-luna - runner_died
+revision succeeded codex_cli 01a1726c-e312-7ab2-93c1-4cc50a870bcb 01a1726c-e312-7ab2-93c1-4cc50a870bcb gpt-5.6-luna f9f0f6b None
+test succeeded runner None None None f9f0f6b None
