@@ -154,7 +154,8 @@ export function createMission(input: { title: string; need: string; repoPath: st
   save(m, root); logEvent(id, "mission_created", root, undefined, { runtimeId, requestedModelId: input.modelId, branch }); return m;
 }
 
-export const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+/** Signal 0 probe. EPERM = the pid exists but belongs to another user: it is ALIVE (SENT-412-7). */
+export const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
 /** Kernel start time of a pid (/proc/<pid>/stat field 22, in clock ticks since boot): the pid's identity. null if unknown. */
 export function procStartTime(pid: number): string | null {
   try { const st = readFileSync(`/proc/${pid}/stat`, "utf8"); return st.slice(st.lastIndexOf(")") + 2).split(" ")[19] ?? null; } catch { return null; }

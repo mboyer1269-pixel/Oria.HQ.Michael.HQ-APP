@@ -106,3 +106,8 @@ test("boot reap: orphan CLI child of a dead runner is killed only if its start t
   assert.match(readFileSync(join(root, G, "events.jsonl"), "utf8"), /orphan_child_reaped/);
   process.kill(-reused.pid, "SIGKILL");
 });
+
+test("SENT-412-7: pidAlive treats EPERM (another user's live pid) as alive", () => {
+  assert.equal(A.pidAlive(1), true, "pid 1 (init, other user) is alive");
+  assert.equal(A.pidAlive(2 ** 22 - 7), false, "a free pid is dead (ESRCH)");
+});
