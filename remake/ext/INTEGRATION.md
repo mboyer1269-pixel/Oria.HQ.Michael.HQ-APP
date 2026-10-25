@@ -135,3 +135,21 @@ Profondeur spatiale sobre : anneaux concentriques, et des agents plus proches du
 - axe-core (wcag2a/2aa/21a/21aa/22aa, reduced-motion) : **ext 0 violation sur 24 analyses** (12 pages × 1440/390) ; **base 0 violation sur 32 analyses**. Corrigé : `aria-pressed` sur `<a>` (choix d'avatar) → `aria-current`.
 - Liens : 570 liens vérifiés, 0 mort, 0 `<a>` sans href.
 - Repo inchangé (`src/` non touché) : typecheck=0, lint=0, test=0 (4489 pass / 0 fail), build=0.
+
+## 9. Avatars vivants — états pilotés par événements réels
+
+Page vitrine : `mockups/avatar-etats.html`. Appliqué aux en-têtes de fil (chat, chat-voix), cartes de tâche (code), carte et liste Orbite.
+
+| État | Rendu (transform/opacity seulement) | Événement source | Existe ? |
+|---|---|---|---|
+| idle | statique, aucun anneau | mission `completed`/`cancelled` + délai, ou aucun flux | existe (`state-machine.ts`) |
+| listening | 2 ondes (scale+opacity, 1,6 s) | client `MediaRecorder` start→stop | à construire (aucune voix) |
+| thinking | halo qui respire (3,2 s) + 2 particules en orbite (4 s) | `/api/joris/chat` requête envoyée → 1er chunk ; mission `queued` | partiel (chat sans flux d'état) |
+| executing | anneau de progression = étapes terminées / total + reflet tournant (1,8 s) | mission `running` ; `ledger.append` via `/api/hq/theatre/stream` (`theatre-events.ts`) | existe |
+| waiting (bloqué) | anneau ambre pointillé, halo 4 s | `needs_approval` ; `intent.upsert` (draft-control) | existe |
+| done | « settle » 0,6 s **une seule fois**, badge ✓, puis idle | `running → completed` | existe |
+| error | anneau rouge statique, secousse unique 0,5 s, badge ! | `failed` ; étape interrompue `runner_died` ; SSE `error` | existe |
+
+Règles : la progression ne bouge qu'à réception d'un événement (aucune interpolation inventée) ; aucun cycle < 1,6 s, donc < 1 flash/s (WCAG 2.3.1) ; `prefers-reduced-motion: reduce` → toutes les animations coupées, anneau et badge statiques ; l'état est toujours dans l'`aria-label` de l'avatar et, dans les en-têtes, dans un texte `role="status" aria-live="polite"`. À construire : un hook client `useAgentState(agentId)` qui réduit theatre SSE + flux chat en ces 7 états.
+
+Captures : `captures/avatar-etats-{1440,390}.png` (mouvement réduit), `captures/avatar-etats-anim-{1440,390}.png` (animé), vidéos `captures/video/avatars-{1440,390}.webm` (avatar-etats → chat → code → orbite). axe : 0 violation sur 26 analyses (13 pages × 2).

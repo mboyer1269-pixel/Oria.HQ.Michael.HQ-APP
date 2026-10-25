@@ -7,12 +7,33 @@ spec=importlib.util.spec_from_file_location("g",BASE/"gen.py");g=importlib.util.
 OUT=pathlib.Path(__file__).parent/"mockups"; M=g.M; steps=g.steps; EX,RE,NC,PE=g.EX,g.RE,g.NC,g.PE
 B="../../mockups/"
 CSS=g.CSS+r"""
-.avs{position:relative;display:inline-grid;place-items:center;flex:none}.avs svg{display:block;border-radius:50%}
-.avs .st{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg);background:var(--soft)}
-.avs[data-state=executing] .st{background:var(--accent)}.avs[data-state=waiting] .st{background:var(--warn)}.avs[data-state=thinking] .st{background:var(--info)}
-.avs[data-state=executing] svg{box-shadow:0 0 0 2px var(--accent);animation:breathe 2.4s ease-in-out infinite}
-.avs[data-state=listening] svg{box-shadow:0 0 0 2px var(--info)}
-@keyframes breathe{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 35%,transparent)}}
+.avs{--s:36px;--c:var(--soft);position:relative;display:inline-grid;place-items:center;flex:none;width:var(--s);height:var(--s)}.avs>*{grid-area:1/1}.avs svg.face{display:block;border-radius:50%;width:var(--s);height:var(--s)}
+.avs .st{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg);background:var(--soft);font:700 8px/8px var(--mono);color:#06121f;text-align:center}
+.avs .halo,.avs .orb,.avs .ring,.avs .sheen,.avs .rip{pointer-events:none;width:calc(var(--s) + 10px);height:calc(var(--s) + 10px);border-radius:50%}
+.avs .halo{background:radial-gradient(closest-side,color-mix(in srgb,var(--c) 55%,transparent),transparent);opacity:0;will-change:opacity,transform}
+.avs .ring,.avs .sheen{overflow:visible}.avs .ring circle,.avs .sheen circle{fill:none;stroke-width:2.5;stroke-linecap:round}.avs .ring .tr{stroke:color-mix(in srgb,var(--c) 25%,transparent)}.avs .ring .pg{stroke:var(--c);transform:rotate(-90deg);transform-origin:50% 50%}
+.avs .sheen{opacity:0}.avs .sheen circle{stroke:#fff;stroke-dasharray:10 90;opacity:.85}
+.avs .orb{opacity:0;will-change:transform}.avs .orb i{position:absolute;left:50%;top:-2px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--c);box-shadow:0 0 6px var(--c)}.avs .orb i+i{top:auto;bottom:-2px;width:4px;height:4px;opacity:.7}
+.avs .rip{border:2px solid var(--c);opacity:0;will-change:transform,opacity}
+.avs[data-state=idle] .ring{display:none}
+.avs[data-state=listening]{--c:var(--info)}.avs[data-state=thinking]{--c:#b9a2ff}.avs[data-state=executing]{--c:var(--accent)}.avs[data-state=waiting]{--c:var(--warn)}.avs[data-state=done]{--c:var(--accent)}.avs[data-state=error]{--c:#ff6b5e}
+.avs:not([data-state=idle]) .st{background:var(--c)}
+.avs[data-state=thinking] .orb,.avs[data-state=thinking] .halo{opacity:1}.avs[data-state=thinking] .ring .pg{display:none}
+.avs[data-state=executing] .sheen,.avs[data-state=executing] .halo{opacity:1}
+.avs[data-state=listening] .rip{opacity:.6}.avs[data-state=listening] .ring .pg{display:none}
+.avs[data-state=error] .ring .tr{stroke:var(--c)}.avs[data-state=waiting] .ring .tr{stroke:var(--c);stroke-dasharray:4 4}
+@media (prefers-reduced-motion:no-preference){
+.avs[data-state=thinking] .halo{animation:av-breathe 3.2s ease-in-out infinite}.avs[data-state=thinking] .orb{animation:av-spin 4s linear infinite}
+.avs[data-state=executing] .sheen{animation:av-spin 1.8s linear infinite}.avs[data-state=executing] .halo{animation:av-breathe 2.6s ease-in-out infinite}
+.avs[data-state=listening] .rip{animation:av-ripple 1.6s ease-out infinite}.avs[data-state=listening] .rip+.rip{animation-delay:.8s}
+.avs[data-state=done] svg.face{animation:av-settle .6s cubic-bezier(.2,.8,.2,1.2) 1 both}.avs[data-state=done] .halo{animation:av-fade 1.2s ease-out 1 both}
+.avs[data-state=waiting] .halo{opacity:1;animation:av-breathe 4s ease-in-out infinite}
+.avs[data-state=error] svg.face{animation:av-nudge .5s ease-in-out 1}
+.avs .ring .pg{transition:stroke-dasharray .6s ease}}
+@keyframes av-spin{to{transform:rotate(360deg)}}@keyframes av-breathe{0%,100%{opacity:.35;transform:scale(.94)}50%{opacity:1;transform:scale(1.06)}}
+@keyframes av-ripple{0%{transform:scale(.9);opacity:.6}100%{transform:scale(1.35);opacity:0}}@keyframes av-settle{0%{transform:scale(1.1)}100%{transform:scale(1)}}
+@keyframes av-fade{0%{opacity:1}100%{opacity:0}}@keyframes av-nudge{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+.avst{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--soft)}.avst b{color:var(--ink);font-weight:600}
 .split{display:grid;grid-template-columns:280px 1fr;gap:0;min-height:calc(100vh - 48px)}.threads{border-right:1px solid var(--line);padding:16px;background:var(--bg)}
 .threads a{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;text-decoration:none}.threads a[aria-current=true]{background:var(--panel2)}
 .search{border:1px solid var(--line);border-radius:6px;padding:6px 10px;color:var(--soft);margin-bottom:12px;display:block;text-decoration:none}
@@ -38,14 +59,24 @@ CSS=g.CSS+r"""
 """
 # avatars SVG (formes simples, aucune personne réelle)
 PAL={"lea":("#7cc4ff","#0b2a44","◐"),"hugo":("#ffb340","#3a2200","▲"),"nova":("#4dff9a","#03140a","✦"),"kit":("#c58cff","#24103a","☾"),"rex":("#ff8f80","#3a0c06","■")}
-def av(k,size=36,state="idle",label=None):
+STL={"idle":"au repos","executing":"exécute","waiting":"bloqué — attend votre décision","thinking":"réfléchit","listening":"écoute","done":"a terminé","error":"en erreur"}
+BADGE={"done":"✓","error":"!","waiting":"‖"}
+def av(k,size=36,state="idle",label=None,prog=None):
     c1,c2,gl=PAL[k]; nm={"lea":"Léa","hugo":"Hugo","nova":"Nova","kit":"Chaton astronaute","rex":"Rex"}[k]
-    stl={"idle":"au repos","executing":"exécute","waiting":"attend votre décision","thinking":"réfléchit","listening":"écoute"}[state]
+    stl=STL[state]+(f", étape {prog[0]} sur {prog[1]}" if prog and state=="executing" else "")
     if k=="kit":
         inner=f'<circle cx="18" cy="20" r="11" fill="#f3e6ff"/><path d="M9 12l3-7 4 6M27 12l-3-7-4 6" fill="#f3e6ff"/><circle cx="14" cy="19" r="1.6" fill="{c2}"/><circle cx="22" cy="19" r="1.6" fill="{c2}"/><circle cx="18" cy="18" r="15" fill="none" stroke="#e8f3ec" stroke-width="1.5" opacity=".7"/>'
     else:
         inner=f'<circle cx="18" cy="15" r="7" fill="{c2}" opacity=".85"/><path d="M5 34c2-8 7-11 13-11s11 3 13 11" fill="{c2}" opacity=".85"/>'
-    return f'<span class="avs" data-state="{state}" role="img" aria-label="Avatar de {label or nm} ({stl})"><svg width="{size}" height="{size}" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" fill="{c1}"/>{inner}</svg><span class="st" aria-hidden="true"></span></span>'
+    pct=round(100*prog[0]/prog[1]) if prog else (100 if state in("done","error") else 0)
+    fx='<span class="halo" aria-hidden="true"></span>'
+    if state=="thinking": fx+='<span class="orb" aria-hidden="true"><i></i><i></i></span>'
+    if state=="listening": fx+='<span class="rip" aria-hidden="true"></span><span class="rip" aria-hidden="true"></span>'
+    if state!="idle": fx+=f'<svg class="ring" viewBox="0 0 40 40" aria-hidden="true"><circle class="tr" cx="20" cy="20" r="19"/><circle class="pg" cx="20" cy="20" r="19" pathLength="100" stroke-dasharray="{pct} 100"/></svg>'
+    if state=="executing": fx+='<svg class="sheen" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" pathLength="100"/></svg>'
+    return f'<span class="avs" data-state="{state}" style="--s:{size}px" role="img" aria-label="Avatar de {label or nm} ({stl})">{fx}<svg class="face" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" fill="{c1}"/>{inner}</svg><span class="st" aria-hidden="true">{BADGE.get(state,"")}</span></span>'
+def avst(nm,state,detail=""):
+    return f'<span class="avst" role="status" aria-live="polite"><b>{nm}</b> {STL[state]}{" — "+detail if detail else ""}</span>'
 
 NAV=[(B+"pont.html","Pont","◎","pont"),(B+"attention.html","Attention","⚑","attention"),("chat.html","Parler","❝","chat"),(B+"missions.html","Missions","▤","missions"),
      ("code.html","Code","⌘","code"),("orbite.html","Orbite","◍","orbite"),("skills.html","Skills","✚","skills"),(B+"connexions.html","Connexions","⇄","cx")]
@@ -61,10 +92,10 @@ THREADS=[("lea","Léa","Rapport des ventes","13 h 18",True),("hugo","Hugo","Ton 
 def threads(cur):
     return '<aside class="threads" aria-label="Fils de conversation"><a class="search" href="chat-recherche.html">⌕ Chercher dans l\'historique</a><a class="btn p" href="chat.html" style="width:100%;justify-content:center;margin-bottom:12px">＋ Nouveau fil</a>'+"".join(f'<a href="{"chat-avatar.html" if k=="kit" else "chat.html"}" {"aria-current=true" if k==cur else ""}>{av(k,32)}<span style="flex:1;min-width:0"><strong>{n}</strong><br><span class="meta">{t} · {w}</span></span></a>' for k,n,t,w,_ in THREADS)+f'<p class="meta" style="margin-top:12px">Fils {EX}</p></aside>'
 COMPOSER=f'''<div class="composer"><a class="mic" href="chat-voix.html" aria-label="Parler (dictée vocale)">🎙</a><a class="btn" href="chat.html" aria-label="Joindre un fichier">📎</a><label for="m">Écrire ou parler à Léa…</label><input id="m" aria-label="Message" style="flex:3;background:transparent;border:0;color:var(--ink)"><a class="btn p" href="chat.html">Envoyer</a></div>'''
-def head(k,nm,role,state):
-    return f'<div class="row between">{av(k,44,state)}<div style="flex:1"><h2 style="font-size:20px">{nm}</h2><div class="meta">{role} · runtime Codex CLI · modèle demandé gpt-5.6-luna, observé — {NC}</div></div>{EX}</div>'
+def head(k,nm,role,state,prog=None,detail=""):
+    return f'<div class="row between">{av(k,44,state,prog=prog)}<div style="flex:1"><h2 style="font-size:20px">{nm}</h2>{avst(nm,state,detail)}<div class="meta">{role} · runtime Codex CLI · modèle demandé gpt-5.6-luna, observé — {NC}</div></div>{EX}</div>'
 P={}
-P["chat"]=("Parler — Léa",shell("chat","Parler — Léa",f'''<div class="split">{threads("lea")}<section class="thread" aria-label="Fil avec Léa">{head("lea","Léa","Analyste clients","executing")}
+P["chat"]=("Parler — Léa",shell("chat","Parler — Léa",f'''<div class="split">{threads("lea")}<section class="thread" aria-label="Fil avec Léa">{head("lea","Léa","Analyste clients","executing",(3,4),"étape 3 sur 4 : rédaction du PDF (événement reçu 13 h 17)")}
 <div role="log" aria-label="Messages" style="margin-top:12px">
 <div class="msg me"><span class="meta">🎙 dicté · 13 h 12 HAE</span><br>Léa, sors-moi les ventes d'octobre par produit et prépare le rapport pour lundi. Ajoute les 3 produits en hausse.</div>
 <div class="msg">{av("lea",24)} <strong>Léa</strong> · 13 h 12<br>Compris. Je lis Shopify (lecture seule), puis j'écris le PDF dans Drive. Aucun envoi externe. Je lance ?</div>
@@ -77,7 +108,7 @@ P["chat"]=("Parler — Léa",shell("chat","Parler — Léa",f'''<div class="spli
 <div class="row"><a class="btn p" href="{B}attention.html">Approuver</a><a class="btn" href="chat.html">Demander une correction</a><a class="btn" href="{B}mission.html">Ouvrir la mission</a></div></section></div>
 {COMPOSER}<p class="meta">Mémoire utilisée : fiche Dadz Co., 2 notes · <a href="chat-recherche.html">voir le contexte</a> {EX}</p></section></div>'''))
 
-P["chat-voix"]=("Parler — dictée vocale",shell("chat","Parler — voix",f'''<div class="split">{threads("lea")}<section class="thread" aria-label="Dictée vocale">{head("lea","Léa","Analyste clients","listening")}
+P["chat-voix"]=("Parler — dictée vocale",shell("chat","Parler — voix",f'''<div class="split">{threads("lea")}<section class="thread" aria-label="Dictée vocale">{head("lea","Léa","Analyste clients","listening",detail="micro actif")}
 <div class="card info" style="margin-top:16px" aria-live="polite"><div class="row"><a class="mic on" href="chat.html" aria-label="Arrêter la dictée">■</a><div><strong>Vous parlez…</strong><div class="wave" aria-hidden="true">▁▃▅▇▅▃▁▂▄▆▄▂</div></div></div>
 <p style="margin-top:12px">« Léa, change ton avatar en un chaton astronaute »</p><p class="meta">Transcription en direct, modifiable avant envoi. L'onde suit le micro réel ; statique si mouvement réduit.</p>
 <div class="row"><a class="btn p" href="chat-avatar.html">Envoyer</a><a class="btn" href="chat.html">Annuler</a></div></div>
@@ -97,12 +128,12 @@ P["chat-recherche"]=("Parler — historique",shell("chat","Historique et mémoir
 <h3 style="margin-top:20px">Mémoire de Léa</h3><ul class="list"><li class="row between"><span>Fiche Dadz Co. — objectif 300 commandes</span><a class="btn" href="{B}fiche.html">Ouvrir</a></li><li class="row between"><span>Note : rapport le lundi 8 h</span><a class="btn d" href="chat-recherche.html">Oublier</a></li></ul><p>{EX}</p></div>'''))
 
 # CODE
-cols=[("Plan",[("nova","Spec : calculatrice de pourboire","✓")]),("En cours",[("nova","Correction : arrondi au cent","● Nova"),("rex","Tests e2e mobile","● Rex")]),("À relire",[("nova","PR atelier/329674b0","↺")]),("Fait",[("rex","Tests unitaires (runner)","✓")])]
+cols=[("Plan",[("nova","Spec : calculatrice de pourboire","✓","idle",None)]),("En cours",[("nova","Correction : arrondi au cent","● Nova · étape 2/3","executing",(2,3)),("rex","Tests e2e mobile","◌ Rex réfléchit","thinking",None)]),("À relire",[("nova","PR atelier/329674b0","‖ bloqué : votre approbation","waiting",None)]),("Fait",[("rex","Tests unitaires (runner)","✓ terminé","done",None),("hugo","Lint CSS","! échec : runner_died","error",None)])]
 P["code"]=("Code — plan et tâches",shell("code","Code — Calculatrice de pourboire",f'''<div class="content" style="max-width:1200px"><div class="row between"><div><p class="eyebrow">Projet de code · de A à Z</p><h2>Calculatrice de pourboire</h2></div>{RE}</div>
 <p class="lede">{H(M.get("need",""))[:180]}</p>
 <div class="grid2"><section class="card" aria-labelledby="sp"><h3 id="sp">Plan / spec — approuvé</h3><ol><li>Formulaire montant + pourcentage</li><li>Partage entre N personnes</li><li>Une page HTML d'aperçu</li></ol><p class="meta">Approuvé par vous avant exécution (comme Jules/Devin). Étape spec : {g.hae(steps[0]["startedAt"])} {RE}</p><a class="btn" href="code-live.html">Voir l'exécution</a></section>
 <section class="card" aria-labelledby="br"><h3 id="br">Branche et PR</h3><dl class="kv"><dt>Branche</dt><dd class="mono">atelier/329674b0</dd><dt>Base</dt><dd class="mono">main @ 5754292f</dd><dt>Tête</dt><dd class="mono">{g.head}</dd><dt>Tests</dt><dd class="t-go">✓ 2 passes runner</dd><dt>PR</dt><dd>pas encore ouverte</dd></dl>{RE}</section></div>
-<p class="eyebrow">Tableau par agent {EX}</p><div class="board">{"".join(f'<section class="col" aria-label="{c}"><h3>{c}</h3>'+"".join(f'<a class="tk" href="code-live.html"><span class="row">{av(k,24,"executing" if "●" in s else "idle")}<span style="flex:1">{t}</span></span><span class="meta">{s}</span></a>' for k,t,s in items)+'</section>' for c,items in cols)}</div>
+<p class="eyebrow">Tableau par agent {EX}</p><div class="board">{"".join(f'<section class="col" aria-label="{c}"><h3>{c}</h3>'+"".join(f'<a class="tk" href="code-live.html"><span class="row">{av(k,28,st,prog=pr)}<span style="flex:1">{t}</span></span><span class="meta">{s}</span></a>' for k,t,s,st,pr in items)+'</section>' for c,items in cols)}</div>
 <div class="row" style="margin-top:16px"><a class="btn p" href="chat.html">＋ Demander une tâche (dans le fil de Nova)</a><a class="btn" href="{B}atelier-session.html">Contrat atelier (session réelle)</a></div></div>'''))
 
 term="".join(f'$ step {s["kind"]} · {"codex" if s["executor"]=="codex_cli" else "runner"} · {g.hae(s["startedAt"])}\n  → {s["status"]}{" ("+s["reason"]+")" if s.get("reason") else ""}{" · reprise de "+s["resumedFrom"][:8] if s.get("resumedFrom") else ""}\n' for s in steps)
@@ -126,20 +157,32 @@ IMP=[("Inbox unique","Attention fusionne approbations, intentions d'exécution e
 P["ameliorations"]=("Améliorations HQ",shell("skills","Autres améliorations HQ",f'''<div class="content"><h2>Autres améliorations HQ</h2><p class="lede">Proposées à partir de l'exploration du dépôt. Détail dans INTEGRATION.md.</p><table><thead><tr><th>Amélioration</th><th>Quoi</th><th>Existant</th></tr></thead><tbody>{"".join(f'<tr><td>{a}</td><td>{b}</td><td><span class="tag t-{"go" if c=="existe" else "warn" if c=="partiel" else "soft"}">{c}</span></td></tr>' for a,b,c in IMP)}</tbody></table><a class="btn" href="skills.html" style="margin-top:16px">← Skills</a></div>'''))
 
 # ORBITE (direction futuriste)
-nodes=[("lea",50,18,"Léa","executing","Rapport ventes"),("hugo",82,45,"Hugo","waiting","Budget pub"),("nova",62,80,"Nova","idle","À relire"),("rex",22,70,"Rex","idle","Tests"),("kit",18,32,"Kit","thinking","Infolettre")]
-nd="".join(f'<a class="node{" far" if s=="idle" else ""}" href="{"chat.html" if k!="nova" else "code.html"}" style="left:{x}%;top:{y}%">{av(k,56 if s!="idle" else 44,s)}<span class="lbl"><strong>{n}</strong> · {t}</span></a>' for k,x,y,n,s,t in nodes)
+nodes=[("lea",50,18,"Léa","executing","Rapport ventes · 3/4"),("hugo",82,45,"Hugo","waiting","Budget pub"),("nova",62,80,"Nova","idle","À relire"),("rex",22,70,"Rex","done","Tests terminés"),("kit",18,32,"Kit","thinking","Infolettre")]
+nd="".join(f'<a class="node{" far" if s=="idle" else ""}" href="{"chat.html" if k!="nova" else "code.html"}" style="left:{x}%;top:{y}%">{av(k,56 if s!="idle" else 44,s,prog=(3,4) if k=="lea" else None)}<span class="lbl"><strong>{n}</strong> · {t}</span></a>' for k,x,y,n,s,t in nodes)
 P["orbite"]=("Orbite",shell("orbite","Orbite — équipe et missions",f'''<div class="content" style="max-width:1200px"><div class="row between"><div><p class="eyebrow">Direction « Orbite » · au-delà du Pont</p><h2>Qui fait quoi, en ce moment</h2></div>{EX}</div>
 <p class="lede">Proche du centre = demande votre attention ; en périphérie = au repos. Le halo vert n'existe que pour un agent qui exécute réellement. Liste équivalente ci-dessous (lecteurs d'écran, clavier).</p>
 <div class="space" role="group" aria-label="Carte de l'équipe"><div class="ring" style="width:260px;height:260px" aria-hidden="true"></div><div class="ring" style="width:480px;height:480px" aria-hidden="true"></div>
 <a class="node" href="{B}pont.html" style="left:50%;top:50%"><span class="av" style="width:64px;height:64px;font-size:16px">MB</span><span class="lbl">Vous · 1 décision</span></a>{nd}</div>
-<ul class="list" style="margin-top:12px">{"".join(f'<li class="row">{av(k,28,s)}<span style="flex:1"><strong>{n}</strong> — {t}</span><span class="meta">{ {"executing":"exécute","waiting":"attend votre décision","idle":"au repos","thinking":"réfléchit"}[s]}</span></li>' for k,x,y,n,s,t in nodes)}</ul>
-<a class="btn" href="orbite-pouls.html">Pouls des événements réels →</a></div>'''))
+<ul class="list" style="margin-top:12px">{"".join(f'<li class="row">{av(k,28,s,prog=(3,4) if k=="lea" else None)}<span style="flex:1"><strong>{n}</strong> — {t}</span><span class="meta">{STL[s]}</span></li>' for k,x,y,n,s,t in nodes)}</ul>
+<a class="btn" href="orbite-pouls.html">Pouls des événements réels →</a> <a class="btn" href="avatar-etats.html">États des avatars →</a></div>'''))
 bars="".join(f'<i class="{"w" if s["status"]!="succeeded" else ""}" style="height:{max(8,min(60,int(__import__("math").log2(1+ (__import__("datetime").datetime.fromisoformat(s["endedAt"].replace("Z","+00:00"))-__import__("datetime").datetime.fromisoformat(s["startedAt"].replace("Z","+00:00"))).total_seconds())*9)))}px" title="{s["kind"]}"></i>' for s in steps)
 P["orbite-pouls"]=("Orbite — pouls",shell("orbite","Orbite — pouls",f'''<div class="content" style="max-width:1100px"><h2>Pouls des événements réels</h2><p class="lede">Visualisation ambiante : chaque barre = une étape réellement exécutée (hauteur = durée, échelle log). Ambre = interrompue. Aucune donnée inventée.</p>
 <section class="card" aria-labelledby="pp"><div class="row between"><h3 id="pp">Calculatrice de pourboire — 8 étapes</h3>{RE}</div><div class="spark" role="img" aria-label="8 étapes, 7 réussies, 1 interrompue (revision, runner_died)">{bars}</div>
 <p class="meta">{g.hae(steps[0]["startedAt"])} → {g.hae(steps[-1]["endedAt"])} · source mission.json</p></section>
 <section class="card" aria-labelledby="pq"><h3 id="pq">Activité de l'équipe (7 jours)</h3><div class="spark" role="img" aria-label="Barres d'exemple">{"".join(f'<i style="height:{h}px"></i>' for h in [12,30,22,44,18,50,26])}</div><p>{EX}</p></section>
 <a class="btn" href="orbite.html">← Orbite</a></div>'''))
+
+EV=[("idle","Aucune tâche ni flux actif","aucun événement depuis terminal (completed/cancelled) + délai de retour","existe (état mission)"),
+("listening","Micro ouvert par l'utilisateur","client : MediaRecorder start → stop","à construire (pas de voix)"),
+("thinking","Requête modèle en vol, aucun token/étape encore","/api/joris/chat : requête envoyée → 1er chunk ; mission queued","partiel (chat sans flux d'état)"),
+("executing","Étape en cours ; anneau = étapes terminées / total","mission running + ledger.append (étape started/succeeded) via /api/hq/theatre/stream","existe (SSE theatre + steps)"),
+("waiting","Bloqué sur approbation humaine","needs_approval ; intent.upsert (draft-control)","existe"),
+("done","Settle 0,6 s une seule fois, puis idle","running → completed","existe"),
+("error","Anneau rouge statique, secousse unique","failed ; step interrupted (runner_died) ; SSE error","existe")]
+P["avatar-etats"]=("Avatars — états vivants",shell("orbite","Avatars — états vivants",f'''<div class="content" style="max-width:1200px"><h2>États vivants des avatars</h2><p class="lede">Chaque état est piloté uniquement par un événement réel (colonne « Événement »). Animations transform/opacity seulement, cycles ≥ 1,6 s (aucun clignotement &gt; 3/s). Mouvement réduit : anneau et badge statiques + texte d'état.</p>
+<div class="grid2" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">{"".join(f'<section class="card" aria-labelledby="e{i}"><div class="row">{av(["nova","lea","kit","nova","hugo","rex","hugo"][i],72,st,prog=(2,3) if st=="executing" else None)}<div><h3 id="e{i}" style="margin:0">{st}</h3><p class="meta" style="margin:4px 0 0">{vis}</p></div></div></section>' for i,(st,vis,ev,ex) in enumerate(EV))}</div>
+<h3 style="margin-top:20px">Démo : la progression suit les événements</h3><div class="row" style="gap:16px">{"".join(av("nova",56,"executing",prog=(n,4)) for n in (1,2,3,4))}</div><p class="meta">Anneau à 1/4, 2/4, 3/4, 4/4 étapes terminées — jamais de pourcentage inventé entre deux événements.</p>
+<h3 style="margin-top:20px">Correspondance événement → état</h3><table><thead><tr><th>État</th><th>Événement source</th><th>Existe ?</th></tr></thead><tbody>{"".join(f'<tr><td>{st}</td><td>{ev}</td><td>{ex}</td></tr>' for st,vis,ev,ex in EV)}</tbody></table><p>{EX} · <a href="orbite.html">← Orbite</a></p></div>'''))
 
 for k,(t,html_) in P.items(): (OUT/f"{k}.html").write_text(html_)
 order=list(P)

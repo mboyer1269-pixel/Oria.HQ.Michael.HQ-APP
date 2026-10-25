@@ -4,6 +4,11 @@
   "passes": 19,
   "incomplete": 1
  },
+ "avatar-etats-1440": {
+  "violations": [],
+  "passes": 26,
+  "incomplete": 1
+ },
  "chat-avatar-1440": {
   "violations": [],
   "passes": 25,
@@ -62,6 +67,11 @@
  "ameliorations-390": {
   "violations": [],
   "passes": 19,
+  "incomplete": 1
+ },
+ "avatar-etats-390": {
+  "violations": [],
+  "passes": 26,
   "incomplete": 1
  },
  "chat-avatar-390": {
