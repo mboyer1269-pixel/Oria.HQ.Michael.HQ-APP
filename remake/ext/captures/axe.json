@@ -9,6 +9,11 @@
   "passes": 26,
   "incomplete": 1
  },
+ "avatar-oria-1440": {
+  "violations": [],
+  "passes": 25,
+  "incomplete": 1
+ },
  "chat-avatar-1440": {
   "violations": [],
   "passes": 25,
@@ -70,6 +75,11 @@
   "incomplete": 1
  },
  "avatar-etats-390": {
+  "violations": [],
+  "passes": 26,
+  "incomplete": 1
+ },
+ "avatar-oria-390": {
   "violations": [],
   "passes": 26,
   "incomplete": 1

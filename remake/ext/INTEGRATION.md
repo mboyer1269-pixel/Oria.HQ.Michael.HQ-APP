@@ -153,3 +153,7 @@ Page vitrine : `mockups/avatar-etats.html`. Appliqué aux en-têtes de fil (chat
 Règles : la progression ne bouge qu'à réception d'un événement (aucune interpolation inventée) ; aucun cycle < 1,6 s, donc < 1 flash/s (WCAG 2.3.1) ; `prefers-reduced-motion: reduce` → toutes les animations coupées, anneau et badge statiques ; l'état est toujours dans l'`aria-label` de l'avatar et, dans les en-têtes, dans un texte `role="status" aria-live="polite"`. À construire : un hook client `useAgentState(agentId)` qui réduit theatre SSE + flux chat en ces 7 états.
 
 Captures : `captures/avatar-etats-{1440,390}.png` (mouvement réduit), `captures/avatar-etats-anim-{1440,390}.png` (animé), vidéos `captures/video/avatars-{1440,390}.webm` (avatar-etats → chat → code → orbite). axe : 0 violation sur 26 analyses (13 pages × 2).
+
+## 10. Astrolabe — signature avatar (voir AVATAR-ORIA.md)
+
+Les avatars SVG simples sont remplacés par des astres génératifs (`remake/ext/astre.py`), avec les mêmes 7 états et la même correspondance événement → état (§9). axe : 0 violation sur 28 analyses (14 pages × 1440/390). Vidéo : `captures/video/astrolabe-{1440,390}.webm`.

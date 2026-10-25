@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Maquettes des 4 ajouts (Pont v3-ext). Données « exemple » sauf atelier/mission.json (« réelle »)."""
 import sys, pathlib, importlib.util, html
+sys.path.insert(0,str(pathlib.Path(__file__).parent));import astre as A
 H=html.escape
 BASE=pathlib.Path(__file__).resolve().parent.parent
 spec=importlib.util.spec_from_file_location("g",BASE/"gen.py");g=importlib.util.module_from_spec(spec);spec.loader.exec_module(g)
 OUT=pathlib.Path(__file__).parent/"mockups"; M=g.M; steps=g.steps; EX,RE,NC,PE=g.EX,g.RE,g.NC,g.PE
 B="../../mockups/"
-CSS=g.CSS+r"""
+CSS=g.CSS+A.CSS+r"""
 .avs{--s:36px;--c:var(--soft);position:relative;display:inline-grid;place-items:center;flex:none;width:var(--s);height:var(--s)}.avs>*{grid-area:1/1}.avs svg.face{display:block;border-radius:50%;width:var(--s);height:var(--s)}
 .avs .st{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg);background:var(--soft);font:700 8px/8px var(--mono);color:#06121f;text-align:center}
 .avs .halo,.avs .orb,.avs .ring,.avs .sheen,.avs .rip{pointer-events:none;width:calc(var(--s) + 10px);height:calc(var(--s) + 10px);border-radius:50%}
@@ -61,20 +62,9 @@ CSS=g.CSS+r"""
 PAL={"lea":("#7cc4ff","#0b2a44","◐"),"hugo":("#ffb340","#3a2200","▲"),"nova":("#4dff9a","#03140a","✦"),"kit":("#c58cff","#24103a","☾"),"rex":("#ff8f80","#3a0c06","■")}
 STL={"idle":"au repos","executing":"exécute","waiting":"bloqué — attend votre décision","thinking":"réfléchit","listening":"écoute","done":"a terminé","error":"en erreur"}
 BADGE={"done":"✓","error":"!","waiting":"‖"}
+AG={"lea":("agent-lea","analyste-clients","Léa",None),"hugo":("agent-hugo","marketing","Hugo",None),"nova":("agent-nova","dev-code","Nova",None),"rex":("agent-rex","qa-tests","Rex",None),"kito":("agent-kit","redaction","Kit",None),"kit":("agent-lea","analyste-clients","Léa (emblème chaton astronaute)","chaton")}
 def av(k,size=36,state="idle",label=None,prog=None):
-    c1,c2,gl=PAL[k]; nm={"lea":"Léa","hugo":"Hugo","nova":"Nova","kit":"Chaton astronaute","rex":"Rex"}[k]
-    stl=STL[state]+(f", étape {prog[0]} sur {prog[1]}" if prog and state=="executing" else "")
-    if k=="kit":
-        inner=f'<circle cx="18" cy="20" r="11" fill="#f3e6ff"/><path d="M9 12l3-7 4 6M27 12l-3-7-4 6" fill="#f3e6ff"/><circle cx="14" cy="19" r="1.6" fill="{c2}"/><circle cx="22" cy="19" r="1.6" fill="{c2}"/><circle cx="18" cy="18" r="15" fill="none" stroke="#e8f3ec" stroke-width="1.5" opacity=".7"/>'
-    else:
-        inner=f'<circle cx="18" cy="15" r="7" fill="{c2}" opacity=".85"/><path d="M5 34c2-8 7-11 13-11s11 3 13 11" fill="{c2}" opacity=".85"/>'
-    pct=round(100*prog[0]/prog[1]) if prog else (100 if state in("done","error") else 0)
-    fx='<span class="halo" aria-hidden="true"></span>'
-    if state=="thinking": fx+='<span class="orb" aria-hidden="true"><i></i><i></i></span>'
-    if state=="listening": fx+='<span class="rip" aria-hidden="true"></span><span class="rip" aria-hidden="true"></span>'
-    if state!="idle": fx+=f'<svg class="ring" viewBox="0 0 40 40" aria-hidden="true"><circle class="tr" cx="20" cy="20" r="19"/><circle class="pg" cx="20" cy="20" r="19" pathLength="100" stroke-dasharray="{pct} 100"/></svg>'
-    if state=="executing": fx+='<svg class="sheen" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" pathLength="100"/></svg>'
-    return f'<span class="avs" data-state="{state}" style="--s:{size}px" role="img" aria-label="Avatar de {label or nm} ({stl})">{fx}<svg class="face" viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" fill="{c1}"/>{inner}</svg><span class="st" aria-hidden="true">{BADGE.get(state,"")}</span></span>'
+    aid,role,nm,emb=AG[k]; return A.astre(aid,role,max(size,28),state,prog,emb,label=label,name=nm)
 def avst(nm,state,detail=""):
     return f'<span class="avst" role="status" aria-live="polite"><b>{nm}</b> {STL[state]}{" — "+detail if detail else ""}</span>'
 
@@ -157,14 +147,14 @@ IMP=[("Inbox unique","Attention fusionne approbations, intentions d'exécution e
 P["ameliorations"]=("Améliorations HQ",shell("skills","Autres améliorations HQ",f'''<div class="content"><h2>Autres améliorations HQ</h2><p class="lede">Proposées à partir de l'exploration du dépôt. Détail dans INTEGRATION.md.</p><table><thead><tr><th>Amélioration</th><th>Quoi</th><th>Existant</th></tr></thead><tbody>{"".join(f'<tr><td>{a}</td><td>{b}</td><td><span class="tag t-{"go" if c=="existe" else "warn" if c=="partiel" else "soft"}">{c}</span></td></tr>' for a,b,c in IMP)}</tbody></table><a class="btn" href="skills.html" style="margin-top:16px">← Skills</a></div>'''))
 
 # ORBITE (direction futuriste)
-nodes=[("lea",50,18,"Léa","executing","Rapport ventes · 3/4"),("hugo",82,45,"Hugo","waiting","Budget pub"),("nova",62,80,"Nova","idle","À relire"),("rex",22,70,"Rex","done","Tests terminés"),("kit",18,32,"Kit","thinking","Infolettre")]
+nodes=[("lea",50,18,"Léa","executing","Rapport ventes · 3/4"),("hugo",82,45,"Hugo","waiting","Budget pub"),("nova",62,80,"Nova","idle","À relire"),("rex",22,70,"Rex","done","Tests terminés"),("kito",18,32,"Kit","thinking","Infolettre")]
 nd="".join(f'<a class="node{" far" if s=="idle" else ""}" href="{"chat.html" if k!="nova" else "code.html"}" style="left:{x}%;top:{y}%">{av(k,56 if s!="idle" else 44,s,prog=(3,4) if k=="lea" else None)}<span class="lbl"><strong>{n}</strong> · {t}</span></a>' for k,x,y,n,s,t in nodes)
 P["orbite"]=("Orbite",shell("orbite","Orbite — équipe et missions",f'''<div class="content" style="max-width:1200px"><div class="row between"><div><p class="eyebrow">Direction « Orbite » · au-delà du Pont</p><h2>Qui fait quoi, en ce moment</h2></div>{EX}</div>
-<p class="lede">Proche du centre = demande votre attention ; en périphérie = au repos. Le halo vert n'existe que pour un agent qui exécute réellement. Liste équivalente ci-dessous (lecteurs d'écran, clavier).</p>
+<p class="lede">Proche du centre = demande votre attention ; en périphérie = au repos. Chaque astre ne s'anime que sur un événement réel de son agent. Liste équivalente ci-dessous (lecteurs d'écran, clavier).</p>
 <div class="space" role="group" aria-label="Carte de l'équipe"><div class="ring" style="width:260px;height:260px" aria-hidden="true"></div><div class="ring" style="width:480px;height:480px" aria-hidden="true"></div>
 <a class="node" href="{B}pont.html" style="left:50%;top:50%"><span class="av" style="width:64px;height:64px;font-size:16px">MB</span><span class="lbl">Vous · 1 décision</span></a>{nd}</div>
 <ul class="list" style="margin-top:12px">{"".join(f'<li class="row">{av(k,28,s,prog=(3,4) if k=="lea" else None)}<span style="flex:1"><strong>{n}</strong> — {t}</span><span class="meta">{STL[s]}</span></li>' for k,x,y,n,s,t in nodes)}</ul>
-<a class="btn" href="orbite-pouls.html">Pouls des événements réels →</a> <a class="btn" href="avatar-etats.html">États des avatars →</a></div>'''))
+<a class="btn" href="orbite-pouls.html">Pouls des événements réels →</a> <a class="btn" href="avatar-etats.html">États des avatars →</a> <a class="btn" href="avatar-oria.html">Astrolabe →</a></div>'''))
 bars="".join(f'<i class="{"w" if s["status"]!="succeeded" else ""}" style="height:{max(8,min(60,int(__import__("math").log2(1+ (__import__("datetime").datetime.fromisoformat(s["endedAt"].replace("Z","+00:00"))-__import__("datetime").datetime.fromisoformat(s["startedAt"].replace("Z","+00:00"))).total_seconds())*9)))}px" title="{s["kind"]}"></i>' for s in steps)
 P["orbite-pouls"]=("Orbite — pouls",shell("orbite","Orbite — pouls",f'''<div class="content" style="max-width:1100px"><h2>Pouls des événements réels</h2><p class="lede">Visualisation ambiante : chaque barre = une étape réellement exécutée (hauteur = durée, échelle log). Ambre = interrompue. Aucune donnée inventée.</p>
 <section class="card" aria-labelledby="pp"><div class="row between"><h3 id="pp">Calculatrice de pourboire — 8 étapes</h3>{RE}</div><div class="spark" role="img" aria-label="8 étapes, 7 réussies, 1 interrompue (revision, runner_died)">{bars}</div>
@@ -183,6 +173,20 @@ P["avatar-etats"]=("Avatars — états vivants",shell("orbite","Avatars — éta
 <div class="grid2" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">{"".join(f'<section class="card" aria-labelledby="e{i}"><div class="row">{av(["nova","lea","kit","nova","hugo","rex","hugo"][i],72,st,prog=(2,3) if st=="executing" else None)}<div><h3 id="e{i}" style="margin:0">{st}</h3><p class="meta" style="margin:4px 0 0">{vis}</p></div></div></section>' for i,(st,vis,ev,ex) in enumerate(EV))}</div>
 <h3 style="margin-top:20px">Démo : la progression suit les événements</h3><div class="row" style="gap:16px">{"".join(av("nova",56,"executing",prog=(n,4)) for n in (1,2,3,4))}</div><p class="meta">Anneau à 1/4, 2/4, 3/4, 4/4 étapes terminées — jamais de pourcentage inventé entre deux événements.</p>
 <h3 style="margin-top:20px">Correspondance événement → état</h3><table><thead><tr><th>État</th><th>Événement source</th><th>Existe ?</th></tr></thead><tbody>{"".join(f'<tr><td>{st}</td><td>{ev}</td><td>{ex}</td></tr>' for st,vis,ev,ex in EV)}</tbody></table><p>{EX} · <a href="orbite.html">← Orbite</a></p></div>'''))
+
+ST7=["idle","listening","thinking","executing","waiting","done","error"]
+AGS=[("lea","Léa · analyste-clients"),("hugo","Hugo · marketing"),("nova","Nova · dev-code"),("rex","Rex · qa-tests")]
+grid="".join(f'<tr><th scope="row">{n}</th>'+"".join(f'<td>{av(k,64,s,prog=(3,5) if s=="executing" else None)}</td>' for s in ST7)+'</tr>' for k,n in AGS)
+det="".join(f'<figure class="card" style="margin:0;text-align:center">{A.astre(i,r,72,"idle",name=i)}<figcaption class="meta">id <span class="mono">{i}</span><br>rôle <span class="mono">{r}</span><br>empreinte <span class="mono">{A.params(i,r)["hash"]}</span> · {A.params(i,r)["contours"]} courbes · {A.params(i,r)["facets"]} facettes</figcaption></figure>' for i,r in [("agent-lea","analyste-clients"),("agent-lea","analyste-clients"),("agent-lea","marketing"),("agent-nova","dev-code"),("agent-zed","finance")])
+P["avatar-oria"]=("Astrolabe — avatars Oria",shell("orbite","Astrolabe — avatars Oria",f"""<div class="content" style="max-width:1240px"><div class="row between"><div><p class="eyebrow">Signature Oria</p><h2>Astrolabe : un astre vivant par agent</h2></div>{EX}</div>
+<p class="lede">Un noyau lumineux (Signal) dans une coque de courbes de niveau (Cartographe), couronné de facettes. La forme est calculée à partir de l'identifiant et du rôle de l'agent : même agent, même astre, partout. Chaque état transforme la forme elle-même, et uniquement sur événement réel.</p>
+<section class="card" aria-labelledby="h7"><h3 id="h7">4 agents × 7 états</h3><div style="overflow-x:auto" tabindex="0" role="region" aria-label="Tableau défilant : agents et états"><table><thead><tr><th scope="col">Agent</th>{"".join(f'<th scope="col">{s}</th>' for s in ST7)}</tr></thead><tbody>{grid}</tbody></table></div>
+<p class="meta">listening : la coque ondule comme une onde · thinking : courants internes dans le noyau · executing : une facette s'allume par étape terminée (ici 3/5), la facette en cours luit · waiting : pulsation sourde, contours pointillés · done : cristallisation unique · error : fracture du noyau, contours rouges. Mouvement réduit : formes identiques, immobiles, et texte d'état.</p></section>
+<section class="card" aria-labelledby="hd"><h3 id="hd">Génération déterministe</h3><p class="meta">sha256(id | rôle) → palette (jetons Signal), nombre de courbes, harmoniques, orientation, facettes au repos. Les deux premiers sont identiques : même entrée, même astre.</p><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">{det}</div></section>
+<section class="card" aria-labelledby="hc"><h3 id="hc">Personnaliser depuis la conversation</h3><div class="msg me">« Léa, change ton avatar en un chaton astronaute »</div>
+<div class="row" style="gap:20px;align-items:center;margin:10px 0"><figure style="margin:0;text-align:center">{av("lea",88)}<figcaption class="meta">Avant (v1)</figcaption></figure><span aria-hidden="true" style="font-size:24px">→</span><figure style="margin:0;text-align:center">{av("kit",88,"thinking")}<figcaption class="meta">Léa compose l'emblème</figcaption></figure><span aria-hidden="true" style="font-size:24px">→</span><figure style="margin:0;text-align:center">{av("kit",88,"done")}<figcaption class="meta">Emblème posé (v2)</figcaption></figure></div>
+<p class="meta">Le prompt devient un <strong>emblème</strong> dans le noyau ; la coque, la couronne et les états restent ceux d'Oria. La marque reste cohérente. Génération d'emblème : à construire (aucun fournisseur d'image branché).</p>
+<div class="row"><a class="btn p" href="chat-avatar.html">Voir le flux dans le fil</a><a class="btn" href="avatar-etats.html">Correspondance événement → état</a><a class="btn" href="orbite.html">Voir dans Orbite</a></div></section></div>"""))
 
 for k,(t,html_) in P.items(): (OUT/f"{k}.html").write_text(html_)
 order=list(P)
