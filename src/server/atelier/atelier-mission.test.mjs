@@ -9,6 +9,7 @@ import { createJiti } from 'jiti';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const jiti = createJiti(import.meta.url, { alias: { '@': path.join(root, 'src'), 'server-only': path.join(root, 'src/__server-only-noop.js') } });
 const A = await jiti.import('./atelier-mission.ts');
+const C = { userId: 'u', workspaceId: 'michael-hq' };
 const H = await jiti.import('../../app/api/atelier/missions/handlers.ts');
 
 function repo() {
@@ -36,13 +37,13 @@ test('runner-executed test step stores a hashed log artifact readable through th
   assert.equal(after.steps[0].status, 'succeeded');
   const art = after.artifacts.find(a => a.kind === 'test_log');
   assert.ok(art && art.sha256.length === 64);
-  const res = H.getAtelierArtifact(m.id, art.id, store);
+  const res = H.getAtelierArtifact(C, m.id, art.id, { root: store });
   assert.equal(res.headers.get('x-artifact-sha256'), art.sha256);
   assert.match(await res.text(), /ok-42/);
-  const view = await H.getAtelierMission(m.id, store).json();
+  const view = await H.getAtelierMission(C, m.id, { root: store }).json();
   assert.equal(view.modelProof.requested, 'model-x');
   assert.equal(view.modelProof.matches, false);
-  const list = await H.listAtelierMissions(store).json();
+  const list = await H.listAtelierMissions(C, { root: store }).json();
   assert.equal(list.missions.length, 1);
 });
 
@@ -60,11 +61,11 @@ test('stale lock from a dead runner blocks any non-resume step', () => {
 });
 
 test('API key in environment refuses execution', () => {
-  assert.throws(() => A.assertSubscriptionOnly({ PATH: process.env.PATH, OPENAI_API_KEY: 'fixture' }), /api_key_present:OPENAI_API_KEY/);
+  assert.throws(() => A.assertSubscriptionOnly('codex', { PATH: process.env.PATH, OPENAI_API_KEY: 'fixture' }), /api_key_present:OPENAI_API_KEY/);
 });
 
 test('unknown mission and bad ids return 404', async () => {
   const store = mkdtempSync(path.join(tmpdir(), 'atelier-store-'));
-  assert.equal(H.getAtelierMission('../etc', store).status, 404);
-  assert.equal(H.getAtelierMission('aaaaaaaa-0000', store).status, 404);
+  assert.equal(H.getAtelierMission(C, '../etc', { root: store }).status, 404);
+  assert.equal(H.getAtelierMission(C, 'aaaaaaaa-0000', { root: store }).status, 404);
 });

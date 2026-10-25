@@ -1,66 +1,83 @@
 /**
- * Atelier E1/D — single qualified workshop path: subscription Codex CLI in a
- * local git checkout. No API key, no OpenHands, no remote database.
- * Contract: docs/atelier-contract.md (atelier-mission/v1).
+ * Atelier V1 — single workshop module, subscription CLIs only (Codex ChatGPT, Claude Code claude.ai).
+ * No API key, no OpenHands, no remote database. Contract: docs/atelier-contract.md (atelier-mission/v1).
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync, writeSync, statSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { subscriptionEnvironment } from "../ai/subscription-runtime";
 
 export const ATELIER_CONTRACT = "atelier-mission/v1" as const;
-export type StepKind = "spec" | "code" | "test" | "preview" | "revision";
+export type RuntimeId = "codex" | "claude-code";
+export type AgentStepKind = "spec" | "code" | "revision";
+export type StepKind = AgentStepKind | "test" | "preview";
 export type StepStatus = "running" | "succeeded" | "failed" | "interrupted" | "blocked";
 export type MissionStatus = "created" | "running" | "interrupted" | "awaiting_review" | "failed" | "blocked";
 export type ArtifactKind = "spec" | "diff" | "test_log" | "preview" | "transcript" | "commit";
 export type AtelierArtifact = { id: string; kind: ArtifactKind; stepId: string; path: string; sha256: string; bytes: number; createdAt: string };
 export type AtelierStep = {
   id: string; kind: StepKind; status: StepStatus; startedAt: string; endedAt: string | null;
-  executor: "codex_cli" | "runner"; sessionId: string | null; resumedFrom: string | null;
+  executor: "codex_cli" | "claude_code_cli" | "runner"; sessionId: string | null; resumedFrom: string | null;
   requestedModelId: string | null; observedModelId: string | null; exitCode: number | null; reason: string | null;
   commitSha: string | null;
 };
+export type AtelierLock = { runnerPid: number; runnerStart?: string | null; childPid: number | null; childStart?: string | null; token?: string; stepId: string; since: string };
 export type AtelierMission = {
-  contract: typeof ATELIER_CONTRACT; id: string; title: string; need: string; createdAt: string; updatedAt: string;
-  status: MissionStatus;
-  runtime: { runtimeId: "codex"; consumptionMode: "subscription"; authMode: "chatgpt_session"; requestedModelId: string };
+  contract: typeof ATELIER_CONTRACT; id: string; workspaceId: string; createdBy: string | null;
+  title: string; need: string; createdAt: string; updatedAt: string; status: MissionStatus;
+  runtime: { runtimeId: RuntimeId; consumptionMode: "subscription"; authMode: "chatgpt_session" | "claude_ai_session"; requestedModelId: string };
   repo: { path: string; baseBranch: string; branch: string; baseSha: string; headSha: string };
-  sessionId: string | null; lock: { runnerPid: number; childPid: number | null; stepId: string; since: string } | null;
-  steps: AtelierStep[]; artifacts: AtelierArtifact[];
+  sessionId: string | null; lock: AtelierLock | null; steps: AtelierStep[]; artifacts: AtelierArtifact[];
 };
+export type AtelierEvent = { seq: number; at: string; type: string; stepId?: string; data?: Record<string, unknown> };
 
+export const LEGACY_WORKSPACE = "michael-hq";
 export const atelierRoot = (env = process.env) => env.ORIA_ATELIER_ROOT || join(homedir(), ".oria-atelier", "missions");
+export const atelierReposRoot = (env = process.env) => env.ORIA_ATELIER_REPOS_ROOT || join(homedir(), "oria-atelier-repos");
 const now = () => new Date().toISOString();
-const missionDir = (id: string, root = atelierRoot()) => {
-  if (!/^[a-z0-9-]{8,64}$/.test(id)) throw new Error("invalid_mission_id");
+export const missionDir = (id: string, root = atelierRoot()) => {
+  if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("invalid_mission_id");
   return join(root, id);
 };
 function git(repo: string, args: string[]) {
   const r = spawnSync("git", ["-C", repo, ...args], { encoding: "utf8" });
-  if (r.status !== 0) throw new Error(`git ${args[0]} failed: ${r.stderr.trim()}`);
+  if (r.status !== 0) throw new Error(`git_${args[0]}_failed`);
   return r.stdout.trim();
 }
 export function loadMission(id: string, root = atelierRoot()): AtelierMission {
-  return JSON.parse(readFileSync(join(missionDir(id, root), "mission.json"), "utf8"));
+  const m = JSON.parse(readFileSync(join(missionDir(id, root), "mission.json"), "utf8"));
+  m.workspaceId ??= LEGACY_WORKSPACE; m.createdBy ??= null; return m;
 }
-export function listMissions(root = atelierRoot()): AtelierMission[] {
+export function listMissions(root = atelierRoot(), workspaceId?: string): AtelierMission[] {
   if (!existsSync(root)) return [];
-  return readdirSync(root).filter(n => existsSync(join(root, n, "mission.json"))).map(n => loadMission(n, root))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return readdirSync(root).filter(n => /^[0-9a-f-]{36}$/.test(n) && existsSync(join(root, n, "mission.json"))).map(n => loadMission(n, root))
+    .filter(m => !workspaceId || m.workspaceId === workspaceId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 function save(m: AtelierMission, root = atelierRoot()) {
   m.updatedAt = now();
   const file = join(missionDir(m.id, root), "mission.json");
   writeFileSync(file + ".tmp", JSON.stringify(m, null, 2)); renameSync(file + ".tmp", file);
 }
-function addArtifact(m: AtelierMission, stepId: string, kind: ArtifactKind, name: string, content: string | Buffer, root = atelierRoot()) {
-  const dir = join(missionDir(m.id, root), "artifacts"); mkdirSync(dir, { recursive: true });
-  const file = join(dir, name); writeFileSync(file, content);
+export function readEvents(id: string, root = atelierRoot(), afterSeq = 0): AtelierEvent[] {
+  const f = join(missionDir(id, root), "events.jsonl");
+  if (!existsSync(f)) return [];
+  return readFileSync(f, "utf8").split("\n").filter(Boolean).map(l => JSON.parse(l) as AtelierEvent).filter(e => e.seq > afterSeq);
+}
+export function logEvent(id: string, type: string, root = atelierRoot(), stepId?: string, data?: Record<string, unknown>) {
+  const f = join(missionDir(id, root), "events.jsonl");
+  const seq = existsSync(f) ? readFileSync(f, "utf8").split("\n").filter(Boolean).length + 1 : 1;
+  appendFileSync(f, JSON.stringify({ seq, at: now(), type, ...(stepId ? { stepId } : {}), ...(data ? { data } : {}) }) + "\n");
+}
+function hashArtifact(m: AtelierMission, stepId: string, kind: ArtifactKind, file: string, root: string) {
   const buf = readFileSync(file);
   const art: AtelierArtifact = { id: randomUUID(), kind, stepId, path: relative(missionDir(m.id, root), file), sha256: createHash("sha256").update(buf).digest("hex"), bytes: buf.length, createdAt: now() };
   m.artifacts.push(art); return art;
+}
+function addArtifact(m: AtelierMission, stepId: string, kind: ArtifactKind, name: string, content: string | Buffer, root: string) {
+  const dir = join(missionDir(m.id, root), "artifacts"); mkdirSync(dir, { recursive: true });
+  const file = join(dir, name); writeFileSync(file, content); return hashArtifact(m, stepId, kind, file, root);
 }
 export function readArtifact(id: string, artifactId: string, root = atelierRoot()) {
   const m = loadMission(id, root); const a = m.artifacts.find(x => x.id === artifactId);
@@ -68,58 +85,41 @@ export function readArtifact(id: string, artifactId: string, root = atelierRoot(
   return { artifact: a, content: readFileSync(join(missionDir(id, root), a.path)) };
 }
 
-export function assertSubscriptionOnly(env = process.env) {
-  const leaked = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CODEX_API_KEY"].filter(k => env[k]);
+// ---------- runtimes (subscription only) ----------
+const API_KEYS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CODEX_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"];
+export function assertSubscriptionOnly(runtimeId: RuntimeId = "codex", env = process.env, run = spawnSync) {
+  const leaked = API_KEYS.filter(k => env[k]);
   if (leaked.length) throw new Error(`api_key_present:${leaked.join(",")}`);
-  const s = spawnSync("codex", ["login", "status"], { encoding: "utf8", env: subscriptionEnvironment(env) });
-  const out = `${s.stdout}${s.stderr}`;
-  if (!/logged in using chatgpt/i.test(out) || /api[ _-]?key/i.test(out)) throw new Error("subscription_auth_required");
+  const s = run(runtimeId === "codex" ? "codex" : "claude", runtimeId === "codex" ? ["login", "status"] : ["auth", "status"], { encoding: "utf8", env: subscriptionEnvironment(env) });
+  const out = `${s.stdout ?? ""}${s.stderr ?? ""}`;
+  if (runtimeId === "codex") { if (!/logged in using chatgpt/i.test(out) || /api[ _-]?key/i.test(out)) throw new Error("subscription_auth_required"); return; }
+  try { const j = JSON.parse(String(s.stdout)); if (j.loggedIn === true && j.authMethod === "claude.ai" && (!j.apiProvider || j.apiProvider === "firstParty")) return; } catch { /* fallthrough */ }
+  throw new Error("subscription_auth_required");
 }
-
-export function createMission(input: { title: string; need: string; repoPath: string; modelId: string }, root = atelierRoot()): AtelierMission {
-  const id = randomUUID();
-  mkdirSync(missionDir(id, root), { recursive: true });
-  const baseBranch = git(input.repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]);
-  const baseSha = git(input.repoPath, ["rev-parse", "HEAD"]);
-  const branch = `atelier/${id.slice(0, 8)}`;
-  git(input.repoPath, ["switch", "-c", branch]);
-  const m: AtelierMission = { contract: ATELIER_CONTRACT, id, title: input.title, need: input.need, createdAt: now(), updatedAt: now(), status: "created",
-    runtime: { runtimeId: "codex", consumptionMode: "subscription", authMode: "chatgpt_session", requestedModelId: input.modelId },
-    repo: { path: input.repoPath, baseBranch, branch, baseSha, headSha: baseSha }, sessionId: null, lock: null, steps: [], artifacts: [] };
-  save(m, root); return m;
-}
-
-const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-function acquire(m: AtelierMission, stepId: string, explicitResume: boolean, root: string) {
-  const lockFile = join(missionDir(m.id, root), "run.lock");
-  if (existsSync(lockFile)) {
-    const held = JSON.parse(readFileSync(lockFile, "utf8"));
-    if (alive(held.runnerPid)) throw new Error("mission_locked_by_live_runner");
-    // Stale lock = crashed runner. Never reclaimed implicitly: only an explicit resume.
-    if (!explicitResume) throw new Error("stale_lock_requires_explicit_resume");
-    const stale = m.steps.find(s => s.id === held.stepId);
-    if (stale && stale.status === "running") {
-      stale.status = "interrupted"; stale.endedAt = now(); stale.reason = "runner_died";
-      // Recover the CLI session id streamed before the crash so resume continues the same thread.
-      const tname = `${stale.id.slice(0, 8)}-${stale.kind}.jsonl`; const tfile = join(missionDir(m.id, root), "artifacts", tname);
-      if (existsSync(tfile)) {
-        const buf = readFileSync(tfile); const thread = buf.toString("utf8").match(/"thread_id":"([^"]+)"/)?.[1];
-        if (thread) { stale.sessionId = thread; m.sessionId = thread; stale.observedModelId = observedCodexModel(thread); }
-        m.artifacts.push({ id: randomUUID(), kind: "transcript", stepId: stale.id, path: join("artifacts", tname), sha256: createHash("sha256").update(buf).digest("hex"), bytes: buf.length, createdAt: now() });
-      }
-    }
-    if (held.childPid && alive(held.childPid)) try { process.kill(-held.childPid, "SIGKILL"); } catch { /* gone */ }
-    unlinkSync(lockFile);
+export function agentInvocation(runtimeId: RuntimeId, modelId: string, resumeSession: string | null): { binary: string; args: string[] } {
+  if (runtimeId === "codex") {
+    const common = ["--json", "-m", modelId, "-c", 'forced_login_method="chatgpt"', "-c", 'model_provider="openai"', "-c", "mcp_servers={}", "-c", 'web_search="disabled"'];
+    return { binary: "codex", args: resumeSession ? ["exec", "resume", ...common, "-c", 'sandbox_mode="workspace-write"', resumeSession, "-"] : ["exec", ...common, "-s", "workspace-write", "-"] };
   }
-  const fd = openSync(lockFile, "wx");
-  const lock = { runnerPid: process.pid, childPid: null as number | null, stepId, since: now() };
-  writeSync(fd, JSON.stringify(lock)); closeSync(fd);
-  m.lock = lock; return { lockFile, lock };
+  const args = ["-p", "--model", modelId, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
+    "--allowedTools", "Read,Edit,Write,Glob,Grep,Bash(npm test:*),Bash(node --test:*),Bash(ls:*),Bash(cat:*)",
+    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--settings", '{"disableAllHooks":true,"apiKeyHelper":""}'];
+  return { binary: "claude", args: resumeSession ? [...args, "--resume", resumeSession] : args };
 }
-function release(m: AtelierMission, lockFile: string) { m.lock = null; try { unlinkSync(lockFile); } catch { /* */ } }
-
-/** Model actually used, read from the CLI's own session record (not inferred from the request). */
-export function observedCodexModel(sessionId: string, home = homedir()): string | null {
+/** Session id + completion from the CLI's own stream. */
+export function parseTranscript(runtimeId: RuntimeId, transcript: string) {
+  const lines = transcript.split("\n").filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } });
+  if (runtimeId === "codex") {
+    return { sessionId: lines.find(e => e.type === "thread.started")?.thread_id ?? null, completed: lines.some(e => e.type === "turn.completed") && !lines.some(e => e.type === "turn.failed"), streamModel: null as string | null };
+  }
+  const init = lines.find(e => e.type === "system" && e.subtype === "init");
+  const result = [...lines].reverse().find(e => e.type === "result");
+  const usage = Object.keys(result?.modelUsage ?? {});
+  return { sessionId: init?.session_id ?? result?.session_id ?? null, completed: !!result && result.is_error === false, streamModel: (typeof init?.model === "string" ? init.model : usage.length === 1 ? usage[0] : null) as string | null };
+}
+/** Model actually used, from the CLI's own record (never inferred from the request). */
+export function observedModel(runtimeId: RuntimeId, sessionId: string, transcript: string, home = homedir()): string | null {
+  if (runtimeId === "claude-code") return parseTranscript(runtimeId, transcript).streamModel;
   const base = join(home, ".codex", "sessions");
   const walk = (d: string): string | null => {
     for (const n of readdirSync(d)) { const p = join(d, n);
@@ -130,6 +130,116 @@ export function observedCodexModel(sessionId: string, home = homedir()): string 
   const file = existsSync(base) ? walk(base) : null; if (!file) return null;
   const models = [...readFileSync(file, "utf8").matchAll(/"model":"([^"]+)"/g)].map(x => x[1]);
   return models.length ? models[models.length - 1] : null;
+}
+const executorOf = (r: RuntimeId) => r === "codex" ? "codex_cli" as const : "claude_code_cli" as const;
+
+// ---------- missions ----------
+export function resolveRepoPath(repoPath: string, env = process.env) {
+  const base = realpathSync(atelierReposRoot(env)); const real = realpathSync(repoPath);
+  if (real !== base && !real.startsWith(base + sep)) throw new Error("repo_outside_atelier_root");
+  if (!existsSync(join(real, ".git"))) throw new Error("repo_not_git");
+  return real;
+}
+export function createMission(input: { title: string; need: string; repoPath: string; modelId: string; runtimeId?: RuntimeId; workspaceId?: string; createdBy?: string | null }, root = atelierRoot()): AtelierMission {
+  const id = randomUUID(); const runtimeId = input.runtimeId ?? "codex";
+  mkdirSync(missionDir(id, root), { recursive: true });
+  const baseBranch = git(input.repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const baseSha = git(input.repoPath, ["rev-parse", "HEAD"]);
+  const branch = `atelier/${id.slice(0, 8)}`;
+  git(input.repoPath, ["switch", "-q", "-c", branch]);
+  const m: AtelierMission = { contract: ATELIER_CONTRACT, id, workspaceId: input.workspaceId ?? LEGACY_WORKSPACE, createdBy: input.createdBy ?? null,
+    title: input.title, need: input.need, createdAt: now(), updatedAt: now(), status: "created",
+    runtime: { runtimeId, consumptionMode: "subscription", authMode: runtimeId === "codex" ? "chatgpt_session" : "claude_ai_session", requestedModelId: input.modelId },
+    repo: { path: input.repoPath, baseBranch, branch, baseSha, headSha: baseSha }, sessionId: null, lock: null, steps: [], artifacts: [] };
+  save(m, root); logEvent(id, "mission_created", root, undefined, { runtimeId, requestedModelId: input.modelId, branch }); return m;
+}
+
+export const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+/** Kernel start time of a pid (/proc/<pid>/stat field 22, in clock ticks since boot): the pid's identity. null if unknown. */
+export function procStartTime(pid: number): string | null {
+  try { const st = readFileSync(`/proc/${pid}/stat`, "utf8"); return st.slice(st.lastIndexOf(")") + 2).split(" ")[19] ?? null; } catch { return null; }
+}
+/** Same process as recorded? A recycled pid has another start time. Without a recorded start, fall back to liveness (legacy locks). */
+export function sameProcess(pid: number | null | undefined, start: string | null | undefined): boolean {
+  if (!pid || !pidAlive(pid)) return false;
+  if (start == null) return true;
+  return procStartTime(pid) === start;
+}
+/** Kill a process group only if its leader is still the recorded process (never a reused pid). */
+export function killRecordedGroup(pid: number | null | undefined, start: string | null | undefined, signal: NodeJS.Signals): "killed" | "gone" | "identity_mismatch" | "identity_unknown" {
+  if (!pid || !pidAlive(pid)) return "gone";
+  if (start == null) return "identity_unknown";
+  if (procStartTime(pid) !== start) return "identity_mismatch";
+  try { process.kill(-pid, signal); return "killed"; } catch { return "gone"; }
+}
+const lockPath = (id: string, root: string) => join(missionDir(id, root), "run.lock");
+export function currentLock(id: string, root = atelierRoot()): (AtelierLock & { live: boolean }) | null {
+  const f = lockPath(id, root); if (!existsSync(f)) return null;
+  const l = JSON.parse(readFileSync(f, "utf8")) as AtelierLock; return { ...l, live: sameProcess(l.runnerPid, l.runnerStart) };
+}
+const readLock = (f: string): AtelierLock | null => { try { return JSON.parse(readFileSync(f, "utf8")) as AtelierLock; } catch { return null; } };
+/**
+ * Exclusive lock. A fresh lock is only ever created with O_EXCL ("wx"). A stale lock (dead runner) is reclaimed
+ * only on explicit resume, and the reclaim is serialised by a second O_EXCL file (run.lock.reclaim): under it the
+ * lock is re-read and re-checked, so a concurrent reclaimer can never delete a lock another reclaimer just created.
+ * The whole reclaim is synchronous; a reclaim file left by a killed process is reported, never silently removed.
+ */
+export function acquireLockFile(lockFile: string, stepId: string, opts: { explicitResume: boolean; onStale?: (held: AtelierLock) => void; afterStaleCheck?: () => void }) {
+  if (existsSync(lockFile)) {
+    const held = readLock(lockFile);
+    // Unreadable = being written right now by its creator (open "wx" then write): treat as held, never as stale.
+    if (!held || sameProcess(held.runnerPid, held.runnerStart)) throw new Error("mission_locked_by_live_runner");
+    if (!opts.explicitResume) throw new Error("stale_lock_requires_explicit_resume");
+    const mutex = `${lockFile}.reclaim`;
+    let mfd: number;
+    try { mfd = openSync(mutex, "wx"); } catch {
+      const owner = readLock(mutex);
+      throw new Error(!owner || sameProcess(owner.runnerPid, owner.runnerStart) ? "stale_lock_reclaim_in_progress" : "stale_lock_reclaim_file_orphaned");
+    }
+    try {
+      writeSync(mfd, JSON.stringify({ runnerPid: process.pid, runnerStart: procStartTime(process.pid), stepId, since: now() })); closeSync(mfd);
+      opts.afterStaleCheck?.();
+      const again = readLock(lockFile);
+      if (again) {
+        if (sameProcess(again.runnerPid, again.runnerStart)) throw new Error("mission_locked_by_live_runner");
+        if (again.token !== held.token || again.runnerPid !== held.runnerPid || again.since !== held.since) throw new Error("mission_locked_by_live_runner");
+        opts.onStale?.(again);
+        unlinkSync(lockFile);
+      }
+      return createLock(lockFile, stepId);
+    } finally { try { unlinkSync(mutex); } catch { /* */ } }
+  }
+  return createLock(lockFile, stepId);
+}
+function createLock(lockFile: string, stepId: string) {
+  let fd: number;
+  try { fd = openSync(lockFile, "wx"); } catch { throw new Error("mission_locked_by_live_runner"); }
+  const lock: AtelierLock = { runnerPid: process.pid, runnerStart: procStartTime(process.pid), childPid: null, childStart: null, token: randomUUID(), stepId, since: now() };
+  writeSync(fd, JSON.stringify(lock)); closeSync(fd);
+  return lock;
+}
+function acquire(m: AtelierMission, stepId: string, explicitResume: boolean, root: string) {
+  const lockFile = lockPath(m.id, root);
+  const lock = acquireLockFile(lockFile, stepId, { explicitResume, onStale: (held) => {
+    const stale = m.steps.find(s => s.id === held.stepId);
+    if (stale && stale.status === "running") {
+      stale.status = "interrupted"; stale.endedAt = now(); stale.reason = "runner_died";
+      const tfile = join(missionDir(m.id, root), "artifacts", `${stale.id.slice(0, 8)}-${stale.kind}.jsonl`);
+      if (existsSync(tfile)) {
+        const t = readFileSync(tfile, "utf8"); const p = parseTranscript(m.runtime.runtimeId, t);
+        if (p.sessionId) { stale.sessionId = p.sessionId; m.sessionId = p.sessionId; stale.observedModelId = observedModel(m.runtime.runtimeId, p.sessionId, t); }
+        hashArtifact(m, stale.id, "transcript", tfile, root);
+      }
+    }
+    const orphan = killRecordedGroup(held.childPid, held.childStart, "SIGKILL");
+    logEvent(m.id, "stale_lock_reclaimed", root, held.stepId, { deadRunnerPid: held.runnerPid, orphanChild: held.childPid, orphanKill: orphan });
+  } });
+  m.lock = lock; return { lockFile, lock };
+}
+function release(m: AtelierMission, lockFile: string) {
+  const mine = m.lock?.token; m.lock = null;
+  // Only remove our own lock (token match): never a lock someone else holds now.
+  try { const cur = readLock(lockFile); if (cur && (!mine || cur.token === mine)) unlinkSync(lockFile); } catch { /* */ }
 }
 
 function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
@@ -143,44 +253,71 @@ function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
   addArtifact(m, step.id, "commit", `${step.id.slice(0, 8)}-commit.txt`, `${step.commitSha}\n`, root);
 }
 
-/** One agent step via `codex exec` (or `codex exec resume <session>` to continue the same thread). */
-export async function runAgentStep(id: string, kind: StepKind, prompt: string, opts: { resume?: boolean; timeoutMs?: number; root?: string } = {}): Promise<AtelierMission> {
+export type StartedStep = { mission: AtelierMission; stepId: string; done: Promise<AtelierMission> };
+/**
+ * Starts an agent step. Lock + validation are synchronous (errors throw before return);
+ * `done` resolves when the CLI exits. `resume` continues the previous CLI session and is
+ * the only way to reclaim a stale lock. A resumed step keeps the interrupted step's kind.
+ */
+export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: string, opts: { resume?: boolean; timeoutMs?: number; root?: string } = {}): StartedStep {
   const root = opts.root ?? atelierRoot();
-  assertSubscriptionOnly();
-  const m = loadMission(id, root);
-  const step: AtelierStep = { id: randomUUID(), kind, status: "running", startedAt: now(), endedAt: null, executor: "codex_cli", sessionId: null,
+  let m = loadMission(id, root);
+  assertSubscriptionOnly(m.runtime.runtimeId);
+  const lastAgent = [...m.steps].reverse().find(s => s.executor !== "runner");
+  const stepKind: AgentStepKind = kind ?? (opts.resume && lastAgent && lastAgent.kind !== "test" && lastAgent.kind !== "preview" ? lastAgent.kind : "code");
+  const step: AtelierStep = { id: randomUUID(), kind: stepKind, status: "running", startedAt: now(), endedAt: null, executor: executorOf(m.runtime.runtimeId), sessionId: null,
     resumedFrom: null, requestedModelId: m.runtime.requestedModelId, observedModelId: null, exitCode: null, reason: null, commitSha: null };
   const { lockFile, lock } = acquire(m, step.id, !!opts.resume, root);
-  if (opts.resume) { if (!m.sessionId) { release(m, lockFile); throw new Error("no_session_to_resume"); } step.sessionId = m.sessionId; step.resumedFrom = m.sessionId; }
+  if (opts.resume) {
+    if (!m.sessionId) { release(m, lockFile); save(m, root); throw new Error("no_session_to_resume"); }
+    step.sessionId = m.sessionId; step.resumedFrom = m.sessionId;
+  }
   m.steps.push(step); m.status = "running"; save(m, root);
-  const common = ["--json", "-m", m.runtime.requestedModelId, "-c", 'forced_login_method="chatgpt"', "-c", 'model_provider="openai"', "-c", "mcp_servers={}", "-c", 'web_search="disabled"'];
-  const args = opts.resume && m.sessionId
-    ? ["exec", "resume", ...common, "-c", 'sandbox_mode="workspace-write"', m.sessionId, "-"]
-    : ["exec", ...common, "-s", "workspace-write", "-"];
-  const transcriptName = `${step.id.slice(0, 8)}-${kind}.jsonl`;
+  logEvent(id, "step_started", root, step.id, { kind: stepKind, resumedFrom: step.resumedFrom, runtimeId: m.runtime.runtimeId, requestedModelId: m.runtime.requestedModelId });
+  const { binary, args } = agentInvocation(m.runtime.runtimeId, m.runtime.requestedModelId, step.resumedFrom);
+  const transcriptName = `${step.id.slice(0, 8)}-${stepKind}.jsonl`;
   const tdir = join(missionDir(id, root), "artifacts"); mkdirSync(tdir, { recursive: true });
   const tfd = openSync(join(tdir, transcriptName), "a");
-  const child = spawn("codex", args, { cwd: m.repo.path, env: subscriptionEnvironment(process.env), detached: true, stdio: ["pipe", tfd, "pipe"] });
-  lock.childPid = child.pid ?? null; writeFileSync(lockFile, JSON.stringify(lock)); m.lock = lock; save(m, root);
+  const child = spawn(binary, args, { cwd: m.repo.path, env: subscriptionEnvironment(process.env), detached: true, stdio: ["pipe", tfd, "pipe"] });
+  lock.childPid = child.pid ?? null; lock.childStart = child.pid ? procStartTime(child.pid) : null; writeFileSync(lockFile, JSON.stringify(lock)); m.lock = lock; save(m, root);
   child.stdin?.end(prompt);
   let stderr = ""; child.stderr?.on("data", c => { stderr = (stderr + c).slice(-4000); });
+  child.on("error", () => { /* surfaced through close */ });
   const timer = setTimeout(() => { try { process.kill(-child.pid!, "SIGKILL"); } catch { /* */ } }, opts.timeoutMs ?? 900_000);
-  const { code, signal } = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(r => child.on("close", (code, signal) => r({ code, signal })));
-  clearTimeout(timer); closeSync(tfd);
-  const transcript = readFileSync(join(tdir, transcriptName), "utf8");
-  const thread = transcript.match(/"thread_id":"([^"]+)"/)?.[1];
-  if (thread) { m.sessionId = thread; step.sessionId = thread; }
-  const completed = /"type":"turn.completed"/.test(transcript.split("\n").slice(-5).join("\n"));
-  step.exitCode = code; step.endedAt = now();
-  step.status = signal ? "interrupted" : code === 0 && completed ? "succeeded" : "failed";
-  if (step.status !== "succeeded") step.reason = signal ? `signal_${signal}` : /usage limit|rate limit|quota/i.test(stderr + transcript) ? "subscription_quota" : "codex_nonzero_exit";
-  if (step.sessionId) step.observedModelId = observedCodexModel(step.sessionId);
-  const buf = readFileSync(join(tdir, transcriptName));
-  m.artifacts.push({ id: randomUUID(), kind: "transcript", stepId: step.id, path: join("artifacts", transcriptName), sha256: createHash("sha256").update(buf).digest("hex"), bytes: buf.length, createdAt: now() });
-  if (kind === "spec" && existsSync(join(m.repo.path, "SPEC.md"))) addArtifact(m, step.id, "spec", "SPEC.md", readFileSync(join(m.repo.path, "SPEC.md")), root);
-  commitIfChanged(m, step, root);
-  m.status = step.status === "succeeded" ? "awaiting_review" : step.status === "interrupted" ? "interrupted" : step.reason === "subscription_quota" ? "blocked" : "failed";
-  release(m, lockFile); save(m, root); return m;
+  const done = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(r => child.on("close", (code, signal) => r({ code, signal }))).then(({ code, signal }) => {
+    clearTimeout(timer); closeSync(tfd);
+    m = loadMission(id, root); const s = m.steps.find(x => x.id === step.id)!;
+    const transcript = readFileSync(join(tdir, transcriptName), "utf8");
+    const p = parseTranscript(m.runtime.runtimeId, transcript);
+    if (p.sessionId) { m.sessionId = p.sessionId; s.sessionId = p.sessionId; }
+    s.exitCode = code; s.endedAt = now();
+    s.status = signal ? "interrupted" : code === 0 && p.completed ? "succeeded" : "failed";
+    if (s.status !== "succeeded") s.reason = signal ? `signal_${signal}` : /usage limit|rate limit|quota|limit reached/i.test(stderr + transcript) ? "subscription_quota" : "cli_nonzero_exit";
+    if (s.status === "failed" && s.reason === "subscription_quota") s.status = "blocked";
+    if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript);
+    hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);
+    if (stepKind === "spec" && existsSync(join(m.repo.path, "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(m.repo.path, "SPEC.md")), root);
+    commitIfChanged(m, s, root);
+    m.status = s.status === "succeeded" ? "awaiting_review" : s.status === "interrupted" ? "interrupted" : s.status === "blocked" ? "blocked" : "failed";
+    release(m, lockFile); save(m, root);
+    logEvent(id, "step_finished", root, s.id, { status: s.status, reason: s.reason, observedModelId: s.observedModelId, commitSha: s.commitSha, sessionId: s.sessionId });
+    return m;
+  });
+  return { mission: m, stepId: step.id, done };
+}
+export async function runAgentStep(id: string, kind: AgentStepKind | null, prompt: string, opts: { resume?: boolean; timeoutMs?: number; root?: string } = {}) {
+  return startAgentStep(id, kind, prompt, opts).done;
+}
+
+/** Interrupt the running agent step (works across processes via the lock's child pid). */
+export function interruptMission(id: string, root = atelierRoot()) {
+  const lock = currentLock(id, root);
+  if (!lock) return { interrupted: false, reason: "not_running" as const };
+  logEvent(id, "interrupt_requested", root, lock.stepId, { live: lock.live });
+  const k = killRecordedGroup(lock.childPid, lock.childStart, "SIGTERM");
+  if (k === "killed") return { interrupted: true, reason: "signal_sent" as const };
+  if (k === "identity_mismatch" || k === "identity_unknown") return { interrupted: false, reason: k };
+  return { interrupted: false, reason: lock.live ? "no_child" as const : "runner_dead_resume_required" as const };
 }
 
 /** Runner-executed verification (not agent-claimed): tests or preview. */
@@ -190,6 +327,7 @@ export function runCommandStep(id: string, kind: "test" | "preview", command: st
   const step: AtelierStep = { id: randomUUID(), kind, status: "running", startedAt: now(), endedAt: null, executor: "runner", sessionId: null, resumedFrom: null,
     requestedModelId: null, observedModelId: null, exitCode: null, reason: null, commitSha: m.repo.headSha };
   const { lockFile } = acquire(m, step.id, false, root); m.steps.push(step); save(m, root);
+  logEvent(id, "step_started", root, step.id, { kind });
   const r = spawnSync(command[0], command.slice(1), { cwd: m.repo.path, encoding: "utf8", timeout: 120_000, env: subscriptionEnvironment(process.env) });
   step.exitCode = r.status; step.endedAt = now(); step.status = r.status === 0 ? "succeeded" : "failed";
   const log = `$ ${command.join(" ")}\n# HEAD ${m.repo.headSha}\n${r.stdout}\n${r.stderr}\n# exit ${r.status}\n`;
@@ -197,11 +335,13 @@ export function runCommandStep(id: string, kind: "test" | "preview", command: st
   if (kind === "preview" && opts.previewFile && existsSync(join(m.repo.path, opts.previewFile)))
     addArtifact(m, step.id, "preview", `${step.id.slice(0, 8)}-${opts.previewFile.replace(/[^\w.-]/g, "_")}`, readFileSync(join(m.repo.path, opts.previewFile)), root);
   m.status = step.status === "succeeded" ? "awaiting_review" : "failed";
-  release(m, lockFile); save(m, root); return m;
+  release(m, lockFile); save(m, root);
+  logEvent(id, "step_finished", root, step.id, { status: step.status, exitCode: r.status });
+  return m;
 }
 
-/** Public projection for the app (no absolute host paths beyond repo, no transcript bodies). */
+/** Public projection for the app. */
 export function missionView(m: AtelierMission) {
-  const last = [...m.steps].reverse().find(s => s.executor === "codex_cli");
+  const last = [...m.steps].reverse().find(s => s.executor !== "runner" && s.observedModelId);
   return { ...m, modelProof: { requested: m.runtime.requestedModelId, observed: last?.observedModelId ?? null, matches: !!last?.observedModelId && last.observedModelId === m.runtime.requestedModelId } };
 }

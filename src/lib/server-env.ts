@@ -89,6 +89,13 @@ const serverEnvSchema = z.object({
   MEMEX_CORE_ROOT: z.string().min(1).optional(),
   ORIA_HQ_SUBSCRIPTION_RUNTIMES: z.enum(["0", "1"]).optional(),
   ORIA_HQ_SUBSCRIPTION_RUNTIMES_FILE: z.string().optional(),
+  // Atelier (local subscription CLI missions): absolute store / allowed repos root.
+  ORIA_ATELIER_ROOT: z.string().optional(),
+  ORIA_ATELIER_REPOS_ROOT: z.string().optional(),
+  // Read ONLY to refuse atelier execution when present (subscription-only rule); never used to authenticate.
+  CODEX_API_KEY: z.string().optional(),
+  ANTHROPIC_AUTH_TOKEN: z.string().optional(),
+  CLAUDE_CODE_OAUTH_TOKEN: z.string().optional(),
   ORIA_ENABLE_LOCAL_RUNTIME_PROBE: z.enum(["0", "1"]).optional(),
   // Probe opt-ins never replace written subprocess approval or cloud-host refusal.
   ORIA_ENABLE_HERMES_SSH_PROBE: z.enum(["0", "1"]).optional(),

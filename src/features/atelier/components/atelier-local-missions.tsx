@@ -1,9 +1,9 @@
 import { listMissions, missionView } from "@/server/atelier/atelier-mission";
 
 /** Read-only panel: local subscription-CLI atelier missions (contract atelier-mission/v1). */
-export function AtelierLocalMissions() {
+export function AtelierLocalMissions({ workspaceId }: { workspaceId: string }) {
   let missions: ReturnType<typeof missionView>[] = [];
-  try { missions = listMissions().map(missionView); } catch { missions = []; }
+  try { missions = listMissions(undefined, workspaceId).map(missionView); } catch { missions = []; }
   return (
     <section className="mb-6 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5 text-sm text-neutral-300" aria-labelledby="atelier-local-title">
       <h2 id="atelier-local-title" className="text-lg font-semibold text-white">Missions atelier locales (Codex abonnement)</h2>

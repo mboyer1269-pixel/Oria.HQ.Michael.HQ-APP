@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   if (session instanceof NextResponse) return session;
   const ctx = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
   const catalog=await loadChatCapabilityCatalog();
-  return NextResponse.json({options:[...chatModelOptions(catalog,ctx.workspace.id),...subscriptionOptions(await loadSubscriptionCatalog())],status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
+  return NextResponse.json({options:[...chatModelOptions(catalog,ctx.workspace.id),...(session.ctx.role==="owner"?subscriptionOptions(await loadSubscriptionCatalog()):[])],status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(request: Request) {
@@ -42,6 +42,8 @@ export async function POST(request: Request) {
   try {
     const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
     if (parsed.data.subscriptionSelection) {
+      // The CLI runs on the owner's personal subscription: never for a workspace member (SENT-X-1).
+      if (session.ctx.role !== "owner") return NextResponse.json({ error: "SUBSCRIPTION_OWNER_ONLY" }, { status: 403 });
       return NextResponse.json(await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog()));
     }
     const catalog=await loadChatCapabilityCatalog();

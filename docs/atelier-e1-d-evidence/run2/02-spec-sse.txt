@@ -1,0 +1,39 @@
+event: snapshot
+data: {"contract":"atelier-mission/v1","id":"1d06ec13-d860-43fa-8053-fc5c1f045a01","workspaceId":"michael-hq","createdBy":"michael","title":"Calculatrice de pourboire v2","need":"Petite bibliothèque JS ESM sans dépendance : calcul du pourboire et partage d'une addition entre N personnes (arrondi au cent), tests node --test, page preview.html qui importe la bibliothèque.","createdAt":"2026-10-25T09:18:51.727Z","updatedAt":"2026-10-25T09:18:51.791Z","status":"running","runtime":{"runtimeId":"codex","consumptionMode":"subscription","authMode":"chatgpt_session","requestedModelId":"gpt-5.6-luna"},"repo":{"path":"/home/box/oria-atelier-repos/tip-calc-2","baseBranch":"main","branch":"atelier/1d06ec13","baseSha":"87343592d96a7414da873233488001e4c7c18921","headSha":"87343592d96a7414da873233488001e4c7c18921"},"sessionId":null,"lock":{"runnerPid":583588,"childPid":583902,"stepId":"e0515931-00ba-4080-9820-2972cc290695","since":"2026-10-25T09:18:51.788Z"},"steps":[{"id":"e0515931-00ba-4080-9820-2972cc290695","kind":"spec","status":"running","startedAt":"2026-10-25T09:18:51.788Z","endedAt":null,"executor":"codex_cli","sessionId":null,"resumedFrom":null,"requestedModelId":"gpt-5.6-luna","observedModelId":null,"exitCode":null,"reason":null,"commitSha":null}],"artifacts":[],"modelProof":{"requested":"gpt-5.6-luna","observed":null,"matches":false}}
+
+id: 1
+event: mission
+data: {"seq":1,"at":"2026-10-25T09:18:51.727Z","type":"mission_created","data":{"runtimeId":"codex","requestedModelId":"gpt-5.6-luna","branch":"atelier/1d06ec13"}}
+
+id: 2
+event: mission
+data: {"seq":2,"at":"2026-10-25T09:18:51.789Z","type":"step_started","stepId":"e0515931-00ba-4080-9820-2972cc290695","data":{"kind":"spec","resumedFrom":null,"runtimeId":"codex","requestedModelId":"gpt-5.6-luna"}}
+
+event: agent
+data: {"stepId":"e0515931-00ba-4080-9820-2972cc290695","kind":"message","text":"Je vais vérifier la structure minimale du dépôt et l’état de `SPEC.md`, puis rédiger uniquement cette spécification sans toucher au code ni à l’historique Git."}
+
+event: agent
+data: {"stepId":"e0515931-00ba-4080-9820-2972cc290695","kind":"command","command":"/bin/bash -lc \"pwd && rg --files -g 'SPEC.md' -g '\"'!node_modules'\"' -g '\"'!dist'\"' && git status --short\"","exitCode":1}
+
+event: agent
+data: {"stepId":"e0515931-00ba-4080-9820-2972cc290695","kind":"message","text":"Le dépôt est propre et ne contient pas encore de `SPEC.md`. Je crée maintenant la spécification en français, avec une API ESM explicite et des cas de test déterministes."}
+
+event: agent
+data: {"stepId":"e0515931-00ba-4080-9820-2972cc290695","kind":"file_change","paths":["/home/box/oria-atelier-repos/tip-calc-2/SPEC.md"]}
+
+event: agent
+data: {"stepId":"e0515931-00ba-4080-9820-2972cc290695","kind":"command","command":"/bin/bash -lc \"sed -n '1,240p' SPEC.md && git status --short\"","exitCode":0}
+
+event: agent
+data: {"stepId":"e0515931-00ba-4080-9820-2972cc290695","kind":"message","text":"[ SPEC.md ](/home/box/oria-atelier-repos/tip-calc-2/SPEC.md) créé avec la spécification demandée. Aucun code ni commit effectué."}
+
+event: agent
+data: {"stepId":"e0515931-00ba-4080-9820-2972cc290695","kind":"turn_completed"}
+
+id: 3
+event: mission
+data: {"seq":3,"at":"2026-10-25T09:19:08.995Z","type":"step_finished","stepId":"e0515931-00ba-4080-9820-2972cc290695","data":{"status":"succeeded","reason":null,"observedModelId":"gpt-5.6-luna","commitSha":"26b670b641e841f4e4605d5305207ea035cbd50e","sessionId":"01a1725b-0bd2-7693-9031-7eaaa2db5f00"}}
+
+event: end
+data: {"status":"awaiting_review","lock":null}
+

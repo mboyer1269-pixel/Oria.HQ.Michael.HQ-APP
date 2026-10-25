@@ -45,7 +45,7 @@ export default async function AtelierPage({ searchParams }: { searchParams: Prom
         </HqSummaryRail>
       </HqPageHeader>
 
-      <AtelierLocalMissions />
+      <AtelierLocalMissions workspaceId={activeWorkspace.id} />
 
       {!mission ? (
         <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 text-sm text-amber-100">

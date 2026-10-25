@@ -1,0 +1,144 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { createJiti } from 'jiti';
+const src = path.resolve('src');
+const fixture = path.join(src, 'server/auth/test-fixtures/authz-dependencies.mjs');
+const jiti = createJiti(import.meta.url, { alias: { '@/lib/supabase/server': fixture, '@/server/supabase/admin': fixture, '@': src, 'server-only': path.join(src, 'scripts/smoke/server-only-stub.mjs') } });
+
+// Hermetic environment: fake CLI on PATH, temp HOME/stores, no API keys.
+const tmp = mkdtempSync(path.join(tmpdir(), 'atelier-api-'));
+const bin = path.join(tmp, 'bin'); mkdirSync(bin);
+symlinkSync(path.join(src, 'server/atelier/test-fixtures/fake-codex'), path.join(bin, 'codex'));
+symlinkSync(path.join(src, 'server/atelier/test-fixtures/fake-codex'), path.join(bin, 'claude'));
+for (const k of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CODEX_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'MICHAEL_HQ_OWNER_ID', 'MICHAEL_HQ_OWNER_EMAIL']) delete process.env[k];
+Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(tmp, 'home'), ORIA_ATELIER_ROOT: path.join(tmp, 'store'), ORIA_ATELIER_REPOS_ROOT: path.join(tmp, 'repos'), ORIA_HQ_SUBSCRIPTION_RUNTIMES: '1',
+  ORIA_WORKSPACE_MEMBERS: JSON.stringify([{ userId: 'u1', workspaceId: 'ws-a', role: 'owner' }, { userId: 'u2', workspaceId: 'ws-b', role: 'owner' }, { userId: 'u3', workspaceId: 'ws-a', role: 'member' }]) });
+mkdirSync(process.env.HOME); mkdirSync(process.env.ORIA_ATELIER_ROOT); mkdirSync(process.env.ORIA_ATELIER_REPOS_ROOT);
+const A = await jiti.import('./atelier-mission.ts');
+const H = await jiti.import('../../app/api/atelier/missions/handlers.ts');
+const list = await jiti.import('../../app/api/atelier/missions/route.ts');
+const one = await jiti.import('../../app/api/atelier/missions/[missionId]/route.ts');
+const events = await jiti.import('../../app/api/atelier/missions/[missionId]/events/route.ts');
+const steps = await jiti.import('../../app/api/atelier/missions/[missionId]/steps/route.ts');
+const resume = await jiti.import('../../app/api/atelier/missions/[missionId]/resume/route.ts');
+const interrupt = await jiti.import('../../app/api/atelier/missions/[missionId]/interrupt/route.ts');
+const catalog = { revision: 't', entries: [{ runtimeId: 'codex', modelId: 'gpt-test' }, { runtimeId: 'claude-code', modelId: 'claude-test' }] };
+
+function repo(name) {
+  const dir = path.join(process.env.ORIA_ATELIER_REPOS_ROOT, name); mkdirSync(dir);
+  execFileSync('git', ['init', '-q', '-b', 'main', dir]); writeFileSync(path.join(dir, 'package.json'), '{"scripts":{"test":"node -e 0"}}');
+  execFileSync('git', ['-C', dir, 'add', '-A']); execFileSync('git', ['-C', dir, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'seed']);
+  return dir;
+}
+const req = (url, body, headers = {}) => new Request(`http://local${url}`, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined });
+const params = missionId => ({ params: Promise.resolve({ missionId }) });
+const knobs = (v = '') => writeFileSync(path.join(process.env.HOME, 'fake.env'), v);
+const as = user => { globalThis.authzTestUser = user; };
+async function waitIdle(id) { for (let i = 0; i < 200; i++) { const m = A.loadMission(id); if (m.status !== 'running' && !A.currentLock(id)) return m; await new Promise(r => setTimeout(r, 50)); } throw new Error('timeout'); }
+async function sse(res) { const text = await res.text(); return text.split('\n\n').filter(Boolean).map(b => ({ event: /event: (\w+)/.exec(b)?.[1], data: JSON.parse(/data: (.*)/.exec(b)?.[1] ?? 'null') })); }
+
+test('unauthenticated calls are refused (401)', async () => {
+  as(null);
+  assert.equal((await list.GET(req('/api/atelier/missions'))).status, 401);
+});
+
+test('create → spec step streamed over SSE → correction (revision) → model proof', async () => {
+  as({ id: 'u1' });
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('r1'), runtimeId: 'codex', modelId: 'gpt-test' }, { catalog });
+  assert.equal(created.status, 202);
+  const { missionId } = await created.json();
+  const stream = await sse(await events.GET(req(`/api/atelier/missions/${missionId}/events`), params(missionId)));
+  assert.equal(stream[0].event, 'snapshot');
+  assert.ok(stream.some(e => e.event === 'mission' && e.data.type === 'step_finished' && e.data.data.status === 'succeeded'));
+  assert.equal(stream.at(-1).event, 'end');
+  const rev = await steps.POST(req(`/x`, { kind: 'revision', prompt: 'en dollars' }), params(missionId));
+  assert.equal(rev.status, 202);
+  const m = await waitIdle(missionId);
+  assert.deepEqual(m.steps.map(s => `${s.kind}:${s.status}`), ['spec:succeeded', 'revision:succeeded']);
+  const view = await (await one.GET(req(`/x`), params(missionId))).json();
+  assert.deepEqual(view.modelProof, { requested: 'gpt-test', observed: 'gpt-test', matches: true });
+  assert.equal(view.workspaceId, 'ws-a'); assert.equal(view.createdBy, 'u1');
+});
+
+test('another workspace cannot see or drive the mission (404)', async () => {
+  as({ id: 'u1' });
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('r2'), runtimeId: 'codex', modelId: 'gpt-test' }, { catalog });
+  const { missionId } = await created.json(); await waitIdle(missionId);
+  as({ id: 'u2' });
+  assert.equal((await one.GET(req('/x'), params(missionId))).status, 404);
+  assert.equal((await steps.POST(req('/x', { kind: 'code', prompt: 'x' }), params(missionId))).status, 404);
+  assert.equal((await one.GET(req('/x', null, { 'x-oria-workspace': 'ws-a' }), params(missionId))).status, 403);
+});
+
+test('interrupt a live step, then resume the same CLI session keeping the revision kind', async () => {
+  as({ id: 'u1' });
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('r3'), runtimeId: 'codex', modelId: 'gpt-test' }, { catalog });
+  const { missionId } = await created.json(); await waitIdle(missionId);
+  knobs('FAKE_SLEEP=5');
+  assert.equal((await steps.POST(req('/x', { kind: 'revision', prompt: 'x' }), params(missionId))).status, 202);
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal((await steps.POST(req('/x', { kind: 'code', prompt: 'x' }), params(missionId))).status, 409);
+  assert.equal((await interrupt.POST(req('/x', {}), params(missionId))).status, 202);
+  let m = await waitIdle(missionId);
+  assert.equal(m.status, 'interrupted'); assert.equal(m.steps.at(-1).kind, 'revision');
+  knobs('');
+  assert.equal((await resume.POST(req('/x', {}), params(missionId))).status, 202);
+  m = await waitIdle(missionId);
+  const last = m.steps.at(-1);
+  assert.equal(last.kind, 'revision'); assert.equal(last.status, 'succeeded'); assert.equal(last.resumedFrom, m.steps.at(-2).sessionId);
+});
+
+test('dead runner (crashed server) leaves a stale lock: new steps refused, explicit resume recovers', async () => {
+  as({ id: 'u1' });
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('r4'), runtimeId: 'codex', modelId: 'gpt-test' }, { catalog });
+  const { missionId } = await created.json(); await waitIdle(missionId);
+  knobs('FAKE_SLEEP=30\nFAKE_SID=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+  // Simulate a crash mid-step: a separate runner process starts a revision and is SIGKILLed.
+  const runner = spawn(process.execPath, ['src/scripts/atelier/mission.mjs', 'step', missionId, 'revision', 'x'], { env: process.env, stdio: 'ignore' });
+  for (let i = 0; i < 100 && !A.currentLock(missionId)?.childPid; i++) await new Promise(r => setTimeout(r, 50));
+  const lock = A.currentLock(missionId);
+  await new Promise(r => setTimeout(r, 300));
+  runner.kill('SIGKILL'); try { process.kill(-lock.childPid, 'SIGKILL'); } catch {}
+  await new Promise(r => setTimeout(r, 200));
+  knobs('');
+  assert.equal(A.currentLock(missionId).live, false);
+  assert.equal((await steps.POST(req('/x', { kind: 'code', prompt: 'x' }), params(missionId))).status, 409);
+  const r = await resume.POST(req('/x', {}), params(missionId));
+  assert.equal(r.status, 202);
+  const m = await waitIdle(missionId);
+  const [dead, resumed] = m.steps.slice(-2);
+  assert.equal(dead.status, 'interrupted'); assert.equal(dead.reason, 'runner_died'); assert.equal(dead.sessionId, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+  assert.equal(resumed.kind, 'revision'); assert.equal(resumed.resumedFrom, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'); assert.equal(resumed.status, 'succeeded');
+  assert.ok(A.readEvents(missionId).some(e => e.type === 'stale_lock_reclaimed'));
+});
+
+test('refusals: API key present, model outside catalog, repo outside root, runtime disabled', async () => {
+  const ctx = { userId: 'u1', workspaceId: 'ws-a' };
+  const base = { title: 'T', need: 'N', repoPath: repo('r5'), runtimeId: 'codex', modelId: 'gpt-test' };
+  assert.equal((await H.createAtelierMission(ctx, { ...base, modelId: 'nope' }, { catalog })).status, 400);
+  assert.equal((await H.createAtelierMission(ctx, { ...base, repoPath: tmp }, { catalog })).status, 400);
+  assert.equal((await H.createAtelierMission(ctx, base, { catalog, env: {} })).status, 503);
+  process.env.ANTHROPIC_API_KEY = 'fixture';
+  const r = await H.createAtelierMission(ctx, base, { catalog });
+  delete process.env.ANTHROPIC_API_KEY;
+  assert.equal(r.status, 503); assert.equal((await r.json()).code, 'api_key_present');
+});
+
+test('claude-code runtime: stream-json session + model reported by the CLI', () => {
+  const t = [JSON.stringify({ type: 'system', subtype: 'init', session_id: 's-1', model: 'claude-test' }), JSON.stringify({ type: 'result', is_error: false, session_id: 's-1', modelUsage: { 'claude-test': {} } })].join('\n');
+  assert.deepEqual(A.parseTranscript('claude-code', t), { sessionId: 's-1', completed: true, streamModel: 'claude-test' });
+  assert.ok(A.agentInvocation('claude-code', 'claude-test', 's-1').args.join(' ').includes('--resume s-1'));
+  assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: process.env.PATH }, () => ({ stdout: '{"loggedIn":true,"authMethod":"api_key"}' })), /subscription_auth_required/);
+});
+
+test('a workspace member can read but never launch on the owner subscription (403 atelier_owner_only)', async () => {
+  as({ id: 'u3' });
+  const res = await list.POST(req('/api/atelier/missions', { title: 'T', need: 'N', repoPath: '/nope', runtimeId: 'codex', modelId: 'gpt-test' }, { 'x-oria-workspace': 'ws-a' }));
+  assert.equal(res.status, 403);
+  assert.equal((await res.json()).error, 'atelier_owner_only');
+  assert.equal((await list.GET(req('/api/atelier/missions', null, { 'x-oria-workspace': 'ws-a' }))).status, 200);
+});

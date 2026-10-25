@@ -1,10 +1,10 @@
-import { requireOwnerApiSession } from "@/server/auth/owner";
 import { getAtelierMission } from "../handlers";
+import { atelierSession, isResponse } from "../session";
 
 export const dynamic = "force-dynamic";
-/** GET /api/atelier/missions/:missionId — mission status, steps, model proof, artifact index. */
-export async function GET(_req: Request, { params }: { params: Promise<{ missionId: string }> }) {
-  const denied = await requireOwnerApiSession();
-  if (denied) return denied;
-  return getAtelierMission((await params).missionId);
+export const runtime = "nodejs";
+export async function GET(request: Request, { params }: { params: Promise<{ missionId: string }> }) {
+  const ctx = await atelierSession(request); if (isResponse(ctx)) return ctx;
+  const { missionId } = await params;
+  return getAtelierMission(ctx, missionId);
 }
