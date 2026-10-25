@@ -199,6 +199,19 @@ test('claude-code: subscription limit → step blocked (subscription_quota), nev
   assert.equal(m.status, 'blocked'); assert.equal(m.steps[0].status, 'blocked'); assert.equal(m.steps[0].reason, 'subscription_quota');
 });
 
+test('claude-code SENT-412-17: init.apiKeySource ≠ "none" (paid API key injected by settings) → step killed at once, subscription_auth_required, no work committed', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_API_KEY_SOURCE=ANTHROPIC_API_KEY');
+  const dir = repo('rc17'); const t0 = Date.now();
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: dir, runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  assert.equal(created.status, 202);
+  const { missionId } = await created.json(); const m = await waitIdle(missionId); knobs('');
+  assert.ok(Date.now() - t0 < 4000, 'killed on the init event, not after the paid session ran');
+  assert.equal(m.status, 'failed'); assert.equal(m.steps[0].status, 'failed'); assert.equal(m.steps[0].reason, 'subscription_auth_required');
+  assert.equal(m.steps[0].commitSha, null);
+  assert.equal(execFileSync('git', ['-C', dir, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim(), '1');
+});
+
 test('claude-code refusals: ANTHROPIC_API_KEY set, or auth method not claude.ai → 503 before any spawn', async () => {
   const ctx = { userId: 'u1', workspaceId: 'ws-a' };
   const base = { title: 'T', need: 'N', repoPath: repo('rc4'), runtimeId: 'claude-code', modelId: 'claude-test' };

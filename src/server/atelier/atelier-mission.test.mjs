@@ -85,6 +85,7 @@ test('claude-code: command builder (same phases as codex; resume = --resume <ses
   assert.deepEqual(fresh.args.slice(0, 5), ['-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'stream-json']);
   assert.ok(!fresh.args.includes('--resume'));
   assert.ok(fresh.args.includes('--strict-mcp-config'));
+  const ss = fresh.args.indexOf('--setting-sources'); assert.ok(ss > 0, 'SENT-412-17: user/project settings never loaded'); assert.equal(fresh.args[ss + 1], '');
   const resumed = A.agentInvocation('claude-code', 'm', 'sid-1').args;
   assert.deepEqual(resumed.slice(-2), ['--resume', 'sid-1']);
 });

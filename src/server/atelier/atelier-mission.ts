@@ -104,7 +104,9 @@ export function agentInvocation(runtimeId: RuntimeId, modelId: string, resumeSes
   }
   const args = ["-p", "--model", modelId, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
     "--allowedTools", "Read,Edit,Write,Glob,Grep,Bash(npm test:*),Bash(node --test:*),Bash(ls:*),Bash(cat:*)",
-    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--settings", '{"disableAllHooks":true,"apiKeyHelper":""}'];
+    "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
+    // SENT-412-17: never load user/project/local settings (their `env`, apiKeyHelper, skills, plugins could switch to the paid API).
+    "--setting-sources", "", "--settings", '{"disableAllHooks":true,"apiKeyHelper":""}'];
   return { binary: "claude", args: resumeSession ? [...args, "--resume", resumeSession] : args };
 }
 /**
@@ -128,6 +130,22 @@ export function parseTranscript(runtimeId: RuntimeId, transcript: string) {
   return { sessionId: (init?.session_id ?? result?.session_id ?? lines.find(e => typeof e.session_id === "string")?.session_id ?? null) as string | null,
     completed: !!result && result.is_error === false && result.subtype === "success",
     streamModel: (assistant ? assistant.message.model : usage.length === 1 ? usage[0] : null) as string | null, quota };
+}
+/**
+ * SENT-412-17: subscription proof from the CLI's own stream. Claude Code's `system/init` reports `apiKeySource`
+ * ("none" = claude.ai subscription login). Anything else (ANTHROPIC_API_KEY, apiKeyHelper, …) or a non first-party
+ * provider means a paid API session → "paid". "pending" until init is seen. Codex `--json` exposes no auth field
+ * (guarded before spawn by `codex login status` + forced_login_method="chatgpt") → always "unknown".
+ */
+export function streamAuth(runtimeId: RuntimeId, transcript: string): "subscription" | "paid" | "pending" | "unknown" {
+  if (runtimeId === "codex") return "unknown";
+  for (const l of transcript.split("\n")) {
+    if (!l.includes('"init"')) continue;
+    let e: { type?: string; subtype?: string; apiKeySource?: unknown; apiProvider?: unknown }; try { e = JSON.parse(l); } catch { continue; }
+    if (e.type !== "system" || e.subtype !== "init") continue;
+    return e.apiKeySource === "none" && (e.apiProvider == null || e.apiProvider === "firstParty") ? "subscription" : "paid";
+  }
+  return "pending";
 }
 /** Model actually used, from the CLI's own record (never inferred from the request). */
 export function observedModel(runtimeId: RuntimeId, sessionId: string, transcript: string, home = homedir()): string | null {
@@ -449,20 +467,31 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
   let stderr = ""; child.stderr?.on("data", c => { stderr = (stderr + c).slice(-4000); });
   child.on("error", () => { /* surfaced through close */ });
   const timer = setTimeout(() => { try { process.kill(-child.pid!, "SIGKILL"); } catch { /* */ } }, opts.timeoutMs ?? 900_000);
+  // SENT-412-17: watch the init event; a paid API session is killed at once (before any work).
+  let paidSession = false;
+  const authWatch = m.runtime.runtimeId === "claude-code" ? setInterval(() => {
+    let a: ReturnType<typeof streamAuth>; try { a = streamAuth(m.runtime.runtimeId, readFileSync(join(tdir, transcriptName), "utf8")); } catch { return; }
+    if (a === "pending") return;
+    clearInterval(authWatch!);
+    if (a === "paid") { paidSession = true; try { process.kill(-child.pid!, "SIGKILL"); } catch { /* */ } }
+  }, 25) : null;
   const done = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(r => child.on("close", (code, signal) => r({ code, signal }))).then(({ code, signal }) => {
-    clearTimeout(timer); closeSync(tfd);
+    clearTimeout(timer); if (authWatch) clearInterval(authWatch); closeSync(tfd);
     m = loadMission(id, root); const s = m.steps.find(x => x.id === step.id)!;
     const transcript = readFileSync(join(tdir, transcriptName), "utf8");
     const p = parseTranscript(m.runtime.runtimeId, transcript);
     if (p.sessionId) { m.sessionId = p.sessionId; s.sessionId = p.sessionId; }
     s.exitCode = code; s.endedAt = now();
-    s.status = signal ? "interrupted" : code === 0 && p.completed ? "succeeded" : "failed";
-    if (s.status !== "succeeded") s.reason = signal ? `signal_${signal}` : p.quota || /usage limit|rate limit|quota|limit reached/i.test(stderr + (m.runtime.runtimeId === "codex" ? transcript : "")) ? "subscription_quota" : "cli_nonzero_exit";
+    if (!paidSession && streamAuth(m.runtime.runtimeId, transcript) === "paid") paidSession = true;
+    s.status = paidSession ? "failed" : signal ? "interrupted" : code === 0 && p.completed ? "succeeded" : "failed";
+    if (paidSession) s.reason = "subscription_auth_required";
+    else if (s.status !== "succeeded") s.reason = signal ? `signal_${signal}` : p.quota || /usage limit|rate limit|quota|limit reached/i.test(stderr + (m.runtime.runtimeId === "codex" ? transcript : "")) ? "subscription_quota" : "cli_nonzero_exit";
     if (s.status === "failed" && s.reason === "subscription_quota") s.status = "blocked";
     if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript);
     hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);
     if (stepKind === "spec" && existsSync(join(m.repo.path, "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(m.repo.path, "SPEC.md")), root);
-    commitIfChanged(m, s, root);
+    if (paidSession) git(m.repo.path, ["reset", "-q", "--hard"]); // discard anything a paid session touched (tracked files)
+    else commitIfChanged(m, s, root);
     m.status = s.status === "succeeded" ? "awaiting_review" : s.status === "interrupted" ? "interrupted" : s.status === "blocked" ? "blocked" : "failed";
     release(m, lockFile); save(m, root);
     logEvent(id, "step_finished", root, s.id, { status: s.status, reason: s.reason, observedModelId: s.observedModelId, commitSha: s.commitSha, sessionId: s.sessionId });
