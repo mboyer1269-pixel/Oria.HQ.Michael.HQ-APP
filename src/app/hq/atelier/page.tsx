@@ -9,6 +9,7 @@ import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied"
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { createDevelopmentStore } from "@/server/missions/development-mission";
+import { AtelierLocalMissions } from "@/features/atelier/components/atelier-local-missions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,8 @@ export default async function AtelierPage({ searchParams }: { searchParams: Prom
           </div>
         </HqSummaryRail>
       </HqPageHeader>
+
+      <AtelierLocalMissions />
 
       {!mission ? (
         <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 text-sm text-amber-100">

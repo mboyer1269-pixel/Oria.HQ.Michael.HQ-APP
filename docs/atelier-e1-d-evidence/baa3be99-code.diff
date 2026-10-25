@@ -1,0 +1,187 @@
+SPEC.md               | 12 +++++++++---
+ preview.html          | 25 +++++++++++++++++++------
+ src/tip-calc.js       | 15 +++++++++++++++
+ test/tip-calc.test.js | 15 ++++++++++++++-
+ 4 files changed, 57 insertions(+), 10 deletions(-)
+
+diff --git a/SPEC.md b/SPEC.md
+index 07d14fa..45ef52a 100644
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -2,7 +2,7 @@
+ 
+ ## Livrables
+ 
+-- `src/tip-calc.js` : bibliothèque ESM, JavaScript standard, sans dépendance.
++- `src/tip-calc.js` : bibliothèque ESM, JavaScript standard, sans dépendance, avec formatage en dollars canadiens québécois.
+ - `preview.html` : aperçu autonome utilisant la bibliothèque (via `<script type="module">`), avec saisie de l’addition, du pourcentage et du nombre de personnes, puis affichage du pourboire, du total et de la part de chacun.
+ - `test/tip-calc.test.js` : tests exécutables avec `node --test`.
+ 
+@@ -20,6 +20,9 @@ export function splitBill(totalCents, people)
+ export function calculateBill(subtotalCents, tipPercent, people)
+ // Retourne { tipCents, totalCents, sharesCents }.
+ // Équivaut à calculateTip puis splitBill(totalCents, people).
++
++export function formatCanadianDollars(cents)
++// Retourne une chaîne au format québécois, par exemple `1,50 $`.
+ ```
+ 
+ ## Règles métier
+@@ -30,7 +33,8 @@ export function calculateBill(subtotalCents, tipPercent, people)
+ - Le pourboire est arrondi au centime le plus proche, avec égalité arrondie vers le haut : `roundHalfUp(subtotalCents × tipPercent / 100)`.
+ - `totalCents = subtotalCents + tipCents`.
+ - Le partage utilise `floor(totalCents / people)` pour chaque personne. Le reste est distribué à raison d’un centime aux premières personnes ; ainsi la somme des parts est exactement `totalCents` et l’écart maximal entre deux parts est d’un centime.
+-- Les fonctions ne mutent aucune entrée et ne produisent ni devise formatée ni valeur flottante.
++- Les fonctions de calcul ne mutent aucune entrée et ne produisent ni devise formatée ni valeur flottante.
++- `formatCanadianDollars` accepte un nombre entier de centimes `>= 0` et retourne toujours deux décimales au format québécois (`fr-CA`), suivies de ` $`.
+ 
+ ## Erreurs
+ 
+@@ -41,11 +45,12 @@ export function calculateBill(subtotalCents, tipPercent, people)
+ ## Critères d’acceptation
+ 
+ - Le module est importable avec `import ... from './src/tip-calc.js'` dans Node sans transpilation ni dépendance.
++- `formatCanadianDollars(150)` retourne `1,50 $` et utilise le dollar canadien.
+ - Pour une addition de `10_00` et `15`, le résultat est `{ tipCents: 150, totalCents: 1150 }`.
+ - `splitBill(1000, 3)` retourne `[334, 333, 333]`.
+ - Pour tout résultat valide, la somme des parts égale le total et leur longueur égale `people`.
+ - `calculateBill` compose correctement les deux opérations.
+-- `preview.html` fonctionne en navigateur, permet un recalcul visible et affiche les erreurs de saisie sans casser la page.
++- `preview.html` fonctionne en navigateur, permet un recalcul visible, affiche les erreurs de saisie sans casser la page et propose des boutons de pourboire rapide de 15 %, 18 % et 20 %.
+ - Aucun fichier autre que ceux explicitement demandés dans cette spécification ne doit être nécessaire à l’exécution.
+ 
+ ## Tests attendus
+@@ -65,3 +70,4 @@ Les tests doivent couvrir au minimum :
+ - conservation de la somme et écart maximal d’un centime ;
+ - chaque type d’entrée invalide et les bornes (`0`, négatif, non-entier, `NaN`, infini) ;
+ - import ESM et absence de dépendances runtime.
++- formatage CAD québécois et validation de son entrée.
+diff --git a/preview.html b/preview.html
+index 68383df..0334b58 100644
+--- a/preview.html
++++ b/preview.html
+@@ -19,7 +19,7 @@
+ <body>
+   <h1>Calculateur de pourboire</h1>
+   <form id="bill-form">
+-    <label>Addition (en euros)
++    <label>Addition (en dollars)
+       <input name="subtotal" type="number" min="0" step="0.01" value="10.00" required>
+     </label>
+     <label>Pourboire (%)
+@@ -28,6 +28,12 @@
+     <label>Nombre de personnes
+       <input name="people" type="number" min="1" step="1" value="2" required>
+     </label>
++    <div>
++      <span>Pourboire rapide</span>
++      <button type="button" data-tip="15">15 %</button>
++      <button type="button" data-tip="18">18 %</button>
++      <button type="button" data-tip="20">20 %</button>
++    </div>
+     <button type="submit">Recalculer</button>
+   </form>
+   <output id="results" aria-live="polite">
+@@ -36,12 +42,12 @@
+   </output>
+ 
+   <script type="module">
+-    import { calculateBill } from './src/tip-calc.js';
++    import { calculateBill, formatCanadianDollars } from './src/tip-calc.js';
+ 
+     const form = document.querySelector('#bill-form');
+     const error = document.querySelector('.error');
+     const result = document.querySelector('.result');
+-    const euros = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
++    const tipInput = form.elements.tip;
+ 
+     function recalculate(event) {
+       event?.preventDefault();
+@@ -53,14 +59,21 @@
+         const tipPercent = Number(data.get('tip'));
+         const people = Number(data.get('people'));
+         const bill = calculateBill(subtotalCents, tipPercent, people);
+-        result.innerHTML = `Pourboire : <strong>${euros.format(bill.tipCents / 100)}</strong><br>`
+-          + `Total : <strong>${euros.format(bill.totalCents / 100)}</strong><br>`
+-          + `Part de chacun : <strong>${bill.sharesCents.map((share) => euros.format(share / 100)).join(', ')}</strong>`;
++        result.innerHTML = `Pourboire : <strong>${formatCanadianDollars(bill.tipCents)}</strong><br>`
++          + `Total : <strong>${formatCanadianDollars(bill.totalCents)}</strong><br>`
++          + `Part de chacun : <strong>${bill.sharesCents.map(formatCanadianDollars).join(', ')}</strong>`;
+       } catch (cause) {
+         error.textContent = cause instanceof Error ? cause.message : 'Saisie invalide.';
+       }
+     }
+ 
++    form.querySelectorAll('[data-tip]').forEach((button) => {
++      button.addEventListener('click', () => {
++        tipInput.value = button.dataset.tip;
++        recalculate();
++      });
++    });
++
+     form.addEventListener('submit', recalculate);
+     recalculate();
+   </script>
+diff --git a/src/tip-calc.js b/src/tip-calc.js
+index 8ed8574..091f02f 100644
+--- a/src/tip-calc.js
++++ b/src/tip-calc.js
+@@ -30,6 +30,21 @@ function assertPeople(value) {
+   }
+ }
+ 
++/**
++ * Format a cent amount using the Quebec Canadian-dollar convention.
++ * @param {number} cents
++ * @returns {string}
++ */
++export function formatCanadianDollars(cents) {
++  assertCents(cents, 'cents');
++
++  return new Intl.NumberFormat('fr-CA', {
++    style: 'currency',
++    currency: 'CAD',
++    currencyDisplay: 'symbol',
++  }).format(cents / 100).replace(/\u00a0/g, ' ');
++}
++
+ /**
+  * Calculate a tip in cents, rounding ties upward.
+  * @param {number} subtotalCents
+diff --git a/test/tip-calc.test.js b/test/tip-calc.test.js
+index 5cf25e6..6cff2ab 100644
+--- a/test/tip-calc.test.js
++++ b/test/tip-calc.test.js
+@@ -1,12 +1,24 @@
+ import { test } from 'node:test';
+ import assert from 'node:assert/strict';
+-import { calculateBill, calculateTip, splitBill } from '../src/tip-calc.js';
++import {
++  calculateBill,
++  calculateTip,
++  formatCanadianDollars,
++  splitBill,
++} from '../src/tip-calc.js';
+ 
+ test('importe le module ESM et expose les trois fonctions', async () => {
+   const module = await import('../src/tip-calc.js');
+   assert.equal(typeof module.calculateTip, 'function');
+   assert.equal(typeof module.splitBill, 'function');
+   assert.equal(typeof module.calculateBill, 'function');
++  assert.equal(typeof module.formatCanadianDollars, 'function');
++});
++
++test('formate les montants en dollars canadiens au format québécois', () => {
++  assert.equal(formatCanadianDollars(0), '0,00 $');
++  assert.equal(formatCanadianDollars(150), '1,50 $');
++  assert.equal(formatCanadianDollars(123456), '1 234,56 $');
+ });
+ 
+ test('calcule sans pourboire, avec un pourcentage entier et décimal', () => {
+@@ -60,6 +72,7 @@ test('rejette les montants négatifs et non entiers', () => {
+   for (const value of [-1, 1.5]) {
+     assert.throws(() => calculateTip(value, 10), RangeError);
+     assert.throws(() => splitBill(value, 2), RangeError);
++    assert.throws(() => formatCanadianDollars(value), RangeError);
+   }
+ });

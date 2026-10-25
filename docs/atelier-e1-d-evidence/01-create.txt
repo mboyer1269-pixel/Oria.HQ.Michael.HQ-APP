@@ -1,0 +1,28 @@
+Sun Oct 25 05:04:15 EDT 2026
+0
+{
+  "contract": "atelier-mission/v1",
+  "id": "329674b0-12c3-4464-8dc3-9451e7baa3ce",
+  "title": "Calculatrice de pourboire",
+  "need": "Je veux une petite bibliothèque JS qui calcule le pourboire et le partage d'une addition entre N personnes, avec une page HTML d'aperçu.",
+  "createdAt": "2026-10-25T09:04:15.215Z",
+  "updatedAt": "2026-10-25T09:04:15.215Z",
+  "status": "created",
+  "runtime": {
+    "runtimeId": "codex",
+    "consumptionMode": "subscription",
+    "authMode": "chatgpt_session",
+    "requestedModelId": "gpt-5.6-luna"
+  },
+  "repo": {
+    "path": "/workspace/atelier-sandbox/tip-calc",
+    "baseBranch": "main",
+    "branch": "atelier/329674b0",
+    "baseSha": "5754292f85ab2c295f11705cb603e2808d750fed",
+    "headSha": "5754292f85ab2c295f11705cb603e2808d750fed"
+  },
+  "sessionId": null,
+  "lock": null,
+  "steps": [],
+  "artifacts": []
+}

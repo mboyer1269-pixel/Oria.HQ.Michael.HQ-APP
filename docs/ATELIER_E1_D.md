@@ -1,0 +1,34 @@
+# Lot E1 → D — atelier qualifié (2026-10-25)
+
+Base : PR #409 (`lot-b/subscription-runtimes`, `261c8e7`), non modifiée ; réutilise `subscriptionEnvironment` (env en liste blanche) et le catalogue d'abonnement.
+
+## Choix du chemin : Codex CLI abonnement (ChatGPT), un seul chemin
+Test borné (preuves dans `atelier-e1-d-evidence/`) :
+- **OpenHands** (`openhands-bounded-test.txt`, exécuté sur `oria-hq-orchestrator@e70e8aa`) : `dossier.prepare` d'un dossier v3 → `InvalidDossier Unexpected contract fields` (constat 1 confirmé) ; `provider_preflight` avec politique valide → `unsupported_provider_profile` (constat 2 confirmé) ; `run_mission.execute` code `claude-agent-acp` en dur et ne transmet aucun modèle (constat 3 confirmé). Sur la machine : pas de Docker, pas de `openhands-sdk`, pas de `claude-agent-acp` ; le consumer suppose une base HQ distante (interdite ici). Chemin non exécutable sans 4 réparations + infra ⇒ éliminé.
+- **Codex CLI** (`cli-bounded-test.head.jsonl`, `rollout-model-cli-bounded.txt`) : `codex exec -m gpt-5.6-luna -s workspace-write` sans clé API → fichier créé en 7,4 s, modèle `gpt-5.6-luna` lu dans la session CLI.
+Critères éliminatoires du comité (refus, interruption, reprise, isolation) : seul le CLI les passe aujourd'hui. Claude Code reste possible derrière le même module plus tard (limité jusqu'à ~7h20 HAE ce jour, non testé).
+
+## Ce qui est livré
+- `src/server/atelier/atelier-mission.ts` : mission sur branche `atelier/<id>`, étapes agent (`codex exec` / `codex exec resume <session>`), étapes runner (tests, aperçu), commit par le runner, artefacts hachés, verrou exclusif + reprise **explicite** d'un verrou orphelin (runner mort) avec récupération de l'id de session, refus si `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN`/`CODEX_API_KEY` présent ou si `codex login status` ≠ ChatGPT, preuve de modèle observé (session CLI).
+- `src/scripts/atelier/mission.mjs` : CLI opérateur. API lecture `src/app/api/atelier/missions/**`. Panneau `/hq/atelier`. Contrat : `docs/atelier-contract.md`. Tests : `src/server/atelier/atelier-mission.test.mjs` (6/6).
+
+## Mission réelle (dépôt jetable local `/workspace/atelier-sandbox/tip-calc`, mission `329674b0…`)
+| Étape | Preuve | Résultat |
+|---|---|---|
+| besoin → mission + branche | `01-create.txt` | branche `atelier/329674b0`, base `5754292` |
+| spec | `02-spec.txt` | SPEC.md, commit `9f1ecd6`, modèle observé gpt-5.6-luna |
+| code | `03-code.txt` | commit `d980971` |
+| tests (runner) | `0db9c3ff-test.log` | 10/10 |
+| aperçu | `preview-before.png` | rendu Chrome headless |
+| correction demandée (CAD « 1,50 $ », boutons 15/18/20 %) | `06`… | lancée 09:06:04Z |
+| interruption | `mission.json` étape revision `interrupted/runner_died` | SIGKILL runner + groupe Codex à 05:06:16 HAE |
+| refus sans reprise explicite | `07-refused-without-resume.txt` | `stale_lock_requires_explicit_resume` |
+| reprise | `08-resume.txt`, `baa3be99-code.diff` | même session `01a1724f…` (`resumedFrom`), commit `d390943` |
+| tests après correction | `aa514f34-test.log` | 11/11 |
+| aperçu après | `preview-after-revision.png` | « 1,50 $ », boutons rapides |
+| artefacts visibles côté app | `11-app-handler-proof.txt` | handler API : 17 artefacts, `modelProof.matches=true`, PNG servi avec sha256 |
+
+Limites : l'étape reprise est étiquetée `code` dans cette exécution (corrigé ensuite : la reprise garde le type de l'étape interrompue) ; la preuve « app » passe par les handlers des routes, pas par un navigateur connecté (auth Supabase = base distante, exclue) ; l'interruption a été provoquée par SIGKILL, pas par un redémarrage machine ; pas de bouton de lancement dans l'UI ; OpenHands non réparé (voir ci-dessous).
+
+## OpenHands — état (non retenu, non modifié)
+1. v3 vs v1/v2 : confirmé. 2. profil refusé : confirmé. 3. ACP Claude en dur, modèle non transmis : confirmé. 4. reprise : verrou `started.json` en `open('x')` + pas de reprise auto — confirmé par lecture, non exécuté. 5. artefacts non renvoyés : confirmé par lecture. 6. SDK épinglé 1.50.0 (asserts dans `openhands-qualification/*.py`), PyPI publie 1.58.2 (`pip index versions`, 2026-10-25). Recommandation : geler OpenHands hors V1 ; si repris, migrer vers Agent Server 1.58.x plutôt que réparer l'ancien chemin Docker.
