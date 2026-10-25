@@ -2,7 +2,12 @@ import "server-only";
 import { findWorkspaceConfigBySlug, createWorkspaceConfig } from "@/core/workspaces/registry";
 
 export type AuthzContext = { userId: string; workspaceId: string; role: "owner" | "member" };
-type Identity = { userId: string; email?: string };
+/**
+ * `emailVerified` must be true for `email` to match a membership (SENT-410-1):
+ * an unconfirmed Supabase email (open sign-up, OAuth without verified email) must
+ * never grant a role. Callers derive it from `user.email_confirmed_at`.
+ */
+export type Identity = { userId: string; email?: string; emailVerified?: boolean };
 type Membership = { userId?: string; email?: string; workspaceId: string; role: AuthzContext["role"] };
 
 export class WorkspaceAccessError extends Error {
@@ -12,7 +17,7 @@ export class WorkspaceAccessError extends Error {
   }
 }
 
-export function configuredMemberships(): Membership[] {
+function parseConfiguredMembers(): Membership[] {
   let raw: unknown;
   try {
     raw = JSON.parse(process.env.ORIA_WORKSPACE_MEMBERS || "[]");
@@ -25,7 +30,33 @@ export function configuredMemberships(): Membership[] {
     (m.email !== undefined && typeof m.email !== "string"))) {
     throw new WorkspaceAccessError("INVALID_CONFIG", "ORIA_WORKSPACE_MEMBERS");
   }
-  const members: Membership[] = [...raw];
+  return [...raw];
+}
+
+let reportedInvalidConfig: string | undefined;
+
+/** True when ORIA_WORKSPACE_MEMBERS is set but unusable (diagnostics/health only). */
+export function hasInvalidMembershipConfig(): boolean {
+  try { parseConfiguredMembers(); return false; } catch { return true; }
+}
+
+/**
+ * A malformed ORIA_WORKSPACE_MEMBERS drops every configured membership (fail
+ * closed for those users) but keeps the legacy owner declared by
+ * MICHAEL_HQ_OWNER_ID/EMAIL, so a typo is not a 500 on every route.
+ */
+export function configuredMemberships(): Membership[] {
+  let members: Membership[];
+  try {
+    members = parseConfiguredMembers();
+  } catch {
+    const raw = process.env.ORIA_WORKSPACE_MEMBERS ?? "";
+    if (reportedInvalidConfig !== raw) {
+      reportedInvalidConfig = raw;
+      console.error("[authz] ORIA_WORKSPACE_MEMBERS is invalid; configured memberships ignored (legacy owner only).");
+    }
+    members = [];
+  }
   const userId = process.env.MICHAEL_HQ_OWNER_ID?.trim();
   const email = process.env.MICHAEL_HQ_OWNER_EMAIL?.trim();
   if (userId || email) members.push({ userId, email, workspaceId: "michael-hq", role: "owner" });
@@ -35,7 +66,8 @@ export function configuredMemberships(): Membership[] {
 export function membershipsForUser(user: Identity): Membership[] {
   return configuredMemberships().filter((m) =>
     (m.userId && m.userId === user.userId) ||
-    (m.email && user.email && m.email.trim().toLowerCase() === user.email.trim().toLowerCase()));
+    (m.email && user.email && user.emailVerified === true &&
+      m.email.trim().toLowerCase() === user.email.trim().toLowerCase()));
 }
 
 /** Membership config also declares minimal workspaces; richer registered configs take precedence. */

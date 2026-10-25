@@ -81,9 +81,25 @@ owner of the default workspace (`michael-hq`), because the ~50 legacy routes sti
 resolve the default context. Owners of other workspaces are refused there (403)
 and must use routes migrated to `requireWorkspaceApiSession`.
 
-DEPLOY PREREQUISITE: migration 0032 must be applied (it adds
-`contact_leads.workspace_id`) BEFORE deploying this code with Supabase enabled,
-otherwise contact create/list fail. Not applied by this lot.
+Deploy order (SENT-410-2): the code is safe to deploy BEFORE migration 0032.
+Without `ORIA_CONTACT_LEADS_WORKSPACE_SCOPED=1` the Supabase contact repository
+never references `contact_leads.workspace_id`: `michael-hq` (the 0032 backfill
+value) writes/reads unfiltered, other workspaces get a 503
+`CONTACT_LEAD_WORKSPACE_UNAVAILABLE` on write and an empty list on read. Apply
+0032, run its verify script, then set the flag. Not applied by this lot.
+
+Email memberships (SENT-410-1) match only when Supabase reports the email as
+confirmed (`email_confirmed_at`); an unconfirmed email never grants a role,
+including the legacy `MICHAEL_HQ_OWNER_EMAIL` owner gate.
+
+Malformed `ORIA_WORKSPACE_MEMBERS` drops all configured memberships (logged
+once) and keeps the legacy owner from `MICHAEL_HQ_OWNER_ID/EMAIL`; it no longer
+throws from `isOwnerUser`/`hasOwnerAuthConfig` (no global 500).
+
+Jobs: `buildJorisExecuteEvent(session, message)` is the only sanctioned way to
+build a `joris/execute` event; ids come from the server session. No emitter
+exists in the codebase today. Joris chat vault and Memex reads are scoped to the
+session workspace (proof: `src/server/joris/joris-chat-workspace-isolation.test.mjs`).
 
 Known limits: routes other than `/api/joris/chat` are still legacy (default
 workspace, owner gate); event payloads carry no email, so a job for an owner

@@ -17,7 +17,7 @@ const jiti = createJiti(import.meta.url, { alias: {
 const authz = await jiti.import("./authz-context.ts");
 const owner = await jiti.import("./owner.ts");
 const { getActiveWorkspaceContext } = await jiti.import("../../core/workspace-context.ts");
-const { resolveJorisJobContext } = await jiti.import("../jobs/joris-execute-job.ts");
+const { resolveJorisJobContext, buildJorisExecuteEvent } = await jiti.import("../jobs/joris-execute-job.ts");
 const { POST } = await jiti.import("../../app/api/joris/chat/route.ts");
 const { createContactLeadRepository } = await jiti.import("../contact/contact-lead-repository.ts");
 const outcomes = await jiti.import("../ventures/agent-outcome-repository.ts");
@@ -91,6 +91,7 @@ test("two users x two workspaces: authorization and persistence isolation", asyn
     assert.equal(resolveJorisJobContext({ userId: "userA", workspaceId: "wsA" }).workspace.id, "wsA");
   });
   for (const mode of ["local", "supabase"]) await t.test(`${mode}: no cross-workspace reads or updates`, async () => {
+    process.env.ORIA_CONTACT_LEADS_WORKSPACE_SCOPED = "1";
     globalThis.authzTestDb = mode === "supabase" ? fakeDb() : null;
     const contacts = createContactLeadRepository();
     assert.equal(contacts.mode, mode);
@@ -116,27 +117,87 @@ test("two users x two workspaces: authorization and persistence isolation", asyn
       if (call.operation === "insert") assert.ok(call.payload.workspace_id);
     }
     delete globalThis.authzTestDb;
+    delete process.env.ORIA_CONTACT_LEADS_WORKSPACE_SCOPED;
+  });
+  await t.test("supabase before migration 0032: never touches workspace_id, no loss, no leak", async () => {
+    delete process.env.ORIA_CONTACT_LEADS_WORKSPACE_SCOPED;
+    const db = fakeDb();
+    globalThis.authzTestDb = db;
+    const contacts = createContactLeadRepository();
+    await contacts.create({ workspaceId: "michael-hq", name: "public", email: "a@example.test", message: "m" });
+    await assert.rejects(contacts.create({ workspaceId: "wsB", name: "b", email: "b@example.test", message: "m" }),
+      { code: "CONTACT_LEAD_WORKSPACE_UNAVAILABLE" });
+    assert.equal((await contacts.listRecent({ workspaceId: "michael-hq" })).length, 1);
+    assert.deepEqual(await contacts.listRecent({ workspaceId: "wsB" }), []);
+    for (const call of db.calls) {
+      assert.ok(!call.filters.some(([key]) => key === "workspace_id"), JSON.stringify(call));
+      if (call.payload) assert.ok(!("workspace_id" in call.payload));
+    }
+    delete globalThis.authzTestDb;
+  });
+  await t.test("job events are built from the server session only", () => {
+    const event = buildJorisExecuteEvent({ ctx: { userId: "userA", workspaceId: "wsA", role: "owner" } }, "salut");
+    assert.deepEqual(event, { name: "joris/execute", data: { userId: "userA", workspaceId: "wsA", message: "salut", locale: "fr-CA" } });
+    assert.throws(() => buildJorisExecuteEvent({ ctx: {} }, "x"));
+    assert.equal(resolveJorisJobContext(event.data).workspace.id, "wsA");
+  });
+  await t.test("unconfirmed email never grants a membership (SENT-410-1)", async () => {
+    process.env.MICHAEL_HQ_OWNER_EMAIL = "owner@example.test";
+    process.env.ORIA_WORKSPACE_MEMBERS = JSON.stringify([...members, { email: "member@example.test", workspaceId: "wsA", role: "member" }]);
+    // Raw identity without emailVerified, and a Supabase user without email_confirmed_at.
+    assert.throws(() => authz.resolveAuthzContext({ userId: "attacker", email: "OWNER@example.test" }, "michael-hq"), { code: "NOT_A_MEMBER" });
+    assert.throws(() => getActiveWorkspaceContext({ userId: "attacker", email: "owner@example.test", workspaceId: "michael-hq" }), { code: "NOT_A_MEMBER" });
+    const unconfirmed = { id: "attacker", email: "OWNER@example.test", email_confirmed_at: null };
+    assert.equal(owner.isOwnerUser(unconfirmed), false);
+    globalThis.authzTestUser = unconfirmed;
+    assert.equal((await owner.requireOwnerApiSession()).status, 403);
+    assert.equal((await owner.requireWorkspaceApiSession(new Request("http://localhost/?workspace=michael-hq"))).status, 403);
+    globalThis.authzTestUser = { id: "attacker2", email: "member@example.test" };
+    assert.equal((await owner.requireWorkspaceApiSession()).status, 403);
+    // Confirmed email still works (legacy owner email + configured email member).
+    const confirmed = { id: "real-owner", email: "owner@example.test", email_confirmed_at: "2026-01-01T00:00:00Z" };
+    assert.equal(owner.isOwnerUser(confirmed), true);
+    globalThis.authzTestUser = confirmed;
+    assert.equal((await owner.requireWorkspaceApiSession(new Request("http://localhost/?workspace=michael-hq"))).ctx.role, "owner");
+    delete process.env.MICHAEL_HQ_OWNER_EMAIL;
+    process.env.ORIA_WORKSPACE_MEMBERS = JSON.stringify(members);
+    globalThis.authzTestUser = null;
   });
   await t.test("email membership, member role and invalid config fail closed", async () => {
     process.env.ORIA_WORKSPACE_MEMBERS = JSON.stringify([
       ...members, { email: "member@example.test", workspaceId: "wsA", role: "member" },
     ]);
-    globalThis.authzTestUser = { id: "email-user", email: "MEMBER@example.test" };
+    globalThis.authzTestUser = { id: "email-user", email: "MEMBER@example.test", email_confirmed_at: "2026-01-01T00:00:00Z" };
     const session = await owner.requireWorkspaceApiSession();
     assert.equal(session.ctx.role, "member");
     assert.equal(owner.isOwnerUser(session.user), false);
-    assert.equal(getActiveWorkspaceContext({ ...session.ctx, email: session.user.email }).workspace.id, "wsA");
+    assert.equal(getActiveWorkspaceContext({ ...session.ctx, email: session.user.email, emailVerified: true }).workspace.id, "wsA");
+    process.env.MICHAEL_HQ_OWNER_ID = "legacy";
     for (const invalid of ["{", "{}", '[{"userId":"x","workspaceId":"wsA","role":"admin"}]']) {
       process.env.ORIA_WORKSPACE_MEMBERS = invalid;
-      assert.throws(() => authz.resolveAuthzContext({ userId: "userA" }), { code: "INVALID_CONFIG" });
+      assert.equal(authz.hasInvalidMembershipConfig(), true);
+      // Configured members are dropped (fail closed), never a thrown 500...
+      assert.throws(() => authz.resolveAuthzContext({ userId: "userA" }, "wsA"), { code: "UNKNOWN_WORKSPACE" });
+      assert.throws(() => authz.resolveAuthzContext({ userId: "userA" }), { code: "NOT_A_MEMBER" });
+      assert.equal(owner.isOwnerUser({ id: "userA" }), false);
+      // ...while the legacy owner keeps working.
+      assert.doesNotThrow(() => owner.hasOwnerAuthConfig());
+      assert.equal(owner.hasOwnerAuthConfig(), true);
+      assert.equal(owner.isOwnerUser({ id: "legacy" }), true);
+      assert.equal(authz.resolveAuthzContext({ userId: "legacy" }).workspaceId, "michael-hq");
+      globalThis.authzTestUser = { id: "userA" };
+      assert.equal((await owner.requireWorkspaceApiSession()).status, 403);
+      assert.equal((await owner.requireOwnerApiSession()).status, 403);
     }
+    delete process.env.MICHAEL_HQ_OWNER_ID;
     process.env.ORIA_WORKSPACE_MEMBERS = JSON.stringify(members);
   });
   await t.test("legacy owner id/email and configured owner compatibility", () => {
     process.env.MICHAEL_HQ_OWNER_ID = "legacy";
     process.env.MICHAEL_HQ_OWNER_EMAIL = "legacy@example.test";
     assert.equal(owner.isOwnerUser({ id: "legacy" }), true);
-    assert.equal(owner.isOwnerUser({ id: "different", email: "LEGACY@example.test" }), true);
+    assert.equal(owner.isOwnerUser({ id: "different", email: "LEGACY@example.test", email_confirmed_at: "2026-01-01T00:00:00Z" }), true);
+    assert.equal(owner.isOwnerUser({ id: "different", email: "LEGACY@example.test" }), false);
     // Owning another workspace must not open legacy routes bound to the default workspace.
     assert.equal(owner.isOwnerUser({ id: "userA" }), false);
     assert.equal(owner.isOwnerUser({ id: "userB" }), false);

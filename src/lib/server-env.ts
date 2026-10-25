@@ -29,6 +29,8 @@ const serverEnvSchema = z.object({
   // Owner identity — required in production
   ORIA_WORKSPACE_MEMBERS: z.string().optional(),
   ORIA_OPEN_PERSONAL_SPACES: z.string().optional(),
+  // "1" only after migration 0032 (contact_leads.workspace_id) is applied.
+  ORIA_CONTACT_LEADS_WORKSPACE_SCOPED: z.string().optional(),
   MICHAEL_HQ_OWNER_ID: z.string().min(1).optional(),
   MICHAEL_HQ_OWNER_EMAIL: z.string().email().optional(),
   // Notifications

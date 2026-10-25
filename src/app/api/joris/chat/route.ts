@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { requireWorkspaceApiSession } from "@/server/auth/owner";
+import { authzIdentity, requireWorkspaceApiSession } from "@/server/auth/owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
@@ -17,7 +17,7 @@ const requestSchema = z.object({
 export async function GET(request: Request) {
   const session = await requireWorkspaceApiSession(request);
   if (session instanceof NextResponse) return session;
-  const ctx = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
+  const ctx = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email, emailVerified: authzIdentity(session.user).emailVerified });
   const catalog=await loadChatCapabilityCatalog();
   return NextResponse.json({options:chatModelOptions(catalog,ctx.workspace.id),status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
 }
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
+    const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email, emailVerified: authzIdentity(session.user).emailVerified });
     const catalog=await loadChatCapabilityCatalog();
     const binding=resolveChatModelBinding(catalog,workspaceContext.workspace.id,parsed.data.modelSelection);
     const result = await runJorisCommand(parsed.data.message, workspaceContext, undefined, binding);

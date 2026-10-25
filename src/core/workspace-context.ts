@@ -19,13 +19,13 @@ export type WorkspaceContext = ActiveWorkspaceContext & {
  * configured owner's declared workspace default for backward compatibility.
  * HTTP boundaries should supply the authenticated user and selected workspace.
  */
-export function getActiveWorkspaceContext(opts?: { workspaceId?: string; userId?: string; email?: string }): WorkspaceContext {
+export function getActiveWorkspaceContext(opts?: { workspaceId?: string; userId?: string; email?: string; emailVerified?: boolean }): WorkspaceContext {
   const user: ServerUserContext = opts?.userId
     ? { userId: opts.userId, email: opts.email, storagePreference: "supabase" }
     : getServerUserContext();
   // No arguments preserves the configured owner's declared default for legacy callers.
   // This is never a fallback for an unknown explicitly requested workspace.
-  const authz = opts ? resolveAuthzContext(user, opts.workspaceId) : undefined;
+  const authz = opts ? resolveAuthzContext({ ...user, emailVerified: opts.emailVerified === true }, opts.workspaceId) : undefined;
   const config = authz ? getAuthorizedWorkspaceConfig(authz.workspaceId) : undefined;
   const workspace = config ? {
     id: config.slug, slug: config.slug, displayName: config.displayName,
