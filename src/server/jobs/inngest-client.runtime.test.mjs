@@ -17,6 +17,8 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+// MERGE-3: the job resolves a real authz context since #410 — declare the test member and workspace.
+process.env.ORIA_WORKSPACE_MEMBERS = JSON.stringify([{ userId: "00000000-0000-4000-8000-000000000002", workspaceId: "ws-inngest", role: "owner" }]);
 
 process.env.INNGEST_DEV = "1";
 
@@ -37,7 +39,7 @@ const BASE = "http://localhost:3000/api/inngest";
 const headers = { host: "localhost:3000", "content-type": "application/json" };
 
 const payload = {
-  workspaceId: "00000000-0000-4000-8000-000000000001",
+  workspaceId: "ws-inngest", // MERGE-3: #410 validates the workspace → a configured one (below)
   userId: "00000000-0000-4000-8000-000000000002",
   message: "Planifie la réunion de vendredi avec Hélène",
   locale: "fr-CA",
