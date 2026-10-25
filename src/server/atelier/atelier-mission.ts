@@ -672,8 +672,7 @@ export function runCommandStep(id: string, kind: "test" | "preview", command: st
     requestedModelId: null, observedModelId: null, exitCode: null, reason: null, commitSha: m.repo.headSha };
   const { lockFile } = acquire(m, step.id, false, root);
   try {
-    let harness: string[];
-    assertRepoHead(m); assertNoEscapingSymlink(workPath(m)); harness = harnessChanges(m);
+    assertRepoHead(m); assertNoEscapingSymlink(workPath(m)); const harness = harnessChanges(m);
     m.steps.push(step); save(m, root);
     logEvent(id, "step_started", root, step.id, { kind });
     if (harness.length) step.harnessFiles = harness;
