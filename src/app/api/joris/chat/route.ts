@@ -3,7 +3,7 @@ import { runSubscriptionTurn } from "@/server/ai/subscription-runtime";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { requireOwnerApiSession } from "@/server/auth/owner";
+import { requireWorkspaceApiSession } from "@/server/auth/owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
@@ -17,16 +17,17 @@ const requestSchema = z.object({
   subscriptionSelection: subscriptionSelectionSchema.optional(),
 }).strict().refine(value => !(value.modelSelection && value.subscriptionSelection));
 
-export async function GET() {
-  const authResponse=await requireOwnerApiSession();if(authResponse)return authResponse;
-  const ctx=getActiveWorkspaceContext();
+export async function GET(request: Request) {
+  const session = await requireWorkspaceApiSession(request);
+  if (session instanceof NextResponse) return session;
+  const ctx = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
   const catalog=await loadChatCapabilityCatalog();
   return NextResponse.json({options:[...chatModelOptions(catalog,ctx.workspace.id),...subscriptionOptions(await loadSubscriptionCatalog())],status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(request: Request) {
-  const authResponse = await requireOwnerApiSession();
-  if (authResponse) return authResponse;
+  const session = await requireWorkspaceApiSession(request);
+  if (session instanceof NextResponse) return session;
 
   const body = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(body);
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const workspaceContext = getActiveWorkspaceContext();
+    const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email });
     if (parsed.data.subscriptionSelection) {
       return NextResponse.json(await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog()));
     }

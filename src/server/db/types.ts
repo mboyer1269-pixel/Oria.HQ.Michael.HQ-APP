@@ -77,6 +77,7 @@ export type CockpitLayoutInsert = Omit<CockpitLayoutRow, "updated_at"> & {
 };
 
 export type ContactLeadRow = {
+  workspace_id: string;
   id: string;
   name: string;
   email: string;

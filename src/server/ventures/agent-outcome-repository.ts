@@ -105,6 +105,7 @@ export async function createAgentOutcome(
       no_execution_authorized: true,
     })
     .select("id")
+    .eq("workspace_id", input.workspaceId)
     .single();
 
   if (error) {
@@ -167,7 +168,7 @@ export async function updateAgentOutcome(
   const db = getSupabaseClient();
   if (!db) {
     assertLocalFallback();
-    const idx = localOutcomes.findIndex((o) => o.id === input.id);
+    const idx = localOutcomes.findIndex((o) => o.id === input.id && o.workspaceId === input.workspaceId);
     if (idx !== -1) {
       localOutcomes[idx] = {
         ...localOutcomes[idx],
@@ -189,12 +190,27 @@ export async function updateAgentOutcome(
       ...(input.notes !== undefined && { notes: input.notes }),
       ...(input.executedAt !== undefined && { executed_at: input.executedAt }),
     })
-    .eq("id", input.id);
+    .eq("id", input.id)
+    .eq("workspace_id", input.workspaceId);
 
   if (error) {
     logger.error("agent-outcome.repository.update.failed", { reason: error.message });
     throw new AgentOutcomeRepositoryError("update");
   }
+}
+
+/** Lookup remains scoped even when the caller knows a foreign record id. */
+export async function getAgentOutcome(workspaceId: string, id: string): Promise<AgentOutcome | null> {
+  const db = getSupabaseClient();
+  if (!db) {
+    assertLocalFallback();
+    const outcome = localOutcomes.find((o) => o.workspaceId === workspaceId && o.id === id);
+    return outcome ? { ...outcome } : null;
+  }
+  const { data, error } = await db.from("agent_outcomes").select("*")
+    .eq("workspace_id", workspaceId).eq("id", id).maybeSingle();
+  if (error) throw new AgentOutcomeRepositoryError("list");
+  return data ? mapRowToOutcome(data) : null;
 }
 
 // ---------------------------------------------------------------------------

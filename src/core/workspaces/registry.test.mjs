@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 // Locks the workspace config resolver contract: the registered list is
-// default-first, slugs are unique, and slug resolution falls back to the
-// default config instead of failing. Pure and offline — no network, no env.
+// default-first, slugs are unique, and unknown slug resolution fails explicitly. Pure and offline — no network, no env.
 
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -41,8 +40,7 @@ test("workspace config resolver", async (t) => {
     }
   });
 
-  await t.test("an unknown slug falls back to the default config", () => {
-    const resolved = getWorkspaceConfigBySlug("no-such-workspace");
-    assert.equal(resolved.slug, DEFAULT_WORKSPACE_SLUG);
+  await t.test("an unknown slug throws explicitly", () => {
+    assert.throws(() => getWorkspaceConfigBySlug("no-such-workspace"), { name: "UnknownWorkspaceError" });
   });
 });
