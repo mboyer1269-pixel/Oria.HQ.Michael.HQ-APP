@@ -28,6 +28,8 @@ const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   // Owner identity — required in production
   MICHAEL_HQ_OWNER_ID: z.string().min(1).optional(),
+  // Comma-separated user ids allowed to spend the local CLI subscriptions; default MICHAEL_HQ_OWNER_ID.
+  ORIA_SUBSCRIPTION_OWNERS: z.string().optional(),
   MICHAEL_HQ_OWNER_EMAIL: z.string().email().optional(),
   // Notifications
   CONTACT_NOTIFICATION_EMAIL: z.string().email().optional(),

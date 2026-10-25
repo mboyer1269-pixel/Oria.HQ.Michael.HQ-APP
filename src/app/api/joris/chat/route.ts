@@ -3,7 +3,8 @@ import { runSubscriptionTurn } from "@/server/ai/subscription-runtime";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { requireOwnerApiSession } from "@/server/auth/owner";
+import { getCurrentAuthUser, requireOwnerApiSession } from "@/server/auth/owner";
+import { isSubscriptionOwner } from "@/server/ai/subscription-owner";
 import { CalendarRepositoryError } from "@/server/calendar/calendar-repository";
 import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
@@ -21,7 +22,9 @@ export async function GET() {
   const authResponse=await requireOwnerApiSession();if(authResponse)return authResponse;
   const ctx=getActiveWorkspaceContext();
   const catalog=await loadChatCapabilityCatalog();
-  return NextResponse.json({options:[...chatModelOptions(catalog,ctx.workspace.id),...subscriptionOptions(await loadSubscriptionCatalog())],status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
+  // Subscription options are listed only to the subscription holder (same rule as POST).
+  const subscriptionHolder=isSubscriptionOwner((await getCurrentAuthUser())?.id);
+  return NextResponse.json({options:[...chatModelOptions(catalog,ctx.workspace.id),...(subscriptionHolder?subscriptionOptions(await loadSubscriptionCatalog()):[])],status:catalog?"server_qualification":"unavailable"},{headers:{"Cache-Control":"no-store"}});
 }
 
 export async function POST(request: Request) {
@@ -41,6 +44,12 @@ export async function POST(request: Request) {
   try {
     const workspaceContext = getActiveWorkspaceContext();
     if (parsed.data.subscriptionSelection) {
+      // The CLI runs on a personal subscription on this machine: only its holder
+      // (ORIA_SUBSCRIPTION_OWNERS, default MICHAEL_HQ_OWNER_ID) may use it, even
+      // once #410 widens this route to other workspace owners/members (SENT-X-1, SENT-412-8).
+      if (!isSubscriptionOwner((await getCurrentAuthUser())?.id)) {
+        return NextResponse.json({ error: "Abonnement CLI réservé à son titulaire.", code: "SUBSCRIPTION_OWNER_ONLY" }, { status: 403 });
+      }
       return NextResponse.json(await runSubscriptionTurn(parsed.data.subscriptionSelection, parsed.data.message, await loadSubscriptionCatalog()));
     }
     const catalog=await loadChatCapabilityCatalog();
