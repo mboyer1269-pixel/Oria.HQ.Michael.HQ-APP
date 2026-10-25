@@ -137,7 +137,10 @@ test('SENT-412-20: one git worktree per mission — B never moves A off its bran
 
 test('SENT-412-21: agent env strips ANTHROPIC_*/OPENAI_*/base URLs/tokens/keys', () => {
   const e = A.agentEnvironment({ PATH: '/bin', HOME: '/h', ANTHROPIC_BASE_URL: 'http://x', ANTHROPIC_MODEL: 'm', OPENAI_BASE_URL: 'u', GH_TOKEN: 't', LANG: 'C' });
-  assert.deepEqual(Object.keys(e).sort(), ['HOME', 'LANG', 'NODE_ENV', 'PATH']);
+  // MERGE-4: #409's subscriptionEnvironment may add locale vars (LC_ALL…); assert only what matters.
+  const keys = Object.keys(e).filter(k => !/^LC_/.test(k)).sort();
+  assert.deepEqual(keys, ['HOME', 'LANG', 'NODE_ENV', 'PATH']);
+  for (const k of Object.keys(e)) assert.doesNotMatch(k, /^(ANTHROPIC_|OPENAI_|CODEX_|CLAUDE_CODE_)|BASE_URL|TOKEN|_KEY$/i);
 });
 
 test('SENT-412-23: the Claude agent gets no Bash, and credential dirs are denied to its file tools', () => {
