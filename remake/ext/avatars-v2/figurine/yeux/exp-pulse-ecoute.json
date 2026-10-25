@@ -1,0 +1,26 @@
+{
+ "asset": "exp-pulse-ecoute",
+ "cligne": false,
+ "raison": "clin d'œil",
+ "yeux": [
+  {
+   "cx": 0.4024,
+   "cy": 0.5458,
+   "rx": 0.0659,
+   "ry": 0.09,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#f6d0bd"
+  },
+  {
+   "cx": 0.8031,
+   "cy": 0.4828,
+   "rx": 0.0495,
+   "ry": 0.025,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#f8d7c5"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

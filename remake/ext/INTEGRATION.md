@@ -176,3 +176,4 @@ mouvement réduit, axe 0, vidéos < 6 Mo).
 - Délégation : sur `delegation.created`, appeler `window.oriaRelay(fromId, toId)` (comète dans l'orbite).
 - Micro : niveau RMS via AnalyserNode seulement si l'utilisateur a autorisé le micro.
 - Perf : transform/opacity, pause hors écran (IntersectionObserver), mouvement réduit respecté ; son désactivé par défaut.
+- Clignement (rév. 5) : purement décoratif, au repos ; données `avatars-v2/figurine/yeux/*.json` ; voir FIGURINE.md « Clignement des yeux ». Aucun événement n'est requis ni émis.

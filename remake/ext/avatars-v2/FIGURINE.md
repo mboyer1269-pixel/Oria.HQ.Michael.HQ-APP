@@ -135,3 +135,35 @@ Bouton par carte : export canvas de la figurine à la couleur choisie + nom affi
 - Export PNG : nécessite HTTP(S) (canvas « tainted » sous file://), message clair sinon.
 - Expressions de l'affiche : source ~120 px, nettes jusqu'à 120 px seulement.
 - Les animations « une fois » hors écran sont différées jusqu'à l'apparition (voulu).
+
+## Clignement des yeux (révision 5)
+**Signe de vie au repos, jamais un indicateur d'activité** : il ne dit rien sur le travail de l'agent et ne remplace aucun état.
+
+- **Détection automatique** (`figurine-src/eyes.py`) : sur le visage blanc (plus grande zone claire peu saturée), on garde les composantes connexes sombres qui forment une paire horizontale. NEXUS a un traitement dédié (seuil plus strict, enveloppe convexe) parce que la monture des lunettes touche l'œil. Les petites têtes de 64 px reprennent les coordonnées de la tête à 256 px.
+- **Données** : `figurine/yeux/<asset>.json`, un fichier par asset, avec `cx`, `cy`, `rx`, `ry` normalisés, `rotation`, `ferme`, `couleurPaupiere` échantillonnée dans un anneau autour de l'œil, et `cligne`. Agrégat : `figurine/yeux.json`.
+- **Contrôle** : `captures/figurine-v2/yeux/planche-detection-yeux.png`. Vert = œil ouvert, rouge = fermé ou clin d'œil, jamais couvert.
+- **Paupières** : couche `.fg-lids` dans `.fg-body`, ellipse 1,6 × 1,4 fois l'œil avec bord adouci (mask radial).
+  - La paupière haute (`i`, scaleY depuis le haut) porte un trait de cil arrondi.
+  - Une paupière basse (`b`) remonte légèrement à sa rencontre.
+  - Le tout est animé en transform uniquement (WAAPI).
+- **Rythme** :
+  - 120 à 160 ms (`cubic-bezier(.45,0,.35,1)`), toutes les 2,5 à 6 s au hasard, double une fois sur cinq ;
+  - les deux yeux ensemble, désynchronisés entre agents (échéancier par avatar) ;
+  - un clignement au début de chaque transition d'état.
+- **Par état** :
+  - réflexion : lent (240 ms) et rare (6 à 10 s), paupières à 12 % ;
+  - exécution : yeux mi-plissés (30 %, concentration) ;
+  - erreur : paupières lourdes (42 %) ;
+  - terminé : aucun clignement pendant la célébration.
+- **Expressions** :
+  - seule `exp-aegis-fier` cligne ;
+  - les autres sont exclues : yeux déjà fermés, plissés, clin d'œil, jumelles, ou détection non fiable (motif dans le JSON) ;
+  - NOVA : l'œil en clin d'œil n'est jamais couvert.
+- **Mouvement réduit** : aucun clignement. **Hors écran** : rien ne s'exécute (`.fg-off`), et l'onglet masqué est ignoré.
+- API : `FG.blink(el, double)` pour un appel manuel ; la variable `--lo` (0 à 1) sur `.fg-lid` fixe l'ouverture.
+
+### Limites
+- C'est une paupière superposée, pas un redessin : en gros plan (×3 et plus), on peut deviner un léger halo autour de l'œil et la paupière reste unie (pas d'ombrage 3D du visage).
+- Le trait de cil fermé est une courbe générique, pas le style exact de l'illustrateur.
+- NEXUS : la paupière est vue à travers le verre, en teinte bleutée échantillonnée.
+- `exp-pulse-pouce` et `exp-aegis-garde` ne clignent pas (détection non fiable).

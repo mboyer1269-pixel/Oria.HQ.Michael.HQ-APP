@@ -1,0 +1,26 @@
+{
+ "asset": "exp-nova-pouce",
+ "cligne": false,
+ "raison": "yeux plissés de joie",
+ "yeux": [
+  {
+   "cx": 0.3713,
+   "cy": 0.7008,
+   "rx": 0.0752,
+   "ry": 0.0536,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#ebd0ca"
+  },
+  {
+   "cx": 0.5831,
+   "cy": 0.6594,
+   "rx": 0.0708,
+   "ry": 0.0587,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#eed3ce"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

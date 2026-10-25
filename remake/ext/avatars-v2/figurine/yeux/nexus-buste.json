@@ -1,0 +1,26 @@
+{
+ "asset": "nexus-buste",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.3619,
+   "cy": 0.4457,
+   "rx": 0.0401,
+   "ry": 0.0806,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#8296d0"
+  },
+  {
+   "cx": 0.6138,
+   "cy": 0.4278,
+   "rx": 0.0334,
+   "ry": 0.0667,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#a7b1d0"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

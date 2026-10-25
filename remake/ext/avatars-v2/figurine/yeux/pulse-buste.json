@@ -1,0 +1,26 @@
+{
+ "asset": "pulse-buste",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.4101,
+   "cy": 0.392,
+   "rx": 0.0396,
+   "ry": 0.0764,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#e9caba"
+  },
+  {
+   "cx": 0.6453,
+   "cy": 0.4424,
+   "rx": 0.036,
+   "ry": 0.075,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#ebc9b7"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

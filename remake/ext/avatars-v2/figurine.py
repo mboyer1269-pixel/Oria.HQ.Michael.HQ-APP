@@ -12,6 +12,16 @@ D=pathlib.Path(__file__).resolve().parent/"figurine"
 META=json.loads((D/"meta.json").read_text())
 HEAD=json.loads((D.parent/"figurine-src"/"heads.json").read_text())
 BASE="../avatars-v2/figurine/"
+EYES=json.loads((D/"yeux.json").read_text())
+def lids(a,state):
+    e=EYES.get(a)
+    if not e or not e["cligne"] or state=="done": return ""
+    out=""
+    for y in e["yeux"]:
+        if y["ferme"]: continue
+        rx,ry=y["rx"]*1.62,y["ry"]*1.42
+        out+=f'<span class="fg-lid" style="left:{(y["cx"]-rx)*100:.2f}%;top:{(y["cy"]-ry)*100:.2f}%;width:{rx*200:.2f}%;height:{ry*200:.2f}%;--lc:{y["couleurPaupiere"]}"><i></i><b></b></span>'
+    return f'<span class="fg-lids" aria-hidden="true">{out}</span>' if out else ""
 STL={"idle":"au repos","listening":"écoute","thinking":"réfléchit","executing":"exécute","waiting":"bloqué — attend votre décision","done":"a terminé","error":"en erreur"}
 POSE={"corps":"corps entier","buste":"buste","tete":"tête"}
 EXPN={"ori-joie":"ORI — joie (affiche)","ori-clin":"ORI — casquette, clin d'œil (affiche)","nexus-focus":"NEXUS — concentré (affiche)",
@@ -76,8 +86,16 @@ def render(v,state,size,prog=None,pose="corps",name=None,tint=None):
     tv="" if tint is None else f";--tint:{1 if tint else 0}"
     return (f'<span class="ov2 fg fg-{state}{" fg-sm" if small else ""}" data-fstate="{state}" data-v="{v}" style="--agent-accent:{c};--sem:{SEM.get(state,"var(--a)")};--hx:{HX:.3f};--hy:{HY:.3f};--hr:{HR:.3f};width:{W}px;height:{size}px{tv}">'
       f'{back}<span class="fg-gaze"><span class="fg-sq"><span class="fg-body" style="width:{w}px;height:{size}px"><img src="{BASE}{a}.webp" width="{w}" height="{size}" alt="{alt}" decoding="async">'
-      f'<span class="fg-tint fm-{a}" aria-hidden="true"></span><span class="fg-glw fm-{a}" aria-hidden="true"><i></i></span></span></span></span>{front}</span>')
+      f'<span class="fg-tint fm-{a}" aria-hidden="true"></span><span class="fg-glw fm-{a}" aria-hidden="true"><i></i></span>{lids(a,state)}</span></span></span>{front}</span>')
 CSS=r"""
+.fg-lids{position:absolute;inset:0;pointer-events:none;z-index:3}
+.fg-lid{position:absolute;border-radius:50%;overflow:hidden;-webkit-mask:radial-gradient(closest-side,#000 86%,transparent 100%);mask:radial-gradient(closest-side,#000 86%,transparent 100%)}
+.fg-lid i,.fg-lid b{position:absolute;left:0;right:0}
+.fg-lid i{top:0;height:67%;transform-origin:50% 0;transform:scaleY(var(--lo,0));background:linear-gradient(to bottom,var(--lc),var(--lc))}
+.fg-lid i::after{content:"";position:absolute;left:14%;right:14%;bottom:0;height:45%;border-bottom:max(1px,.09em) solid #2a201c;border-radius:0 0 50% 50%;opacity:calc(var(--lo,0)*1.2)}
+.fg-lid b{bottom:0;height:34%;transform-origin:50% 100%;transform:scaleY(var(--lo,0));background:var(--lc)}
+.fg-executing .fg-lid{--lo:.3}.fg-error .fg-lid{--lo:.42}.fg-thinking .fg-lid{--lo:.12}
+
 .fg{--a:var(--brand-accent,var(--agent-accent));--tint:0;--lvl:0;position:relative;display:inline-block;vertical-align:middle;isolation:isolate}
 .ov2.fg{height:auto}.ov2.fg svg{height:auto}
 .fg-gaze,.fg-sq{position:absolute;inset:0;display:grid;place-items:end center;transform-origin:50% 100%}

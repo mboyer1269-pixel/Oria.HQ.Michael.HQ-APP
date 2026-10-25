@@ -1,0 +1,7 @@
+{
+ "asset": "exp-pulse-pouce",
+ "cligne": false,
+ "raison": "détection non fiable",
+ "yeux": [],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

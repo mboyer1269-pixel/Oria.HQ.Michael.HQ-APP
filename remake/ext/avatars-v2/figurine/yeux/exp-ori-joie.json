@@ -1,0 +1,26 @@
+{
+ "asset": "exp-ori-joie",
+ "cligne": false,
+ "raison": "yeux déjà fermés (rire)",
+ "yeux": [
+  {
+   "cx": 0.3722,
+   "cy": 0.4721,
+   "rx": 0.0802,
+   "ry": 0.0519,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#eccebd"
+  },
+  {
+   "cx": 0.7313,
+   "cy": 0.519,
+   "rx": 0.0637,
+   "ry": 0.059,
+   "rotation": 0,
+   "ferme": true,
+   "couleurPaupiere": "#f4dcc5"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

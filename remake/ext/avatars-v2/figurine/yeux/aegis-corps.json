@@ -1,0 +1,26 @@
+{
+ "asset": "aegis-corps",
+ "cligne": true,
+ "raison": "",
+ "yeux": [
+  {
+   "cx": 0.2863,
+   "cy": 0.2381,
+   "rx": 0.026,
+   "ry": 0.049,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#c1b7b3"
+  },
+  {
+   "cx": 0.4648,
+   "cy": 0.2377,
+   "rx": 0.0308,
+   "ry": 0.049,
+   "rotation": 0,
+   "ferme": false,
+   "couleurPaupiere": "#d9cdc5"
+  }
+ ],
+ "source": "détection automatique (figurine-src/eyes.py)"
+}

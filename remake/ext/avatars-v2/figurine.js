@@ -11,7 +11,7 @@ const still=()=>mq.matches||document.documentElement.classList.contains('rm');
 const vis=new Set();
 const io=new IntersectionObserver(es=>es.forEach(e=>{e.target.classList.toggle('fg-off',!e.isIntersecting);e.isIntersecting?vis.add(e.target):vis.delete(e.target)}),{rootMargin:'40px'});
 const seen=new WeakSet();
-function scan(root){(root||document).querySelectorAll('.fg').forEach(el=>{if(!seen.has(el)){seen.add(el);io.observe(el)}})}
+function scan(root){(root||document).querySelectorAll('.fg').forEach(el=>{if(!seen.has(el)){seen.add(el);io.observe(el);if(seen.ready)nextB.set(el,performance.now()+90)}})}
 new MutationObserver(ms=>{let add=false;for(const m of ms)for(const n of m.addedNodes)if(n.nodeType==1){add=true;break}if(add)scan();for(const el of [...vis])if(!el.isConnected)vis.delete(el)}).observe(document.documentElement,{childList:true,subtree:true});
 /* regard */
 let tx=null,ty=null,raf=0;
@@ -60,6 +60,21 @@ async function exportPNG(fgEl,name,color,bg){const img=fgEl.querySelector('img')
     l.globalCompositeOperation='color';l.drawImage(C,0,0);l.globalCompositeOperation='soft-light';l.globalAlpha=.55;l.drawImage(C,0,0);l.globalAlpha=1;l.globalCompositeOperation='destination-in';l.drawImage(im,ox,oy,w,h)}}
   x.drawImage(L,0,0);x.font='700 34px system-ui, sans-serif';x.textAlign='center';x.fillStyle='#fff';x.fillText(name,S/2,S-30);
   return new Promise((res,rej)=>{try{cv.toBlob(b=>b?res(b):rej(new Error('blob')),'image/png')}catch(e){rej(e)}})}
-window.FG={scan,micOn,micOff,chime,relay,exportPNG,sound:false,still};
-scan();
+/* clignement : signe de vie au repos, jamais un indicateur d'activité.
+   2,5–6 s aléatoire par avatar (désynchronisé), double 1 fois sur 5, les deux yeux ensemble ;
+   un clignement au début de chaque transition d'état ; lent et rare en réflexion ;
+   jamais pendant la célébration (terminé), ni hors écran, ni en mouvement réduit. */
+const nextB=new WeakMap();
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function blink(el,dbl){if(still()||document.hidden||el.classList.contains('fg-off')||el.classList.contains('fg-done'))return;
+ const ls=el.querySelectorAll('.fg-lid i,.fg-lid b');if(!ls.length)return;const th=el.classList.contains('fg-thinking');
+ ls.forEach(i=>{const lo=parseFloat(getComputedStyle(i).getPropertyValue('--lo'))||0;
+  i.animate([{transform:`scaleY(${lo})`},{transform:'scaleY(1)',offset:.42},{transform:'scaleY(1)',offset:.55},{transform:`scaleY(${lo})`}],
+   {duration:th?240:rnd(120,160),easing:'cubic-bezier(.45,0,.35,1)'}).finished.then(()=>{if(dbl)setTimeout(()=>blink(el,false),110)}).catch(()=>{})});}
+setInterval(()=>{const t=performance.now();for(const el of vis){let n=nextB.get(el);
+ if(n==null){nextB.set(el,t+rnd(400,5000));continue}
+ if(t>=n){const th=el.classList.contains('fg-thinking');blink(el,!th&&Math.random()<.2);nextB.set(el,t+(th?rnd(6000,10000):rnd(2500,6000)))}}},100);
+new MutationObserver(ms=>{for(const m of ms){const el=m.target;if(el.classList&&el.classList.contains('fg'))nextB.set(el,performance.now()+60)}}).observe(document.documentElement,{attributes:true,attributeFilter:['data-fstate'],subtree:true});
+window.FG={blink,scan,micOn,micOff,chime,relay,exportPNG,sound:false,still};
+scan();seen.ready=1;
 })();
