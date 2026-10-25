@@ -163,3 +163,9 @@ Voir `familles/FAMILLES.md`. Pages : `mockups/famille-{billy,astrolabe,glyphe}.h
 
 ## 12. Avatars v2 — hybride Billy × Astrolabe, couleur en tokens, atelier
 Voir `avatars-v2/RECHERCHE-AVATARS.md`. Pages `mockups/avatars-v2-galerie.html`, `mockups/avatars-v2.html`. Captures `captures/avatars-v2/`, vidéos `captures/avatars-v2/video/avatars-v2-demo-{1440,390}.webm`. axe : 0 violation sur 6 analyses (2 pages + mode marque × 1440/390).
+
+## §13 Avatars — famille « Billy Figurine » (recommandée)
+Images de Michael détourées (aucun redessin), couches d'état CSS/SVG, recoloration de l'image par masque de saturation
+piloté par `--agent-accent` / `--brand-accent`. Décision, fichiers, props React (`famille`, `variante`, `pose`, `couleur`,
+état via `useAgentState`) et limites : `avatars-v2/FIGURINE.md`. Preuves : `captures/figurine/` (1440/390, animé et
+mouvement réduit, axe 0, vidéos < 6 Mo).
