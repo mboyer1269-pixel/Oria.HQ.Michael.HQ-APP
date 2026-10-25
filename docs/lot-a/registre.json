@@ -1,0 +1,204 @@
+{
+ "main": "491a7a9b27106e514cc98ca8e300f9db93cb84ac",
+ "date": "2026-10-25",
+ "lignes": [
+  {
+   "n": "1",
+   "chemin": "`src/server/orchestration/paperclip-dispatch.ts`",
+   "depot": "main",
+   "sha": "`69d2469`",
+   "statut": "simulé",
+   "marque": "V",
+   "tests": "`paperclip-dispatch.test.mjs` passe",
+   "constats": "Appelé par `src/app/api/orchestration/missions/dispatch/route.ts`. Ne fait que **lier** une mission : `paperclip-dispatch.ts:95` renvoie `executionRequested: false`. Actif seulement si `serverEnv.paperclipDispatchEnabled`.",
+   "decision": "conserver"
+  },
+  {
+   "n": "2",
+   "chemin": "`src/server/orchestration/paperclip-dispatch-store.ts`",
+   "depot": "main",
+   "sha": "`ca8d3b6`",
+   "statut": "simulé",
+   "marque": "V",
+   "tests": "indirect (#1)",
+   "constats": "39 lignes, utilisé seulement par #1.",
+   "decision": "conserver"
+  },
+  {
+   "n": "3",
+   "chemin": "`src/server/missions/openhands-tool-inbox.ts`",
+   "depot": "main",
+   "sha": "`7e54b46`",
+   "statut": "simulé",
+   "marque": "V / S",
+   "tests": "`openhands-tool-route.test.mjs`",
+   "constats": "Utilisé par `api/orchestration/openhands/tools/[launchId]/route.ts`. Parle à un socket fixe `/run/oria-hq-control/<id>/review.sock` (l.15) : rien ne prouve qu'un tel socket existe en prod (**S**).",
+   "decision": "reconnecter (plus tard, après D′)"
+  },
+  {
+   "n": "4",
+   "chemin": "`src/server/ai/model-router.ts`",
+   "depot": "main",
+   "sha": "`b0bc435`",
+   "statut": "réel (partiel)",
+   "marque": "V",
+   "tests": "`test:model-router` passe",
+   "constats": "552 l. Classifieur de difficulté « stub/heuristic for MVP » (l.161).",
+   "decision": "faire évoluer"
+  },
+  {
+   "n": "5",
+   "chemin": "`src/features/skills/skill-governance.ts`",
+   "depot": "main",
+   "sha": "`7782065`",
+   "statut": "simulé (orphelin)",
+   "marque": "V",
+   "tests": "`test:skill-governance`",
+   "constats": "**Aucun import hors de son test** (`git grep skill-governance`). Code mort côté produit.",
+   "decision": "déprécier ou reconnecter (décision boss)"
+  },
+  {
+   "n": "6",
+   "chemin": "`src/server/memory/memory-graph.ts`",
+   "depot": "main",
+   "sha": "`c8c0972`",
+   "statut": "réel",
+   "marque": "V",
+   "tests": "`test:memory-graph`",
+   "constats": "Utilisé par `app/hq/memory/page.tsx`, `memory-vault-explorer.tsx`, `agent-learning-loop.ts`, `memory-file-vault.ts`.",
+   "decision": "conserver"
+  },
+  {
+   "n": "7",
+   "chemin": "`src/server/jobs/inngest-client.ts`",
+   "depot": "main",
+   "sha": "`e3fe502`",
+   "statut": "simulé",
+   "marque": "V",
+   "tests": "nouveau test runtime sur #408 (`492e404`)",
+   "constats": "Client unique `michael-hq`. Voir raccordement R2 : l'événement n'a **aucun producteur**.",
+   "decision": "conserver"
+  },
+  {
+   "n": "8",
+   "chemin": "`src/app/api/inngest/route.ts`",
+   "depot": "main",
+   "sha": "`363b333`",
+   "statut": "simulé",
+   "marque": "V",
+   "tests": "idem",
+   "constats": "Enregistre `jorisExecuteJob` + `shadowScoreCron`. Testé sans compte (mode dev) sur #408.",
+   "decision": "conserver"
+  },
+  {
+   "n": "9",
+   "chemin": "`src/server/joris/brain.ts`",
+   "depot": "main",
+   "sha": "`1e5dba9`",
+   "statut": "réel",
+   "marque": "V",
+   "tests": "nombreux tests",
+   "constats": "Appelé en direct par `api/joris/chat/route.ts:42` (synchrone). Génère via `joris-reply-generator` (l.27, 300).",
+   "decision": "faire évoluer"
+  },
+  {
+   "n": "10",
+   "chemin": "`src/features/agents/seed.ts`",
+   "depot": "main",
+   "sha": "`77653f2`",
+   "statut": "**mock**",
+   "marque": "V",
+   "tests": "`test:agent-charter`",
+   "constats": "Registre statique ; `status: \"active\"` déclaré pour les agents, **pas observé** (aucune preuve d'exécution). 22 fichiers l'importent.",
+   "decision": "faire évoluer (statuts observés)"
+  },
+  {
+   "n": "11",
+   "chemin": "`src/server/ai/subscription-runtime.ts`",
+   "depot": "#409 @ `6c25d7a`",
+   "sha": "`79224ce`→ modifié",
+   "statut": "réel (local seulement)",
+   "marque": "V (tests) / S (vrai CLI)",
+   "tests": "17 tests, dont 3 nouveaux avec vrai processus",
+   "constats": "Ajout aujourd'hui : UTF-8 (StringDecoder + `LANG/LC_ALL=C.UTF-8`) et **une seule exécution CLI à la fois** (429 `runtime_busy`). Jamais lancé avec un vrai abonnement Codex ici (**S**).",
+   "decision": "conserver"
+  },
+  {
+   "n": "12",
+   "chemin": "`src/server/atelier/atelier-mission.ts`",
+   "depot": "#412 @ `d492174`",
+   "sha": "`e181f5c`",
+   "statut": "simulé",
+   "marque": "V",
+   "tests": "non relancés",
+   "constats": "#412 est **empilée sur d'anciens commits** de #409 (`261c8e7`) et #410 (`7b58a4f`), pas sur `e635d74`/`aac608b`. Il contient sa propre `0032` **différente** de celle de #410 (`9dd86d8` ≠ `6919630`).",
+   "decision": "faire évoluer (rebase en B′)"
+  },
+  {
+   "n": "13",
+   "chemin": "`src/server/auth/authz-context.ts`",
+   "depot": "#410 @ `aac608b`",
+   "sha": "`8c059c4`",
+   "statut": "réel (code)",
+   "marque": "V",
+   "tests": "tests #410",
+   "constats": "Exige `email_confirmed_at` (l.8).",
+   "decision": "conserver"
+  },
+  {
+   "n": "14",
+   "chemin": "`db/migrations/0032_workspace_members*.sql`",
+   "depot": "#410",
+   "sha": "`6919630` / revert `8001f14` / verify `f8b711a`",
+   "statut": "**non appliquée**",
+   "marque": "V (fichier) / S (base)",
+   "tests": "aucun sur base",
+   "constats": "En-tête « Prepared only: NOT APPLIED ». Pas de base de test accessible ici → ni appliquée ni vérifiée (interdit de toute façon).",
+   "decision": "conserver, appliquer sur base de test en B′"
+  },
+  {
+   "n": "15",
+   "chemin": "`db/migrations/drafts/employee_profiles*.sql`",
+   "depot": "#406 @ `83e7b1c`",
+   "sha": "`150c2fa` (+ verify `7b2f049`, revert `3a9c9d2`)",
+   "statut": "brouillon",
+   "marque": "V",
+   "tests": "—",
+   "constats": "Brouillons uniquement. #406 apporte aussi une UI (`src/features/employees/…`). Plan : ne garder que la migration.",
+   "decision": "reconnecter (migration seule)"
+  },
+  {
+   "n": "16",
+   "chemin": "`src/server/outbound/consent-evidence.ts`",
+   "depot": "#413 @ `b7b0217`",
+   "sha": "`2729b16`",
+   "statut": "réel (code)",
+   "marque": "H",
+   "tests": "non relancés",
+   "constats": "Consentement inconnu ⇒ envoi bloqué (titre de PR). Réaudit Sentinelle demandé par le plan non fait ici.",
+   "decision": "conserver"
+  },
+  {
+   "n": "17",
+   "chemin": "`db/migrations/0001`→`0031`",
+   "depot": "main",
+   "sha": "49 fichiers",
+   "statut": "**inconnu en prod**",
+   "marque": "V (liste) / S (état base)",
+   "tests": "—",
+   "constats": "**Trou : pas de `0026`.** Doublons de numéro : deux `0006`, deux `0008`(+revert/verify), deux `0009`, `0021`. 8 brouillons dans `drafts/`. Quelles migrations sont appliquées en prod : **non vérifié** (pas d'accès base).",
+   "decision": "documenter, vérifier en B′"
+  },
+  {
+   "n": "18",
+   "chemin": "Interface (`src/features/**/*.tsx`, `src/app/**/*.tsx`)",
+   "depot": "lot-a-prime",
+   "sha": "`eslint.config.mjs`",
+   "statut": "réel",
+   "marque": "V",
+   "tests": "`src/core/ui-import-boundary.test.mjs` (9 tests)",
+   "constats": "Nouvelle règle : pas d'import **valeur** de client DB, de moteurs ni de `server-env`. 0 violation sauf **UI-1** : `src/app/hq/missions/page.tsx:19` lit le jeton Paperclip via `serverEnv` (exception limitée, à corriger). Beaucoup de composants serveur importent encore des dépôts métier (`@/server/missions`, `action-ledger-read`…) : permis par la règle, à resserrer plus tard.",
+   "decision": "faire évoluer"
+  }
+ ]
+}
