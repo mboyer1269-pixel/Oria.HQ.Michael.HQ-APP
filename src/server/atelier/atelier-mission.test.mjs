@@ -139,3 +139,11 @@ test('SENT-412-21: agent env strips ANTHROPIC_*/OPENAI_*/base URLs/tokens/keys',
   const e = A.agentEnvironment({ PATH: '/bin', HOME: '/h', ANTHROPIC_BASE_URL: 'http://x', ANTHROPIC_MODEL: 'm', OPENAI_BASE_URL: 'u', GH_TOKEN: 't', LANG: 'C' });
   assert.deepEqual(Object.keys(e).sort(), ['HOME', 'LANG', 'NODE_ENV', 'PATH']);
 });
+
+test('SENT-412-23: the Claude agent gets no Bash, and credential dirs are denied to its file tools', () => {
+  const a = A.agentInvocation('claude-code', 'm', null).args;
+  const allowed = a[a.indexOf('--allowedTools') + 1];
+  assert.ok(!/Bash/.test(allowed), allowed);
+  const denied = a[a.indexOf('--disallowedTools') + 1] ?? '';
+  for (const d of ['Bash', 'Read(~/.claude/**)', 'Read(~/.codex/**)', 'Read(~/.ssh/**)']) assert.ok(denied.split(',').includes(d), d);
+});

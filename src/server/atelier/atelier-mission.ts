@@ -111,7 +111,9 @@ export function agentInvocation(runtimeId: RuntimeId, modelId: string, resumeSes
     return { binary: "codex", args: resumeSession ? ["exec", "resume", ...common, "-c", 'sandbox_mode="workspace-write"', resumeSession, "-"] : ["exec", ...common, "-s", "workspace-write", "-"] };
   }
   const args = ["-p", "--model", modelId, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
-    "--allowedTools", "Read,Edit,Write,Glob,Grep,Bash(npm test:*),Bash(node --test:*),Bash(ls:*),Bash(cat:*)",
+    // SENT-412-23: no shell at all (tests run in the runner's confined test step); file tools denied on credential dirs.
+    "--allowedTools", "Read,Edit,Write,Glob,Grep",
+    "--disallowedTools", "Bash,WebFetch,WebSearch,Read(~/.claude/**),Edit(~/.claude/**),Write(~/.claude/**),Read(~/.codex/**),Edit(~/.codex/**),Write(~/.codex/**),Read(~/.ssh/**),Edit(~/.ssh/**),Write(~/.ssh/**),Read(~/.config/**),Edit(~/.config/**),Write(~/.config/**),Read(~/.aws/**),Edit(~/.aws/**),Write(~/.aws/**),Read(~/.npmrc),Edit(~/.npmrc),Write(~/.npmrc),Read(~/.netrc),Edit(~/.netrc),Write(~/.netrc),Read(~/.gitconfig),Edit(~/.gitconfig),Write(~/.gitconfig),Read(~/.git-credentials),Edit(~/.git-credentials),Write(~/.git-credentials)",
     "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
     // SENT-412-17: never load user/project/local settings (their `env`, apiKeyHelper, skills, plugins could switch to the paid API).
     "--setting-sources", "", "--settings", '{"disableAllHooks":true,"apiKeyHelper":""}'];

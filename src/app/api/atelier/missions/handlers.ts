@@ -87,7 +87,7 @@ export function resumeAtelierMission(ctx: AtelierCtx, id: string, body: unknown,
   const root = deps.root ?? atelierRoot(); if (!scoped(ctx, id, root)) return notFound();
   const parsed = resumeSchema.safeParse(body ?? {}); if (!parsed.success) return json({ error: "Requête invalide.", code: "invalid_request" }, 400);
   try {
-    const s = startAgentStep(id, null, parsed.data.prompt ?? "Reprise après interruption : termine la tâche précédente en repartant de l'état actuel des fichiers, exécute les tests. Ne fais pas de commit.", { root, resume: true });
+    const s = startAgentStep(id, null, parsed.data.prompt ?? "Reprise après interruption : termine la tâche précédente en repartant de l'état actuel des fichiers. Les tests sont lancés par l'atelier. Ne fais pas de commit.", { root, resume: true });
     s.done.catch(() => undefined);
     return json({ missionId: id, stepId: s.stepId, mission: missionView(s.mission) }, 202);
   } catch (error) { return fail(error); }
