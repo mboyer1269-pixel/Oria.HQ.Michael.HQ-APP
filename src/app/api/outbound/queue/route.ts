@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { buildApprovedSendCandidate } from "@/server/outbound/outbound-queue-intake";
+import { buildClientSendCandidate } from "@/server/outbound/outbound-queue-intake";
 import {
   listOutboundSendCandidates,
   registerOutboundSendCandidate,
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const built = buildApprovedSendCandidate({
+  const built = buildClientSendCandidate({
     ...parsed.data,
     workspaceId: ctx.workspace.id,
     approverId: ctx.userId,

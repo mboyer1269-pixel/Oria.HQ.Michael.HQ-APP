@@ -47,3 +47,14 @@ test("marketplace listing packet from stock", async (t) => {
     assert.equal(validateMarketplaceListingPacket(packet).valid, true);
   });
 });
+
+test("listing copy makes no unsupported availability promise for any condition", () => {
+  for (const condition of ["new", "used", "cpo"]) {
+    const packet = prepareListingFromStock({ packetId: "availability", workspaceId: "ws", nowIso: NOW,
+      vehicle: { stockId: "stock", year: 2026, make: "Test", model: "Car", condition, priceCad: 30000, photoUrls: [] },
+    });
+    const copy = JSON.stringify(packet);
+    assert.doesNotMatch(copy, /cette semaine|réponse rapide|en stock à Gatineau/i);
+    assert.match(copy, /disponibilités à confirmer/);
+  }
+});

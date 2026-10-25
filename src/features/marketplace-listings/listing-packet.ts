@@ -125,7 +125,7 @@ export function prepareListingFromStock(input: {
   // 1) Hook — first 2 lines shown before « Voir plus » must sell the click.
   const hook =
     v.condition === "new"
-      ? `${title} neuf, en stock à Gatineau — prêt pour un essai cette semaine.`
+      ? `${title} neuf — disponibilité et essai à confirmer auprès de la concession.`
       : mileage
         ? `${title} · ${mileage} — disponibilité à confirmer, à ${priceLine}.`
         : `${title} — disponibilité à confirmer, à ${priceLine}.`;
@@ -148,7 +148,7 @@ export function prepareListingFromStock(input: {
 
   // 4) CTA — schedule the test drive (fills the livre).
   const cta =
-    "Répondez à cette annonce pour réserver votre essai routier — réponse rapide, créneaux cette semaine.";
+    "Répondez à cette annonce pour demander un essai routier — disponibilités à confirmer avec la concession.";
 
   const description = [
     hook,

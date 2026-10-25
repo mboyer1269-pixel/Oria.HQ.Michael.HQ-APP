@@ -85,6 +85,14 @@ export type SalesLead = {
   createdByUserId: string;
 };
 
+/** Client evidence cannot establish consent. Keep express as a manual attestation only. */
+export function normalizeClientLeadConsent(input: Pick<SalesLead, "consentBasis" | "consentEvidence">): Pick<SalesLead, "consentBasis" | "consentEvidence"> {
+  return {
+    consentBasis: input.consentBasis === "implied_verified" ? "manual_review_required" : input.consentBasis,
+    consentEvidence: undefined,
+  };
+}
+
 export type LeadValidation = {
   valid: boolean;
   errors: string[];

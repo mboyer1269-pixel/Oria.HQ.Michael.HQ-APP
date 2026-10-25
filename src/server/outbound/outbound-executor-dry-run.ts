@@ -26,6 +26,7 @@
 // See WO-07 for callback signing requirements
 // ---------------------------------------------------------------------------
 
+import { hasRecordedConsentProvenance } from "./consent-evidence.ts";
 import type { OutboundBatch, OutboundAction } from "./outbound-types.ts";
 import { isBatchTransitionAllowed } from "./outbound-types.ts";
 import { isBatchApprovalStillValid, isSendWindowOpen } from "./outbound-batch-approval.ts";
@@ -136,6 +137,21 @@ export function executeBatchDryRun(
       workspaceId: batch.workspaceId,
       status: "blocked",
       blockReason: `Send window has closed (${batch.sendWindow.end})`,
+      actions: [],
+      executedAt,
+      totalActions: 0,
+      dryRun: true,
+    };
+  }
+
+  // Recheck consent at execution, even for already approved batches.
+  if ((batch.consentBasis !== "express" && batch.consentBasis !== "implied_verified") ||
+      (batch.consentBasis === "implied_verified" && !hasRecordedConsentProvenance(batch))) {
+    return {
+      batchId: batch.id,
+      workspaceId: batch.workspaceId,
+      status: "blocked",
+      blockReason: "Consent unknown or recorded verified provenance missing",
       actions: [],
       executedAt,
       totalActions: 0,

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { requireOwnerApiSession } from "@/server/auth/owner";
-import { CONSENT_BASES, LEAD_SOURCES, LEAD_STAGES } from "@/features/sales/sales-lead";
+import { CONSENT_BASES, LEAD_SOURCES, LEAD_STAGES, normalizeClientLeadConsent } from "@/features/sales/sales-lead";
 import { listSalesLeads, upsertSalesLead } from "@/server/sales/lead-bank-store";
 
 // GET  /api/sales/leads — list lead bank
@@ -79,9 +79,11 @@ export async function POST(request: Request) {
       interestedStockIds: data.interestedStockIds ?? [],
       interestedModels: data.interestedModels ?? [],
       stage: (data.stage as (typeof LEAD_STAGES)[number] | undefined) ?? "new",
-      consentBasis: data.consentBasis as (typeof CONSENT_BASES)[number],
+      ...normalizeClientLeadConsent({
+        consentBasis: data.consentBasis as (typeof CONSENT_BASES)[number],
+        consentEvidence: data.consentEvidence,
+      }),
       consentNote: data.consentNote,
-      consentEvidence: data.consentEvidence,
       nextFollowUpAt: data.nextFollowUpAt ?? nowIso,
       lastContactAt: data.lastContactAt,
       notes: data.notes ?? "",

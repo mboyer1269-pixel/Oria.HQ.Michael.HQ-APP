@@ -1,6 +1,16 @@
 import type { OutboundBatch } from "./outbound-types.ts";
 
-/** A label alone is not recorded proof of the right to contact someone. */
+/** HTTP evidence is an assertion, never a trusted record, even from the owner. */
+export function neutralizeClientConsent(input: Pick<OutboundBatch, "consentBasis"> & Partial<Pick<OutboundBatch, "consentProvenance">>) {
+  return {
+    // Preserve express as the existing manual Sales Desk attestation, not verified proof.
+    consentBasis: input.consentBasis === "implied_verified" ? "manual_review_required" as const : input.consentBasis,
+    consentProvenance: (input.consentProvenance ?? []).map((ref) => ({ ...ref, isVerified: false })),
+  };
+}
+
+/** For server-constructed records only; untrusted inputs must be neutralized first.
+ * A label alone is not recorded proof of the right to contact someone. */
 export function hasRecordedConsentProvenance(
   batch: Pick<OutboundBatch, "consentProvenance">,
 ): boolean {

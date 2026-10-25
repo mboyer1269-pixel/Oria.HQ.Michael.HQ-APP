@@ -10,7 +10,7 @@
 // the route registers the result.
 // ---------------------------------------------------------------------------
 
-import { hasRecordedConsentProvenance } from "./consent-evidence.ts";
+import { hasRecordedConsentProvenance, neutralizeClientConsent } from "./consent-evidence.ts";
 import { createHash, randomUUID } from "node:crypto";
 import type {
   AudienceType,
@@ -74,6 +74,12 @@ export function computeOutboundContentHash(input: {
     .digest("hex");
 }
 
+/** Intake for HTTP callers. There is currently no server evidence store to resolve assertions. */
+export function buildClientSendCandidate(input: OutboundQueueIntakeInput): OutboundQueueIntakeResult {
+  return buildApprovedSendCandidate({ ...input, ...neutralizeClientConsent(input) });
+}
+
+/** Trusted server input only. HTTP callers must use buildClientSendCandidate. */
 export function buildApprovedSendCandidate(
   input: OutboundQueueIntakeInput,
 ): OutboundQueueIntakeResult {

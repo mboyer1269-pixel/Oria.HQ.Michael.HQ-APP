@@ -203,3 +203,19 @@ test("executeBatchDryRun — ok with zero actions", () => {
   assert.strictEqual(result.totalActions, 0);
   assert.strictEqual(result.dryRun, true);
 });
+
+for (const consentBasis of ["unknown", "manual_review_required", "implied_verified"]) {
+  test(`execution blocks ${consentBasis} without recorded proof`, () => {
+    const result = executeBatchDryRun(makeApprovedBatch({ consentBasis, consentProvenance: [] }), [makeAction("a", "l")]);
+    assert.equal(result.status, "blocked");
+    assert.match(result.blockReason, /consent/i);
+    assert.deepEqual(result.actions, []);
+  });
+}
+for (const proof of [{ isVerified: false }, { provenance: "simulated" }, { referenceId: "" }, { capturedAt: "invalid" }]) {
+  test(`execution rejects invalid implied evidence ${JSON.stringify(proof)}`, () => {
+    const batch = makeApprovedBatch();
+    batch.consentProvenance = [{ ...batch.consentProvenance[0], ...proof }];
+    assert.equal(executeBatchDryRun(batch, [makeAction("a", "l")]).status, "blocked");
+  });
+}

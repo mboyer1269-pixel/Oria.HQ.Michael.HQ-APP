@@ -309,3 +309,20 @@ test("failed outcome does NOT short-circuit a retry (only sent outcomes are idem
   assert.equal(result.status, "sent");
   assert.equal(calls.sends.length, 1);
 });
+
+for (const overrides of [
+  { consentBasis: "unknown" },
+  { consentBasis: "manual_review_required" },
+  { consentProvenance: [] },
+  { consentProvenance: [{ ...makeBatch().consentProvenance[0], isVerified: false }] },
+  { consentProvenance: [{ ...makeBatch().consentProvenance[0], provenance: "simulated" }] },
+]) {
+  test(`live execution blocks unproven consent ${JSON.stringify(overrides)}`, async () => {
+    const { ports, calls } = makePorts();
+    const result = await executeSingleSendLive(makeRequest({ batch: makeBatch(overrides) }), ports);
+    assert.equal(result.status, "blocked");
+    assert.ok(result.blockCodes.includes("consent_basis_not_allowed"));
+    assert.deepEqual(calls.sends, []);
+    assert.deepEqual(calls.ledger, []);
+  });
+}
