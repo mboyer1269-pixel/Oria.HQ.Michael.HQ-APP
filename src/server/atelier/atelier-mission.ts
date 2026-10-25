@@ -156,22 +156,36 @@ export function createMission(input: { title: string; need: string; repoPath: st
 
 /** Signal 0 probe. EPERM = the pid exists but belongs to another user: it is ALIVE (SENT-412-7). */
 export const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
-/** Kernel start time of a pid (/proc/<pid>/stat field 22, in clock ticks since boot): the pid's identity. null if unknown. */
-export function procStartTime(pid: number): string | null {
-  try { const st = readFileSync(`/proc/${pid}/stat`, "utf8"); return st.slice(st.lastIndexOf(")") + 2).split(" ")[19] ?? null; } catch { return null; }
+/**
+ * Identity of a pid = its start time (SENT-412-3/6).
+ * - Linux: /proc/<pid>/stat field 22 (clock ticks since boot) → "<ticks>".
+ * - Elsewhere (macOS/BSD, no /proc): `ps -o lstart= -p <pid>` (second resolution) → "ps:<lstart>".
+ * - Neither available → null = identity UNPROVABLE. An unprovable identity is never treated as the recorded
+ *   process: never "live" (no lock blocked for ever) and never killed (no blind kill). New locks refuse to be
+ *   created without a provable runner identity (process_identity_unavailable).
+ */
+export function procStartTime(pid: number, opts: { proc?: boolean; ps?: boolean } = {}): string | null {
+  if (opts.proc !== false) {
+    try { const st = readFileSync(`/proc/${pid}/stat`, "utf8"); const v = st.slice(st.lastIndexOf(")") + 2).split(" ")[19]; if (v) return v; } catch { /* no /proc or gone */ }
+    if (existsSync("/proc/self/stat") && opts.ps !== true) return null; // Linux: /proc is authoritative
+  }
+  if (opts.ps === false) return null;
+  const r = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", timeout: 2000 });
+  const v = r.status === 0 ? String(r.stdout).trim().replace(/\s+/g, " ") : "";
+  return v ? `ps:${v}` : null;
 }
-/** Same process as recorded? A recycled pid has another start time. Without a recorded start, fall back to liveness (legacy locks). */
+/** Same process as recorded? Requires a provable identity on both sides (null → false: neither live nor killable). */
 export function sameProcess(pid: number | null | undefined, start: string | null | undefined): boolean {
-  if (!pid || !pidAlive(pid)) return false;
-  if (start == null) return true;
-  return procStartTime(pid) === start;
+  if (!pid || !pidAlive(pid) || start == null) return false;
+  const cur = start.startsWith("ps:") ? procStartTime(pid, { proc: false }) : procStartTime(pid);
+  return cur === start;
 }
-/** Kill a process group only if its leader is still the recorded process (never a reused pid). */
-export function killRecordedGroup(pid: number | null | undefined, start: string | null | undefined, signal: NodeJS.Signals): "killed" | "gone" | "identity_mismatch" | "identity_unknown" {
+/** Kill a process group only if its leader is still the recorded process (never a reused pid, never blind). */
+export function killRecordedGroup(pid: number | null | undefined, start: string | null | undefined, signal: NodeJS.Signals): "killed" | "gone" | "identity_mismatch" | "identity_unknown" | "kill_failed" {
   if (!pid || !pidAlive(pid)) return "gone";
   if (start == null) return "identity_unknown";
-  if (procStartTime(pid) !== start) return "identity_mismatch";
-  try { process.kill(-pid, signal); return "killed"; } catch { return "gone"; }
+  if (!sameProcess(pid, start)) return "identity_mismatch";
+  try { process.kill(-pid, signal); return "killed"; } catch (e) { return (e as NodeJS.ErrnoException).code === "ESRCH" ? "gone" : "kill_failed"; }
 }
 const lockPath = (id: string, root: string) => join(missionDir(id, root), "run.lock");
 export function currentLock(id: string, root = atelierRoot()): (AtelierLock & { live: boolean }) | null {
@@ -213,9 +227,11 @@ export function acquireLockFile(lockFile: string, stepId: string, opts: { explic
   return createLock(lockFile, stepId);
 }
 function createLock(lockFile: string, stepId: string) {
+  const runnerStart = procStartTime(process.pid);
+  if (runnerStart == null) throw new Error("process_identity_unavailable");
   let fd: number;
   try { fd = openSync(lockFile, "wx"); } catch { throw new Error("mission_locked_by_live_runner"); }
-  const lock: AtelierLock = { runnerPid: process.pid, runnerStart: procStartTime(process.pid), childPid: null, childStart: null, token: randomUUID(), stepId, since: now() };
+  const lock: AtelierLock = { runnerPid: process.pid, runnerStart, childPid: null, childStart: null, token: randomUUID(), stepId, since: now() };
   writeSync(fd, JSON.stringify(lock)); closeSync(fd);
   return lock;
 }

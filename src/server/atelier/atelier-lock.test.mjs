@@ -111,3 +111,27 @@ test("SENT-412-7: pidAlive treats EPERM (another user's live pid) as alive", () 
   assert.equal(A.pidAlive(1), true, "pid 1 (init, other user) is alive");
   assert.equal(A.pidAlive(2 ** 22 - 7), false, "a free pid is dead (ESRCH)");
 });
+
+test("SENT-412-6: unprovable identity (null start) is neither live nor killable; resume is not blocked", async () => {
+  const other = spawn("sleep", ["30"], { detached: true }); await new Promise(r => setTimeout(r, 100));
+  const f = fresh(); writeFileSync(f, JSON.stringify({ ...DEAD, runnerPid: other.pid, runnerStart: null, childPid: other.pid, childStart: null }));
+  assert.equal(A.sameProcess(other.pid, null), false);
+  assert.throws(() => A.acquireLockFile(f, "R", { explicitResume: false }), /stale_lock_requires_explicit_resume/);
+  let kill; const lock = A.acquireLockFile(f, "R", { explicitResume: true, onStale: (held) => { kill = A.killRecordedGroup(held.childPid, held.childStart, "SIGKILL"); } });
+  assert.equal(lock.stepId, "R");
+  assert.equal(kill, "identity_unknown", "never a blind kill");
+  assert.equal(A.pidAlive(other.pid), true);
+  process.kill(-other.pid, "SIGKILL");
+});
+
+test("SENT-412-6: portable fallback via `ps -o lstart=` gives a stable identity (no /proc path)", async () => {
+  const c = spawn("sleep", ["30"], { detached: true }); await new Promise(r => setTimeout(r, 100));
+  const viaPs = A.procStartTime(c.pid, { proc: false });
+  assert.match(String(viaPs), /^ps:\S/);
+  assert.equal(A.sameProcess(c.pid, viaPs), true);
+  assert.equal(A.killRecordedGroup(c.pid, "ps:Thu Jan  1 00:00:00 1970", "SIGKILL"), "identity_mismatch");
+  assert.equal(A.killRecordedGroup(c.pid, viaPs, "SIGKILL"), "killed");
+  await new Promise(r => c.on("exit", r));
+  assert.equal(A.procStartTime(c.pid, { proc: false }), null, "dead pid → null");
+  assert.equal(A.procStartTime(process.pid, { proc: false, ps: false }), null, "neither source → null (unprovable)");
+});
