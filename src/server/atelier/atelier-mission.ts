@@ -107,16 +107,27 @@ export function agentInvocation(runtimeId: RuntimeId, modelId: string, resumeSes
     "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--settings", '{"disableAllHooks":true,"apiKeyHelper":""}'];
   return { binary: "claude", args: resumeSession ? [...args, "--resume", resumeSession] : args };
 }
-/** Session id + completion from the CLI's own stream. */
+/**
+ * Session id + completion from the CLI's own stream.
+ * Claude Code (stream-json): `system/init.model` only ECHOES the request, so it is never used as the observed model.
+ * The observed model is the `message.model` of the last `assistant` event (the id returned by the Anthropic API),
+ * falling back to the only key of the final `result.modelUsage` when no assistant message was streamed.
+ * `quota` = the CLI reported a subscription limit (rate_limit_event status "rejected", or an error result about limits).
+ */
 export function parseTranscript(runtimeId: RuntimeId, transcript: string) {
   const lines = transcript.split("\n").filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } });
   if (runtimeId === "codex") {
-    return { sessionId: lines.find(e => e.type === "thread.started")?.thread_id ?? null, completed: lines.some(e => e.type === "turn.completed") && !lines.some(e => e.type === "turn.failed"), streamModel: null as string | null };
+    return { sessionId: lines.find(e => e.type === "thread.started")?.thread_id ?? null, completed: lines.some(e => e.type === "turn.completed") && !lines.some(e => e.type === "turn.failed"), streamModel: null as string | null, quota: false };
   }
   const init = lines.find(e => e.type === "system" && e.subtype === "init");
   const result = [...lines].reverse().find(e => e.type === "result");
+  const assistant = [...lines].reverse().find(e => e.type === "assistant" && typeof e.message?.model === "string" && e.message.model !== "<synthetic>");
   const usage = Object.keys(result?.modelUsage ?? {});
-  return { sessionId: init?.session_id ?? result?.session_id ?? null, completed: !!result && result.is_error === false, streamModel: (typeof init?.model === "string" ? init.model : usage.length === 1 ? usage[0] : null) as string | null };
+  const quota = lines.some(e => e.type === "rate_limit_event" && e.rate_limit_info?.status === "rejected")
+    || (!!result && result.is_error === true && /usage limit|rate limit|quota|limit reached/i.test(String(result.result ?? "")));
+  return { sessionId: (init?.session_id ?? result?.session_id ?? lines.find(e => typeof e.session_id === "string")?.session_id ?? null) as string | null,
+    completed: !!result && result.is_error === false && result.subtype === "success",
+    streamModel: (assistant ? assistant.message.model : usage.length === 1 ? usage[0] : null) as string | null, quota };
 }
 /** Model actually used, from the CLI's own record (never inferred from the request). */
 export function observedModel(runtimeId: RuntimeId, sessionId: string, transcript: string, home = homedir()): string | null {
@@ -446,7 +457,7 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
     if (p.sessionId) { m.sessionId = p.sessionId; s.sessionId = p.sessionId; }
     s.exitCode = code; s.endedAt = now();
     s.status = signal ? "interrupted" : code === 0 && p.completed ? "succeeded" : "failed";
-    if (s.status !== "succeeded") s.reason = signal ? `signal_${signal}` : /usage limit|rate limit|quota|limit reached/i.test(stderr + transcript) ? "subscription_quota" : "cli_nonzero_exit";
+    if (s.status !== "succeeded") s.reason = signal ? `signal_${signal}` : p.quota || /usage limit|rate limit|quota|limit reached/i.test(stderr + (m.runtime.runtimeId === "codex" ? transcript : "")) ? "subscription_quota" : "cli_nonzero_exit";
     if (s.status === "failed" && s.reason === "subscription_quota") s.status = "blocked";
     if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript);
     hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);

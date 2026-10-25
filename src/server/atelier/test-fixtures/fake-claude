@@ -1,0 +1,26 @@
+#!/bin/sh
+# Fake subscription Claude Code CLI for tests (SIMULATION): no network, no model. Emits the stream-json shape
+# observed from the real claude 2.1.x: system/init (echoes the requested model), assistant (message.model = API id),
+# rate_limit_event, result (modelUsage). Knobs come from $HOME/fake.env (the runner passes an allowlisted env).
+[ -f "$HOME/fake.env" ] && . "$HOME/fake.env"
+if [ "$1" = "auth" ]; then
+  if [ -n "$FAKE_AUTH" ]; then echo "$FAKE_AUTH"; else echo '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"pro"}'; fi; exit 0
+fi
+cat >/dev/null
+SID=${FAKE_SID:-22222222-3333-4444-5555-666666666666}; MODEL=""; prev=""
+for a in "$@"; do
+  [ "$prev" = "--resume" ] && SID=$a; [ "$prev" = "--model" ] && MODEL=$a; prev=$a
+done
+OBS=${FAKE_OBSERVED:-$MODEL}
+echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"$SID\",\"model\":\"$MODEL\"}"
+if [ -n "$FAKE_QUOTA" ]; then
+  echo "{\"type\":\"rate_limit_event\",\"rate_limit_info\":{\"status\":\"rejected\",\"rateLimitType\":\"five_hour\"},\"session_id\":\"$SID\"}"
+  echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"result\":\"Claude AI usage limit reached\",\"session_id\":\"$SID\"}"
+  exit 1
+fi
+echo "{\"type\":\"assistant\",\"message\":{\"model\":\"$OBS\",\"content\":[{\"type\":\"text\",\"text\":\"travail\"}]},\"session_id\":\"$SID\"}"
+[ -n "$FAKE_SLEEP" ] && sleep "$FAKE_SLEEP"
+echo "claude step $$" >> work.txt
+echo "{\"type\":\"assistant\",\"message\":{\"model\":\"$OBS\",\"content\":[{\"type\":\"tool_use\",\"name\":\"Write\"}]},\"session_id\":\"$SID\"}"
+echo "{\"type\":\"rate_limit_event\",\"rate_limit_info\":{\"status\":\"allowed\"},\"session_id\":\"$SID\"}"
+echo "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"session_id\":\"$SID\",\"modelUsage\":{\"$MODEL\":{}}}"

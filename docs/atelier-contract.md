@@ -74,11 +74,12 @@ Step = {
   id: string; kind: "spec" | "code" | "test" | "preview" | "revision";
   status: "running" | "succeeded" | "failed" | "interrupted" | "blocked";
   startedAt: string; endedAt: string | null;
-  executor: "codex_cli" | "runner";          // runner = vérification exécutée par Oria, pas déclarée par l'agent
+  executor: "codex_cli" | "claude_code_cli" | "runner"; // runner = vérification exécutée par Oria, pas déclarée par l'agent
   sessionId: string | null; resumedFrom: string | null;   // resumedFrom non nul ⇒ badge « reprise »
-  requestedModelId: string | null; observedModelId: string | null; // observé = lu dans la session CLI
+  requestedModelId: string | null; observedModelId: string | null; // observé = lu dans la sortie CLI (codex : rollout de session ;
+                                   // claude : `message.model` du dernier événement `assistant` stream-json — jamais `system/init.model`, simple écho de la requête)
   exitCode: number | null;
-  reason: string | null;   // runner_died | signal_SIGKILL | subscription_quota | codex_nonzero_exit
+  reason: string | null;   // runner_died | signal_SIGKILL | subscription_quota | cli_nonzero_exit
   commitSha: string | null;
 }
 Artifact = { id: string; kind: "spec" | "diff" | "test_log" | "preview" | "transcript" | "commit";
@@ -88,6 +89,9 @@ Artifact = { id: string; kind: "spec" | "diff" | "test_log" | "preview" | "trans
 ## Règles d'affichage
 - `status` → libellés FR : created « Créée », running « En cours », interrupted « Interrompue — reprise possible »,
   awaiting_review « À relire », failed « Échec », blocked « Bloquée (abonnement/quota) ».
+- Claude Code : reprise = `claude -p … --resume <sessionId>` (même session_id), quota = `rate_limit_event.status = "rejected"` ou résultat
+  d'erreur « usage limit » ⇒ étape `blocked`. Le catalogue doit porter l'identifiant API exact (ex. `claude-haiku-4-5-20251001`) :
+  un alias (`claude-haiku-4-5`) donne `matches: false` car l'observé est l'identifiant daté renvoyé par l'API.
 - `modelProof.matches === false` avec `observed` non nul ⇒ alerte rouge (modèle substitué). `observed === null` ⇒ « non prouvé ».
 - Les étapes `executor: "runner"` (tests, aperçu) sont des preuves ; les messages de l'agent (transcript) n'en sont pas.
 - Artefact `preview` `.png` ⇒ image ; `.diff` ⇒ vue diff ; `test_log` ⇒ bloc monospace ; `transcript` (JSONL Codex) ⇒ repliable.

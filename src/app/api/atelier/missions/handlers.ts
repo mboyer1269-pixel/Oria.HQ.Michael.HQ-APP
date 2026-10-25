@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import {
-  atelierRoot, createMission, currentLock, interruptMission, listMissions, loadMission, missionDir, missionView,
+  assertSubscriptionOnly, atelierRoot, createMission, currentLock, interruptMission, listMissions, loadMission, missionDir, missionView,
   readArtifact, readEvents, resolveRepoPath, runCommandStep, startAgentStep, type AtelierMission,
 } from "@/server/atelier/atelier-mission";
 import { loadSubscriptionCatalog, subscriptionEnabled, type SubscriptionCatalog } from "@/server/ai/subscription-catalog";
@@ -58,6 +58,7 @@ export async function createAtelierMission(ctx: AtelierCtx, body: unknown, deps:
   if (!catalog?.entries.some(e => e.runtimeId === parsed.data.runtimeId && e.modelId === parsed.data.modelId)) return json({ error: "Modèle absent du catalogue abonnement.", code: "model_unavailable" }, 400);
   const root = deps.root ?? atelierRoot();
   try {
+    assertSubscriptionOnly(parsed.data.runtimeId); // refuse before any repo/branch side effect (API key, non-subscription auth)
     const repoPath = resolveRepoPath(parsed.data.repoPath, ctx.workspaceId, deps.env ?? process.env);
     const m = createMission({ ...parsed.data, repoPath, workspaceId: ctx.workspaceId, createdBy: ctx.userId }, root);
     const prompt = parsed.data.specPrompt ?? `Besoin du propriétaire : ${parsed.data.need}\nÉcris UNIQUEMENT un fichier SPEC.md concis (fonctions, règles, erreurs, critères d'acceptation, tests attendus). N'écris pas encore de code. Ne fais pas de commit.`;

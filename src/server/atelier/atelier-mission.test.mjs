@@ -69,3 +69,42 @@ test('unknown mission and bad ids return 404', async () => {
   assert.equal(H.getAtelierMission(C, '../etc', { root: store }).status, 404);
   assert.equal(H.getAtelierMission(C, 'aaaaaaaa-0000', { root: store }).status, 404);
 });
+
+test('claude-code: subscription-only gate (API key / non claude.ai auth refused, claude.ai first-party accepted)', () => {
+  const ok = () => ({ stdout: '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"pro"}' });
+  assert.doesNotThrow(() => A.assertSubscriptionOnly('claude-code', { PATH: process.env.PATH }, ok));
+  assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: process.env.PATH, ANTHROPIC_API_KEY: 'fixture' }, ok), /api_key_present:ANTHROPIC_API_KEY/);
+  assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: process.env.PATH, CLAUDE_CODE_OAUTH_TOKEN: 'fixture' }, ok), /api_key_present/);
+  for (const stdout of ['{"loggedIn":false}', '{"loggedIn":true,"authMethod":"console"}', '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"vertex"}', 'not json'])
+    assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: process.env.PATH }, () => ({ stdout })), /subscription_auth_required/);
+});
+
+test('claude-code: command builder (same phases as codex; resume = --resume <session>)', () => {
+  const fresh = A.agentInvocation('claude-code', 'claude-haiku-4-5-20251001', null);
+  assert.equal(fresh.binary, 'claude');
+  assert.deepEqual(fresh.args.slice(0, 5), ['-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'stream-json']);
+  assert.ok(!fresh.args.includes('--resume'));
+  assert.ok(fresh.args.includes('--strict-mcp-config'));
+  const resumed = A.agentInvocation('claude-code', 'm', 'sid-1').args;
+  assert.deepEqual(resumed.slice(-2), ['--resume', 'sid-1']);
+});
+
+test('claude-code: observed model from the real stream shape (claude 2.1.283), quota detection', () => {
+  // Shape copied from a real `claude -p --output-format stream-json --verbose` run (2026-10-25): init echoes the request alias,
+  // the assistant message carries the API model id, modelUsage is keyed by the alias.
+  const real = [
+    { type: 'system', subtype: 'init', session_id: '5bb5fe86-80b1-4d47-b761-2470d25b7784', model: 'claude-haiku-4-5' },
+    { type: 'assistant', session_id: '5bb5fe86-80b1-4d47-b761-2470d25b7784', message: { model: 'claude-haiku-4-5-20251001', content: [{ type: 'text', text: 'OK' }] } },
+    { type: 'rate_limit_event', session_id: '5bb5fe86-80b1-4d47-b761-2470d25b7784', rate_limit_info: { status: 'allowed', rateLimitType: 'five_hour' } },
+    { type: 'result', subtype: 'success', is_error: false, session_id: '5bb5fe86-80b1-4d47-b761-2470d25b7784', modelUsage: { 'claude-haiku-4-5': {} } },
+  ].map(e => JSON.stringify(e)).join('\n');
+  const p = A.parseTranscript('claude-code', real);
+  assert.equal(p.sessionId, '5bb5fe86-80b1-4d47-b761-2470d25b7784');
+  assert.equal(p.streamModel, 'claude-haiku-4-5-20251001');
+  assert.equal(A.observedModel('claude-code', p.sessionId, real), 'claude-haiku-4-5-20251001');
+  assert.equal(p.completed, true); assert.equal(p.quota, false);
+  const limited = [{ type: 'system', subtype: 'init', session_id: 's', model: 'm' }, { type: 'rate_limit_event', rate_limit_info: { status: 'rejected' } },
+    { type: 'result', subtype: 'success', is_error: true, result: 'Claude AI usage limit reached' }].map(e => JSON.stringify(e)).join('\n');
+  const q = A.parseTranscript('claude-code', limited);
+  assert.equal(q.quota, true); assert.equal(q.completed, false); assert.equal(q.streamModel, null);
+});

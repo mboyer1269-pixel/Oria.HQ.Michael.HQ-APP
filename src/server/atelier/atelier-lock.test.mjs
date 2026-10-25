@@ -1,8 +1,8 @@
 // SENT-412-2 / SENT-412-3: stale-lock reclaim race and pid-reuse kill.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { closeSync, existsSync, linkSync, mkdtempSync, openSync, readFileSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { closeSync, existsSync, linkSync, mkdirSync, mkdtempSync, openSync, readFileSync, symlinkSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createJiti } from "jiti";
@@ -269,4 +269,31 @@ test("SENT-412-16: orphan lease dirs and dead captures older than the grace peri
   assert.equal(A.breakAbandoned(f), true, "no reclaim file: nothing to break");
   const left = readdirSync(dirname(f)).filter(n => n.startsWith(basename(f) + ".")).sort();
   assert.deepEqual(left, [basename(liveCap), basename(recentDir)].sort());
+});
+
+test("claude-code: stale lock of a dead runner is reclaimed only by explicit resume; the Claude session is recovered from the transcript and resumed", async () => {
+  const tmp = mkdtempSync(join(tmpdir(), "atelier-lock-claude-")); const bin = join(tmp, "bin"); mkdirSync(bin); mkdirSync(join(tmp, "home"));
+  symlinkSync(join(SRC, "server/atelier/test-fixtures/fake-claude"), join(bin, "claude"));
+  const saved = { PATH: process.env.PATH, HOME: process.env.HOME };
+  Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, HOME: join(tmp, "home") });
+  try {
+    const repo = join(tmp, "repo"); execFileSync("git", ["init", "-q", "-b", "main", repo]); writeFileSync(join(repo, "a.txt"), "a");
+    execFileSync("git", ["-C", repo, "add", "-A"]); execFileSync("git", ["-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "seed"]);
+    const store = join(tmp, "store");
+    const m = A.createMission({ title: "t", need: "n", repoPath: repo, modelId: "claude-test", runtimeId: "claude-code" }, store);
+    const stepId = "dddddddd-0000-4000-8000-000000000001", sid = "eeeeeeee-1111-2222-3333-444444444444";
+    const mj = join(store, m.id, "mission.json"); const mission = JSON.parse(readFileSync(mj, "utf8"));
+    mission.steps.push({ id: stepId, kind: "revision", status: "running", startedAt: "x", endedAt: null, executor: "claude_code_cli", sessionId: null, resumedFrom: null, requestedModelId: "claude-test", observedModelId: null, exitCode: null, reason: null, commitSha: null });
+    mission.status = "running"; writeFileSync(mj, JSON.stringify(mission));
+    mkdirSync(join(store, m.id, "artifacts"));
+    writeFileSync(join(store, m.id, "artifacts", `${stepId.slice(0, 8)}-revision.jsonl`), [
+      { type: "system", subtype: "init", session_id: sid, model: "claude-test" }, { type: "assistant", session_id: sid, message: { model: "claude-test", content: [] } }].map(e => JSON.stringify(e)).join("\n") + "\n");
+    writeFileSync(join(store, m.id, "run.lock"), JSON.stringify({ ...DEAD, stepId }));
+    assert.throws(() => A.startAgentStep(m.id, "revision", "x", { root: store }), /stale_lock_requires_explicit_resume/);
+    const after = await A.startAgentStep(m.id, null, "reprise", { root: store, resume: true }).done;
+    const [dead, resumed] = after.steps;
+    assert.equal(dead.status, "interrupted"); assert.equal(dead.reason, "runner_died"); assert.equal(dead.sessionId, sid); assert.equal(dead.observedModelId, "claude-test");
+    assert.equal(resumed.kind, "revision"); assert.equal(resumed.executor, "claude_code_cli"); assert.equal(resumed.resumedFrom, sid); assert.equal(resumed.sessionId, sid); assert.equal(resumed.status, "succeeded");
+    assert.equal(existsSync(join(store, m.id, "run.lock")), false, "lock released");
+  } finally { Object.assign(process.env, saved); }
 });

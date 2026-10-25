@@ -13,7 +13,7 @@ const jiti = createJiti(import.meta.url, { alias: { '@/lib/supabase/server': fix
 const tmp = mkdtempSync(path.join(tmpdir(), 'atelier-api-'));
 const bin = path.join(tmp, 'bin'); mkdirSync(bin);
 symlinkSync(path.join(src, 'server/atelier/test-fixtures/fake-codex'), path.join(bin, 'codex'));
-symlinkSync(path.join(src, 'server/atelier/test-fixtures/fake-codex'), path.join(bin, 'claude'));
+symlinkSync(path.join(src, 'server/atelier/test-fixtures/fake-claude'), path.join(bin, 'claude'));
 for (const k of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CODEX_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'MICHAEL_HQ_OWNER_ID', 'MICHAEL_HQ_OWNER_EMAIL']) delete process.env[k];
 Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, HOME: path.join(tmp, 'home'), ORIA_ATELIER_ROOT: path.join(tmp, 'store'), ORIA_ATELIER_REPOS_ROOT: path.join(tmp, 'repos'), ORIA_HQ_SUBSCRIPTION_RUNTIMES: '1',
   ORIA_WORKSPACE_MEMBERS: JSON.stringify([{ userId: 'u1', workspaceId: 'ws-a', role: 'owner' }, { userId: 'u2', workspaceId: 'ws-b', role: 'owner' }, { userId: 'u3', workspaceId: 'ws-a', role: 'member' }, { userId: 'u4', workspaceId: 'ws-c', role: 'owner' }]), ORIA_SUBSCRIPTION_OWNERS: 'u1,u2' });
@@ -132,11 +132,87 @@ test('refusals: API key present, model outside catalog, repo outside root, runti
   assert.equal(r.status, 503); assert.equal((await r.json()).code, 'api_key_present');
 });
 
-test('claude-code runtime: stream-json session + model reported by the CLI', () => {
-  const t = [JSON.stringify({ type: 'system', subtype: 'init', session_id: 's-1', model: 'claude-test' }), JSON.stringify({ type: 'result', is_error: false, session_id: 's-1', modelUsage: { 'claude-test': {} } })].join('\n');
-  assert.deepEqual(A.parseTranscript('claude-code', t), { sessionId: 's-1', completed: true, streamModel: 'claude-test' });
+test('claude-code runtime: stream-json session; observed model = assistant message.model, never the init echo', () => {
+  const t = [JSON.stringify({ type: 'system', subtype: 'init', session_id: 's-1', model: 'claude-test' }),
+    JSON.stringify({ type: 'assistant', session_id: 's-1', message: { model: 'claude-test-20990101', content: [] } }),
+    JSON.stringify({ type: 'result', subtype: 'success', is_error: false, session_id: 's-1', modelUsage: { 'claude-test': {} } })].join('\n');
+  assert.deepEqual(A.parseTranscript('claude-code', t), { sessionId: 's-1', completed: true, streamModel: 'claude-test-20990101', quota: false });
+  const echoOnly = [JSON.stringify({ type: 'system', subtype: 'init', session_id: 's-2', model: 'claude-test' })].join('\n');
+  assert.equal(A.parseTranscript('claude-code', echoOnly).streamModel, null, 'the request echo is not an observation');
+  assert.equal(A.parseTranscript('claude-code', echoOnly).completed, false);
   assert.ok(A.agentInvocation('claude-code', 'claude-test', 's-1').args.join(' ').includes('--resume s-1'));
   assert.throws(() => A.assertSubscriptionOnly('claude-code', { PATH: process.env.PATH }, () => ({ stdout: '{"loggedIn":true,"authMethod":"api_key"}' })), /subscription_auth_required/);
+});
+
+test('claude-code through the API: spec → code → test → revision crash (runner SIGKILL) → 409 → --resume same session → test; modelProof from the CLI', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_OBSERVED=claude-test');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('rc1'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  assert.equal(created.status, 202);
+  const { missionId, mission } = await created.json();
+  assert.equal(mission.runtime.authMode, 'claude_ai_session');
+  await waitIdle(missionId);
+  assert.equal((await steps.POST(req('/x', { kind: 'code', prompt: 'code' }), params(missionId))).status, 202);
+  await waitIdle(missionId);
+  assert.equal((await H.verifyAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, missionId)).status, 200);
+  knobs('FAKE_OBSERVED=claude-test\nFAKE_SLEEP=30\nFAKE_SID=cccccccc-1111-2222-3333-444444444444');
+  const runner = spawn(process.execPath, ['src/scripts/atelier/mission.mjs', 'step', missionId, 'revision', 'x'], { env: process.env, stdio: 'ignore' });
+  for (let i = 0; i < 100 && !A.currentLock(missionId)?.childPid; i++) await new Promise(r => setTimeout(r, 50));
+  const lock = A.currentLock(missionId);
+  assert.equal(lock.live, true); assert.ok(lock.childPid);
+  await new Promise(r => setTimeout(r, 300));
+  runner.kill('SIGKILL');
+  await new Promise(r => setTimeout(r, 200));
+  assert.equal(A.currentLock(missionId).live, false);
+  assert.equal(A.pidAlive(lock.childPid), true, 'orphan claude child survives the runner');
+  knobs('FAKE_OBSERVED=claude-test');
+  const refused = await steps.POST(req('/x', { kind: 'revision', prompt: 'x' }), params(missionId));
+  assert.equal(refused.status, 409); assert.equal((await refused.json()).code, 'stale_lock_requires_explicit_resume');
+  assert.equal((await resume.POST(req('/x', {}), params(missionId))).status, 202);
+  let m = await waitIdle(missionId);
+  assert.equal(A.pidAlive(lock.childPid), false, 'orphan reaped');
+  assert.equal((await H.verifyAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, missionId)).status, 200);
+  m = A.loadMission(missionId);
+  assert.deepEqual(m.steps.map(s => `${s.kind}:${s.status}:${s.executor}`), ['spec:succeeded:claude_code_cli', 'code:succeeded:claude_code_cli', 'test:succeeded:runner',
+    'revision:interrupted:claude_code_cli', 'revision:succeeded:claude_code_cli', 'test:succeeded:runner']);
+  const [dead, resumed] = m.steps.slice(3, 5);
+  assert.equal(dead.reason, 'runner_died'); assert.equal(dead.sessionId, 'cccccccc-1111-2222-3333-444444444444');
+  assert.equal(resumed.resumedFrom, 'cccccccc-1111-2222-3333-444444444444'); assert.equal(resumed.sessionId, 'cccccccc-1111-2222-3333-444444444444');
+  const view = await (await one.GET(req('/x'), params(missionId))).json();
+  assert.deepEqual(view.modelProof, { requested: 'claude-test', observed: 'claude-test', matches: true });
+});
+
+test('claude-code: observed model differs from the request → modelProof.matches false (observed comes from the CLI)', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_OBSERVED=claude-other-20990101');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('rc2'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); await waitIdle(missionId); knobs('');
+  const view = await (await one.GET(req('/x'), params(missionId))).json();
+  assert.deepEqual(view.modelProof, { requested: 'claude-test', observed: 'claude-other-20990101', matches: false });
+});
+
+test('claude-code: subscription limit → step blocked (subscription_quota), never an API fallback', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_QUOTA=1');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('rc3'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); const m = await waitIdle(missionId); knobs('');
+  assert.equal(m.status, 'blocked'); assert.equal(m.steps[0].status, 'blocked'); assert.equal(m.steps[0].reason, 'subscription_quota');
+});
+
+test('claude-code refusals: ANTHROPIC_API_KEY set, or auth method not claude.ai → 503 before any spawn', async () => {
+  const ctx = { userId: 'u1', workspaceId: 'ws-a' };
+  const base = { title: 'T', need: 'N', repoPath: repo('rc4'), runtimeId: 'claude-code', modelId: 'claude-test' };
+  process.env.ANTHROPIC_API_KEY = 'fixture';
+  const r1 = await H.createAtelierMission(ctx, base, { catalog });
+  delete process.env.ANTHROPIC_API_KEY;
+  assert.equal(r1.status, 503); assert.equal((await r1.json()).code, 'api_key_present');
+  knobs(`FAKE_AUTH='{"loggedIn":true,"authMethod":"api_key","apiProvider":"firstParty"}'`);
+  const r2 = await H.createAtelierMission(ctx, { ...base, repoPath: repo('rc5') }, { catalog });
+  knobs(`FAKE_AUTH='{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"bedrock"}'`);
+  const r3 = await H.createAtelierMission(ctx, { ...base, repoPath: repo('rc6') }, { catalog });
+  knobs('');
+  assert.equal(r2.status, 503); assert.equal((await r2.json()).code, 'subscription_auth_required');
+  assert.equal(r3.status, 503); assert.equal((await r3.json()).code, 'subscription_auth_required');
 });
 
 test('a workspace member can read but never launch on the owner subscription (403 atelier_owner_only)', async () => {

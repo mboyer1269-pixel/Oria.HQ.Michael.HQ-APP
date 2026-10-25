@@ -2,7 +2,7 @@
 // Atelier CLI (local operator). Usage:
 //  create <repoPath> <modelId> <title> <need> [--runtime=codex|claude-code] [--workspace=michael-hq]
 //  step <missionId> <spec|code|revision> <prompt> [--resume]
-//  resume <missionId> <prompt>        (explicit resume of the same Codex session; reclaims a stale lock)
+//  resume <missionId> <prompt>        (explicit resume of the same CLI session — codex exec resume / claude --resume; reclaims a stale lock)
 //  test <missionId> <cmd...> | preview <missionId> <file> <cmd...> | show <missionId> | list
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
