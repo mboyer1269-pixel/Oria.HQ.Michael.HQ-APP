@@ -1,0 +1,9 @@
+# RÉEL — run6 Claude Code (tête 3fd559a), mission 380b9d17-3be6-45c9-a4f5-d46918cc34e3
+# colonnes : phase status executor resumedFrom sessionId requestedModel observedModel commit reason
+380b9d17-3be6-45c9-a4f5-d46918cc34e3 awaiting_review {"requested":"claude-haiku-4-5-20251001","observed":"claude-haiku-4-5-20251001","matches":true}
+spec succeeded claude_code_cli - 0ed705d7-046f-424b-873d-47fed6c9e746 claude-haiku-4-5-20251001 claude-haiku-4-5-20251001 03a5cae 
+code succeeded claude_code_cli - 6b58753a-e5a9-44b9-be30-8ab1a1082b84 claude-haiku-4-5-20251001 claude-haiku-4-5-20251001 d1f6bbc 
+test succeeded runner - - - - d1f6bbc 
+revision interrupted claude_code_cli - e60d4fc8-a0e7-4d09-a283-27603e8f15da claude-haiku-4-5-20251001 claude-haiku-4-5-20251001 - runner_died
+revision succeeded claude_code_cli e60d4fc8-a0e7-4d09-a283-27603e8f15da e60d4fc8-a0e7-4d09-a283-27603e8f15da claude-haiku-4-5-20251001 claude-haiku-4-5-20251001 0edd0e0 
+test succeeded runner - - - - 0edd0e0 
