@@ -21,7 +21,7 @@ fi
 for k in OPENAI_API_KEY ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CODEX_API_KEY CLAUDE_CODE_OAUTH_TOKEN; do eval "v=\${$k:-}"; [ -z "$v" ] || { echo "refus : $k défini"; exit 2; }; done
 mkdir -p "$OUT"; { date; git rev-parse HEAD; git status --porcelain | wc -l | sed 's/^/fichiers modifiés non commités: /'; echo "runtime=$RUNTIME model=$MODEL"
   if [ "$RUNTIME" = claude-code ]; then claude --version; claude auth status | grep -E '"(loggedIn|authMethod|apiProvider|subscriptionType)"'; else codex login status 2>&1; fi; } > "$OUT/00-head.txt"
-echo "{\"revision\":\"replay\",\"entries\":[{\"runtimeId\":\"codex\",\"modelId\":\"$MODEL\"}]}" > "$OUT/catalog.json"
+echo "{\"revision\":\"replay\",\"entries\":[{\"runtimeId\":\"$RUNTIME\",\"modelId\":\"$MODEL\"}]}" > "$OUT/catalog.json"
 R="$HOME/oria-atelier-repos/$WS/$NAME"; mkdir -p "$R"; git -C "$R" init -q -b main
 printf '{"name":"%s","type":"module","scripts":{"test":"node --test"}}\n' "$NAME" > "$R/package.json"; echo "# $NAME" > "$R/README.md"
 git -C "$R" add -A; git -C "$R" -c user.name=t -c user.email=t@t commit -qm seed
@@ -31,6 +31,7 @@ sse() { timeout "${2:-900}" curl -sN "localhost:$PORT/api/atelier/missions/$M/ev
 host 1
 api "" "{\"title\":\"Calculatrice de pourboire (replay $RUNTIME)\",\"need\":\"$NEED\",\"repoPath\":\"$R\",\"runtimeId\":\"$RUNTIME\",\"modelId\":\"$MODEL\"}" > "$OUT/01-create.json"
 M=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1])).missionId)' "$OUT/01-create.json"); echo "$M" > "$OUT/mission-id.txt"
+case "$M" in ????????-????-????-????-????????????) ;; *) echo "création refusée : $(cat "$OUT/01-create.json")"; pkill -f "docs/atelier-e1-d-evidence/local-api-host.mjs" || true; exit 3;; esac
 sse 02-spec-sse.txt
 api "/$M/steps" "{\"kind\":\"code\",\"prompt\":\"$CODE\"}" > "$OUT/03-code-start.json"; sse 03-code-sse.txt
 api "/$M/verify" '{}' > "$OUT/04-verify.json"
