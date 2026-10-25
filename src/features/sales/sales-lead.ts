@@ -73,6 +73,7 @@ export type SalesLead = {
   stage: LeadStage;
   consentBasis: ConsentBasis;
   consentNote?: string;
+  consentEvidence?: { source: string; recordedAt: string; reference: string };
   nextFollowUpAt?: string;
   lastContactAt?: string;
   lostReason?: string;
@@ -93,6 +94,14 @@ function requireText(value: unknown, field: string, errors: string[]): void {
   if (typeof value !== "string" || value.trim() === "") {
     errors.push(`${field} must be non-empty`);
   }
+}
+
+export function hasConsentEvidence(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const evidence = value as Record<string, unknown>;
+  return typeof evidence.source === "string" && evidence.source.trim().length > 0
+    && typeof evidence.reference === "string" && evidence.reference.trim().length > 0
+    && typeof evidence.recordedAt === "string" && Number.isFinite(Date.parse(evidence.recordedAt));
 }
 
 export function validateSalesLead(input: unknown): LeadValidation {
@@ -117,6 +126,9 @@ export function validateSalesLead(input: unknown): LeadValidation {
     !CONSENT_BASES.includes(lead.consentBasis as ConsentBasis)
   ) {
     errors.push(`consentBasis must be one of: ${CONSENT_BASES.join(", ")}`);
+  }
+  if (lead.consentBasis === "implied_verified" && !hasConsentEvidence(lead.consentEvidence)) {
+    errors.push("Consentement implicite : preuve enregistrée requise (consentEvidence).");
   }
   if (typeof lead.notes !== "string") {
     errors.push("notes must be a string");

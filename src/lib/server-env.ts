@@ -58,6 +58,7 @@ const serverEnvSchema = z.object({
   // Opt-in feature flags. Each gates a capability that is OFF unless the flag
   // is exactly "1"; they are declared here so the schema is the full inventory
   // of what the environment can change, not a partial one.
+  NEXT_PUBLIC_ORIA_DEMO_MODE: z.enum(["0", "1"]).optional(),
   ORIA_ENABLE_MEMEX_READONLY: z.enum(["0", "1"]).optional(),
     ORIA_ENABLE_MEMEX_HTTP_READONLY: z.enum(["0", "1"]).optional(),
     MEMEX_HTTP_ENDPOINT: z.string().optional(),

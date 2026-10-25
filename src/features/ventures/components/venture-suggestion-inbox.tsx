@@ -49,6 +49,7 @@ export function VentureSuggestionInbox({
 }: {
   suggestions: VentureCandidateSuggestion[];
 }) {
+  if (suggestions.length === 0) return <p>Aucune donnée — rien n’a encore été enregistré</p>;
   const summary = summarizeSuggestionInbox(suggestions);
   const displaySuggestions = summary.rankedSuggestions;
   const visibleLimit = getVisibleSuggestionLimit();

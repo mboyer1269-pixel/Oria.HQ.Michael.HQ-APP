@@ -130,6 +130,7 @@ export function upsertSalesLead(input: UpsertLeadInput): UpsertLeadResult {
     stage: resolvedStage,
     consentBasis: incoming.consentBasis,
     consentNote: incoming.consentNote ?? prior?.consentNote,
+    consentEvidence: incoming.consentEvidence,
     nextFollowUpAt:
       incoming.nextFollowUpAt === null
         ? undefined

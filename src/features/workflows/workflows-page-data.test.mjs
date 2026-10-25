@@ -36,7 +36,11 @@ test("Workflows page model", async (t) => {
   });
 
   await t.test("demo fallback: multi-agent board with mixed states", () => {
+    const previous = process.env.NEXT_PUBLIC_ORIA_DEMO_MODE;
+    process.env.NEXT_PUBLIC_ORIA_DEMO_MODE = "1";
     const model = buildWorkflowsPageModel();
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_ORIA_DEMO_MODE;
+    else process.env.NEXT_PUBLIC_ORIA_DEMO_MODE = previous;
     assert.equal(model.source, "demo");
     assert.equal(model.isDemonstration, true);
     assert.ok(model.note.length > 0);
@@ -46,7 +50,11 @@ test("Workflows page model", async (t) => {
   });
 
   await t.test("demo KPI report reads observations through bindings", () => {
+    const previous = process.env.NEXT_PUBLIC_ORIA_DEMO_MODE;
+    process.env.NEXT_PUBLIC_ORIA_DEMO_MODE = "1";
     const model = buildWorkflowsPageModel();
+    if (previous === undefined) delete process.env.NEXT_PUBLIC_ORIA_DEMO_MODE;
+    else process.env.NEXT_PUBLIC_ORIA_DEMO_MODE = previous;
     const routing = model.kpiReport.rows.find((r) => r.kpiId === "joris-routing-accuracy");
     assert.equal(routing.status, "met");
   });
@@ -68,9 +76,12 @@ test("Workflows page model", async (t) => {
     assert.equal(completion.status, "met");
   });
 
-  await t.test("selectWorkflowsModel falls back to demo when no real runs", () => {
+  await t.test("selectWorkflowsModel stays empty when no real runs", () => {
+    delete process.env.NEXT_PUBLIC_ORIA_DEMO_MODE;
     const model = selectWorkflowsModel([], new Map());
-    assert.equal(model.source, "demo");
+    assert.equal(model.source, "ledger");
+    assert.equal(model.board.totals.runs, 0);
+    assert.match(model.note, /Aucune donnée/);
   });
 
   await t.test("selectWorkflowsModel prefers ledger when activity exists", () => {

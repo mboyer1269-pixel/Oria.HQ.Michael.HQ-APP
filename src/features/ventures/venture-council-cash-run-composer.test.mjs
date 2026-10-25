@@ -90,6 +90,15 @@ test("Venture Council Cash Run Composer", async (t) => {
     assert.ok(result.moneyStrategyInput);
   });
 
+  await t.test("fabricated council evidence is simulated and never verified", () => {
+    const result = compose();
+    const refs = result.run.turns.flatMap((turn) => turn.evidenceRefs);
+    assert.ok(refs.length > 0);
+    assert.ok(refs.every((ref) => ref.isVerified === false && ref.provenance === "simulated"));
+    const ui = fs.readFileSync(path.join(__dirname, "components/cash-action-review-client.tsx"), "utf8");
+    assert.match(ui, /Conseil simulé — démo/);
+  });
+
   await t.test("includes Orient, T-Gravity, Relay (hermes), Auditor, Operator turns", () => {
     const result = compose();
     const roleIds = result.turns.map((turn) => turn.roleId);

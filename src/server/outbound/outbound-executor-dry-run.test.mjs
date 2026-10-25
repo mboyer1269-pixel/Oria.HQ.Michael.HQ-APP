@@ -33,7 +33,7 @@ function makeApprovedBatch(overrides = {}) {
     messageTemplate: "Hi {{name}},\n\nFollowing up on our conversation.\n\nBest,\nMichael",
     aiDisclosure: "Assisted by Orya HQ AI",
     consentBasis: "implied_verified",
-    consentProvenance: [{ type: "email_reply", source: "crm", value: "prior-contact" }],
+    consentProvenance: [{ kind: "email_reply", source: "crm", referenceId: "consent-record-1", capturedAt: "2026-06-01T12:00:00Z", summary: "Recorded right to contact", isVerified: true }],
     unsubscribeMechanism: "present",
     jurisdiction: "CA",
     riskLevel: "medium",

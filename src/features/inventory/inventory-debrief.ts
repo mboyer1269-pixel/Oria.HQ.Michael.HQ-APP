@@ -200,7 +200,7 @@ export function buildInventoryDebrief(vehicles: VehicleStock[]): InventoryDebrie
     );
     if (photoReadyPct < 90) {
       operatorNotes.push(
-        `Couverture photo ${photoReadyPct}% — enrichis via fiche VDP avant Marketplace (11+ photos = +185% leads AutoTrader).`,
+        `Couverture photo ${photoReadyPct}% — enrichis via fiche VDP avant Marketplace.`,
       );
     } else {
       operatorNotes.push(
