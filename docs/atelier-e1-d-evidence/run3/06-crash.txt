@@ -1,0 +1,3 @@
+child 633958 start=5153023 cmd=node /home/box/.local/bin/codex exec --json -m gpt-5.6-luna -c forced_login_method="chatgpt" -c model_provider="openai" 
+SIGKILL host pid=632355 at 05:38:27 EDT
+host alive? no; orphan child alive? yes

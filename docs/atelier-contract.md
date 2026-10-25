@@ -14,7 +14,7 @@ Lecture : owner **ou** member de l'espace. Écriture (POST) : **owner uniquement
 | POST | `/api/atelier/missions` | `{ title, need, repoPath, runtimeId: "codex"\|"claude-code", modelId }` | 202 `{ missionId, stepId, mission, events }` — lance l'étape `spec` |
 | GET | `/api/atelier/missions/:id` | — | `MissionView` |
 | GET | `/api/atelier/missions/:id/events` | — | `text/event-stream` (voir SSE) |
-| POST | `/api/atelier/missions/:id/steps` | `{ kind: "code"\|"revision", prompt? }` | 202 `{ missionId, stepId, mission }` ; `revision` = demande de correction |
+| POST | `/api/atelier/missions/:id/steps` | `{ kind: "code"\|"revision", prompt }` (prompt requis, 1–8000 car.) | 202 `{ missionId, stepId, mission }` ; `revision` = demande de correction |
 | POST | `/api/atelier/missions/:id/interrupt` | — | 202 si signal envoyé, sinon 409 ; `{ interrupted, reason }` (`signal_sent`, `not_running`, `no_child`, `runner_dead_resume_required`, `identity_mismatch`, `identity_unknown`) |
 | POST | `/api/atelier/missions/:id/resume` | `{ prompt? }` | 202 `{ missionId, stepId, mission }` — reprend la même session CLI ; seul moyen de récupérer un verrou périmé ; l'étape reprise garde le `kind` interrompu |
 | POST | `/api/atelier/missions/:id/verify` | — | 200 : `npm test` (commande fixe) dans le dépôt de mission |
