@@ -249,9 +249,12 @@ INDEX_ORDER = ["pont","attention","fiche","conversations","conversation","missio
 for slug,(title,body,*dr) in pages.items():
     drawer = dr[0] if dr else ""
     mode = "carte" if slug=="fiche" else None
-    (OUT/f"{slug}.html").write_text(shell(slug,title,body,drawer,mode=mode,palette=(slug=="palette")))
+    import re as _re
+    _h=shell(slug,title,body,drawer,mode=mode,palette=(slug=="palette"))
+    _h=_re.sub(r'<a class="(btn[^"]*)"(?![^>]*href)', r'<a class="\1" href="etats.html"', _h)
+    (OUT/f"{slug}.html").write_text(_h)
 idx = "".join(f'<li><a href="{s}.html">{pages[s][0]}</a> <span class="meta">{s}.html</span></li>' for s in INDEX_ORDER)
 (OUT/"index.html").write_text(f"""<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prototype Oria v3 « Pont »</title><style>{CSS}</style></head><body><main id="main" class="full"><div class="content">
 <h1 style="font:700 36px var(--display);margin:24px 0 4px">Oria v3 — « Pont »</h1><p class="lede">Prototype statique cliquable. Données {EX} sauf l'atelier « {H(M["title"])} » {RE}. Ouvrez une page puis naviguez avec le rail.</p>
-<ol class="list">{idx}</ol><p class="meta">Mode Carte (clair) : fiche.html. Mobile : réduire la fenêtre à 390 px.</p></div></main></body></html>""")
+<ol class="list">{idx}</ol><p><a href="../ext/mockups/index.html">→ Ajouts v3-ext : Parler, Code, Skills, Orbite</a></p><p class="meta">Mode Carte (clair) : fiche.html. Mobile : réduire la fenêtre à 390 px.</p></div></main></body></html>""")
 print("ok", len(pages)+1)
