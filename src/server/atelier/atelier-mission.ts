@@ -570,13 +570,13 @@ function release(m: AtelierMission, lockFile: string) {
   try { const cur = readLock(lockFile); if (cur && (!mine || cur.token === mine)) unlinkSync(lockFile); } catch { /* */ }
 }
 
-/** SENT-412-39: simple secret scan of the ADDED lines of a diff → kinds found (never the values). */
+/** SENT-412-39/41: best-effort (bypassable: base64, hex, splits, binaries, filenames) secret scan of the ADDED lines of a diff → kinds found (never the values). */
 const SECRET_PATTERNS: [string, RegExp][] = [
-  ["anthropic_token", /sk-ant-[A-Za-z0-9_-]{20,}/],
-  ["openai_token", /sk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_-]{20,}/],
+  ["anthropic_token", /\bsk-ant-[A-Za-z0-9_-]{20,}/],
+  ["openai_token", /\bsk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_-]{20,}/],
   ["jwt", /eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/],
-  ["oauth_token_field", /["']?(refresh_token|access_token|id_token)["']?\s*[:=]\s*["']?[A-Za-z0-9._-]{8,}/i],
-  ["auth_json", /"(OPENAI_API_KEY|tokens|last_refresh|claudeAiOauth)"\s*:/],
+  ["oauth_token_field", /["']?(refresh_token|access_token|id_token)["']?\s*[:=]\s*["'][A-Za-z0-9._-]{8,}["']/i],
+  ["auth_json", /"(OPENAI_API_KEY|last_refresh|claudeAiOauth)"\s*:/],
 ];
 export function secretFindings(diff: string): string[] {
   const added = diff.split("\n").filter(l => l.startsWith("+") && !l.startsWith("+++")).join("\n");
