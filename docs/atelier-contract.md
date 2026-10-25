@@ -94,6 +94,9 @@ Artifact = { id: string; kind: "spec" | "diff" | "test_log" | "preview" | "trans
 - Un panneau minimal existe déjà : `src/features/atelier/components/atelier-local-missions.tsx` (inséré dans `/hq/atelier`).
 
 ### Hors #412 (à traiter dans #410)
-`src/server/auth/owner.ts:130` (`requireOwnerApiSession`, ancienne garde propriétaire des routes `/api/sales/**`) renvoie
+`src/server/auth/owner.ts:130` (`requireOwnerApiSession`, ancienne garde propriétaire) sert 47 routes, pas seulement
+`/api/sales/**` : notamment `/api/agents/[agentId]/execute`, `/api/agents/[agentId]/execution-intents`,
+`/api/agents/execution-intents/[intentId]/{approve,reject}`, `/api/missions/**`, `/api/memory/**`, `/api/outbound/**`,
+`/api/marketplace/**`, `/api/arena/**`, `/api/cron/**`, `/api/orchestration/**` (liste : `grep -rl requireOwnerApiSession src/app`). Elle renvoie
 encore `{ error }` sans `code` en 401/403. Ce fichier vient de #410 et n'est pas utilisé par l'Atelier : non modifié ici.
 Correctif proposé pour #410 : `{ error, code: "AUTH_REQUIRED" }` (401) et `{ error, code: "OWNER_ONLY" }` (403).
