@@ -12,7 +12,7 @@ import type { AtelierCtx } from "./handlers";
 export async function atelierSession(request: Request): Promise<AtelierCtx | NextResponse> {
   const session = await requireWorkspaceApiSession(request);
   if (session instanceof NextResponse) return session;
-  if (request.method === "GET" || request.method === "HEAD") return { userId: session.ctx.userId, workspaceId: session.ctx.workspaceId };
+  if (request.method === "GET" || request.method === "HEAD") return { userId: session.ctx.userId, workspaceId: session.ctx.workspaceId, role: session.ctx.role };
   if (session.ctx.role !== "owner") {
     return NextResponse.json({ error: "Action réservée au propriétaire de l'espace.", code: "atelier_owner_only" }, { status: 403 });
   }
@@ -21,6 +21,6 @@ export async function atelierSession(request: Request): Promise<AtelierCtx | Nex
   }
   // SENT-412-9: orphan cleanup only on an authorised owner action (never on a read), at every such action.
   try { reapOrphanChildren(); } catch { /* never blocks the request */ }
-  return { userId: session.ctx.userId, workspaceId: session.ctx.workspaceId };
+  return { userId: session.ctx.userId, workspaceId: session.ctx.workspaceId, role: "owner" };
 }
 export const isResponse = (v: unknown): v is NextResponse => v instanceof NextResponse;

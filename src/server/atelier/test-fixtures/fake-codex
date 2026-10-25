@@ -5,6 +5,8 @@ if [ "$1" = "auth" ]; then echo '{"loggedIn":true,"authMethod":"claude.ai","apiP
 cat >/dev/null
 # Test knobs come from a file: the runner passes only an allowlisted environment.
 [ -f "$HOME/fake.env" ] && . "$HOME/fake.env"
+# under the Atelier bwrap sandbox HOME is a tmpfs: knobs then sit next to the PATH entry of this fake
+[ -f "$(dirname "$0")/fake.env" ] && . "$(dirname "$0")/fake.env"
 SID=${FAKE_SID:-11111111-2222-3333-4444-555555555555}
 for a in "$@"; do case "$a" in ????????-????-????-????-????????????) SID=$a;; esac; done
 MODEL=$(echo "$@" | sed -n 's/.*-m \([^ ]*\).*/\1/p')

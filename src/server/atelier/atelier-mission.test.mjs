@@ -37,7 +37,10 @@ test('runner-executed test step stores a hashed log artifact readable through th
   assert.equal(after.steps[0].status, 'succeeded');
   const art = after.artifacts.find(a => a.kind === 'test_log');
   assert.ok(art && art.sha256.length === 64);
-  const res = H.getAtelierArtifact(C, m.id, art.id, { root: store });
+  // SENT-412-37: test logs / transcripts → workspace owners only
+  assert.equal(H.getAtelierArtifact({ ...C, role: 'member' }, m.id, art.id, { root: store }).status, 403);
+  assert.equal(H.getAtelierArtifact(C, m.id, art.id, { root: store }).status, 403, 'no role → refused');
+  const res = H.getAtelierArtifact({ ...C, role: 'owner' }, m.id, art.id, { root: store });
   assert.equal(res.headers.get('x-artifact-sha256'), art.sha256);
   assert.match(await res.text(), /ok-42/);
   const view = await H.getAtelierMission(C, m.id, { root: store }).json();

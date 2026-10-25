@@ -21,7 +21,7 @@ export type AtelierArtifact = { id: string; kind: ArtifactKind; stepId: string; 
 export type AtelierStep = {
   id: string; kind: StepKind; status: StepStatus; startedAt: string; endedAt: string | null;
   executor: "codex_cli" | "claude_code_cli" | "runner"; sessionId: string | null; resumedFrom: string | null; /** stash sha of changes set aside after subscription_auth_required */ quarantineRef?: string | null;
-  /** SENT-412-30: test harness files changed by the mission, owner approval, sandbox used by the runner step */ harnessFiles?: string[]; harnessApprovedBy?: string | null; sandbox?: "bwrap" | "none";
+  /** SENT-412-30: test harness files changed by the mission, owner approval, sandbox used by the runner step */ harnessFiles?: string[]; harnessApprovedBy?: string | null; sandbox?: "bwrap" | "none"; unsandboxedApprovedBy?: string | null;
   requestedModelId: string | null; observedModelId: string | null; exitCode: number | null; reason: string | null;
   commitSha: string | null;
 };
@@ -322,6 +322,33 @@ export function sandboxAvailable(): boolean {
  * bwrap arguments: system dirs read-only, NO /home, /root, /workspace, /tmp of the host (fresh tmpfs /tmp), no
  * network (--unshare-net), the node install read-only, the mission work tree and private HOME the only writable binds.
  */
+/** Per-mission HOME root for Codex: <mission>/codex-root/.codex is bound as ~/.codex inside the sandbox. */
+export const codexRoot = (id: string, root = atelierRoot()) => join(missionDir(id, root), "codex-root");
+const CODEX_CONFIG = "# Managed by Oria Atelier (SENT-412-37): the user's ~/.codex/config.toml is never loaded.\nforced_login_method = \"chatgpt\"\n";
+/** Resolve a binary on PATH (absolute path, symlinks followed) — null if absent. */
+function onPath(bin: string, env = process.env): string | null {
+  for (const d of (env.PATH ?? "").split(":")) { if (!d) continue; const p = join(d, bin); if (existsSync(p)) return p; }
+  return null;
+}
+export function codexSandboxInvocation(m: AtelierMission, root: string, binary: string, args: string[], env = process.env): { binary: string; args: string[] } {
+  const home = homedir(); const croot = codexRoot(m.id, root); const ch = join(croot, ".codex");
+  mkdirSync(ch, { recursive: true }); writeFileSync(join(ch, "config.toml"), CODEX_CONFIG);
+  const sensitive = [".codex", ".claude", ".ssh", ".config", ".aws", ".gnupg", ".npmrc", ".netrc", ".git-credentials", ".docker", ".kube"].map(d => join(home, d));
+  const okDir = (d: string) => d.startsWith("/") && d !== home && d !== "/" && !sensitive.some(s => d === s || d.startsWith(s + sep));
+  const pathDirs = [...new Set((env.PATH ?? "").split(":").filter(d => d && existsSync(d)).map(d => realpathSync(d)).filter(okDir))];
+  const found = onPath(binary, env); const pkg = found ? dirname(dirname(realpathSync(found))) : null;
+  const nodePrefix = dirname(dirname(process.execPath));
+  const ro = ["/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/etc", "/opt"].flatMap(d => ["--ro-bind-try", d, d]);
+  const auth = join(home, ".codex", "auth.json");
+  const work = workPath(m);
+  return { binary: "bwrap", args: ["--die-with-parent", "--unshare-pid", "--unshare-ipc", "--unshare-uts", ...ro, "--dev", "/dev", "--proc", "/proc",
+    "--tmpfs", "/tmp", "--tmpfs", home,
+    ...[nodePrefix, ...pathDirs, ...(pkg && okDir(pkg) ? [pkg] : [])].flatMap(d => ["--ro-bind-try", d, d]),
+    "--bind", ch, join(home, ".codex"),
+    // the ChatGPT login is the one secret Codex must see: read-only, alone (no Claude token, no ~/.ssh…)
+    ...(existsSync(auth) ? ["--ro-bind", auth, join(home, ".codex", "auth.json")] : []),
+    "--bind", work, work, "--chdir", work, "--", binary, ...args] };
+}
 export function sandboxArgs(work: string, home: string): string[] {
   const nodePrefix = dirname(dirname(process.execPath));
   const ro = ["/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/etc", "/opt"].flatMap(d => ["--ro-bind-try", d, d]);
@@ -500,7 +527,7 @@ function acquire(m: AtelierMission, stepId: string, explicitResume: boolean, roo
       const tfile = join(missionDir(m.id, root), "artifacts", `${stale.id.slice(0, 8)}-${stale.kind}.jsonl`);
       if (existsSync(tfile)) {
         const t = readFileSync(tfile, "utf8"); const p = parseTranscript(m.runtime.runtimeId, t);
-        if (p.sessionId) { stale.sessionId = p.sessionId; m.sessionId = p.sessionId; stale.observedModelId = observedModel(m.runtime.runtimeId, p.sessionId, t); }
+        if (p.sessionId) { stale.sessionId = p.sessionId; m.sessionId = p.sessionId; stale.observedModelId = observedModel(m.runtime.runtimeId, p.sessionId, t, codexRoot(m.id, root)); }
         hashArtifact(m, stale.id, "transcript", tfile, root);
       }
     }
@@ -582,14 +609,23 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
   const step: AtelierStep = { id: randomUUID(), kind: stepKind, status: "running", startedAt: now(), endedAt: null, executor: executorOf(m.runtime.runtimeId), sessionId: null,
     resumedFrom: null, requestedModelId: m.runtime.requestedModelId, observedModelId: null, exitCode: null, reason: null, commitSha: null };
   const { lockFile, lock } = acquire(m, step.id, !!opts.resume, root);
-  try { assertRepoHead(m); assertNoEscapingSymlink(workPath(m)); } catch (e) { release(m, lockFile); save(m, root); throw e; }
+  try {
+    assertRepoHead(m); assertNoEscapingSymlink(workPath(m));
+    if (m.runtime.runtimeId === "codex" && !sandboxAvailable()) throw new Error("sandbox_unavailable"); // SENT-412-37
+  } catch (e) { release(m, lockFile); save(m, root); throw e; }
   if (opts.resume) {
     if (!m.sessionId) { release(m, lockFile); save(m, root); throw new Error("no_session_to_resume"); }
     step.sessionId = m.sessionId; step.resumedFrom = m.sessionId;
   }
   m.steps.push(step); m.status = "running"; save(m, root);
   logEvent(id, "step_started", root, step.id, { kind: stepKind, resumedFrom: step.resumedFrom, runtimeId: m.runtime.runtimeId, requestedModelId: m.runtime.requestedModelId });
-  const { binary, args } = agentInvocation(m.runtime.runtimeId, m.runtime.requestedModelId, step.resumedFrom);
+  const inv = agentInvocation(m.runtime.runtimeId, m.runtime.requestedModelId, step.resumedFrom);
+  // SENT-412-37: Codex has a shell → the CLI itself runs under bwrap (fake HOME; only its ChatGPT auth file + a
+  // per-mission CODEX_HOME are visible). No bwrap → refused (sandbox_unavailable), never a silent fallback.
+  let binary = inv.binary, args = inv.args;
+  if (m.runtime.runtimeId === "codex") {
+    ({ binary, args } = codexSandboxInvocation(m, root, inv.binary, inv.args));
+  }
   const transcriptName = `${step.id.slice(0, 8)}-${stepKind}.jsonl`;
   const tdir = join(missionDir(id, root), "artifacts"); mkdirSync(tdir, { recursive: true });
   const tfd = openSync(join(tdir, transcriptName), "a");
@@ -625,7 +661,7 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
       if (authFailed) s.reason = "subscription_auth_required";
       else if (s.status !== "succeeded") s.reason = signal ? `signal_${signal}` : p.quota || /usage limit|rate limit|quota|limit reached/i.test(stderr + (m.runtime.runtimeId === "codex" ? transcript : "")) ? "subscription_quota" : "cli_nonzero_exit";
       if (s.status === "failed" && s.reason === "subscription_quota") s.status = "blocked";
-      if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript);
+      if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript, codexRoot(id, root));
       hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);
       if (stepKind === "spec" && existsSync(join(workPath(m), "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(workPath(m), "SPEC.md")), root);
       if (authFailed) quarantine(m, s); // never commit, never destroy: changes set aside
@@ -679,7 +715,7 @@ const t = setTimeout(() => { kill(); process.exitCode = 124; }, ms);
 process.on("SIGTERM", () => { kill(); process.exit(143); });
 c.on("error", () => { clearTimeout(t); process.exit(127); });
 c.on("exit", (code, sig) => { clearTimeout(t); kill(); if (process.exitCode !== 124) process.exitCode = code ?? 1; });`;
-export function runCommandStep(id: string, kind: "test" | "preview", command: string[], opts: { root?: string; previewFile?: string; timeoutMs?: number; approveHarnessChange?: { by: string } } = {}): AtelierMission {
+export function runCommandStep(id: string, kind: "test" | "preview", command: string[], opts: { root?: string; previewFile?: string; timeoutMs?: number; approveHarnessChange?: { by: string }; approveUnsandboxed?: { by: string } } = {}): AtelierMission {
   const root = opts.root ?? atelierRoot();
   const m = loadMission(id, root);
   const step: AtelierStep = { id: randomUUID(), kind, status: "running", startedAt: now(), endedAt: null, executor: "runner", sessionId: null, resumedFrom: null,
@@ -700,6 +736,16 @@ export function runCommandStep(id: string, kind: "test" | "preview", command: st
       return m;
     }
     if (harness.length) step.harnessApprovedBy = opts.approveHarnessChange!.by;
+    if (!sandboxAvailable() && !opts.approveUnsandboxed?.by) {
+      // SENT-412-36: no bwrap → fail closed; only an explicit, recorded owner approval runs it unsandboxed.
+      step.status = "needs_human_review"; step.reason = "sandbox_unavailable"; step.endedAt = now(); step.sandbox = "none";
+      addArtifact(m, step.id, kind === "test" ? "test_log" : "preview", `${step.id.slice(0, 8)}-${kind}.${kind === "test" ? "log" : "txt"}`,
+        "# NOT RUN: sandbox_unavailable (bwrap missing or unusable; owner approval required: approveUnsandboxed)\n", root);
+      m.status = "needs_human_review";
+      logEvent(id, "step_finished", root, step.id, { status: step.status, reason: step.reason });
+      return m;
+    }
+    if (!sandboxAvailable()) step.unsandboxedApprovedBy = opts.approveUnsandboxed!.by;
     const timeoutMs = opts.timeoutMs ?? 120_000;
     const env = commandStepEnvironment(m.id, root); step.sandbox = sandboxAvailable() ? "bwrap" : "none";
     const argv = step.sandbox === "bwrap" ? ["bwrap", ...sandboxArgs(workPath(m), env.HOME!), ...command] : command;

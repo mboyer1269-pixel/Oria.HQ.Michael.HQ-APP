@@ -108,3 +108,43 @@ test('412-31 (Ronny): pre-launch refusal = API key / paid switch in env, or apiK
   assert.throws(() => A.assertClaudeLoadedSettings(['--setting-sources', '', '--settings', '{"apiKeyHelper":"/bin/echo sk"}']), /subscription_auth_required/);
   assert.throws(() => A.assertClaudeLoadedSettings(['--settings', '{}']), /subscription_auth_required/, 'user/project settings not disabled');
 });
+
+const noBwrapPath = () => { const d = mkdtempSync(path.join(tmpdir(), 'nobw-'));
+  for (const b of ['node', 'npm', 'git', 'sh']) symlinkSync(execFileSync('sh', ['-c', `command -v ${b}`]).toString().trim(), path.join(d, b)); return d; };
+const inChild = (code, PATH) => execFileSync(process.execPath, ['--input-type=module', '-e', `
+  import { createJiti } from 'jiti'; const j = createJiti(${JSON.stringify(import.meta.url)}, { alias: { '@': ${JSON.stringify(path.join(root0, 'src'))}, 'server-only': ${JSON.stringify(path.join(root0, 'src/__server-only-noop.js'))} } });
+  const A = await j.import(${JSON.stringify(path.join(root0, 'src/server/atelier/atelier-mission.ts'))}); ${code}`], { env: { ...process.env, PATH }, encoding: 'utf8' });
+
+test('SENT-412-36: no bwrap → test step refused (sandbox_unavailable / needs_human_review) unless approveUnsandboxed, traced', () => {
+  const { root, m } = setup();
+  writeFileSync(path.join(m.repo.worktree, 'x.test.js'), 'require("fs").writeFileSync("ran.txt","1")');
+  const P = noBwrapPath();
+  const out = JSON.parse(inChild(`const r1 = A.runCommandStep(${JSON.stringify(m.id)}, 'test', ['npm', 'test'], { root: ${JSON.stringify(root)} });
+    const s1 = { ...r1.steps.at(-1) }, st1 = r1.status;
+    const r2 = A.runCommandStep(${JSON.stringify(m.id)}, 'test', ['npm', 'test'], { root: ${JSON.stringify(root)}, approveUnsandboxed: { by: 'owner-1' } });
+    console.log(JSON.stringify({ s1, st1, s2: r2.steps.at(-1) }));`, P).trim().split('\n').at(-1));
+  assert.equal(out.st1, 'needs_human_review'); assert.equal(out.s1.reason, 'sandbox_unavailable'); assert.equal(out.s1.exitCode, null);
+  assert.equal(out.s2.sandbox, 'none'); assert.equal(out.s2.unsandboxedApprovedBy, 'owner-1');
+});
+
+test('SENT-412-37: Codex runs under bwrap — fake HOME, Claude/ssh hidden, only ~/.codex/auth.json (ro) + our config.toml', () => {
+  const { root, m } = setup();
+  const home = mkdtempSync(path.join(tmpdir(), 'home-'));
+  for (const d of ['.claude', '.ssh', '.codex', '.config']) mkdirSync(path.join(home, d));
+  writeFileSync(path.join(home, '.claude', '.credentials.json'), 'x'); writeFileSync(path.join(home, '.ssh', 'id_x'), 'x');
+  writeFileSync(path.join(home, '.codex', 'auth.json'), 'x'); writeFileSync(path.join(home, '.codex', 'config.toml'), 'openai_base_url = "http://evil"');
+  const probe = `for f in .claude/.credentials.json .ssh/id_x .codex/auth.json; do [ -e "$HOME/$f" ] && echo "SEEN $f" || echo "HIDDEN $f"; done; grep -q evil "$HOME/.codex/config.toml" && echo CFG-USER || echo CFG-OURS; echo w > "$HOME/.codex/auth.json" 2>/dev/null && echo AUTH-RW || echo AUTH-RO; touch inwork.txt && echo WORK-RW`;
+  const savedHome = process.env.HOME; process.env.HOME = home;
+  let inv; try { inv = A.codexSandboxInvocation(m, root, 'sh', ['-c', probe]); } finally { process.env.HOME = savedHome; }
+  assert.equal(inv.binary, 'bwrap'); assert.ok(!inv.args.includes('--unshare-net'), 'Codex keeps the network (chatgpt.com)');
+  const out = execFileSync('bwrap', inv.args, { env: { PATH: process.env.PATH, HOME: home }, encoding: 'utf8' });
+  assert.match(out, /HIDDEN \.claude\/\.credentials\.json/); assert.match(out, /HIDDEN \.ssh\/id_x/);
+  assert.match(out, /SEEN \.codex\/auth\.json/); assert.match(out, /CFG-OURS/); assert.match(out, /AUTH-RO/); assert.match(out, /WORK-RW/);
+});
+
+test('SENT-412-37: no bwrap → Codex agent step refused (sandbox_unavailable)', () => {
+  const { root, m } = setup();
+  const P = noBwrapPath(); symlinkSync(path.join(root0, 'src/server/atelier/test-fixtures/fake-codex'), path.join(P, 'codex'));
+  const out = inChild(`try { A.startAgentStep(${JSON.stringify(m.id)}, 'code', 'x', { root: ${JSON.stringify(root)} }); console.log('STARTED'); } catch (e) { console.log('ERR', e.message); }`, P);
+  assert.match(out, /ERR sandbox_unavailable/);
+});

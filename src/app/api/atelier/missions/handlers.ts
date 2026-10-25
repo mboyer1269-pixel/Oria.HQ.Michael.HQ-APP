@@ -3,13 +3,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import {
-  assertSubscriptionOnly, atelierRoot, createMission, currentLock, interruptMission, listMissions, loadMission, missionDir, missionView,
+  assertSubscriptionOnly, atelierRoot, closeMission, createMission, currentLock, interruptMission, listMissions, loadMission, missionDir, missionView,
   readArtifact, readEvents, resolveRepoPath, runCommandStep, startAgentStep, type AtelierMission,
 } from "@/server/atelier/atelier-mission";
 import { loadSubscriptionCatalog, subscriptionEnabled, type SubscriptionCatalog } from "@/server/ai/subscription-catalog";
 
 /** Server-resolved identity + workspace (from requireWorkspaceApiSession / resolveAuthzContext). */
-export type AtelierCtx = { userId: string; workspaceId: string };
+export type AtelierCtx = { userId: string; workspaceId: string; role?: "owner" | "member" };
 export type AtelierDeps = { root?: string; env?: NodeJS.ProcessEnv; catalog?: SubscriptionCatalog | null; pollMs?: number; maxStreamMs?: number };
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 const notFound = () => json({ error: "Mission atelier introuvable.", code: "not_found" }, 404);
@@ -26,6 +26,8 @@ const ERRORS: Record<string, [number, string]> = {
   repo_not_git: [400, "Le dépôt n'est pas un dépôt git."],
   branch_in_use: [409, "Branche de mission déjà utilisée par un autre arbre de travail."],
   repo_symlink_escape: [409, "Le dépôt contient un lien symbolique qui sort de l'arbre de travail : refusé."],
+  sandbox_unavailable: [503, "Bac à sable (bwrap) indisponible : exécution refusée."],
+  worktree_dirty: [409, "L'arbre de travail de la mission contient des changements non commités."],
   repo_head_mismatch: [409, "La branche de l'arbre de travail a changé : refusé."],
 };
 function fail(error: unknown) {
@@ -96,17 +98,23 @@ export function resumeAtelierMission(ctx: AtelierCtx, id: string, body: unknown,
   } catch (error) { return fail(error); }
 }
 /** POST /missions/:id/interrupt */
+/** POST /missions/:id/close — 412-32: remove the mission worktree (refused if dirty or a step is live) and prune. */
+export function closeAtelierMission(ctx: AtelierCtx, id: string, deps: AtelierDeps = {}) {
+  const root = deps.root ?? atelierRoot(); if (!scoped(ctx, id, root)) return notFound();
+  try { return json(missionView(closeMission(id, root))); } catch (error) { return fail(error); }
+}
 export function interruptAtelierMission(ctx: AtelierCtx, id: string, deps: AtelierDeps = {}) {
   const root = deps.root ?? atelierRoot(); if (!scoped(ctx, id, root)) return notFound();
   const r = interruptMission(id, root);
   return json(r, r.interrupted ? 202 : 409);
 }
 /** POST /missions/:id/verify — runner executes the fixed `npm test` (no caller-supplied command). */
-export function verifyAtelierMission(ctx: AtelierCtx, id: string, deps: AtelierDeps = {}, body: { approveHarnessChange?: unknown } = {}) {
+export function verifyAtelierMission(ctx: AtelierCtx, id: string, deps: AtelierDeps = {}, body: { approveHarnessChange?: unknown; approveUnsandboxed?: unknown } = {}) {
   const root = deps.root ?? atelierRoot(); if (!scoped(ctx, id, root)) return notFound();
   // SENT-412-30a: explicit owner approval (route is owner-only) needed when the mission changed the test harness.
   const approveHarnessChange = body.approveHarnessChange === true ? { by: ctx.userId } : undefined;
-  try { return json(missionView(runCommandStep(id, "test", ["npm", "test"], { root, approveHarnessChange }))); } catch (error) { return fail(error); }
+  const approveUnsandboxed = body.approveUnsandboxed === true ? { by: ctx.userId } : undefined; // SENT-412-36
+  try { return json(missionView(runCommandStep(id, "test", ["npm", "test"], { root, approveHarnessChange, approveUnsandboxed }))); } catch (error) { return fail(error); }
 }
 
 const TYPES: Record<string, string> = { ".png": "image/png", ".md": "text/markdown; charset=utf-8", ".diff": "text/x-diff; charset=utf-8", ".jsonl": "application/x-ndjson", ".log": "text/plain; charset=utf-8", ".txt": "text/plain; charset=utf-8" };
@@ -114,6 +122,9 @@ export function getAtelierArtifact(ctx: AtelierCtx, id: string, artifactId: stri
   const root = deps.root ?? atelierRoot(); if (!scoped(ctx, id, root)) return notFound();
   const found = readArtifact(id, artifactId, root);
   if (!found) return json({ error: "Artefact introuvable.", code: "not_found" }, 404);
+  // SENT-412-37: CLI transcripts and test logs may echo what the agent saw → workspace owners only.
+  if ((found.artifact.kind === "transcript" || found.artifact.kind === "test_log") && ctx.role !== "owner")
+    return json({ error: "Artefact réservé au propriétaire de l'espace.", code: "atelier_owner_only" }, 403);
   const ext = found.artifact.path.slice(found.artifact.path.lastIndexOf("."));
   return new NextResponse(new Uint8Array(found.content), { headers: { "content-type": TYPES[ext] ?? "application/octet-stream", "x-artifact-sha256": found.artifact.sha256, "x-content-type-options": "nosniff" } });
 }
