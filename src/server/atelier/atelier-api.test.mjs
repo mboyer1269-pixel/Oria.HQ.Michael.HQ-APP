@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createJiti } from 'jiti';
@@ -216,13 +216,11 @@ test('claude-code SENT-412-17: init.apiKeySource ≠ "none" (paid API key inject
   assert.equal(execFileSync('git', ['-C', m.repo.worktree ?? dir, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim(), '1');
   assert.equal(execFileSync('git', ['-C', m.repo.worktree ?? dir, 'status', '--porcelain'], { encoding: 'utf8' }), '', 'clean mission tree');
   assert.match(execFileSync('git', ['-C', other.repo.worktree ?? dir, 'status', '--porcelain'], { encoding: 'utf8' }), /travail-de-B\.txt/, 'other mission untouched');
-  const stash = execFileSync('git', ['-C', m.repo.worktree ?? dir, 'stash', 'list', '--format=%H %s'], { encoding: 'utf8' }).trim();
-  assert.ok(stash, 'stash present');
-  assert.match(stash, new RegExp(`atelier-quarantine-${missionId}-${m.steps[0].id}`));
-  // 412-25/26: named ref (survives gc/expiry), pointing at the stash really produced.
+  // 412-25/26/34: named ref, refs/stash never touched; the snapshot holds the paid session's files.
   const ref = `refs/atelier/quarantine/${missionId}/${m.steps[0].id}`;
   assert.equal(m.steps[0].quarantineRef, ref);
-  assert.equal(execFileSync('git', ['-C', dir, 'rev-parse', ref], { encoding: 'utf8' }).trim(), stash.split(' ')[0]);
+  assert.match(execFileSync('git', ['-C', dir, 'show', `${ref}:paid-untracked.txt`], { encoding: 'utf8' }), /x/);
+  assert.equal(spawnSync('git', ['-C', dir, 'rev-parse', '-q', '--verify', 'refs/stash']).status, 1);
 });
 
 test('claude-code SENT-412-21: auth checked in the mission work tree before spawn (project override → refused, no step, no CLI run)', async () => {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -159,11 +159,9 @@ test('412-29: runner test step timeout kills the whole process group (no orphan 
   const root = mkdtempSync(path.join(tmpdir(), 'atelier-to-')); const repo = path.join(root, 'r');
   execFileSync('git', ['init', '-q', '-b', 'main', repo]); execFileSync('git', ['-C', repo, '-c', 'user.email=a@b', '-c', 'user.name=a', 'commit', '-q', '--allow-empty', '-m', 'i']);
   const m = A.createMission({ title: 'T', need: 'n', repoPath: repo, modelId: 'm' }, root);
-  const pidFile = path.join(root, 'grandchild.pid');
-  const r = A.runCommandStep(m.id, 'test', ['sh', '-c', `sleep 30 & echo $! > ${pidFile}; wait`], { root, timeoutMs: 500 });
+  const r = A.runCommandStep(m.id, 'test', ['sh', '-c', 'sleep 31.4159 & wait'], { root, timeoutMs: 500 });
   assert.equal(r.steps.at(-1).status, 'failed');
-  const gp = Number(readFileSync(pidFile, 'utf8'));
-  let alive = true; try { process.kill(gp, 0); } catch { alive = false; }
-  if (alive) process.kill(gp, 'SIGKILL');
+  const alive = spawnSync('pgrep', ['-f', 'sleep 31.4159']).status === 0;
+  if (alive) spawnSync('pkill', ['-f', 'sleep 31.4159']);
   assert.equal(alive, false, 'grandchild killed with the group');
 });

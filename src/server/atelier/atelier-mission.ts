@@ -4,23 +4,24 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { appendFileSync, closeSync, linkSync, existsSync, mkdirSync, openSync, readFileSync, writeSync, readdirSync, realpathSync, rmdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { rmSync, lstatSync, readlinkSync, appendFileSync, closeSync, linkSync, existsSync, mkdirSync, openSync, readFileSync, writeSync, readdirSync, realpathSync, rmdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import type { BigIntStats } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, relative, sep } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { subscriptionEnvironment } from "../ai/subscription-runtime";
 
 export const ATELIER_CONTRACT = "atelier-mission/v1" as const;
 export type RuntimeId = "codex" | "claude-code";
 export type AgentStepKind = "spec" | "code" | "revision";
 export type StepKind = AgentStepKind | "test" | "preview";
-export type StepStatus = "running" | "succeeded" | "failed" | "interrupted" | "blocked";
-export type MissionStatus = "created" | "running" | "interrupted" | "awaiting_review" | "failed" | "blocked";
+export type StepStatus = "running" | "succeeded" | "failed" | "interrupted" | "blocked" | "needs_human_review";
+export type MissionStatus = "created" | "running" | "interrupted" | "awaiting_review" | "failed" | "blocked" | "needs_human_review";
 export type ArtifactKind = "spec" | "diff" | "test_log" | "preview" | "transcript" | "commit";
 export type AtelierArtifact = { id: string; kind: ArtifactKind; stepId: string; path: string; sha256: string; bytes: number; createdAt: string };
 export type AtelierStep = {
   id: string; kind: StepKind; status: StepStatus; startedAt: string; endedAt: string | null;
   executor: "codex_cli" | "claude_code_cli" | "runner"; sessionId: string | null; resumedFrom: string | null; /** stash sha of changes set aside after subscription_auth_required */ quarantineRef?: string | null;
+  /** SENT-412-30: test harness files changed by the mission, owner approval, sandbox used by the runner step */ harnessFiles?: string[]; harnessApprovedBy?: string | null; sandbox?: "bwrap" | "none";
   requestedModelId: string | null; observedModelId: string | null; exitCode: number | null; reason: string | null;
   commitSha: string | null;
 };
@@ -115,7 +116,7 @@ export function agentInvocation(runtimeId: RuntimeId, modelId: string, resumeSes
   const args = ["-p", "--model", modelId, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
     // SENT-412-23: no shell at all (tests run in the runner's confined test step); file tools denied on credential dirs.
     "--allowedTools", "Read,Edit,Write,Glob,Grep",
-    "--disallowedTools", "Bash,WebFetch,WebSearch,Read(~/.claude/**),Edit(~/.claude/**),Write(~/.claude/**),Read(~/.codex/**),Edit(~/.codex/**),Write(~/.codex/**),Read(~/.ssh/**),Edit(~/.ssh/**),Write(~/.ssh/**),Read(~/.config/**),Edit(~/.config/**),Write(~/.config/**),Read(~/.aws/**),Edit(~/.aws/**),Write(~/.aws/**),Read(~/.npmrc),Edit(~/.npmrc),Write(~/.npmrc),Read(~/.netrc),Edit(~/.netrc),Write(~/.netrc),Read(~/.gitconfig),Edit(~/.gitconfig),Write(~/.gitconfig),Read(~/.git-credentials),Edit(~/.git-credentials),Write(~/.git-credentials)",
+    "--disallowedTools", "Bash,WebFetch,WebSearch,Read(~/.claude/**),Edit(~/.claude/**),Write(~/.claude/**),Grep(~/.claude/**),Glob(~/.claude/**),Read(~/.codex/**),Edit(~/.codex/**),Write(~/.codex/**),Grep(~/.codex/**),Glob(~/.codex/**),Read(~/.ssh/**),Edit(~/.ssh/**),Write(~/.ssh/**),Grep(~/.ssh/**),Glob(~/.ssh/**),Read(~/.config/**),Edit(~/.config/**),Write(~/.config/**),Grep(~/.config/**),Glob(~/.config/**),Read(~/.aws/**),Edit(~/.aws/**),Write(~/.aws/**),Grep(~/.aws/**),Glob(~/.aws/**),Read(~/.npmrc),Edit(~/.npmrc),Write(~/.npmrc),Grep(~/.npmrc),Glob(~/.npmrc),Read(~/.netrc),Edit(~/.netrc),Write(~/.netrc),Grep(~/.netrc),Glob(~/.netrc),Read(~/.gitconfig),Edit(~/.gitconfig),Write(~/.gitconfig),Grep(~/.gitconfig),Glob(~/.gitconfig),Read(~/.git-credentials),Edit(~/.git-credentials),Write(~/.git-credentials),Grep(~/.git-credentials),Glob(~/.git-credentials)",
     "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
     // SENT-412-17: never load user/project/local settings (their `env`, apiKeyHelper, skills, plugins could switch to the paid API).
     "--setting-sources", "", "--settings", '{"disableAllHooks":true,"apiKeyHelper":""}'];
@@ -218,20 +219,40 @@ export function resolveRepoPath(repoPath: string, workspaceId: string, env = pro
   if (!existsSync(join(real, ".git"))) throw new Error("repo_not_git");
   return real;
 }
-export function createMission(input: { title: string; need: string; repoPath: string; modelId: string; runtimeId?: RuntimeId; workspaceId?: string; createdBy?: string | null }, root = atelierRoot()): AtelierMission {
+export function createMission(input: { title: string; need: string; repoPath: string; modelId: string; runtimeId?: RuntimeId; workspaceId?: string; createdBy?: string | null }, root = atelierRoot(), opts: { branch?: string } = {}): AtelierMission {
   const id = randomUUID(); const runtimeId = input.runtimeId ?? "codex";
-  mkdirSync(missionDir(id, root), { recursive: true });
   const baseBranch = git(input.repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]);
   const baseSha = git(input.repoPath, ["rev-parse", "HEAD"]);
-  const branch = `atelier/${id.slice(0, 8)}`;
+  const branch = opts.branch ?? `atelier/${id.slice(0, 8)}`;
   // SENT-412-20: one worktree per mission (never switch the shared checkout: two missions can share a repo).
-  const worktree = join(missionDir(id, root), "worktree");
-  git(input.repoPath, ["worktree", "add", "-q", "-b", branch, worktree, baseSha]);
+  // 412-32/33: stale worktree entries pruned first; on failure nothing is left behind; taken branch → branch_in_use.
+  spawnSync("git", ["-C", input.repoPath, "worktree", "prune"]);
+  const dir = missionDir(id, root); mkdirSync(dir, { recursive: true });
+  const worktree = join(dir, "worktree");
+  const w = spawnSync("git", ["-C", input.repoPath, "worktree", "add", "-q", "-b", branch, worktree, baseSha], { encoding: "utf8" });
+  if (w.status !== 0) {
+    rmSync(dir, { recursive: true, force: true }); spawnSync("git", ["-C", input.repoPath, "worktree", "prune"]);
+    throw new Error(/already exists|already checked out|is already used/i.test(String(w.stderr)) ? "branch_in_use" : "git_worktree_failed");
+  }
   const m: AtelierMission = { contract: ATELIER_CONTRACT, id, workspaceId: input.workspaceId ?? LEGACY_WORKSPACE, createdBy: input.createdBy ?? null,
     title: input.title, need: input.need, createdAt: now(), updatedAt: now(), status: "created",
     runtime: { runtimeId, consumptionMode: "subscription", authMode: runtimeId === "codex" ? "chatgpt_session" : "claude_ai_session", requestedModelId: input.modelId },
     repo: { path: input.repoPath, worktree, baseBranch, branch, baseSha, headSha: baseSha }, sessionId: null, lock: null, steps: [], artifacts: [] };
   save(m, root); logEvent(id, "mission_created", root, undefined, { runtimeId, requestedModelId: input.modelId, branch }); return m;
+}
+/**
+ * 412-32: end of a mission — remove its worktree (never forced: a dirty worktree is refused, worktree_dirty) and
+ * prune. The branch and the quarantine refs stay in the repo.
+ */
+export function closeMission(id: string, root = atelierRoot()) {
+  const m = loadMission(id, root); if (!m.repo.worktree) return m;
+  if (currentLock(id, root)) throw new Error("mission_locked_by_live_runner");
+  if (existsSync(m.repo.worktree)) {
+    if (git(m.repo.worktree, ["status", "--porcelain"])) throw new Error("worktree_dirty");
+    git(m.repo.path, ["worktree", "remove", m.repo.worktree]);
+  }
+  spawnSync("git", ["-C", m.repo.path, "worktree", "prune"]);
+  logEvent(id, "mission_closed", root); return m;
 }
 
 /** Where the agent and the runner work: the mission worktree (legacy missions: the repo itself). */
@@ -241,6 +262,54 @@ export function assertRepoHead(m: AtelierMission) {
   const dir = workPath(m); let branch: string, head: string;
   try { branch = git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]); head = git(dir, ["rev-parse", "HEAD"]); } catch { throw new Error("repo_head_mismatch"); }
   if (branch !== m.repo.branch || head !== m.repo.headSha) throw new Error("repo_head_mismatch");
+}
+/** 412-35: refuse a work tree holding a symlink that resolves outside it (agent file tools / test step could follow it). */
+export function assertNoEscapingSymlink(dir: string) {
+  const base = realpathSync(dir);
+  const walk = (d: string) => {
+    for (const n of readdirSync(d)) {
+      if (d === dir && n === ".git") continue;
+      const pth = join(d, n); const st = lstatSync(pth);
+      if (st.isSymbolicLink()) {
+        let target: string; try { target = realpathSync(pth); } catch { target = resolve(dirname(pth), readlinkSync(pth)); }
+        if (target !== base && !target.startsWith(base + sep)) throw new Error("repo_symlink_escape");
+      } else if (st.isDirectory()) walk(pth);
+    }
+  };
+  walk(dir);
+}
+/**
+ * SENT-412-30a: files that decide WHAT `npm test` executes (manifests, lockfiles, npm/yarn config, test-runner
+ * configs, hooks, node_modules). A mission diff (vs baseSha, committed or not, untracked or ignored included)
+ * touching one → the runner test step is refused until the owner approves explicitly.
+ */
+const HARNESS = [
+  /(^|\/)(package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|pnpm-workspace\.yaml|bun\.lockb?|\.npmrc|\.yarnrc(\.yml)?|\.pnpmfile\.c?js|\.nvmrc|\.node-version|\.mocharc(\.[a-z]+)?|\.babelrc(\.[a-z]+)?|\.taprc|\.c8rc(\.json)?|\.nycrc(\.[a-z]+)?|run-tests\.[cm]?[jt]s)$/,
+  /(^|\/)[^/]*(jest|vitest|vite|mocha|ava|playwright|cypress|karma|babel|tap|c8|nyc|test)\.config\.[cm]?[jt]s(on)?$/,
+  /(^|\/)(\.husky|\.githooks|node_modules)(\/|$)/,
+];
+export function harnessChanges(m: AtelierMission): string[] {
+  const dir = workPath(m);
+  const tracked = git(dir, ["diff", "--name-only", m.repo.baseSha]).split("\n");
+  const untracked = git(dir, ["ls-files", "--others", "--exclude-standard"]).split("\n");
+  const ignored = git(dir, ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory"]).split("\n");
+  return [...new Set([...tracked, ...untracked, ...ignored].filter(Boolean))].filter(f => HARNESS.some(re => re.test(f))).sort();
+}
+/** SENT-412-30b: unprivileged bubblewrap available? (user namespaces + net namespace) */
+let sandboxProbe: boolean | null = null;
+export function sandboxAvailable(): boolean {
+  if (sandboxProbe == null) sandboxProbe = spawnSync("bwrap", ["--ro-bind", "/", "/", "--unshare-net", "--die-with-parent", "true"], { timeout: 5_000 }).status === 0;
+  return sandboxProbe;
+}
+/**
+ * bwrap arguments: system dirs read-only, NO /home, /root, /workspace, /tmp of the host (fresh tmpfs /tmp), no
+ * network (--unshare-net), the node install read-only, the mission work tree and private HOME the only writable binds.
+ */
+export function sandboxArgs(work: string, home: string): string[] {
+  const nodePrefix = dirname(dirname(process.execPath));
+  const ro = ["/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/etc", "/opt"].flatMap(d => ["--ro-bind-try", d, d]);
+  return ["--die-with-parent", "--unshare-net", "--unshare-pid", "--unshare-ipc", "--unshare-uts", ...ro, "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp",
+    "--ro-bind", nodePrefix, nodePrefix, "--bind", home, home, "--bind", work, work, "--chdir", work, "--"];
 }
 /** Signal 0 probe. EPERM = the pid exists but belongs to another user: it is ALIVE (SENT-412-7). */
 export const pidAlive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } };
@@ -465,16 +534,19 @@ function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
  * stash@{0}) is pinned under a named ref refs/atelier/quarantine/<mission>/<step> (survives stash drop / gc);
  * that ref name goes in step.quarantineRef.
  */
-function quarantine(m: AtelierMission, s: AtelierStep) {
+export function quarantine(m: AtelierMission, s: Pick<AtelierStep, "id" | "quarantineRef">) {
   s.quarantineRef = null; const dir = workPath(m);
   if (!git(dir, ["status", "--porcelain"])) return;
-  const stashHead = () => { const r = spawnSync("git", ["-C", dir, "rev-parse", "-q", "--verify", "refs/stash"], { encoding: "utf8" }); return r.status === 0 ? r.stdout.trim() : null; };
-  const before = stashHead();
-  git(dir, ["stash", "push", "--include-untracked", "-m", `atelier-quarantine-${m.id}-${s.id}`]);
-  const after = stashHead();
-  if (!after || after === before) throw new Error("quarantine_failed");
+  // 412-34: snapshot with `git stash create` (no refs/stash, shared by all worktrees), pinned under a named ref,
+  // verified (snapshot tree == work tree), and only THEN the work tree is reset to HEAD (nothing is lost).
+  git(dir, ["add", "-A"]);
+  const snap = git(dir, ["stash", "create", `atelier-quarantine-${m.id}-${s.id}`]);
+  if (!snap || git(dir, ["rev-parse", `${snap}^{tree}`]) !== git(dir, ["write-tree"])) throw new Error("quarantine_failed");
   const ref = `refs/atelier/quarantine/${m.id}/${s.id}`;
-  git(dir, ["update-ref", ref, after]); s.quarantineRef = ref;
+  git(dir, ["update-ref", ref, snap]);
+  if (git(dir, ["rev-parse", ref]) !== snap) throw new Error("quarantine_failed");
+  git(dir, ["reset", "-q", "--hard", "HEAD"]);
+  s.quarantineRef = ref;
 }
 export type StartedStep = { mission: AtelierMission; stepId: string; done: Promise<AtelierMission> };
 /**
@@ -493,7 +565,7 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
   const step: AtelierStep = { id: randomUUID(), kind: stepKind, status: "running", startedAt: now(), endedAt: null, executor: executorOf(m.runtime.runtimeId), sessionId: null,
     resumedFrom: null, requestedModelId: m.runtime.requestedModelId, observedModelId: null, exitCode: null, reason: null, commitSha: null };
   const { lockFile, lock } = acquire(m, step.id, !!opts.resume, root);
-  try { assertRepoHead(m); } catch (e) { release(m, lockFile); save(m, root); throw e; }
+  try { assertRepoHead(m); assertNoEscapingSymlink(workPath(m)); } catch (e) { release(m, lockFile); save(m, root); throw e; }
   if (opts.resume) {
     if (!m.sessionId) { release(m, lockFile); save(m, root); throw new Error("no_session_to_resume"); }
     step.sessionId = m.sessionId; step.resumedFrom = m.sessionId;
@@ -590,27 +662,42 @@ const t = setTimeout(() => { kill(); process.exitCode = 124; }, ms);
 process.on("SIGTERM", () => { kill(); process.exit(143); });
 c.on("error", () => { clearTimeout(t); process.exit(127); });
 c.on("exit", (code, sig) => { clearTimeout(t); kill(); if (process.exitCode !== 124) process.exitCode = code ?? 1; });`;
-export function runCommandStep(id: string, kind: "test" | "preview", command: string[], opts: { root?: string; previewFile?: string; timeoutMs?: number } = {}): AtelierMission {
+export function runCommandStep(id: string, kind: "test" | "preview", command: string[], opts: { root?: string; previewFile?: string; timeoutMs?: number; approveHarnessChange?: { by: string } } = {}): AtelierMission {
   const root = opts.root ?? atelierRoot();
   const m = loadMission(id, root);
   const step: AtelierStep = { id: randomUUID(), kind, status: "running", startedAt: now(), endedAt: null, executor: "runner", sessionId: null, resumedFrom: null,
     requestedModelId: null, observedModelId: null, exitCode: null, reason: null, commitSha: m.repo.headSha };
   const { lockFile } = acquire(m, step.id, false, root);
-  try { assertRepoHead(m); } catch (e) { release(m, lockFile); save(m, root); throw e; }
-  m.steps.push(step); save(m, root);
-  logEvent(id, "step_started", root, step.id, { kind });
-  const timeoutMs = opts.timeoutMs ?? 120_000;
-  const r = spawnSync(process.execPath, ["-e", GROUP_SUPERVISOR, ...command], { cwd: workPath(m), encoding: "utf8", timeout: timeoutMs + 5_000, killSignal: "SIGKILL",
-    env: { ...commandStepEnvironment(m.id, root), ATELIER_STEP_TIMEOUT_MS: String(timeoutMs) } });
-  step.exitCode = r.status; step.endedAt = now(); step.status = r.status === 0 ? "succeeded" : "failed";
-  const log = `$ ${command.join(" ")}\n# HEAD ${m.repo.headSha}\n${r.stdout}\n${r.stderr}\n# exit ${r.status}\n`;
-  addArtifact(m, step.id, kind === "test" ? "test_log" : "preview", `${step.id.slice(0, 8)}-${kind}.${kind === "test" ? "log" : "txt"}`, log, root);
-  if (kind === "preview" && opts.previewFile && existsSync(join(workPath(m), opts.previewFile)))
-    addArtifact(m, step.id, "preview", `${step.id.slice(0, 8)}-${opts.previewFile.replace(/[^\w.-]/g, "_")}`, readFileSync(join(workPath(m), opts.previewFile)), root);
-  m.status = step.status === "succeeded" ? "awaiting_review" : "failed";
-  release(m, lockFile); save(m, root);
-  logEvent(id, "step_finished", root, step.id, { status: step.status, exitCode: r.status });
-  return m;
+  try {
+    let harness: string[];
+    assertRepoHead(m); assertNoEscapingSymlink(workPath(m)); harness = harnessChanges(m);
+    m.steps.push(step); save(m, root);
+    logEvent(id, "step_started", root, step.id, { kind });
+    if (harness.length) step.harnessFiles = harness;
+    if (harness.length && !opts.approveHarnessChange?.by) {
+      // SENT-412-30a: the mission changed what `npm test` runs → never executed without the owner's explicit approval.
+      step.status = "needs_human_review"; step.reason = "test_harness_changed"; step.endedAt = now();
+      addArtifact(m, step.id, kind === "test" ? "test_log" : "preview", `${step.id.slice(0, 8)}-${kind}.${kind === "test" ? "log" : "txt"}`,
+        `# NOT RUN: test_harness_changed (owner approval required: approveHarnessChange)\n${harness.join("\n")}\n`, root);
+      m.status = "needs_human_review";
+      logEvent(id, "step_finished", root, step.id, { status: step.status, reason: step.reason, harnessFiles: harness });
+      return m;
+    }
+    if (harness.length) step.harnessApprovedBy = opts.approveHarnessChange!.by;
+    const timeoutMs = opts.timeoutMs ?? 120_000;
+    const env = commandStepEnvironment(m.id, root); step.sandbox = sandboxAvailable() ? "bwrap" : "none";
+    const argv = step.sandbox === "bwrap" ? ["bwrap", ...sandboxArgs(workPath(m), env.HOME!), ...command] : command;
+    const r = spawnSync(process.execPath, ["-e", GROUP_SUPERVISOR, ...argv], { cwd: workPath(m), encoding: "utf8", timeout: timeoutMs + 5_000, killSignal: "SIGKILL",
+      env: { ...env, ATELIER_STEP_TIMEOUT_MS: String(timeoutMs) } });
+    step.exitCode = r.status; step.endedAt = now(); step.status = r.status === 0 ? "succeeded" : "failed";
+    const log = `$ ${command.join(" ")}\n# HEAD ${m.repo.headSha}\n# sandbox ${step.sandbox}\n${r.stdout}\n${r.stderr}\n# exit ${r.status}\n`;
+    addArtifact(m, step.id, kind === "test" ? "test_log" : "preview", `${step.id.slice(0, 8)}-${kind}.${kind === "test" ? "log" : "txt"}`, log, root);
+    if (kind === "preview" && opts.previewFile && existsSync(join(workPath(m), opts.previewFile)))
+      addArtifact(m, step.id, "preview", `${step.id.slice(0, 8)}-${opts.previewFile.replace(/[^\w.-]/g, "_")}`, readFileSync(join(workPath(m), opts.previewFile)), root);
+    m.status = step.status === "succeeded" ? "awaiting_review" : "failed";
+    logEvent(id, "step_finished", root, step.id, { status: step.status, exitCode: r.status, sandbox: step.sandbox, harnessApprovedBy: step.harnessApprovedBy ?? null });
+    return m;
+  } finally { release(m, lockFile); save(m, root); }
 }
 
 /** Public projection for the app. */
