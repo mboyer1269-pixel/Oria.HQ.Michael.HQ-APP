@@ -4,7 +4,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
+import { appendFileSync, closeSync, linkSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative, sep } from "node:path";
 import { subscriptionEnvironment } from "../ai/subscription-runtime";
@@ -197,43 +197,72 @@ const readLock = (f: string): AtelierLock | null => { try { return JSON.parse(re
  * Exclusive lock. A fresh lock is only ever created with O_EXCL ("wx"). A stale lock (dead runner) is reclaimed
  * only on explicit resume, and the reclaim is serialised by a second O_EXCL file (run.lock.reclaim): under it the
  * lock is re-read and re-checked, so a concurrent reclaimer can never delete a lock another reclaimer just created.
- * The whole reclaim is synchronous; a reclaim file left by a killed process is reported, never silently removed.
+ * The whole reclaim is synchronous. Lock and reclaim files are published already filled (link(), never empty);
+ * a reclaim file left by a killed process is broken safely (see breakAbandoned), so nothing blocks for ever.
  */
 export function acquireLockFile(lockFile: string, stepId: string, opts: { explicitResume: boolean; onStale?: (held: AtelierLock) => void; afterStaleCheck?: () => void }) {
   if (existsSync(lockFile)) {
     const held = readLock(lockFile);
-    // Unreadable = being written right now by its creator (open "wx" then write): treat as held, never as stale.
-    if (!held || sameProcess(held.runnerPid, held.runnerStart)) throw new Error("mission_locked_by_live_runner");
+    // Unreadable lock (legacy/corrupt; new locks are never empty): held until ABANDONED_AFTER_MS old.
+    if (!held && !abandonedUnreadable(lockFile)) throw new Error("mission_locked_by_live_runner");
+    if (held && sameProcess(held.runnerPid, held.runnerStart)) throw new Error("mission_locked_by_live_runner");
     if (!opts.explicitResume) throw new Error("stale_lock_requires_explicit_resume");
     const mutex = `${lockFile}.reclaim`;
-    let mfd: number;
-    try { mfd = openSync(mutex, "wx"); } catch {
-      const owner = readLock(mutex);
-      throw new Error(!owner || sameProcess(owner.runnerPid, owner.runnerStart) ? "stale_lock_reclaim_in_progress" : "stale_lock_reclaim_file_orphaned");
+    const mine = { runnerPid: process.pid, runnerStart: procStartTime(process.pid), stepId, since: now() };
+    if (!publishExclusive(mutex, mine)) {
+      // SENT-412-5: an abandoned reclaim file (owner dead / identity unprovable, or unreadable and old) is broken safely, once.
+      if (!breakAbandoned(mutex) || !publishExclusive(mutex, mine)) throw new Error("stale_lock_reclaim_in_progress");
     }
     try {
-      writeSync(mfd, JSON.stringify({ runnerPid: process.pid, runnerStart: procStartTime(process.pid), stepId, since: now() })); closeSync(mfd);
       opts.afterStaleCheck?.();
       const again = readLock(lockFile);
-      if (again) {
+      if (!again && existsSync(lockFile)) { if (held || !abandonedUnreadable(lockFile)) throw new Error("mission_locked_by_live_runner"); unlinkSync(lockFile); }
+      else if (again) {
         if (sameProcess(again.runnerPid, again.runnerStart)) throw new Error("mission_locked_by_live_runner");
-        if (again.token !== held.token || again.runnerPid !== held.runnerPid || again.since !== held.since) throw new Error("mission_locked_by_live_runner");
+        if (!held || again.token !== held.token || again.runnerPid !== held.runnerPid || again.since !== held.since) throw new Error("mission_locked_by_live_runner");
         opts.onStale?.(again);
         unlinkSync(lockFile);
       }
       return createLock(lockFile, stepId);
-    } finally { try { unlinkSync(mutex); } catch { /* */ } }
+    } finally { const cur = readLock(mutex); if (cur?.runnerPid === mine.runnerPid && cur.since === mine.since && cur.stepId === mine.stepId) try { unlinkSync(mutex); } catch { /* */ } }
   }
   return createLock(lockFile, stepId);
 }
 function createLock(lockFile: string, stepId: string) {
   const runnerStart = procStartTime(process.pid);
   if (runnerStart == null) throw new Error("process_identity_unavailable");
-  let fd: number;
-  try { fd = openSync(lockFile, "wx"); } catch { throw new Error("mission_locked_by_live_runner"); }
   const lock: AtelierLock = { runnerPid: process.pid, runnerStart, childPid: null, childStart: null, token: randomUUID(), stepId, since: now() };
-  writeSync(fd, JSON.stringify(lock)); closeSync(fd);
+  if (!publishExclusive(lockFile, lock)) throw new Error("mission_locked_by_live_runner");
   return lock;
+}
+/** Grace period: a reclaim lasts milliseconds; an unreadable file older than this was abandoned by a killed writer. */
+export const ABANDONED_AFTER_MS = 10_000;
+/**
+ * Exclusive publish with content: write a private temp file, then link() it to the target (atomic, fails if the
+ * target exists). The target is therefore never observable empty or half-written.
+ */
+function publishExclusive(target: string, content: object): boolean {
+  const tmp = `${target}.tmp-${process.pid}-${randomUUID()}`;
+  writeFileSync(tmp, JSON.stringify(content));
+  try { linkSync(tmp, target); return true; } catch (e) { if ((e as NodeJS.ErrnoException).code === "EEXIST") return false; throw e; } finally { try { unlinkSync(tmp); } catch { /* */ } }
+}
+function abandonedUnreadable(file: string) { try { return Date.now() - statSync(file).mtimeMs > ABANDONED_AFTER_MS; } catch { return false; } }
+/**
+ * Break an abandoned reclaim file: owner recorded but not provably alive, or unreadable and older than ABANDONED_AFTER_MS.
+ * Rename it to a private name (only one breaker wins the rename), then check it is still the file we judged; if a
+ * fresh file was taken by mistake it is restored with link() (never overwrites).
+ */
+function breakAbandoned(file: string): boolean {
+  let raw: string; let st: { ino: number; mtimeMs: number };
+  try { raw = readFileSync(file, "utf8"); st = statSync(file); } catch { return true; /* already gone */ }
+  let owner: AtelierLock | null = null; try { owner = JSON.parse(raw) as AtelierLock; } catch { /* unreadable */ }
+  const abandoned = owner ? !sameProcess(owner.runnerPid, owner.runnerStart) : Date.now() - st.mtimeMs > ABANDONED_AFTER_MS;
+  if (!abandoned) return false;
+  const priv = `${file}.abandoned-${randomUUID()}`;
+  try { renameSync(file, priv); } catch { return true; /* someone else broke it */ }
+  const got = statSync(priv);
+  if (got.ino !== st.ino) { try { linkSync(priv, file); } catch { /* a newer one exists: leave it */ } unlinkSync(priv); return false; }
+  unlinkSync(priv); return true;
 }
 function acquire(m: AtelierMission, stepId: string, explicitResume: boolean, root: string) {
   const lockFile = lockPath(m.id, root);

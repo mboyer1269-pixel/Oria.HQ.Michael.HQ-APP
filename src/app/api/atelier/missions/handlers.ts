@@ -20,7 +20,6 @@ const ERRORS: Record<string, [number, string]> = {
   subscription_auth_required: [503, "Abonnement CLI non connecté (aucun repli API)."],
   repo_outside_atelier_root: [400, "Dépôt hors de la racine atelier."],
   stale_lock_reclaim_in_progress: [409, "Reprise déjà en cours par un autre processus."],
-  stale_lock_reclaim_file_orphaned: [409, "Fichier run.lock.reclaim orphelin : intervention opérateur requise."],
   process_identity_unavailable: [503, "Identité de processus non vérifiable (ni /proc ni ps) : atelier refusé sur cette machine."],
   repo_not_git: [400, "Le dépôt n'est pas un dépôt git."],
 };

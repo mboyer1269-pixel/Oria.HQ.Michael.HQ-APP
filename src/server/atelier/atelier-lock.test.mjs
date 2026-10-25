@@ -135,3 +135,29 @@ test("SENT-412-6: portable fallback via `ps -o lstart=` gives a stable identity 
   assert.equal(A.procStartTime(c.pid, { proc: false }), null, "dead pid → null");
   assert.equal(A.procStartTime(process.pid, { proc: false, ps: false }), null, "neither source → null (unprovable)");
 });
+
+test("SENT-412-5: reclaim file of a dead owner is broken at once; empty/unreadable one only once older than the grace period", async () => {
+  const { utimesSync, readdirSync } = await import("node:fs");
+  const { dirname } = await import("node:path");
+  // dead owner recorded
+  let f = fresh(); writeFileSync(`${f}.reclaim`, JSON.stringify({ runnerPid: 2 ** 22 - 9, runnerStart: "1", stepId: "x", since: "y" }));
+  assert.equal(A.acquireLockFile(f, "R1", { explicitResume: true }).stepId, "R1");
+  assert.equal(existsSync(`${f}.reclaim`), false);
+  // empty, fresh → still in progress (its writer may be mid-way)
+  f = fresh(); writeFileSync(`${f}.reclaim`, "");
+  assert.throws(() => A.acquireLockFile(f, "R2", { explicitResume: true }), /stale_lock_reclaim_in_progress/);
+  // empty, older than the grace period → broken, reclaim succeeds
+  const old = (Date.now() - A.ABANDONED_AFTER_MS - 1000) / 1000; utimesSync(`${f}.reclaim`, old, old);
+  assert.equal(A.acquireLockFile(f, "R2", { explicitResume: true }).stepId, "R2");
+  assert.deepEqual(readdirSync(dirname(f)).sort(), ["run.lock"], "no temp/abandoned/reclaim leftovers");
+  // a live owner's reclaim file is never broken
+  f = fresh(); writeFileSync(`${f}.reclaim`, JSON.stringify({ runnerPid: process.pid, runnerStart: A.procStartTime(process.pid), stepId: "x", since: "y" }));
+  assert.throws(() => A.acquireLockFile(f, "R3", { explicitResume: true }), /stale_lock_reclaim_in_progress/);
+  assert.ok(existsSync(`${f}.reclaim`));
+});
+
+test("SENT-412-5: lock and reclaim files are never observable empty (published via link)", () => {
+  const f = join(mkdtempSync(join(tmpdir(), "atelier-lock-")), "run.lock");
+  const l = A.acquireLockFile(f, "N", { explicitResume: false });
+  assert.equal(JSON.parse(readFileSync(f, "utf8")).token, l.token);
+});
