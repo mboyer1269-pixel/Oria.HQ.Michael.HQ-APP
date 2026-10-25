@@ -1,0 +1,59 @@
+<!doctype html><html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conversation → mission — Direction Cartographe · Oria</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"><style>
+*{box-sizing:border-box}body{margin:0;color:var(--ink);font:15px/1.5 var(--fb)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+a{color:inherit}.mono{font-family:var(--fm)}.soft{color:var(--soft)}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.side{padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+.brand{font-size:24px;font-weight:800;margin:0 8px 14px}
+.ctx{border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-bottom:14px;background:var(--chip)}
+.ctx b{display:block}.nav a{display:block;padding:9px 12px;border-radius:var(--r);text-decoration:none;color:var(--soft)}
+.top{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.pill{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;background:var(--chip)}
+.ex{display:inline-block;font:600 12px/1 var(--fm);text-transform:uppercase;letter-spacing:.06em;padding:4px 7px;border-radius:4px;background:#ffe9a8;color:#3a2a00;border:1px solid #8a6a00;vertical-align:middle}
+.real{display:inline-block;font:600 12px/1 var(--fm);padding:4px 7px;border-radius:4px;background:#d9f5e3;color:#0b3a1d;border:1px solid #1d6b3a}
+main{padding:24px 28px;display:grid;gap:18px}
+.card{border-radius:var(--r);padding:16px}
+.g2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+h1,h2{margin:0 0 8px}ul{margin:0;padding:0;list-style:none}
+li.row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.st{font:500 12px/1.2 var(--fm);padding:3px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.s-ok{color:var(--ok)}.s-warn{color:var(--warn)}.s-bad{color:var(--bad)}.s-run{color:var(--accent)}.s-idle{color:var(--soft)}
+.btn{font:600 14px var(--fb);background:var(--accent);color:var(--accent-fg);border:0;border-radius:var(--r);padding:10px 14px;min-height:44px;cursor:pointer}
+.btn2{font:600 14px var(--fb);background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;min-height:44px}
+.map svg{width:100%;height:auto;display:block}
+.live{animation:live 1.6s ease-in-out infinite}@keyframes live{50%{opacity:.35}}
+.flow{stroke-dasharray:6 6;animation:flow 1.2s linear infinite}@keyframes flow{to{stroke-dashoffset:-12}}
+@media (prefers-reduced-motion:reduce){.live,.flow{animation:none}}
+.msg{border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px;background:var(--chip)}
+.prop{border:2px solid var(--accent);border-radius:var(--r);padding:14px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px}.kv dt{color:var(--soft)}.kv dd{margin:0;font-family:var(--fm);word-break:break-all}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--soft);font-weight:600}
+.alert{border-left:4px solid var(--warn);padding:8px 12px;background:var(--chip)}
+.tabbar{display:none}
+@media (max-width:760px){.app{grid-template-columns:1fr}.side{display:none}.g2,.g3{grid-template-columns:1fr}main{padding:16px}.top{padding:12px 16px}h1{font-size:32px!important}
+ .app{padding-bottom:64px}.tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:5;justify-content:space-around;background:var(--bg);border-top:1px solid var(--line);padding:6px}.tabbar a{padding:10px 8px;text-decoration:none;font-size:13px;min-height:44px}
+ .tbl-wrap{overflow-x:auto}}
+
+:root{--bg:#f3ecdf;--paper:#fbf7ef;--ink:#1f1a14;--soft:#5a4f42;--line:#d8ccb7;--accent:#b4441f;--accent-fg:#fff;--ok:#2f6b3a;--warn:#8a5a00;--bad:#a3261b;--chip:#efe5d3;--fd:'Fraunces',serif;--fb:'IBM Plex Sans',sans-serif;--fm:'IBM Plex Mono',monospace;--r:4px}
+body{background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cg fill='none' stroke='%23d9ccb4' stroke-width='1'%3E%3Cpath d='M0 60 Q60 30 120 60 T240 60'/%3E%3Cpath d='M0 120 Q60 90 120 120 T240 120'/%3E%3Cpath d='M0 180 Q60 150 120 180 T240 180'/%3E%3C/g%3E%3C/svg%3E")}
+h1,h2,.brand{font-family:var(--fd);letter-spacing:-.01em} h1{font-size:44px;font-weight:800} h2{font-size:22px;font-weight:600}
+.card{background:var(--paper);border:1px solid var(--line);box-shadow:2px 2px 0 var(--line)}
+.nav a[aria-current]{background:var(--ink);color:var(--paper)} .side{border-right:2px solid var(--ink)}
+</style></head><body>
+<a href="#c" class="ex" style="position:absolute;left:-999px">Aller au contenu</a>
+<div class="app"><aside class="side"><div class="brand">Oria</div>
+<div class="ctx"><span class="soft" style="font-size:12px">Contexte actif · entreprise</span><b>Atelier Boréal <span class="ex" title="Données d’exemple, non réelles">exemple</span></b></div>
+<nav class="nav" aria-label="Navigation principale"><a href="cockpit.html">Cockpit</a><a href="fiche.html">Fiche entreprise</a><a href="equipe.html">Équipe</a><a href="conversation.html" aria-current="page">Conversations</a><a href="missions.html">Missions</a><a href="atelier.html">Atelier</a><a href="livrables.html">Livrables</a><a href="connexions.html">Connexions</a></nav></aside>
+<div><header class="top"><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill">Modèle observé : <b class="mono">gpt-5.6-luna</b> <span class="real">prouvé · E1-D</span></span><span class="pill">Runtime : Codex CLI · abonnement</span></div>
+<span class="pill mono" aria-label="Palette de commandes, raccourci Contrôle K">⌘K Rechercher ou agir</span></header>
+<main id="c"><div><span class="soft">Conversation · #lancement-pourboire</span> <span class="ex" title="Données d’exemple, non réelles">exemple</span><h1>Du fil à la mission</h1></div>
+<div class="g2"><section class="card" aria-label="Fil de conversation"><div class="msg"><b>Vous</b> <span class="soft mono" style="font-size:12px">05:02</span><p style="margin:4px 0 0">Il nous faut une petite démo pour les restaurateurs : pourboire + partage de l’addition.</p></div>
+<div class="msg"><b>Ronnie</b> · Directeur général <span class="soft mono" style="font-size:12px">05:03</span><p style="margin:4px 0 0">Je propose de confier ça à Malik dans l’atelier, avec aperçu HTML et tests.</p></div>
+<div class="prop"><span class="soft" style="font-size:12px">PROPOSITION DE MISSION · prête à valider</span><h2 style="margin-top:4px">Calculatrice de pourboire</h2>
+<dl class="kv"><dt>Besoin</dt><dd style="font-family:var(--fb)">Je veux une petite bibliothèque JS qui calcule le pourboire et le partage d&#x27;une addition entre N personnes, avec une page HTML d&#x27;aperçu.</dd><dt>Responsable</dt><dd>Malik · Ingénieur <span class="ex" title="Données d’exemple, non réelles">exemple</span></dd><dt>Modèle demandé</dt><dd>gpt-5.6-luna</dd><dt>Contexte</dt><dd>Atelier Boréal</dd></dl>
+<div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"><a class="btn" href="atelier.html">Valider en mission</a><button class="btn2">Modifier</button><button class="btn2">Refuser</button></div></div></section>
+<section class="card"><h2>Ce qui se passera</h2><ol style="padding-left:20px;margin:0"><li>La mission reprend titre, besoin, responsable et contexte — sans ressaisie.</li><li>Elle apparaît dans Missions et sur la carte vivante.</li><li>L’atelier exécute spec → code → tests → aperçu ; vous relisez.</li><li>Lien retour vers ce message dans la mission.</li></ol>
+<p class="alert" style="margin-top:14px">Le besoin ci-contre est celui de la mission réelle E1-D ; les personnes et le fil sont <span class="ex" title="Données d’exemple, non réelles">exemple</span>.</p></section></div></main>
+<nav class="tabbar" aria-label="Navigation mobile"><a href="cockpit.html">Cockpit</a><a href="fiche.html">Fiche</a><a href="conversation.html" aria-current="page">Conversations</a><a href="atelier.html">Atelier</a></nav></div></div></body></html>
