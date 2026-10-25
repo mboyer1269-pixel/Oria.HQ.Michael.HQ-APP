@@ -1,0 +1,6 @@
+== member-free read after restart (no reap on reads)
+orphan alive after GET? yes
+== POST steps without resume
+{"error":"Exécution précédente interrompue : utiliser /resume.","code":"stale_lock_requires_explicit_resume"}
+orphan alive after authorised POST? no
+{"seq":9,"at":"2026-10-25T09:52:07.407Z","type":"orphan_child_reaped","stepId":"e073d488-bfe5-4d76-bcc6-f8f56407609c","data":{"childPid":661530,"deadRunnerPid":656477,"result":"killed"}}
