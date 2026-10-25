@@ -4,6 +4,8 @@
 # rate_limit_event, result (modelUsage). Knobs come from $HOME/fake.env (the runner passes an allowlisted env).
 [ -f "$HOME/fake.env" ] && . "$HOME/fake.env"
 if [ "$1" = "auth" ]; then
+  # A project-level override in the mission work tree (cwd) switches to API-key auth (SENT-412-21).
+  if [ -f .fake-paid-auth ]; then echo '{"loggedIn":true,"authMethod":"api_key","apiProvider":"firstParty"}'; exit 0; fi
   if [ -n "$FAKE_AUTH" ]; then echo "$FAKE_AUTH"; else echo '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty","subscriptionType":"pro"}'; fi; exit 0
 fi
 cat >/dev/null
@@ -12,8 +14,9 @@ for a in "$@"; do
   [ "$prev" = "--resume" ] && SID=$a; [ "$prev" = "--model" ] && MODEL=$a; prev=$a
 done
 OBS=${FAKE_OBSERVED:-$MODEL}
+[ -n "$FAKE_INIT_DELAY" ] && sleep "$FAKE_INIT_DELAY"
 [ "${FAKE_API_KEY_SOURCE:-none}" != "none" ] && echo "paid" >> work.txt && echo "x" > paid-untracked.txt
-echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"$SID\",\"model\":\"$MODEL\",\"apiKeySource\":\"${FAKE_API_KEY_SOURCE:-none}\"}"
+[ -z "$FAKE_NO_INIT" ] && echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"$SID\",\"model\":\"$MODEL\",\"apiKeySource\":\"${FAKE_API_KEY_SOURCE:-none}\"}"
 # A non-"none" key source simulates a paid API session (key injected by settings): it keeps working for a while.
 [ "${FAKE_API_KEY_SOURCE:-none}" != "none" ] && sleep 5
 if [ -n "$FAKE_QUOTA" ]; then

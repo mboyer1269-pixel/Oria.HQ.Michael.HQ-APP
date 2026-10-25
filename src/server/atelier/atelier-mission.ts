@@ -4,7 +4,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { appendFileSync, closeSync, linkSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, linkSync, existsSync, mkdirSync, openSync, readFileSync, writeSync, readdirSync, realpathSync, rmdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import type { BigIntStats } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, relative, sep } from "node:path";
@@ -88,10 +88,18 @@ export function readArtifact(id: string, artifactId: string, root = atelierRoot(
 
 // ---------- runtimes (subscription only) ----------
 const API_KEYS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CODEX_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"];
-export function assertSubscriptionOnly(runtimeId: RuntimeId = "codex", env = process.env, run = spawnSync) {
+/**
+ * Child env of the CLIs: the subscription allowlist, minus (defence in depth, SENT-412-21) anything that could
+ * redirect or authenticate an API call: ANTHROPIC_*, OPENAI_*, *_BASE_URL, *TOKEN*, *_KEY.
+ */
+export function agentEnvironment(env = process.env): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(subscriptionEnvironment(env)).filter(([k]) => !/^(ANTHROPIC_|OPENAI_|CODEX_|CLAUDE_CODE_)|BASE_URL|TOKEN|_KEY$/i.test(k))) as NodeJS.ProcessEnv;
+}
+/** Subscription gate. `cwd` = the mission work tree: the check runs where (and with the env with which) the CLI will run. */
+export function assertSubscriptionOnly(runtimeId: RuntimeId = "codex", env = process.env, run = spawnSync, cwd?: string) {
   const leaked = API_KEYS.filter(k => env[k]);
   if (leaked.length) throw new Error(`api_key_present:${leaked.join(",")}`);
-  const s = run(runtimeId === "codex" ? "codex" : "claude", runtimeId === "codex" ? ["login", "status"] : ["auth", "status"], { encoding: "utf8", env: subscriptionEnvironment(env) });
+  const s = run(runtimeId === "codex" ? "codex" : "claude", runtimeId === "codex" ? ["login", "status"] : ["auth", "status"], { encoding: "utf8", env: agentEnvironment(env), timeout: 20_000, ...(cwd ? { cwd } : {}) });
   const out = `${s.stdout ?? ""}${s.stderr ?? ""}`;
   if (runtimeId === "codex") { if (!/logged in using chatgpt/i.test(out) || /api[ _-]?key/i.test(out)) throw new Error("subscription_auth_required"); return; }
   try { const j = JSON.parse(String(s.stdout)); if (j.loggedIn === true && j.authMethod === "claude.ai" && (!j.apiProvider || j.apiProvider === "firstParty")) return; } catch { /* fallthrough */ }
@@ -460,10 +468,12 @@ export type StartedStep = { mission: AtelierMission; stepId: string; done: Promi
  * `done` resolves when the CLI exits. `resume` continues the previous CLI session and is
  * the only way to reclaim a stale lock. A resumed step keeps the interrupted step's kind.
  */
-export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: string, opts: { resume?: boolean; timeoutMs?: number; root?: string } = {}): StartedStep {
+/** Max time before Claude Code's `system/init` (SENT-412-22): later → group killed, subscription_auth_required. */
+export const INIT_TIMEOUT_MS = 30_000;
+export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: string, opts: { resume?: boolean; timeoutMs?: number; initTimeoutMs?: number; root?: string } = {}): StartedStep {
   const root = opts.root ?? atelierRoot();
   let m = loadMission(id, root);
-  assertSubscriptionOnly(m.runtime.runtimeId);
+  assertSubscriptionOnly(m.runtime.runtimeId, process.env, spawnSync, workPath(m)); // SENT-412-21: in the work tree, before spawn
   const lastAgent = [...m.steps].reverse().find(s => s.executor !== "runner");
   const stepKind: AgentStepKind = kind ?? (opts.resume && lastAgent && lastAgent.kind !== "test" && lastAgent.kind !== "preview" ? lastAgent.kind : "code");
   const step: AtelierStep = { id: randomUUID(), kind: stepKind, status: "running", startedAt: now(), endedAt: null, executor: executorOf(m.runtime.runtimeId), sessionId: null,
@@ -480,45 +490,56 @@ export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: s
   const transcriptName = `${step.id.slice(0, 8)}-${stepKind}.jsonl`;
   const tdir = join(missionDir(id, root), "artifacts"); mkdirSync(tdir, { recursive: true });
   const tfd = openSync(join(tdir, transcriptName), "a");
-  const child = spawn(binary, args, { cwd: workPath(m), env: subscriptionEnvironment(process.env), detached: true, stdio: ["pipe", tfd, "pipe"] });
+  const child = spawn(binary, args, { cwd: workPath(m), env: agentEnvironment(process.env), detached: true, stdio: ["pipe", "pipe", "pipe"] });
   lock.childPid = child.pid ?? null; lock.childStart = child.pid ? procStartTime(child.pid) : null; writeFileSync(lockFile, JSON.stringify(lock)); m.lock = lock; save(m, root);
   child.stdin?.end(prompt);
+  const killGroup = () => { try { process.kill(-child.pid!, "SIGKILL"); } catch { /* */ } };
   let stderr = ""; child.stderr?.on("data", c => { stderr = (stderr + c).slice(-4000); });
   child.on("error", () => { /* surfaced through close */ });
-  const timer = setTimeout(() => { try { process.kill(-child.pid!, "SIGKILL"); } catch { /* */ } }, opts.timeoutMs ?? 900_000);
-  // SENT-412-17: watch the init event; a paid API session is killed at once (before any work).
-  let paidSession = false;
-  const authWatch = m.runtime.runtimeId === "claude-code" ? setInterval(() => {
-    let a: ReturnType<typeof streamAuth>; try { a = streamAuth(m.runtime.runtimeId, readFileSync(join(tdir, transcriptName), "utf8")); } catch { return; }
-    if (a === "pending") return;
-    clearInterval(authWatch!);
-    if (a === "paid") { paidSession = true; try { process.kill(-child.pid!, "SIGKILL"); } catch { /* */ } }
-  }, 25) : null;
+  const timer = setTimeout(killGroup, opts.timeoutMs ?? 900_000);
+  // SENT-412-17/21/22: stdout is read as a stream (no file polling). Claude: the first `system/init` decides — not
+  // the subscription → group killed at once; no init before the deadline → killed; never seen → fail closed.
+  const isClaude = m.runtime.runtimeId === "claude-code";
+  let auth: ReturnType<typeof streamAuth> = isClaude ? "pending" : "unknown"; let pendingLine = "";
+  const initTimer = isClaude ? setTimeout(() => { if (auth === "pending") killGroup(); }, opts.initTimeoutMs ?? INIT_TIMEOUT_MS) : null;
+  child.stdout?.on("data", (c: Buffer) => {
+    writeSync(tfd, c);
+    if (auth !== "pending") return;
+    pendingLine += c.toString("utf8"); const lines = pendingLine.split("\n"); pendingLine = lines.pop() ?? "";
+    for (const l of lines) { const a = streamAuth("claude-code", l); if (a === "pending") continue; auth = a; if (initTimer) clearTimeout(initTimer); if (a === "paid") killGroup(); break; }
+  });
   const done = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(r => child.on("close", (code, signal) => r({ code, signal }))).then(({ code, signal }) => {
-    clearTimeout(timer); if (authWatch) clearInterval(authWatch); closeSync(tfd);
+    clearTimeout(timer); if (initTimer) clearTimeout(initTimer); closeSync(tfd);
     m = loadMission(id, root); const s = m.steps.find(x => x.id === step.id)!;
-    const transcript = readFileSync(join(tdir, transcriptName), "utf8");
-    const p = parseTranscript(m.runtime.runtimeId, transcript);
-    if (p.sessionId) { m.sessionId = p.sessionId; s.sessionId = p.sessionId; }
-    s.exitCode = code; s.endedAt = now();
-    if (!paidSession && streamAuth(m.runtime.runtimeId, transcript) === "paid") paidSession = true;
-    s.status = paidSession ? "failed" : signal ? "interrupted" : code === 0 && p.completed ? "succeeded" : "failed";
-    if (paidSession) s.reason = "subscription_auth_required";
-    else if (s.status !== "succeeded") s.reason = signal ? `signal_${signal}` : p.quota || /usage limit|rate limit|quota|limit reached/i.test(stderr + (m.runtime.runtimeId === "codex" ? transcript : "")) ? "subscription_quota" : "cli_nonzero_exit";
-    if (s.status === "failed" && s.reason === "subscription_quota") s.status = "blocked";
-    if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript);
-    hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);
-    if (stepKind === "spec" && existsSync(join(workPath(m), "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(workPath(m), "SPEC.md")), root);
-    if (paidSession) quarantine(m, s); // never commit, never destroy: changes set aside in a named stash
-    else commitIfChanged(m, s, root);
-    m.status = s.status === "succeeded" ? "awaiting_review" : s.status === "interrupted" ? "interrupted" : s.status === "blocked" ? "blocked" : "failed";
-    release(m, lockFile); save(m, root);
-    logEvent(id, "step_finished", root, s.id, { status: s.status, reason: s.reason, observedModelId: s.observedModelId, commitSha: s.commitSha, sessionId: s.sessionId });
+    try { // SENT-412-27: whatever throws below (git…), the lock is released and the state saved
+      const transcript = readFileSync(join(tdir, transcriptName), "utf8");
+      const p = parseTranscript(m.runtime.runtimeId, transcript);
+      if (p.sessionId) { m.sessionId = p.sessionId; s.sessionId = p.sessionId; }
+      s.exitCode = code; s.endedAt = now();
+      if (isClaude && auth === "pending") auth = streamAuth("claude-code", transcript);
+      const authFailed = isClaude && auth !== "subscription"; // paid, or init missing / too late (fail closed)
+      s.status = authFailed ? "failed" : signal ? "interrupted" : code === 0 && p.completed ? "succeeded" : "failed";
+      if (authFailed) s.reason = "subscription_auth_required";
+      else if (s.status !== "succeeded") s.reason = signal ? `signal_${signal}` : p.quota || /usage limit|rate limit|quota|limit reached/i.test(stderr + (m.runtime.runtimeId === "codex" ? transcript : "")) ? "subscription_quota" : "cli_nonzero_exit";
+      if (s.status === "failed" && s.reason === "subscription_quota") s.status = "blocked";
+      if (s.sessionId) s.observedModelId = observedModel(m.runtime.runtimeId, s.sessionId, transcript);
+      hashArtifact(m, s.id, "transcript", join(tdir, transcriptName), root);
+      if (stepKind === "spec" && existsSync(join(workPath(m), "SPEC.md"))) addArtifact(m, s.id, "spec", `${s.id.slice(0, 8)}-SPEC.md`, readFileSync(join(workPath(m), "SPEC.md")), root);
+      if (authFailed) quarantine(m, s); // never commit, never destroy: changes set aside
+      else commitIfChanged(m, s, root);
+    } catch (e) {
+      s.status = "failed"; s.endedAt ??= now();
+      if (s.reason !== "subscription_auth_required") s.reason = (e as Error).message === "repo_head_mismatch" ? "repo_head_mismatch" : "runner_error";
+    } finally {
+      m.status = s.status === "succeeded" ? "awaiting_review" : s.status === "interrupted" ? "interrupted" : s.status === "blocked" ? "blocked" : "failed";
+      release(m, lockFile); save(m, root);
+      logEvent(id, "step_finished", root, s.id, { status: s.status, reason: s.reason, observedModelId: s.observedModelId, commitSha: s.commitSha, sessionId: s.sessionId, quarantineRef: s.quarantineRef ?? null });
+    }
     return m;
   });
   return { mission: m, stepId: step.id, done };
 }
-export async function runAgentStep(id: string, kind: AgentStepKind | null, prompt: string, opts: { resume?: boolean; timeoutMs?: number; root?: string } = {}) {
+export async function runAgentStep(id: string, kind: AgentStepKind | null, prompt: string, opts: { resume?: boolean; timeoutMs?: number; initTimeoutMs?: number; root?: string } = {}) {
   return startAgentStep(id, kind, prompt, opts).done;
 }
 

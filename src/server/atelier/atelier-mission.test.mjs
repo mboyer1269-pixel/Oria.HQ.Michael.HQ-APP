@@ -134,3 +134,8 @@ test('SENT-412-20: one git worktree per mission — B never moves A off its bran
   wa('switch', '-q', '-c', 'other');
   assert.throws(() => A.assertRepoHead(ma), /repo_head_mismatch/);
 });
+
+test('SENT-412-21: agent env strips ANTHROPIC_*/OPENAI_*/base URLs/tokens/keys', () => {
+  const e = A.agentEnvironment({ PATH: '/bin', HOME: '/h', ANTHROPIC_BASE_URL: 'http://x', ANTHROPIC_MODEL: 'm', OPENAI_BASE_URL: 'u', GH_TOKEN: 't', LANG: 'C' });
+  assert.deepEqual(Object.keys(e).sort(), ['HOME', 'LANG', 'NODE_ENV', 'PATH']);
+});

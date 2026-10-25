@@ -221,6 +221,38 @@ test('claude-code SENT-412-17: init.apiKeySource ≠ "none" (paid API key inject
   assert.match(stash, new RegExp(`atelier-quarantine-${missionId}-${m.steps[0].id}`));
 });
 
+test('claude-code SENT-412-21: auth checked in the mission work tree before spawn (project override → refused, no step, no CLI run)', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_OBSERVED=claude-test');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('rc21'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); let m = await waitIdle(missionId);
+  writeFileSync(path.join(A.workPath(m), '.fake-paid-auth'), '1');
+  const r = await steps.POST(req('/x', { kind: 'code', prompt: 'code' }), params(missionId));
+  assert.equal(r.status, 503); assert.equal((await r.json()).code, 'subscription_auth_required');
+  m = A.loadMission(missionId); assert.equal(m.steps.length, 1, 'no step started'); assert.equal(A.currentLock(missionId), null);
+});
+
+test('claude-code SENT-412-22: no init event → subscription_auth_required, no commit, quarantined (fail closed)', async () => {
+  as({ id: 'u1' });
+  knobs('FAKE_NO_INIT=1');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: repo('rc22'), runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); const m = await waitIdle(missionId); knobs('');
+  assert.equal(m.steps[0].status, 'failed'); assert.equal(m.steps[0].reason, 'subscription_auth_required'); assert.equal(m.steps[0].commitSha, null);
+  assert.ok(m.steps[0].quarantineRef, 'changes set aside');
+});
+
+test('claude-code SENT-412-22: init later than the deadline → group killed, subscription_auth_required', async () => {
+  as({ id: 'u1' });
+  const r = repo('rc22b');
+  knobs('FAKE_OBSERVED=claude-test');
+  const created = await H.createAtelierMission({ userId: 'u1', workspaceId: 'ws-a' }, { title: 'T', need: 'N', repoPath: r, runtimeId: 'claude-code', modelId: 'claude-test' }, { catalog });
+  const { missionId } = await created.json(); await waitIdle(missionId);
+  knobs('FAKE_INIT_DELAY=5'); const t0 = Date.now();
+  const m = await A.runAgentStep(missionId, 'code', 'x', { initTimeoutMs: 300 }); knobs('');
+  assert.ok(Date.now() - t0 < 3000, 'killed at the init deadline');
+  const s = m.steps.at(-1); assert.equal(s.status, 'failed'); assert.equal(s.reason, 'subscription_auth_required'); assert.equal(s.commitSha, null);
+});
+
 test('claude-code refusals: ANTHROPIC_API_KEY set, or auth method not claude.ai → 503 before any spawn', async () => {
   const ctx = { userId: 'u1', workspaceId: 'ws-a' };
   const base = { title: 'T', need: 'N', repoPath: repo('rc4'), runtimeId: 'claude-code', modelId: 'claude-test' };
