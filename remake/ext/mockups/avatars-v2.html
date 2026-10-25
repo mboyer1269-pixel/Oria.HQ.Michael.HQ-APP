@@ -217,7 +217,7 @@ pre{background:#050707;border:1px solid var(--line);border-radius:10px;padding:1
 .relay{display:flex;flex-wrap:wrap;gap:8px;align-items:end;justify-content:center}.relay label{margin:0 0 3px}.relay select{width:auto}
 @media (max-width:900px){.studio{grid-template-columns:1fr}.panel{position:static}.agents{grid-template-columns:1fr 1fr}.hero{grid-template-columns:repeat(3,1fr);row-gap:20px}}
 @media (max-width:560px){.agents{grid-template-columns:1fr}.hero{grid-template-columns:repeat(2,1fr)}main{padding:16px 14px 60px}.card{padding:16px}header{padding:10px 14px}.orb-slot>div{width:84px}}
-</style></head><body><a class="skip" href="#m">Aller au contenu</a><header><div class="brand">ORIA <span>HQ</span> · Avatars</div><nav aria-label="Avatars"><a href="avatars-v2-galerie.html">Galerie</a><a href="avatars-v2.html" aria-current=page>Atelier</a></nav></header><main id="m"><p><span class="ex">exemple</span> Agents, affectations et états de démonstration. Les choix restent dans ce navigateur (localStorage). Modèle de production : FIGURINE.md.</p>
+</style></head><body><a class="skip" href="#m">Aller au contenu</a><header><div class="brand">ORIA <span>HQ</span> · Avatars</div><nav aria-label="Avatars"><a href="avatars-v2-galerie.html">Galerie</a><a href="avatars-v2.html" aria-current=page>Atelier</a><a href="avatars-propositions.html">Propositions</a></nav></header><main id="m"><p><span class="ex">exemple</span> Agents, affectations et états de démonstration. Les choix restent dans ce navigateur (localStorage). Modèle de production : FIGURINE.md.</p>
 <p class="kick">Atelier</p><h1>Votre équipe, vos noms, vos couleurs.</h1><p class="lede">Renommez chaque agent (cliquez sur son nom, Entrée pour valider, Échap pour annuler), choisissez famille, look, pose et couleur, ou passez toute l'équipe à la couleur de marque. Contraste AA vérifié et corrigé à chaque choix.</p>
 <p id="hint" class="meta" hidden>Entrée ou clic pour renommer ; Entrée valide, Échap annule.</p>
 <div class="studio"><aside class="panel card" aria-labelledby="pg"><h2 id="pg" style="margin-top:0">Réglages globaux</h2>
@@ -314,7 +314,7 @@ function scan(root){(root||document).querySelectorAll('.fg').forEach(el=>{if(!se
 new MutationObserver(ms=>{let add=false;for(const m of ms)for(const n of m.addedNodes)if(n.nodeType==1){add=true;break}if(add)scan();for(const el of [...vis])if(!el.isConnected)vis.delete(el)}).observe(document.documentElement,{childList:true,subtree:true});
 /* regard */
 let tx=null,ty=null,raf=0;
-function gaze(){raf=0;if(still()||tx==null)return;for(const el of vis){const r=el.getBoundingClientRect();const cx=r.left+r.width/2,cy=r.top+r.height*.35;
+function gaze(){raf=0;if(still()||tx==null)return;for(const el of vis){if(el.closest('[data-lock]'))continue;const r=el.getBoundingClientRect();const cx=r.left+r.width/2,cy=r.top+r.height*.35;
   let dx=(tx-cx)/Math.max(innerWidth*.5,300),dy=(ty-cy)/Math.max(innerHeight*.5,300);dx=Math.max(-1,Math.min(1,dx));dy=Math.max(-1,Math.min(1,dy));
   el.style.setProperty('--gx',dx.toFixed(3));el.style.setProperty('--gy',dy.toFixed(3))}}
 const ask=()=>{if(!raf)raf=requestAnimationFrame(gaze)};

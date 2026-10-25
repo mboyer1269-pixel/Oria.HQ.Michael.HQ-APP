@@ -87,7 +87,7 @@ pre{background:#050707;border:1px solid var(--line);border-radius:10px;padding:1
 """
 JS=(D/"figurine.js").read_text()
 def page(t,body,cur,js=""):
-    nav="".join(f'<a href="{h}.html"{" aria-current=page" if h==cur else ""}>{x}</a>' for h,x in [("avatars-v2-galerie","Galerie"),("avatars-v2","Atelier")])
+    nav="".join(f'<a href="{h}.html"{" aria-current=page" if h==cur else ""}>{x}</a>' for h,x in [("avatars-v2-galerie","Galerie"),("avatars-v2","Atelier"),("avatars-propositions","Propositions")])
     return f'<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{t} — Oria</title><link rel="stylesheet" href="../avatars-v2/figurine/masks.css"><style>{CSS}</style></head><body><a class="skip" href="#m">Aller au contenu</a><header><div class="brand">ORIA <span>HQ</span> · Avatars</div><nav aria-label="Avatars">{nav}</nav></header><main id="m">{body}</main><script>{JS}</script>{js}</body></html>'
 V=list(H.V)
 NAMEJS="""<script>(function(){try{const S=JSON.parse(localStorage.getItem('oria-avatars-v3')||'null');if(!S)return;

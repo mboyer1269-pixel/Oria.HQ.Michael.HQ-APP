@@ -15,7 +15,7 @@ function scan(root){(root||document).querySelectorAll('.fg').forEach(el=>{if(!se
 new MutationObserver(ms=>{let add=false;for(const m of ms)for(const n of m.addedNodes)if(n.nodeType==1){add=true;break}if(add)scan();for(const el of [...vis])if(!el.isConnected)vis.delete(el)}).observe(document.documentElement,{childList:true,subtree:true});
 /* regard */
 let tx=null,ty=null,raf=0;
-function gaze(){raf=0;if(still()||tx==null)return;for(const el of vis){const r=el.getBoundingClientRect();const cx=r.left+r.width/2,cy=r.top+r.height*.35;
+function gaze(){raf=0;if(still()||tx==null)return;for(const el of vis){if(el.closest('[data-lock]'))continue;const r=el.getBoundingClientRect();const cx=r.left+r.width/2,cy=r.top+r.height*.35;
   let dx=(tx-cx)/Math.max(innerWidth*.5,300),dy=(ty-cy)/Math.max(innerHeight*.5,300);dx=Math.max(-1,Math.min(1,dx));dy=Math.max(-1,Math.min(1,dy));
   el.style.setProperty('--gx',dx.toFixed(3));el.style.setProperty('--gy',dy.toFixed(3))}}
 const ask=()=>{if(!raf)raf=requestAnimationFrame(gaze)};
