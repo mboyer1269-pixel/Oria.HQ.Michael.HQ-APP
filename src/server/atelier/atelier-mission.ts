@@ -236,6 +236,24 @@ function acquire(m: AtelierMission, stepId: string, explicitResume: boolean, roo
   } });
   m.lock = lock; return { lockFile, lock };
 }
+/**
+ * Boot cleanup: a crashed runner can leave its CLI child running (it keeps editing the repo and burning quota).
+ * Kill such orphans, but ONLY when the child pid still has the start time recorded in the lock (never a reused pid).
+ * The stale lock itself is kept: recovery still requires an explicit resume.
+ */
+export function reapOrphanChildren(root = atelierRoot()) {
+  const reaped: { missionId: string; childPid: number; result: string }[] = [];
+  if (!existsSync(root)) return reaped;
+  for (const id of readdirSync(root)) {
+    let f: string; try { f = lockPath(id, root); } catch { continue; } if (!existsSync(f)) continue;
+    const l = readLock(f); if (!l?.childPid || sameProcess(l.runnerPid, l.runnerStart)) continue;
+    const result = killRecordedGroup(l.childPid, l.childStart, "SIGKILL");
+    if (result === "gone") continue;
+    reaped.push({ missionId: id, childPid: l.childPid, result });
+    logEvent(id, "orphan_child_reaped", root, l.stepId, { childPid: l.childPid, deadRunnerPid: l.runnerPid, result });
+  }
+  return reaped;
+}
 function release(m: AtelierMission, lockFile: string) {
   const mine = m.lock?.token; m.lock = null;
   // Only remove our own lock (token match): never a lock someone else holds now.

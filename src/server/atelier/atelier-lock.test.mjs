@@ -87,3 +87,22 @@ test("pid identity: a lock whose runner pid was reused (other start time) counts
   assert.throws(() => A.acquireLockFile(f, "X", { explicitResume: false }), /stale_lock_requires_explicit_resume/);
   assert.equal(A.acquireLockFile(f, "X", { explicitResume: true }).stepId, "X");
 });
+
+test("boot reap: orphan CLI child of a dead runner is killed only if its start time matches; lock kept", async () => {
+  const { mkdirSync } = await import("node:fs");
+  const root = mkdtempSync(join(tmpdir(), "atelier-reap-"));
+  const G = "00000000-0000-4000-8000-000000000001", R = "00000000-0000-4000-8000-000000000002";
+  const spawnSleep = () => spawn("sleep", ["30"], { detached: true });
+  const good = spawnSleep(), reused = spawnSleep(); await new Promise(r => setTimeout(r, 100));
+  const put = (id, child, childStart) => { mkdirSync(join(root, id)); writeFileSync(join(root, id, "run.lock"), JSON.stringify({ ...DEAD, childPid: child.pid, childStart })); };
+  put(G, good, A.procStartTime(good.pid));
+  put(R, reused, String(Number(A.procStartTime(reused.pid)) - 1));
+  mkdirSync(join(root, "not-a-mission"));
+  const out = A.reapOrphanChildren(root);
+  await new Promise(r => good.on("exit", r));
+  assert.equal(A.pidAlive(reused.pid), true, "pid whose start time differs is untouched");
+  assert.deepEqual(out.map(o => [o.missionId, o.result]).sort(), [[G, "killed"], [R, "identity_mismatch"]].sort());
+  assert.ok(existsSync(join(root, G, "run.lock")), "stale lock kept: explicit resume still required");
+  assert.match(readFileSync(join(root, G, "events.jsonl"), "utf8"), /orphan_child_reaped/);
+  process.kill(-reused.pid, "SIGKILL");
+});
