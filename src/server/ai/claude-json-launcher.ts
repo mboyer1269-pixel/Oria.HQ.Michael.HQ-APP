@@ -79,9 +79,31 @@ function unwrapReply(raw: string): string {
   return closing ? lines.slice(1, -1).join("\n").trim() : body;
 }
 
-/** Validation feedback WITHOUT echoing model output (no secret-like text travels back into errors/logs). */
-function describeIssues(error: z.ZodError): string {
-  return error.issues.slice(0, 10).map(i => `${i.path.length ? i.path.join(".") : "(root)"}: ${i.code}`).join("; ");
+/** Validation feedback WITHOUT echoing model output (no secret-like text travels back into errors/logs).
+ *  SENT-418-6: path segments are masked unless they are keys DECLARED by the schema (z.object shape):
+ *  model-chosen keys (z.record, unknown keys…) render as "<key>", array/tuple indexes as "[n]". */
+type Def = { type?: string; shape?: Record<string, unknown>; innerType?: unknown; valueType?: unknown; element?: unknown; in?: unknown; schema?: unknown };
+const defOf = (s: unknown): Def | undefined => (s as { _zod?: { def?: Def } } | undefined)?._zod?.def;
+function unwrapSchema(s: unknown): unknown {
+  for (let i = 0; i < 16; i++) {
+    const d = defOf(s); const inner = d?.innerType ?? (d?.type === "pipe" ? d.in : undefined);
+    if (!inner) return s; s = inner;
+  }
+  return s;
+}
+function maskPath(schema: unknown, path: readonly PropertyKey[]): string {
+  if (!path.length) return "(root)";
+  let node: unknown = schema; const out: string[] = [];
+  for (const seg of path) {
+    const d = defOf(unwrapSchema(node));
+    if (typeof seg === "number") { out.push("[n]"); node = d?.element; continue; }
+    if (typeof seg === "string" && d?.type === "object" && d.shape && Object.hasOwn(d.shape, seg)) { out.push(seg); node = d.shape[seg]; continue; }
+    out.push("<key>"); node = d?.type === "record" ? d.valueType : undefined;
+  }
+  return out.join(".");
+}
+function describeIssues(schema: unknown, error: z.ZodError): string {
+  return error.issues.slice(0, 10).map(i => `${maskPath(schema, i.path)}: ${i.code}`).join("; ");
 }
 
 /** Parse one stream-json transcript into a schema-valid value. Pure; exported for tests. */
@@ -94,7 +116,7 @@ export function parseClaudeJsonTranscript<S extends z.ZodType>(transcript: strin
   const decoded = (() => { try { return { value: JSON.parse(unwrapReply(result.result)) as unknown }; } catch { return null; } })();
   if (!decoded) return { ok: false, error: "not_json" };
   const parsed = schema.safeParse(decoded.value);
-  if (!parsed.success) return { ok: false, error: `schema_mismatch (${describeIssues(parsed.error)})` };
+  if (!parsed.success) return { ok: false, error: `schema_mismatch (${describeIssues(schema, parsed.error)})` };
   return { ok: true, data: parsed.data, model: assistant?.message.model ?? null };
 }
 
@@ -103,7 +125,7 @@ export async function claudeJson<S extends z.ZodType>(prompt: string, schema: S,
   const env = { ...(opts.env ?? process.env) };
   if (!subscriptionEnabled(env)) return { ok: false, reason: "disabled", attempts: 0 };
   if (PAID_ENV.some(k => env[k])) return { ok: false, reason: "api_key_present", attempts: 0 };
-  const model = opts.model ?? "sonnet";
+  const model: unknown = opts.model === undefined ? "sonnet" : opts.model; // null is refused, not defaulted
   if (!isSafeModelId(model)) return { ok: false, reason: "failed", error: "model_refused", attempts: 0 };
   const args = claudeJsonArguments(model);
   try { assertClaudeLoadedSettings(args); } catch { return { ok: false, reason: "subscription_auth_required", attempts: 0 }; }

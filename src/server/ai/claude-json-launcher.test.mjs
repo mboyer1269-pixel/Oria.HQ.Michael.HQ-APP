@@ -97,3 +97,15 @@ test('validation errors never echo model output', async () => {
   assert.equal(r.reason, 'invalid_output'); assert.doesNotMatch(String(r.error), /sk-ant|voici/);
   assert.doesNotMatch(readFileSync(path.join(h, 'input.2'), 'utf8'), /sk-ant/);
 });
+
+test('SENT-418-6: model-chosen record keys and indexes are masked in errors and retry prompt', async () => {
+  const { z } = await import('zod');
+  const rec = z.object({ tags: z.record(z.string(), z.number()), list: z.array(z.object({ n: z.number() })) });
+  const h = home({ reply: JSON.stringify(JSON.stringify({ tags: { 'sk-ant-api03-FAUXCLE': 'x' }, list: [{ n: 'y' }] })) });
+  const r = await L.claudeJson('q', rec, { binary: FAKE, env: envFor(h) });
+  assert.equal(r.reason, 'invalid_output');
+  assert.doesNotMatch(String(r.error), /sk-ant/);
+  assert.match(String(r.error), /tags\.<key>: invalid_type/);
+  assert.match(String(r.error), /list\.\[n\]\.n: invalid_type/);
+  assert.doesNotMatch(readFileSync(path.join(h, 'input.2'), 'utf8'), /sk-ant/);
+});
