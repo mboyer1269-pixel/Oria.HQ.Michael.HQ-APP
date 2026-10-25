@@ -167,26 +167,41 @@ export const pidAlive = (pid: number) => { try { process.kill(pid, 0); return tr
 /**
  * Identity of a pid = its start time (SENT-412-3/6).
  * - Linux: /proc/<pid>/stat field 22 (clock ticks since boot) → "<ticks>".
- * - Elsewhere (macOS/BSD, no /proc): `ps -o lstart= -p <pid>` (second resolution) → "ps:<lstart>".
+ * - Elsewhere (macOS/BSD, no /proc): `ps -o etime=,comm= -p <pid>` (SENT-412-10/11). etime is an elapsed
+ *   duration, so it does not depend on the time zone or locale (unlike lstart); start = now - etime, in epoch
+ *   seconds → "ps:<pid>:<epochSec>:<comm>". ps runs with TZ=UTC LC_ALL=C anyway. Comparison: same pid, same
+ *   command, start within PS_START_TOLERANCE_S (second resolution + the time between ps and Date.now()).
  * - Neither available → null = identity UNPROVABLE. An unprovable identity is never treated as the recorded
  *   process: never "live" (no lock blocked for ever) and never killed (no blind kill). New locks refuse to be
  *   created without a provable runner identity (process_identity_unavailable).
  */
-export function procStartTime(pid: number, opts: { proc?: boolean; ps?: boolean } = {}): string | null {
+export const PS_START_TOLERANCE_S = 2;
+export function parseEtime(v: string): number | null {
+  const m = /^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/.exec(v.trim()); if (!m) return null;
+  return ((Number(m[1] ?? 0) * 24 + Number(m[2] ?? 0)) * 60 + Number(m[3])) * 60 + Number(m[4]);
+}
+export function procStartTime(pid: number, opts: { proc?: boolean; ps?: boolean; nowMs?: number } = {}): string | null {
   if (opts.proc !== false) {
     try { const st = readFileSync(`/proc/${pid}/stat`, "utf8"); const v = st.slice(st.lastIndexOf(")") + 2).split(" ")[19]; if (v) return v; } catch { /* no /proc or gone */ }
     if (existsSync("/proc/self/stat") && opts.ps !== true) return null; // Linux: /proc is authoritative
   }
   if (opts.ps === false) return null;
-  const r = spawnSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8", timeout: 2000 });
-  const v = r.status === 0 ? String(r.stdout).trim().replace(/\s+/g, " ") : "";
-  return v ? `ps:${v}` : null;
+  const r = spawnSync("ps", ["-o", "etime=,comm=", "-p", String(pid)], { encoding: "utf8", timeout: 2000, env: { ...process.env, TZ: "UTC", LC_ALL: "C" } });
+  const line = r.status === 0 ? String(r.stdout).trim() : ""; const sp = line.search(/\s/);
+  const elapsed = sp > 0 ? parseEtime(line.slice(0, sp)) : null; const comm = sp > 0 ? line.slice(sp).trim() : "";
+  if (elapsed == null || !comm) return null;
+  return `ps:${pid}:${Math.floor((opts.nowMs ?? Date.now()) / 1000) - elapsed}:${comm}`;
+}
+/** Compare two "ps:" identities with an explicit tolerance on the start second (SENT-412-11). */
+export function samePsIdentity(a: string, b: string): boolean {
+  const pa = /^ps:(\d+):(\d+):(.+)$/.exec(a), pb = /^ps:(\d+):(\d+):(.+)$/.exec(b);
+  return !!pa && !!pb && pa[1] === pb[1] && pa[3] === pb[3] && Math.abs(Number(pa[2]) - Number(pb[2])) <= PS_START_TOLERANCE_S;
 }
 /** Same process as recorded? Requires a provable identity on both sides (null → false: neither live nor killable). */
 export function sameProcess(pid: number | null | undefined, start: string | null | undefined): boolean {
   if (!pid || !pidAlive(pid) || start == null) return false;
-  const cur = start.startsWith("ps:") ? procStartTime(pid, { proc: false }) : procStartTime(pid);
-  return cur === start;
+  if (start.startsWith("ps:")) { const cur = procStartTime(pid, { proc: false }); return cur != null && samePsIdentity(cur, start); }
+  return procStartTime(pid) === start;
 }
 /** Kill a process group only if its leader is still the recorded process (never a reused pid, never blind). */
 export function killRecordedGroup(pid: number | null | undefined, start: string | null | undefined, signal: NodeJS.Signals): "killed" | "gone" | "identity_mismatch" | "identity_unknown" | "kill_failed" {

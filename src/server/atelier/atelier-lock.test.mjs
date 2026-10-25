@@ -124,12 +124,12 @@ test("SENT-412-6: unprovable identity (null start) is neither live nor killable;
   process.kill(-other.pid, "SIGKILL");
 });
 
-test("SENT-412-6: portable fallback via `ps -o lstart=` gives a stable identity (no /proc path)", async () => {
+test("SENT-412-6: portable fallback via `ps -o etime=,comm=` gives a stable identity (no /proc path)", async () => {
   const c = spawn("sleep", ["30"], { detached: true }); await new Promise(r => setTimeout(r, 100));
   const viaPs = A.procStartTime(c.pid, { proc: false });
   assert.match(String(viaPs), /^ps:\S/);
   assert.equal(A.sameProcess(c.pid, viaPs), true);
-  assert.equal(A.killRecordedGroup(c.pid, "ps:Thu Jan  1 00:00:00 1970", "SIGKILL"), "identity_mismatch");
+  assert.equal(A.killRecordedGroup(c.pid, `ps:${c.pid}:0:sleep`, "SIGKILL"), "identity_mismatch");
   assert.equal(A.killRecordedGroup(c.pid, viaPs, "SIGKILL"), "killed");
   await new Promise(r => c.on("exit", r));
   assert.equal(A.procStartTime(c.pid, { proc: false }), null, "dead pid → null");
@@ -160,4 +160,32 @@ test("SENT-412-5: lock and reclaim files are never observable empty (published v
   const f = join(mkdtempSync(join(tmpdir(), "atelier-lock-")), "run.lock");
   const l = A.acquireLockFile(f, "N", { explicitResume: false });
   assert.equal(JSON.parse(readFileSync(f, "utf8")).token, l.token);
+});
+
+test("SENT-412-10: ps identity is independent of the caller's time zone and locale", async () => {
+  const c = spawn("sleep", ["30"]); await new Promise(r => setTimeout(r, 100));
+  const saved = { TZ: process.env.TZ, LC_ALL: process.env.LC_ALL };
+  try {
+    process.env.TZ = "UTC"; process.env.LC_ALL = "C"; const recorded = A.procStartTime(c.pid, { proc: false });
+    assert.match(String(recorded), new RegExp(`^ps:${c.pid}:\\d+:sleep$`));
+    process.env.TZ = "Pacific/Kiritimati"; process.env.LC_ALL = "fr_CA.UTF-8";
+    assert.equal(A.sameProcess(c.pid, recorded), true);
+    process.env.TZ = "America/Toronto"; assert.equal(A.sameProcess(c.pid, recorded), true);
+  } finally { for (const [k, v] of Object.entries(saved)) if (v === undefined) delete process.env[k]; else process.env[k] = v; c.kill(); }
+  assert.equal(A.parseEtime("05"), null); assert.equal(A.parseEtime("01:05"), 65); assert.equal(A.parseEtime("02:01:05"), 7265); assert.equal(A.parseEtime("1-00:00:01"), 86401);
+});
+
+test("SENT-412-11: second resolution handled by pid+command token and an explicit tolerance", async () => {
+  const a = spawn("sleep", ["30"]), b = spawn("sleep", ["30"]); await new Promise(r => setTimeout(r, 100));
+  try {
+    const ia = A.procStartTime(a.pid, { proc: false }), ib = A.procStartTime(b.pid, { proc: false });
+    assert.notEqual(ia, ib, "same second, different pids → different identities");
+    const t = A.PS_START_TOLERANCE_S; const [, pid, sec, comm] = /^ps:(\d+):(\d+):(.+)$/.exec(ia);
+    assert.equal(A.samePsIdentity(ia, `ps:${pid}:${Number(sec) + t}:${comm}`), true, "within tolerance");
+    assert.equal(A.samePsIdentity(ia, `ps:${pid}:${Number(sec) + t + 1}:${comm}`), false, "beyond tolerance");
+    assert.equal(A.samePsIdentity(ia, `ps:${pid}:${sec}:node`), false, "different command = recycled pid");
+    assert.equal(A.sameProcess(a.pid, ib), false, "identity of b never matches a");
+    // Later start (simulated clock 1 h ahead when re-read) → mismatch
+    assert.equal(A.samePsIdentity(ia, A.procStartTime(a.pid, { proc: false, nowMs: Date.now() + 3_600_000 })), false);
+  } finally { a.kill(); b.kill(); }
 });
