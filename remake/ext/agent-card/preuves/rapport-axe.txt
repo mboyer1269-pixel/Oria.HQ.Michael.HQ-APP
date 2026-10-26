@@ -1,0 +1,6 @@
+1440 vide: 0 violation(s) 
+1440 erreur: 0 violation(s) 
+1440 valide: 0 violation(s) 
+390 vide: 0 violation(s) 
+390 erreur: 0 violation(s) 
+390 valide: 0 violation(s) 
