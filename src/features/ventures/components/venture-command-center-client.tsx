@@ -3,6 +3,8 @@
 import { isDemoMode } from "@/lib/demo-mode";
 
 import { useMemo, useState, useTransition } from "react";
+import type { Route } from "next";
+import Link from "next/link";
 import { AlertTriangle, Archive, CheckCircle2, FlaskConical, Plus, Skull } from "lucide-react";
 import type { LocalDraftVentureInput } from "../draft";
 import type { VentureCard as VentureCardType } from "../types";
@@ -402,6 +404,11 @@ export function VentureCommandCenterClient({
                 >
                   <VentureCard card={display.card} />
                 </button>
+                {display.kind === "saved" && display.storageMode === "supabase" && (
+                  <Link href={`/hq/ventures/${encodeURIComponent(display.card.id)}/team` as Route} className="inline-flex min-h-11 items-center self-start rounded-xl border border-neutral-600 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300">
+                    Mon équipe
+                  </Link>
+                )}
               </div>
             );
           })}

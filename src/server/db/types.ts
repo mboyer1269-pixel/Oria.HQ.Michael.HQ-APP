@@ -1,3 +1,26 @@
+/** Draft-only employee directory; never execution authority. */
+export type EmployeeProfileRow = {
+  id: string;
+  creation_key: string | null;
+  creation_payload_hash: string | null;
+  owner_id: string;
+  workspace_id: string;
+  venture_id: string;
+  display_name: string;
+  specialty: string;
+  instructions: string;
+  assignment_role: string;
+  assignment_context: string;
+  state: "draft" | "archived";
+  revision: number;
+};
+export type EmployeeProfileInsert = Omit<EmployeeProfileRow, "creation_key" | "creation_payload_hash"> & {
+  creation_key: string;
+  creation_payload_hash: string;
+};
+export type EmployeeProfileUpdate = Partial<Pick<EmployeeProfileRow,
+  "display_name" | "specialty" | "instructions" | "assignment_role" | "assignment_context" | "state" | "revision">>;
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type CalendarEventRow = {
@@ -466,6 +489,12 @@ export type MichaelHqDatabase = {
         Update: Partial<EventInsert>;
         Relationships: [];
       };
+      agent_display_names: {
+        Row: { user_id: string; workspace_id: string; agent_id: string; display_name: string };
+        Insert: { user_id: string; workspace_id: string; agent_id: string; display_name: string };
+        Update: { display_name?: string };
+        Relationships: [];
+      };
       cockpit_layout: {
         Row: CockpitLayoutRow;
         Insert: CockpitLayoutInsert;
@@ -500,6 +529,12 @@ export type MichaelHqDatabase = {
         Row: GovernanceDecisionRow;
         Insert: GovernanceDecisionInsert;
         Update: Partial<GovernanceDecisionInsert>;
+        Relationships: [];
+      };
+      employee_profiles: {
+        Row: EmployeeProfileRow;
+        Insert: EmployeeProfileInsert;
+        Update: EmployeeProfileUpdate;
         Relationships: [];
       };
       ventures: {

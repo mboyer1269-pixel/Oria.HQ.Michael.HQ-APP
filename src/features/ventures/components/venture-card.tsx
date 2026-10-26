@@ -294,8 +294,8 @@ export function VentureCard({ card }: { card: VentureCardType }) {
       <footer className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-neutral-800/60 pt-3 text-[11px] text-neutral-500">
         <span>
           {card.assignedAgents.length === 0
-            ? "Aucun agent assigné"
-            : `${card.assignedAgents.length} agent${card.assignedAgents.length > 1 ? "s" : ""} assigné${card.assignedAgents.length > 1 ? "s" : ""}`}
+            ? "Aucun agent historique assigné"
+            : `${card.assignedAgents.length} agent${card.assignedAgents.length > 1 ? "s" : ""} historique${card.assignedAgents.length > 1 ? "s" : ""} assigné${card.assignedAgents.length > 1 ? "s" : ""}`}
         </span>
         <span>
           {isTerminal

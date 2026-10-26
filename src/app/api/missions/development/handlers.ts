@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { developmentInputSchema, type DevelopmentInput, type DevelopmentReceipt } from "@/server/missions/development-mission";
-export function createDevelopmentHandlers(deps:{authenticate:()=>Promise<{actorId:string}|Response>;context:()=>{workspaceId:string;modeId:string};publicOrigin:()=>string|undefined;create:(input:DevelopmentInput,context:{workspaceId:string;modeId:string;actorId:string})=>Promise<DevelopmentReceipt>;lookup:(requestId:string,workspaceId:string)=>Promise<DevelopmentReceipt>}){
+export function createDevelopmentHandlers(deps:{authenticate:()=>Promise<{actorId:string}|Response>;context:()=>{workspaceId:string;modeId:string};publicOrigin:()=>string|undefined;create:(input:DevelopmentInput,context:{workspaceId:string;modeId:string;actorId:string})=>Promise<DevelopmentReceipt>;lookup:(requestId:string,workspaceId:string,context?:{actorId:string;modeId:string})=>Promise<DevelopmentReceipt>}){
  const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{"Cache-Control":"no-store"}});
  return {
   async POST(request:Request){
@@ -13,7 +13,7 @@ export function createDevelopmentHandlers(deps:{authenticate:()=>Promise<{actorI
    try{return json(await deps.create(parsed.data,{...deps.context(),actorId:actor.actorId}));}catch{return json({status:"outcome_unknown"},503);}
   },
   async GET(request:Request){const actor=await deps.authenticate();if(actor instanceof Response)return actor;const params=new URL(request.url).searchParams;const id=params.get("requestId");if(!z.string().uuid().safeParse(id).success||params.getAll("requestId").length!==1||[...params.keys()].some(key=>key!=="requestId"))return json({status:"invalid_request"},400);
-   try{return json(await deps.lookup(id!,deps.context().workspaceId));}catch{return json({status:"unavailable"},503);}
+   try{return json(await deps.lookup(id!,deps.context().workspaceId,{actorId:actor.actorId,modeId:deps.context().modeId}));}catch{return json({status:"unavailable"},503);}
   }
  };
 }
