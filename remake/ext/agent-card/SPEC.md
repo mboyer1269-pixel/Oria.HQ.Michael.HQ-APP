@@ -16,7 +16,7 @@ Numéros de ligne vérifiés sur `origin/main` (2026-10-26).
 | Bloc | Champ fiche | Champ réel du code Oria | État |
 |---|---|---|---|
 | Identité | `name` | `AgentProfile.name` (`src/core/types.ts:556`) | existe |
-| Identité | `role` | `AgentProfile.role: AgentRoleId` (`types.ts:559`). 10 valeurs (`types.ts:538-548`), dont `closer` (`:547`) | existe |
+| Identité | `role` | `AgentProfile.role: AgentRoleId` (`types.ts:559`). 10 valeurs (`types.ts:539-549`), dont `closer` (`:547`) | existe |
 | Identité | `tagline` | `AgentProfile.tagline` (`types.ts:560`) | existe |
 | Identité | `description` | `AgentProfile.description` (`types.ts:561`) | existe |
 | **Mission** | `mission` | `AgentCharter.mission` (`src/features/agents/agent-charter.ts:59`) | existe |
