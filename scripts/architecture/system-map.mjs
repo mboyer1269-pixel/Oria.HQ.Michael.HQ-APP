@@ -186,7 +186,7 @@ async function main() {
       const a = topArea(rel);
       m[a] = (m[a] || 0) + 1;
     }
-    return Object.entries(m).sort((a, b) => b[1] - a[1]);
+    return Object.entries(m).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   };
 
   const summary = {
