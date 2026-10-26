@@ -34,7 +34,7 @@ Scout → Architect → Builder → QA/Security → UI Verification → Docs →
 **Gate:** Human decides GO / WATCH / NO-GO.
 
 ## Gate 2: Architecture
-**Actor:** Architect Agent (only if GO)
+**Actor:** Architect Agent (only if GO) <!-- rule:local -->
 **Action:** Designs the implementation. Prevents broad refactors.
 **Output Artifact:** `Implementation Plan`
 **Gate:** Human approves the plan.
@@ -69,7 +69,7 @@ Scout → Architect → Builder → QA/Security → UI Verification → Docs →
 
 ## Scope Creep Prevention
 
-To maintain velocity and safety, agents must:
+To maintain velocity and safety, agents must: <!-- rule:local -->
 - Reject any instruction to implement "while you're at it" features.
 - Output a clear `Out of Scope` section in every Implementation Plan and PR Description.
 - Block the pipeline if a Green Zone task suddenly requires Yellow/Red Zone permissions (e.g., modifying `.env`, auth, or adding dependencies).

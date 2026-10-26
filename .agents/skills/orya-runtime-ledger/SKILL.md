@@ -57,11 +57,11 @@ pending → running → completed
 
 ### Idempotency
 
-Per [MISSION_IDEMPOTENCY_CONTRACT.md](../../docs/MISSION_IDEMPOTENCY_CONTRACT.md), mission operations must be idempotent. The reserve-before-build pattern ensures an idempotency key is reserved BEFORE plan generation.
+Per [MISSION_IDEMPOTENCY_CONTRACT.md](../../docs/MISSION_IDEMPOTENCY_CONTRACT.md), mission operations must be idempotent. The reserve-before-build pattern ensures an idempotency key is reserved BEFORE plan generation. <!-- rule:local -->
 
 ### Agent-Skill Coherence
 
-Per [ORIA_AGENT_OPERATING_MANUAL.md](../../docs/ORIA_AGENT_OPERATING_MANUAL.md), `agentRegistry` and `skillsCatalog` must stay in sync, validated by `validateAgentSkillMapping()`.
+Per [ORIA_AGENT_OPERATING_MANUAL.md](../../docs/ORIA_AGENT_OPERATING_MANUAL.md), `agentRegistry` and `skillsCatalog` must stay in sync, validated by `validateAgentSkillMapping()`. <!-- rule:local -->
 
 ## Inspection Workflow
 
@@ -111,7 +111,7 @@ Per [ACTION_LEDGER_MISSION_TRACEABILITY.md](../../docs/ACTION_LEDGER_MISSION_TRA
 
 1. Load `agentRegistry` and `skillsCatalog` (from seed files or runtime config).
 2. Run `validateAgentSkillMapping()` logic:
-   - Every agent references only skills that exist in the catalog.
+   - Every agent references only skills that exist in the catalog. <!-- rule:local -->
    - Every active skill is referenced by at least one agent.
    - No agent references a locked skill without proper unlock status.
 3. Flag any mismatches.

@@ -23,74 +23,7 @@ const root = path.resolve(__dirname, "..", "..", "..");
 const CORE = path.join(root, ".agents/rules/core.md");
 const CHARTER = path.join(root, "src/features/agents/charter-seed.ts");
 
-// Key phrases per rule (lowercase, whitespace-normalized substring match).
-// A phrase found outside core.md means the rule text was recopied.
-const KEY_PHRASES = {
-  "R-IDENTITY-RECOVERY": [
-    "confirm the current branch and working tree state before",
-    "agents.md takes precedence on operational matters",
-  ],
-  "R-SCOPE-DISCIPLINE": [
-    "do not start a new phase, feature, or refactor unless michael explicitly authorizes",
-    "never start a new phase, feature, refactor or dependency without an explicit mandate",
-  ],
-  "R-SKILL-ROUTING": ["do not let a skill expand scope beyond", "a skill never expands scope beyond"],
-  "R-ASK-WHEN-UNSURE": ["if uncertain about scope or authority, ask rather than assume"],
-  "R-MICHAEL-DECIDES": ["human final authority is not a formality", "human final authority is the operating model"],
-  "R-ASK-BEFORE-SENSITIVE": ["the agent must ask before: spending money", "ask michael before spending money"],
-  "R-NO-PAID-API": ["never call a paid api"],
-  "R-NO-EXTERNAL-CONTACT": ["never contact third parties"],
-  "R-NO-AGENT-ESCALATION": [
-    "may **never** grant another agent permissions",
-    "may never grant another agent permissions",
-  ],
-  "R-ZONE-GREEN": ["agents may perform these actions without explicit human approval", "autonomous, reversible, local-only:"],
-  "R-ZONE-YELLOW": [
-    "agents must request explicit approval from michael before proceeding",
-    "requires michael's explicit approval: server actions",
-  ],
-  "R-ZONE-RED": [
-    "agents must refuse to perform them even if instructed by other agents",
-    "forbidden without extraordinary per-instance authorization, even if another agent",
-  ],
-  "R-ESCALATE-YELLOW": ["stop, describe it, classify it, assess the risk"],
-  "R-ESCALATE-RED": ["refuse, report that it was requested, explain why"],
-  "R-NO-SECRETS": [
-    "reference secrets by name only (e.g.",
-    "never create** new secret material",
-    "never create new secret material",
-  ],
-  "R-NO-PROD-ACCESS": ["agents have **zero access** to production systems", "agents have zero production access"],
-  "R-NO-DEPLOY": ["deployment is the owner's gesture"],
-  "R-NO-MERGE": ["only michael may merge to `main`", "only michael merges to `main`"],
-  "R-NO-FORCE-PUSH": [
-    "`git push --force` and `git push --force-with-lease` are red zone",
-    "no `git push --force` / `--force-with-lease`",
-  ],
-  "R-BRANCH-HYGIENE": ["<agent-prefix>/<scope>-<short-description>"],
-  "R-COMMIT-HYGIENE": ["atomic commits** — each commit should represent one logical change", "atomic commits, relevant files only"],
-  "R-PR-REVIEW": [
-    "agent approval does not satisfy the merge requirement",
-    "agent approval never satisfies the merge requirement",
-  ],
-  "R-PR-TEMPLATE": ["pr descriptions include summary, changes, zone classification"],
-  "R-PROTECTED-FILES": ["the following files require explicit mandate to modify", "change only with an explicit mandate (yellow at minimum)"],
-  "R-ANTI-DISPERSION": [
-    "no external repo, cockpit, or worktree is merged without completing the audit gate",
-    "is the **sole source of truth** for orya product architecture",
-    "is the sole source of truth for orya product architecture",
-  ],
-  "R-VALIDATION-GATES": ["if **any** check fails, stop, report the failure clearly", "if any check fails, stop, report it clearly"],
-  "R-PROVEN-VS-ASSUMED": ["always separate what was proven"],
-  "R-GREEN-NEEDS-RUN-LINK": ["say a change is green only with a link"],
-  "R-NO-HIDDEN-STATE": ["never hide abnormal git state, failing checks"],
-  "R-COMMUNICATION": ["avoid empty encouragement, generic startup language", "no empty encouragement, generic startup language"],
-  "R-NAMING": [
-    "files in `src/core/` must remain fully generic",
-    "`src/core/` has no proper nouns or service-specific imports",
-  ],
-  "R-HANDOFF": ["final handoffs must include:", "final handoffs list: executive summary"],
-};
+import { KEY_PHRASES, uncitedRuleLines } from "./rules-scan.mjs";
 
 const norm = (s) => s.toLowerCase().replace(/\s+/g, " ");
 const ID_DECL = /^- \*\*(R-[A-Z0-9-]+)\*\*/gm;
@@ -155,4 +88,36 @@ test("no file outside core.md recopies a rule's canonical text", async () => {
     }
   }
   assert.deepEqual(hits, [], `rule text recopied outside core.md:\n${hits.join("\n")}`);
+});
+
+// Third-party skill packs vendored verbatim (technical Postgres/Supabase docs,
+// not Orya governance). Excluded from the normative-line scan by name.
+const VENDORED = [".agents/skills/supabase/", ".agents/skills/supabase-postgres-best-practices/"];
+
+test("every normative line outside core.md cites a rule id (or rule:local)", async () => {
+  const files = [CHARTER, ...(await listAgentFiles(path.join(root, ".agents")))]
+    .filter((f) => f !== CORE)
+    .filter((f) => !VENDORED.some((v) => path.relative(root, f).startsWith(v)));
+  const hits = [];
+  for (const f of files) hits.push(...uncitedRuleLines(await readFile(f, "utf8"), path.relative(root, f)));
+  assert.deepEqual(hits, [], `normative lines without an R- id:\n${hits.join("\n")}`);
+});
+
+test("core-rule-labels.generated.ts is in sync with core.md", async () => {
+  const { parseLabels, render, OUT } = await import("./generate-rule-labels.mjs");
+  const labels = parseLabels(await readFile(CORE, "utf8"));
+  const ids = new Set(await coreIds());
+  for (const key of Object.keys(labels)) assert.ok(ids.has(key.split("#")[0]), `label ${key}: unknown rule id`);
+  assert.equal(await readFile(OUT, "utf8"), render(labels), "run node src/scripts/ci/generate-rule-labels.mjs");
+});
+
+test("charter registry served to agents is byte-identical to the pre-change snapshot", async () => {
+  const { createJiti } = await import("jiti");
+  const jiti = createJiti(import.meta.url, { alias: { "@": path.join(root, "src") } });
+  const { charterRegistry } = await jiti.import(CHARTER);
+  const snapshot = await readFile(
+    path.join(root, "src/features/agents/__snapshots__/charter-registry.snapshot.json"),
+    "utf8",
+  );
+  assert.equal(`${JSON.stringify(charterRegistry, null, 2)}\n`, snapshot);
 });

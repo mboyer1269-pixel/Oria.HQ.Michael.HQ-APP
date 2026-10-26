@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 675,
-    "live": 624,
+    "sourceFiles": 676,
+    "live": 625,
     "testOnly": 7,
     "incubation": 44
   },
@@ -158,6 +158,7 @@
     "src/features/agents/components/agent-review-queue-panel.tsx",
     "src/features/agents/components/agent-skill-panel.tsx",
     "src/features/agents/components/execution-intent-review-panel.tsx",
+    "src/features/agents/core-rule-labels.generated.ts",
     "src/features/agents/execution-intent-reject.ts",
     "src/features/agents/execution-intent-review-projection.ts",
     "src/features/agents/execution-intent.ts",

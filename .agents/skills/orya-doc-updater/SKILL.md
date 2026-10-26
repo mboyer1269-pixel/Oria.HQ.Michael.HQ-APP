@@ -161,8 +161,8 @@ The following files have restricted modification rules:
 | File | Restriction |
 |------|------------|
 | `SOUL.md` | Identity and values sections are read-only unless Michael mandates a change. Operational sections may be updated with approval. |
-| `AGENTS.md` | Canonical operating guide. Changes require careful review — must not conflict with established patterns. |
-| `.env*` | Never read or modify secret values. `.env.example` may be updated for placeholder documentation. |
+| `AGENTS.md` | Canonical operating guide. Changes require careful review — must not conflict with established patterns. | <!-- R-PROTECTED-FILES -->
+| `.env*` | Never read or modify secret values. `.env.example` may be updated for placeholder documentation. | <!-- R-NO-SECRETS -->
 
 ## Boundary Constraints
 

@@ -53,6 +53,9 @@ Cross-references: [SOUL.md](../../SOUL.md) · [AGENTS.md](../../AGENTS.md) · [O
 - **R-BRANCH-HYGIENE** — Verify `git branch --show-current` and `git status --short` before changes; never work on `main`; every PR branch is based on current `origin/main` and named `<agent-prefix>/<scope>-<short-description>` (architect/, builder/, qa/, ui/, docs/, agent/; the Innovation Scout never creates branches).
 - **R-COMMIT-HYGIENE** — Atomic commits, relevant files only (inspect status and diff before every commit), imperative descriptive messages, no secrets in messages, no build artifacts (`node_modules/`, `.next/`, `tsconfig.tsbuildinfo`).
 - **R-PR-REVIEW** — Every PR needs Michael's human review; agent approval never satisfies the merge requirement. QA/Security reviews PRs touching API routes, auth/session, RLS, dependencies, permission policies or ledger operations.
+- **R-NO-STRAY-CHANGES** — Before opening a PR, confirm with `git status --short` and `git stash list` that no untracked file that should be excluded is lying around and that no stashed change belonging to the PR is left behind: the PR contains exactly the committed, intended changes.
+- **R-COMMIT-MESSAGE-STYLE** — Commit messages use the imperative mood and say specifically what changed. Good: `Add security boundaries rule for autonomy zones`. Bad: `Update files`, `WIP`. Branch name examples: `builder/mission-domain-model`, `docs/update-roadmap-phase1`, `qa/security-audit-api-routes`, `architect/workspace-config-schema`.
+- **R-PRESENT-THEN-WAIT** — Procedure for any Yellow action, including `git commit` and PR creation: (1) complete the pre-PR checklist; (2) present the planned action, its scope and its risks to Michael; (3) wait for his explicit approval before executing; (4) afterwards, report the commit SHA and branch status.
 - **R-PR-TEMPLATE** — PR descriptions include Summary, Changes, Zone Classification, Validation Results, Risks & Assumptions, Rollback.
 - **R-PROTECTED-FILES** — SOUL.md identity sections, AGENTS.md, `.env*`, `package.json` dependencies, `next.config.ts`, `db/` migrations and `src/core/` contracts change only with an explicit mandate (Yellow at minimum).
 - **R-ANTI-DISPERSION** — This repository is the sole source of truth for Orya product architecture, core contracts, auth, permissions, action ledger and workspace boundaries. No external repo, worktree or branch is merged without the REPO_CONSOLIDATION.md audit gate.
@@ -69,3 +72,15 @@ Cross-references: [SOUL.md](../../SOUL.md) · [AGENTS.md](../../AGENTS.md) · [O
 - **R-COMMUNICATION** — Concise, direct, specific; no empty encouragement, generic startup language, fake certainty or decorative cleverness. Lead with outcome, then evidence, then detail; make the next action obvious; state tradeoffs.
 - **R-NAMING** — Domain types and core contracts stay generic and workspace-first; `src/core/` has no proper nouns or service-specific imports; workspace-specific logic lives in `src/features/` and `src/server/`; comments are neutral and durable.
 - **R-HANDOFF** — Final handoffs list: executive summary, files changed, validation results, commit SHA, whether the branch was pushed, and a recommendation (create the PR, or the blockers).
+
+## 8. Agent-facing labels (fr)
+
+Exact French wording served to agents through their charters. The charter
+seed does not restate these: it calls `ruleLabel("<id>#<key>")`, generated
+from this section into `src/features/agents/core-rule-labels.generated.ts`
+by `node src/scripts/ci/generate-rule-labels.mjs` (kept in sync by test).
+
+- `R-MICHAEL-DECIDES#live-execution` — Aucune exécution live sans MissionApprovalRecord vérifié
+- `R-ASK-BEFORE-SENSITIVE#forge-escalation` — Déploiement, publication, dépendance externe payante → approbation CEO via Joris.
+- `R-MICHAEL-DECIDES#delivery-approval` — Livraisons précédées d'un APPROVE CEO
+- `R-ZONE-YELLOW#studio-zones` — Zone verte = production interne illimitée ; zone jaune = diffusion publique, toujours via approbation.

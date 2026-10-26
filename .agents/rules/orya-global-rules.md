@@ -1,6 +1,6 @@
 # Orya Global Rules → moved to [core.md](core.md)
 
-The full text of every rule now lives **only** in [core.md](core.md) (rules-version 1). This file is kept as a stable pointer; do not restate rules here.
+The full text of every rule now lives **only** in [core.md](core.md) (rules-version 1). This file is kept as a stable pointer; do not restate rules here. <!-- rule:local -->
 
 | Former section | Rule ids in core.md |
 |---|---|

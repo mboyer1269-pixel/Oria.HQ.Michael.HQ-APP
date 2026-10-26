@@ -26,7 +26,7 @@ This skill guides agents through the complete PR preparation workflow — from s
 
 - For single-line fixes or typo corrections (just follow [orya-pr-rules.md](../../rules/orya-pr-rules.md) directly).
 - For research or planning that does not result in code/doc changes.
-- For production deployment (Red zone — never).
+- For production deployment (Red zone — never). <!-- R-NO-DEPLOY -->
 
 ## Agent Mapping
 
@@ -41,7 +41,7 @@ This skill guides agents through the complete PR preparation workflow — from s
 
 ### Step 1: Scope Analysis & PR Gatekeeper
 
-The PR Gatekeeper logic ensures that only small, scoped, validated, and reversible PRs are proposed.
+The PR Gatekeeper logic ensures that only small, scoped, validated, and reversible PRs are proposed. <!-- R-SCOPE-DISCIPLINE -->
 
 1. **Gatekeeper Enforcement:**
    - **Block broad refactors:** Reject PRs that include unrelated cleanups or wide-reaching formatting changes.

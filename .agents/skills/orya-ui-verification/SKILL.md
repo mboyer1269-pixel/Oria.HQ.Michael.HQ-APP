@@ -3,7 +3,7 @@ name: Orya UI Verification
 description: >
   UI testing and verification skill for the UI Verification Agent. Covers
   localhost visual inspection, responsive testing, accessibility checks,
-  screenshot capture, and visual regression reporting. Green zone only.
+  screenshot capture, and visual regression reporting. Green zone only. (R-ZONE-GREEN)
 ---
 
 > **Rules:** R-ZONE-GREEN, R-NO-PROD-ACCESS, R-NO-DEPLOY, R-PROVEN-VS-ASSUMED — full text in [core.md](../../rules/core.md) (single source; do not restate here).
@@ -173,12 +173,12 @@ For the verification report:
 | Action | Zone | Rule |
 |--------|------|------|
 | Browse localhost:3000 | Green | Always permitted |
-| Capture screenshots | Green | Localhost only |
-| Capture recordings | Green | Localhost only |
+| Capture screenshots | Green | Localhost only | <!-- R-NO-PROD-ACCESS -->
+| Capture recordings | Green | Localhost only | <!-- R-NO-PROD-ACCESS -->
 | Run dev server (`npm run dev`) | Green | Local development |
 | Modify UI code to fix issues | Green (small) / Yellow (significant) | Scope-dependent |
-| Access production URLs | **Red** | Never |
-| Deploy UI changes | **Red** | Never |
+| Access production URLs | **Red** | Never | <!-- R-NO-PROD-ACCESS -->
+| Deploy UI changes | **Red** | Never | <!-- R-NO-DEPLOY -->
 
 ## Checklist
 

@@ -4,7 +4,7 @@ description: >
   Read-only strategic research agent skill. Scans trends, tools, AI agent
   patterns, MCP opportunities, security updates, and monetization ideas
   relevant to Orya HQ. Produces scored opportunity briefs with GO/WATCH/NO-GO
-  decisions. Never modifies code, executes commands, or accesses secrets.
+  decisions. Never modifies code, executes commands, or accesses secrets. (R-ZONE-RED)
 ---
 
 > **Rules:** R-ZONE-GREEN, R-ZONE-RED, R-NO-SECRETS, R-NO-PROD-ACCESS, R-NO-DEPLOY, R-NO-PAID-API, R-PROVEN-VS-ASSUMED — full text in [core.md](../../rules/core.md) (single source; do not restate here).
@@ -47,7 +47,7 @@ The Scout does not build, deploy, modify, or execute. It researches, analyzes, s
 
 ## Strict Constraints
 
-The Innovation Scout must **never**:
+The Innovation Scout must **never**: <!-- R-ZONE-RED -->
 
 - Modify code (no file writes to `src/`, `scripts/`, config files)
 - Execute commands (no `npm`, `node`, shell, or build commands)
@@ -59,7 +59,7 @@ The Innovation Scout must **never**:
 - Create branches or commits
 - Access production databases or logs
 
-**If a research task requires any of these actions, the Scout must stop and escalate to the appropriate agent.**
+**If a research task requires any of these actions, the Scout must stop and escalate to the appropriate agent.** <!-- R-ESCALATE-RED -->
 
 ---
 
@@ -80,7 +80,7 @@ The Innovation Scout must **never**:
 
 ## Source Allowlist
 
-All Scout research must cite sources. Sources are tiered by reliability:
+All Scout research must cite sources. Sources are tiered by reliability: <!-- rule:local -->
 
 ### Tier 1 — Official Sources (Primary)
 
@@ -109,7 +109,7 @@ Use to supplement Tier 1. Good reliability, verify key claims.
 
 ### Tier 3 — Community Sources (Weak Signals Only)
 
-Use only to detect trends. Low reliability — never as sole evidence.
+Use only to detect trends. Low reliability — never as sole evidence. <!-- rule:local -->
 
 | Category | Sources |
 |----------|---------|
@@ -120,7 +120,7 @@ Use only to detect trends. Low reliability — never as sole evidence.
 
 ### Source Citation Requirements
 
-Every Scout brief must:
+Every Scout brief must: <!-- rule:local -->
 1. Cite at least one **Tier 1** source for factual claims.
 2. Mark all **Tier 3** sources as `[weak signal]` in citations.
 3. Include URLs or references for all cited sources.
@@ -263,10 +263,10 @@ Must not require production access, new infrastructure, or budget commitment.]
 | Analyze trends and patterns | Green | Core function |
 | Generate opportunity briefs | Green | Core output |
 | Access non-allowlisted websites | **Yellow** | Requires approval |
-| Modify any code | **Red** | Never permitted for Scout |
-| Execute any commands | **Red** | Never permitted for Scout |
-| Access secrets or credentials | **Red** | Never permitted for Scout |
-| Deploy or connect to production | **Red** | Never permitted for Scout |
+| Modify any code | **Red** | Never permitted for Scout | <!-- R-ZONE-RED -->
+| Execute any commands | **Red** | Never permitted for Scout | <!-- R-ZONE-RED -->
+| Access secrets or credentials | **Red** | Never permitted for Scout | <!-- R-NO-SECRETS -->
+| Deploy or connect to production | **Red** | Never permitted for Scout | <!-- R-NO-PROD-ACCESS -->
 
 ## Checklist
 

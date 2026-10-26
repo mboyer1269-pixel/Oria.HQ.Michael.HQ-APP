@@ -71,7 +71,7 @@ Check the diff for exposed secrets:
    - URLs with embedded credentials
    - `.env` value references (actual values, not variable names)
    - Passwords or connection strings
-2. Check that `.env.example` only contains placeholder values.
+2. Check that `.env.example` only contains placeholder values. <!-- R-NO-SECRETS -->
 3. Verify `.gitignore` includes `.env`, `.env.local`, `.env.production`.
 
 ### Step 3: Auth and RLS Review
@@ -141,7 +141,7 @@ Generate a structured findings report:
 | **High** | Unprotected API route, excessive permissions, unsafe dependency | Block PR. Fix before merge. |
 | **Medium** | Missing input validation, suboptimal auth pattern, large unnecessary dependency | Flag for reviewer. Should fix before merge. |
 | **Low** | Minor code hygiene, logging concerns, non-ideal patterns | Note for improvement. Non-blocking. |
-| **Info** | Observation, suggestion, best practice note | For awareness only. |
+| **Info** | Observation, suggestion, best practice note | For awareness only. | <!-- rule:local -->
 
 ## Proactive Security Sweep
 

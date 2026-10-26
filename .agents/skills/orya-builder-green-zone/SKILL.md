@@ -21,7 +21,7 @@ This skill provides strict operational guidelines for the Builder Agent when imp
 
 ## Strict Green Zone Constraints
 
-When operating in this mode, the Builder Agent **must**:
+When operating in this mode, the Builder Agent **must**: <!-- R-ZONE-GREEN -->
 - Maintain the **smallest useful diff**. Do not touch lines or files unrelated to the task.
 - Make **no unrelated refactors**. Fix the bug or build the feature, do not clean up surrounding code unless explicitly instructed.
 
@@ -40,7 +40,7 @@ Without an explicit Yellow escalation the Builder Agent stays out of everything 
 
 ## Escalation to Yellow Zone
 
-If the requested feature cannot be completed without modifying dependencies, auth logic, RLS, or environment variables, the Builder Agent must immediately **stop execution** and escalate.
+If the requested feature cannot be completed without modifying dependencies, auth logic, RLS, or environment variables, the Builder Agent must immediately **stop execution** and escalate. <!-- R-ESCALATE-YELLOW -->
 
 **Escalation Format:**
 "Executing this task requires modifying [Dependency/Auth/RLS], which is a Yellow Zone action. Please explicitly approve this scope expansion before I proceed."
