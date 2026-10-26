@@ -112,3 +112,47 @@ test("revert that matches 0 rows is reported (claim_revert_failed), still no dis
   assert.equal(result.reason, "ledger_unavailable");
   assert.equal(result.claimReverted, false);
 });
+
+test("compensating revert is guarded by the same payload equality as the claim", async () => {
+  repo.__clearAgentExecutionIntentsForTests();
+  const id = "intent-revert-guard";
+  const seeded = await seedIntent(id);
+  const snapshot = seeded.payload;
+  let dispatched = 0;
+  const result = await approveAndDispatchExecutionIntent({
+    evaluate: () => ({ outcome: "ALLOW", reason: "ok" }),
+    markExecuting: () =>
+      repo.transitionAgentExecutionIntent(WS, id, {
+        toStatus: "executing",
+        expectedFromStatus: "pending",
+        expectedPayload: snapshot,
+        updatedAt: new Date().toISOString(),
+      }),
+    recordAttempt: async () => {
+      // Payload rewritten while executing, then the ledger fails.
+      repo.__mutateAgentExecutionIntentPayloadForTests(WS, id, (p) => ({ ...p, client: "Evil" }));
+      throw new Error("ledger unavailable");
+    },
+    dispatch: async () => {
+      dispatched += 1;
+      return { ok: true };
+    },
+    recordResult: async () => {},
+    markExecuted: async () => {},
+    markFailed: async () => {},
+    revertToPending: async () => {},
+    revertClaim: () =>
+      repo.transitionAgentExecutionIntent(WS, id, {
+        toStatus: "pending",
+        expectedFromStatus: "executing",
+        expectedPayload: snapshot,
+        updatedAt: new Date().toISOString(),
+      }),
+  });
+  assert.equal(dispatched, 0);
+  assert.equal(result.httpStatus, 500);
+  assert.equal(result.claimReverted, false, "revert must match 0 rows when the payload no longer matches");
+  const after = await repo.getAgentExecutionIntent(WS, id);
+  assert.equal(after.status, "executing", "a rewritten payload must not be silently re-queued as pending");
+  repo.__clearAgentExecutionIntentsForTests();
+});
