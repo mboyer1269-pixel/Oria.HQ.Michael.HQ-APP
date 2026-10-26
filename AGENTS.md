@@ -10,6 +10,10 @@ Oria is a workspace-first operator platform. The product should evolve from the 
 2. Never start a new phase, feature, or refactor without an explicit mandate.
 3. Always validate with typecheck, lint, build, and smoke checks before declaring work complete.
 
+## Architecture Graph
+
+Before making architectural changes (new modules, moved boundaries, new cross-module dependencies), consult [`docs/ARCHITECTURE-GRAPH.md`](docs/ARCHITECTURE-GRAPH.md) and the module diagram [`docs/architecture/oria-architecture.png`](docs/architecture/oria-architecture.png) (source: `docs/architecture/oria-architecture.mmd`). The graph is a static snapshot; note in your handoff if your change makes it stale.
+
 ## Agent Operating Model
 
 - Treat this file as the canonical operating guide for agents working in this repository.

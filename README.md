@@ -64,6 +64,8 @@ AgentMemory est une mémoire **locale de développement**. Ce n'est pas la mémo
 opérationnelle Memex des utilisateurs. Les services de modèles, leurs comptes et
 leurs quotas restent distincts ; aucun abonnement ne devient automatiquement une API.
 
+- [Graphe d'architecture](docs/ARCHITECTURE-GRAPH.md)
+
 ## Ce qui est implémenté
 
 - Dossier de mission interactif, préparation et confirmation du lancement.
