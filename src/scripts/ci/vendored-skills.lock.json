@@ -6,5 +6,12 @@
   ".agents/skills/supabase-postgres-best-practices": {
     "sha256": "bc637d78b71b0de55e5d5c9d6d6604b4d430e6e4113c106b34d0a421f24ebbbc",
     "governanceSubjectLines": 24
-  }
+  },
+  "overlaps": [
+    {
+      "file": "supabase/SKILL.md",
+      "line": 44,
+      "overlaps": "R-NO-SECRETS"
+    }
+  ]
 }

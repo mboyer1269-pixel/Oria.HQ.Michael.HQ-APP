@@ -137,6 +137,25 @@ test(`rule:local exemptions do not grow (frozen at ${FROZEN_RULE_LOCAL})`, async
 
 test("vendored supabase* skill packs match the frozen content hash (incl. governance-subject lines)", async () => {
   const frozen = JSON.parse(await readFile(LOCK, "utf8"));
+  delete frozen.overlaps;
   assert.deepEqual(await vendoredState(), frozen,
     "vendored skill content drifted: review the change for governance rules (cite R- ids), then run node src/scripts/ci/vendored-hash.mjs --write");
+});
+
+// Reviewed vendored lines that restate a core.md rule (#450). Upstream text is
+// not edited; the overlap is recorded in the lock file instead.
+const REQUIRED_OVERLAPS = [{ file: "supabase/SKILL.md", line: 44, overlaps: "R-NO-SECRETS" }];
+
+test("vendored overlap notes point at declared core.md ids and the reviewed notes are present", async () => {
+  const { overlaps = [] } = JSON.parse(await readFile(LOCK, "utf8"));
+  const ids = await coreIds();
+  for (const o of overlaps) {
+    assert.ok(ids.includes(o.overlaps), `overlap ${o.file}:${o.line} cites unknown id ${o.overlaps}`);
+    const text = await readFile(path.join(root, ".agents/skills", o.file), "utf8");
+    assert.ok(text.split("\n")[o.line - 1]?.trim(), `overlap ${o.file}:${o.line} points at an empty/missing line`);
+  }
+  for (const r of REQUIRED_OVERLAPS) {
+    assert.ok(overlaps.some((o) => o.file === r.file && o.line === r.line && o.overlaps === r.overlaps),
+      `required overlap note missing: ${r.file}:${r.line} -> ${r.overlaps}`);
+  }
 });

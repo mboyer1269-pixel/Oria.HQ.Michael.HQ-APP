@@ -40,6 +40,11 @@ export async function vendoredState() {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const state = await vendoredState();
-  if (process.argv.includes("--write")) await writeFile(LOCK, `${JSON.stringify(state, null, 2)}\n`);
+  if (process.argv.includes("--write")) {
+    // Keep the reviewed overlap notes; only the hashes are recomputed.
+    let overlaps = [];
+    try { overlaps = JSON.parse(await readFile(LOCK, "utf8")).overlaps ?? []; } catch {}
+    await writeFile(LOCK, `${JSON.stringify({ ...state, overlaps }, null, 2)}\n`);
+  }
   else process.stdout.write(`${JSON.stringify(state, null, 2)}\n`);
 }
