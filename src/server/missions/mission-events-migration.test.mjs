@@ -182,3 +182,20 @@ test("revert removes everything", async () => {
   await db.exec(revert);
   assert.equal((await db.query("select to_regclass('public.mission_events') r")).rows[0].r, null);
 });
+
+test("DB voice allowlist (CHECK + trigger function) equals VOICE_APPROVABLE_CAPABILITIES", async () => {
+  const { createJiti } = await import("jiti");
+  const jiti = createJiti(import.meta.url);
+  const { VOICE_APPROVABLE_CAPABILITIES } = await jiti.import(path.join(root, "src/core/mission-events-contract.ts"));
+  const expected = [...VOICE_APPROVABLE_CAPABILITIES].sort();
+  const db = await setup();
+  const names = (sql, re) => { const m = sql.match(re); assert.ok(m, `allowlist not found in: ${sql}`); return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]).sort(); };
+  const con = await db.query(`select pg_get_constraintdef(oid) d from pg_constraint where conname = 'mission_capabilities_voice_allowlist'`);
+  assert.equal(con.rows.length, 1);
+  // pg renders IN (...) as = ANY (ARRAY['a'::text, ...]); accept either form.
+  assert.deepEqual(names(con.rows[0].d, /name\s*(?:=\s*ANY\s*\(\s*ARRAY\s*\[|in\s*\()([^\])]*)/i), expected);
+  const fns = await db.query(`select pg_get_functiondef(p.oid) d from pg_proc p join pg_namespace s on s.oid = p.pronamespace
+    where s.nspname = 'public' and p.prosrc like '%voice_not_approvable%'`);
+  for (const { d } of fns.rows) assert.deepEqual(names(d, /new\.capability\s+in\s*\(([^)]*)\)/i), expected);
+  assert.ok(fns.rows.length >= 1, "voice check function not found");
+});
