@@ -131,3 +131,27 @@ jobs:
 
       - name: Wiring gap check
         run: npm run test:gaps
+
+  # G2 real-database proof: disposable PostgreSQL + PostgREST containers on the
+  # runner (docker), real schema files, real route handlers. No remote DB, no
+  # secrets. See proofs/run-approval-real-db.sh.
+  approval-real-db:
+    name: approval-real-db
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Execution-intent approval proof (real PostgreSQL)
+        run: sh proofs/run-approval-real-db.sh "$GITHUB_WORKSPACE"

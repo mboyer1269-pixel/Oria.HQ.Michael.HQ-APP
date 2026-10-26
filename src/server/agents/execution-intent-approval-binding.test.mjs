@@ -162,6 +162,10 @@ test("G2 — approval is bound to the reviewed payload hash", async (t) => {
       const loser = r1.status === 409 ? r1 : r2;
       assert.equal(loser.body.reason, "already_decided");
       assert.equal(spy.calls.length, 1);
+      const attempts = listLocalActionLedgerEntries().filter(
+        (e) => e.eventType === "action" && e.metadata?.intentId === id,
+      );
+      assert.equal(attempts.length, 1, "exactly one approved attempt in the ledger");
     } finally {
       spy.restore();
     }
@@ -260,6 +264,52 @@ test("G2 — approval is bound to the reviewed payload hash", async (t) => {
       assert.equal(spy.calls.length, 0);
       assert.equal((await repo.getAgentExecutionIntent(WORKSPACE_ID, id)).status, "pending");
     } finally {
+      spy.restore();
+      repo.__clearAgentExecutionIntentsForTests();
+    }
+  });
+});
+
+test("G2 — claim is atomic with the verified payload", async (t) => {
+  await t.test("repo: payload changed between read and claim -> 0 rows, still pending", async () => {
+    repo.__clearAgentExecutionIntentsForTests();
+    const id = await createIntent();
+    const snapshot = (await repo.getAgentExecutionIntent(WORKSPACE_ID, id)).payload;
+    repo.__mutateAgentExecutionIntentPayloadForTests(WORKSPACE_ID, id, (p) => ({ ...p, data: { amount: 1 } }));
+    await assert.rejects(
+      repo.transitionAgentExecutionIntent(WORKSPACE_ID, id, {
+        toStatus: "executing",
+        expectedFromStatus: "pending",
+        expectedPayload: snapshot,
+        updatedAt: new Date().toISOString(),
+      }),
+      (err) => err instanceof repo.AgentExecutionIntentConcurrencyError,
+    );
+    assert.equal((await repo.getAgentExecutionIntent(WORKSPACE_ID, id)).status, "pending");
+  });
+
+  await t.test("route: payload rewritten between hash check and claim -> 409 changed", async () => {
+    repo.__clearAgentExecutionIntentsForTests();
+    const id = await createIntent();
+    const expectedPayloadHash = await storedHash(WORKSPACE_ID, id);
+    // Rewrite the row right after the route's read (hash check passes on the
+    // snapshot), so only the atomic claim can catch it.
+    const original = repo.getAgentExecutionIntent;
+    const spy = installFetchSpy();
+    let mutated = false;
+    repo.__setBeforeLocalTransitionHookForTests((_ws, _id, patch) => {
+      if (mutated || patch.toStatus !== "executing") return;
+      mutated = true;
+      repo.__mutateAgentExecutionIntentPayloadForTests(WORKSPACE_ID, id, (p) => ({ ...p, data: { amount: 2 } }));
+    });
+    try {
+      const res = await approve(id, { expectedPayloadHash });
+      assert.equal(res.status, 409, JSON.stringify(res.body));
+      assert.equal(res.body.reason, "changed");
+      assert.equal(spy.calls.length, 0);
+      assert.equal((await original(WORKSPACE_ID, id)).status, "pending");
+    } finally {
+      repo.__setBeforeLocalTransitionHookForTests(undefined);
       spy.restore();
       repo.__clearAgentExecutionIntentsForTests();
     }

@@ -109,6 +109,8 @@ export async function POST(
           // Claim from `pending`: if a concurrent reject already moved it, this
           // raises a concurrency error (-> 409) and no dispatch happens.
           expectedFromStatus: "pending",
+          // G2: claim only the exact payload whose hash was just verified.
+          expectedPayload: intent.payload,
           updatedAt: new Date().toISOString(),
         }),
       recordAttempt: () =>
@@ -164,6 +166,13 @@ export async function POST(
           updatedAt: new Date().toISOString(),
           failureCode,
         }),
+      revertClaim: () =>
+        transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
+          toStatus: "pending",
+          expectedFromStatus: "executing",
+          expectedPayload: intent.payload,
+          updatedAt: new Date().toISOString(),
+        }),
       revertToPending: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "pending",
@@ -205,6 +214,18 @@ export async function POST(
       });
     }
 
+    if ("reason" in result) {
+      logger.error(
+        result.claimReverted
+          ? "agent.execution-intent.approve.ledger_failed_claim_reverted"
+          : "agent.execution-intent.approve.ledger_failed_claim_revert_failed",
+        { intentId, workspaceId: ctx.workspace.id, alert: !result.claimReverted },
+      );
+      return NextResponse.json(
+        { intentId, status: result.status, error: result.error, reason: result.reason },
+        { status: 500 },
+      );
+    }
     return NextResponse.json(
       { intentId, status: result.status, error: result.error },
       { status: result.httpStatus },
@@ -213,7 +234,10 @@ export async function POST(
     if (err instanceof AgentExecutionIntentConcurrencyError) {
       // A concurrent action (e.g. a reject) moved the intent out of `pending`
       // before this approval could claim it. No dispatch happened.
-      return conflict(intentId, "already_decided");
+      // Zero rows on the claim: either the status moved (decided) or the
+      // stored payload no longer equals the verified snapshot (changed).
+      const fresh = await getAgentExecutionIntent(ctx.workspace.id, intentId).catch(() => null);
+      return conflict(intentId, fresh?.status === "pending" ? "changed" : "already_decided");
     }
     logger.error("agent.execution-intent.approve.failed", {
       intentId,
