@@ -187,6 +187,11 @@ await step("2a. payload rewritten in DB before approve, old hash -> 409 changed"
   assert.equal(r.body.reason, "changed");
   assert.equal(dispatches, 0);
   assert.equal(row(id).status, "pending");
+  assert.equal(ledgerRows(), before, "the refused approval must leave no ledger row for this intent");
+  assert.equal(
+    sql(`select count(*) from public.action_ledger where event_type='action' and metadata->>'intentId'='${q(id)}'`),
+    "0",
+  );
 });
 
 await step("2b. payload rewritten between read and claim -> jsonb-guarded claim 0 rows -> 409 changed", async () => {
@@ -206,6 +211,9 @@ await step("2b. payload rewritten between read and claim -> jsonb-guarded claim 
 await step("3. ledger insert refused by Postgres -> 500, conditional revert to pending, no dispatch", async () => {
   const id = await createIntent("ledger-down");
   const h = hashOf(row(id).payload);
+  const ledgerRows = () =>
+    sql(`select count(*) from public.action_ledger where metadata->>'intentId'='${q(id)}'`);
+  const before = ledgerRows();
   sql("revoke insert on public.action_ledger from qualification_service");
   dispatches = 0;
   try {
