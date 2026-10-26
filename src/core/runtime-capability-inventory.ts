@@ -192,6 +192,11 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
       "Sonde SSH Hermes de qualification opérateur : aucune route ni page applicative ne l'importe. Commande de statut seule, approbation écrite et environnement local requis ; aucun prompt modèle.",
     paths: ["src/server/agents/models/hermes-codex-connection-probe.ts"],
   },
+  {
+    reason:
+      "Outils CI des règles (preuve rouge des mutations, snapshot du charter depuis une ref git) : lancés à la main en ligne de commande, ils n'exécutent que node --test ou git show en local ; aucune route, aucun agent, aucun réseau.",
+    paths: ["src/scripts/ci/rules-mutation-red.mjs", "src/scripts/ci/snapshot-charter-from-ref.mjs"],
+  },
 ];
 
 /**
