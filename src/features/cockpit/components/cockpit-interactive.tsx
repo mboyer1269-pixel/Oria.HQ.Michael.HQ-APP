@@ -45,6 +45,7 @@ import { DailyDirectionWidget } from "@/features/cockpit/components/daily-direct
 import { saveCockpitLayout } from "@/features/cockpit/actions/cockpit-layout";
 import type { IdeaProjection } from "@/features/cockpit/events/idea-projection";
 import type { DailyDirectionProjection } from "@/features/cockpit/events/daily-direction-projection";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 // ─── Design tokens (mirrored from founder-zero-state) ────────────────────────
 
@@ -250,7 +251,7 @@ function JorisAgentCard({
     : `${ideas.length} idée${ideas.length > 1 ? "s" : ""} · direction active`;
 
   return (
-    <WidgetShell accent="grape" title="Joris — Agent CEO" icon={Bot} badge={<Pill color="grape">Agent</Pill>}>
+    <WidgetShell accent="grape" title={`${ORCHESTRATOR_DISPLAY_NAME} — Agent CEO`} icon={Bot} badge={<Pill color="grape">Agent</Pill>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
@@ -443,10 +444,10 @@ function SortableWidget({
 
 const NAV_ITEMS = [
   { label: "Cockpit", href: "/hq/cockpit", icon: LayoutGrid },
-  { label: "Direction du jour — Joris", href: "#daily-direction", icon: Zap },
+  { label: `Direction du jour — ${ORCHESTRATOR_DISPLAY_NAME}`, href: "#daily-direction", icon: Zap },
   { label: "Capture d'idée", href: "#idea-intake", icon: Lightbulb },
   { label: "File de décision", href: "#decision-queue", icon: Rows3 },
-  { label: "Joris Agent", href: "#joris-agent", icon: Bot },
+  { label: `${ORCHESTRATOR_DISPLAY_NAME} Agent`, href: "#joris-agent", icon: Bot },
   { label: "Trésorerie", href: "#treasury", icon: TrendingUp },
   { label: "Ventures", href: "#ventures", icon: Building2 },
   { label: "Modes opérationnels", href: "#modes", icon: LayoutGrid },
@@ -798,7 +799,7 @@ export function CockpitInteractive({
                 <Zap size={14} color={TOY.marigold.text} strokeWidth={2} aria-hidden="true" />
               </span>
               <span style={{ fontFamily: "var(--font-display)", fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>
-                Plan du jour — Joris
+                Plan du jour — {ORCHESTRATOR_DISPLAY_NAME}
               </span>
               <Pill color="marigold">Direction quotidienne</Pill>
             </div>

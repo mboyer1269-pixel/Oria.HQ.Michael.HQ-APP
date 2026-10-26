@@ -36,6 +36,7 @@ import {
 import { billionaireBoard, hqModules, modelProfiles, permissionRules } from "@/features/hq/seed";
 import { signOutAction } from "@/server/auth/actions";
 import { requireOwnerAccess } from "@/server/auth/owner";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 export const dynamic = "force-dynamic";
 
@@ -135,7 +136,7 @@ export default async function HqPage() {
         title="Command surface privée."
         description={
           <>
-            Michael HQ valide le coeur d&apos;Oria: Joris, agenda, documents, permissions, briefs et premiers modes
+            Michael HQ valide le coeur d&apos;Oria: {ORCHESTRATOR_DISPLAY_NAME}, agenda, documents, permissions, briefs et premiers modes
             métier avant de vendre le système à des courtiers et conseillers financiers.
             <nav className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Navigation privée Michael HQ">
             {privateLinks.map((link, index) => {
@@ -169,7 +170,7 @@ export default async function HqPage() {
                 </div>
                 <div className="flex items-center gap-2 text-amber-300">
                   <Bot className="h-4 w-4" />
-                  Joris branché au contexte actif
+                  {ORCHESTRATOR_DISPLAY_NAME} branché au contexte actif
                 </div>
                 <div className="flex items-center gap-2 text-neutral-400">
                   <CalendarCheck className="h-4 w-4" />
@@ -181,7 +182,7 @@ export default async function HqPage() {
           </div>
           <div className="mt-4 grid gap-2">
             <HqMetric label="Workspace" value="actif" tone="emerald" />
-            <HqMetric label="Joris" value="branché" tone="amber" />
+            <HqMetric label={ORCHESTRATOR_DISPLAY_NAME} value="branché" tone="amber" />
             <HqMetric label="Runtime" value="verrouillé" tone="violet" />
           </div>
           <form action={signOutAction} className="mt-5">

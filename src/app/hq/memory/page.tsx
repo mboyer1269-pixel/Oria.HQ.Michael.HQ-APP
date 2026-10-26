@@ -31,6 +31,7 @@ import {
   listPendingProposals,
 } from "@/server/memory/memory-vault-repository";
 import type { MemoryVaultEntry, MemoryVaultEntryType, MemoryVaultTrustLevel } from "@/server/memory/memory-vault-types";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 export const dynamic = "force-dynamic";
 
@@ -140,7 +141,7 @@ export default async function MemoryPage() {
           <>
           Corpus local historique : entrées temporaires + vault fichiers{" "}
           <code className="text-neutral-500">memory/</code>. Seules les entrées{" "}
-          <span className="text-emerald-400">vérifiées</span> sont injectées dans le contexte de Joris.
+          <span className="text-emerald-400">vérifiées</span> sont injectées dans le contexte de {ORCHESTRATOR_DISPLAY_NAME}.
           </>
         }
       >
@@ -272,7 +273,7 @@ export default async function MemoryPage() {
         )}
       </HqWidget>
 
-      <HqWidget title="Entrées runtime" eyebrow="Contexte Joris (read-only)" icon={BookOpen}>
+      <HqWidget title="Entrées runtime" eyebrow={`Contexte ${ORCHESTRATOR_DISPLAY_NAME} (read-only)`} icon={BookOpen}>
         <div className="mb-3 flex flex-wrap gap-2 text-xs text-neutral-500">
           <span>{verifiedCount} vérifiées</span>
           <span>·</span>

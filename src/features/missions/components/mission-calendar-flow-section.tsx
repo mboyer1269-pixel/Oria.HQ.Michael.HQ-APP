@@ -5,15 +5,16 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { MissionDraftPendingPanel } from "@/features/hq/components/mission-draft-pending-panel";
 import { MissionFlowLegend } from "@/features/missions/components/mission-flow-legend";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 export function MissionCalendarFlowSection() {
   return (
-    <section className="flex flex-col gap-4" aria-label="Flux calendrier Joris">
+    <section className="flex flex-col gap-4" aria-label={`Flux calendrier ${ORCHESTRATOR_DISPLAY_NAME}`}>
       <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-              Flux calendrier Joris
+              Flux calendrier {ORCHESTRATOR_DISPLAY_NAME}
             </p>
             <p className="mt-2 text-sm leading-6 text-neutral-400">
               Les rendez-vous passent par une <strong className="font-medium text-amber-200">proposition</strong>{" "}

@@ -20,6 +20,7 @@ import type {
   AgentReviewQueueItem,
 } from "@/features/agents/agent-review-queue";
 import { Card, Eyebrow, Tag, Tooltip } from "./ui";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // Cockpit review queue — read-only surface over the REAL review signal.
@@ -157,7 +158,7 @@ export function CockpitReviewQueue({ queue }: { queue: AgentReviewQueue }) {
             <p className="text-sm font-semibold text-[#eff1fb]">Aucun item à revoir pour l&apos;instant.</p>
             <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-6 text-[#646c8e]">
               Quand tes agents produiront des outcomes observés, les recommandations apparaîtront ici,
-              priorisées. En attendant, tu peux demander à Joris d&apos;évaluer un agent.
+              priorisées. En attendant, tu peux demander à {ORCHESTRATOR_DISPLAY_NAME} d&apos;évaluer un agent.
             </p>
             <Link
               href={"/hq/agents" as Route}

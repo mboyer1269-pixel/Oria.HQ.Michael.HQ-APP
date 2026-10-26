@@ -14,6 +14,7 @@ import {
   type PresenceDirection,
   type PresenceIdea,
 } from "@/features/cockpit/joris-presence-state";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // Visual tokens per state
@@ -75,14 +76,14 @@ export function JorisPresence({
     <div
       className={`flex items-center gap-3 rounded-lg border ${tokens.border} bg-[#0d1120]/60 px-4 py-3`}
       role="status"
-      aria-label={`Joris Presence: ${label}`}
+      aria-label={`${ORCHESTRATOR_DISPLAY_NAME} Presence: ${label}`}
     >
       {/* Dot signal — no animation, just a real indicator */}
       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${tokens.dot}`} aria-hidden="true" />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[12px] font-bold text-[#eff1fb]">Joris</span>
+          <span className="text-[12px] font-bold text-[#eff1fb]">{ORCHESTRATOR_DISPLAY_NAME}</span>
           <span
             className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${tokens.badge}`}
           >

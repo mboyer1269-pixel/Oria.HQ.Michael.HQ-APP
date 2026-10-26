@@ -6,6 +6,7 @@ import { SystemPopover } from "./system-popover";
 import { LanguageToggle } from "../../hq/components/language-toggle";
 import { useUILanguage } from "../../hq/i18n/ui-language";
 import { getUICopy } from "../../hq/i18n/ui-copy";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // CockpitTopbar — client component extracted from CockpitShell.
@@ -44,7 +45,7 @@ export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
       </button>
       <SystemPopover />
       <Tooltip
-        title="Joris"
+        title={ORCHESTRATOR_DISPLAY_NAME}
         detail={copy.jorisTooltip}
         align="right"
       >

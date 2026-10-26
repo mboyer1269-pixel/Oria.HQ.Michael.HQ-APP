@@ -27,6 +27,7 @@ import {
   type MissionDraftPanelUxState,
   type MissionDraftPendingClientView,
 } from "@/features/hq/mission-draft-format";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 type PanelVariant = "banner" | "embedded";
 
@@ -281,7 +282,7 @@ export function MissionDraftPendingPanel({
               {MISSION_DRAFT_CANCELLED_LABEL}
             </p>
             <p className="mt-1 text-sm leading-6 text-neutral-300">
-              Aucun rendez-vous n&apos;a été créé. Tu peux demander une nouvelle proposition via Joris.
+              Aucun rendez-vous n&apos;a été créé. Tu peux demander une nouvelle proposition via {ORCHESTRATOR_DISPLAY_NAME}.
             </p>
           </div>
         </div>
@@ -351,7 +352,7 @@ export function MissionDraftPendingPanel({
                 Proposition expirée
               </p>
               <p className="mt-1 text-sm leading-6 text-neutral-300">
-                La proposition calendrier a expiré. Demande un nouveau rendez-vous via Joris pour générer une
+                La proposition calendrier a expiré. Demande un nouveau rendez-vous via {ORCHESTRATOR_DISPLAY_NAME} pour générer une
                 proposition fraîche.
               </p>
             </div>

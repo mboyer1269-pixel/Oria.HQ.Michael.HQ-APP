@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 export const metadata: Metadata = {
   title: "Oria HQ",
-  description: "Cockpit prive pour orchestrer Joris et vos agents, avec approbation proprietaire et tracabilite.",
+  description: `Cockpit prive pour orchestrer ${ORCHESTRATOR_DISPLAY_NAME} et vos agents, avec approbation proprietaire et tracabilite.`,
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",

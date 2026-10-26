@@ -11,6 +11,7 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ const pillars = [
   {
     icon: Bot,
     title: "Agents orchestrés",
-    text: "Joris et vos agents prennent en charge les demandes, les bookings et les décisions dans le bon contexte.",
+    text: `${ORCHESTRATOR_DISPLAY_NAME} et vos agents prennent en charge les demandes, les bookings et les décisions dans le bon contexte.`,
   },
   {
     icon: CalendarCheck,

@@ -1,4 +1,5 @@
 import { CheckCircle2, Lock, FileCode2, Database, Timer } from "lucide-react";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 type StatusLevel = "enabled" | "locked" | "partial";
 
@@ -18,7 +19,7 @@ const STATUS_ITEMS: StatusItem[] = [
   },
   {
     icon: Timer,
-    label: "Joris mission.plan",
+    label: `${ORCHESTRATOR_DISPLAY_NAME} mission.plan`,
     detail: "dry-run texte — pas de mission créée",
     level: "partial",
   },

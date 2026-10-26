@@ -20,12 +20,13 @@ import {
   MoneyStrategyEvidenceQuality,
   MoneyStrategyState,
 } from "./money-strategy-routing-graph-contract";
+import { ORCHESTRATOR_AGENT_ID } from "../../config/agents/orchestrator.ts";
 
 // ---------------------------------------------------------------------------
 // Enumerations & supporting types
 // ---------------------------------------------------------------------------
 
-export const AGENT_COUNCIL_ORCHESTRATOR_ID = "joris" as const;
+export const AGENT_COUNCIL_ORCHESTRATOR_ID: string = ORCHESTRATOR_AGENT_ID;
 
 export type AgentCouncilSourceType =
   | "raw_idea"

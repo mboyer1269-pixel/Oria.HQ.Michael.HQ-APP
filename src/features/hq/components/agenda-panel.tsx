@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Bell, CalendarCheck2, CalendarDays, RefreshCw } from "lucide-react";
 import type { CalendarEvent } from "@/features/hq/types";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 type CalendarEventsResponse = {
   events?: CalendarEvent[];
@@ -90,7 +91,7 @@ export function AgendaPanel() {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-400">Agenda</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">Agenda · 14 prochains jours</h2>
           <p className="mt-1 text-sm leading-6 text-neutral-400">
-            Les événements créés par Joris Book apparaissent ici dès qu&apos;ils sont confirmés dans le Command Center.
+            Les événements créés par {ORCHESTRATOR_DISPLAY_NAME} Book apparaissent ici dès qu&apos;ils sont confirmés dans le Command Center.
           </p>
         </div>
         <button
@@ -130,7 +131,7 @@ export function AgendaPanel() {
             <CalendarDays className="h-6 w-6 text-neutral-500" />
             <p className="mt-3 font-medium text-white">Aucun rendez-vous dans les 14 prochains jours.</p>
             <p className="mt-1 text-sm leading-6 text-neutral-500">
-              Va au Command Center et essaie: “Joris, book un rendez-vous banque demain à 18:00”.
+              Va au Command Center et essaie: “{ORCHESTRATOR_DISPLAY_NAME}, book un rendez-vous banque demain à 18:00”.
             </p>
             <a
               href="#command-center"

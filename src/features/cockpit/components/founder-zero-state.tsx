@@ -10,6 +10,7 @@ import { CockpitInteractive } from "@/features/cockpit/components/cockpit-intera
 import type { IdeaProjection } from "@/features/cockpit/events/idea-projection";
 import type { EventPersistenceMode } from "@/features/cockpit/events/event-client";
 import type { DailyDirectionProjection } from "@/features/cockpit/events/daily-direction-projection";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 
@@ -145,9 +146,9 @@ function CeoBriefHeader({
         ? outcomes[0].text
         : "Plan du jour disponible — consulte le widget direction ci-dessous.";
   } else if (ideasCount > 0) {
-    jorissLine = `${ideasCount} idée${ideasCount > 1 ? "s" : ""} capturée${ideasCount > 1 ? "s" : ""} — Joris génère le plan du jour.`;
+    jorissLine = `${ideasCount} idée${ideasCount > 1 ? "s" : ""} capturée${ideasCount > 1 ? "s" : ""} — ${ORCHESTRATOR_DISPLAY_NAME} génère le plan du jour.`;
   } else {
-    jorissLine = "Joris attend ta première idée pour construire ton plan du jour.";
+    jorissLine = `${ORCHESTRATOR_DISPLAY_NAME} attend ta première idée pour construire ton plan du jour.`;
   }
 
   return (
@@ -192,7 +193,7 @@ function CeoBriefHeader({
             color: TOY.grape.text,
           }}
         >
-          Joris :{" "}
+          {ORCHESTRATOR_DISPLAY_NAME} :{" "}
         </span>
         {jorissLine}
       </p>
@@ -203,7 +204,7 @@ function CeoBriefHeader({
           {todayDirection ? "Direction générée" : "Direction en attente"}
         </Pill>
         <Pill color="sky">{ideasCount} idée{ideasCount !== 1 ? "s" : ""}</Pill>
-        <Pill color="grape">Joris · PR-2</Pill>
+        <Pill color="grape">{ORCHESTRATOR_DISPLAY_NAME} · PR-2</Pill>
       </div>
     </div>
   );

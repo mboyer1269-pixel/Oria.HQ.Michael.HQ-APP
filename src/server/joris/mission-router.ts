@@ -1,6 +1,7 @@
 import { validateWorkOrder, type WorkOrder, type WorkOrderValidationResult } from "../agents/work-order-contract";
 import { ApprovalGate } from "../agents/agent-profile-contract";
 import { BoosterType } from "../agents/booster-contract";
+import { ORCHESTRATOR_AGENT_ID } from "../../config/agents/orchestrator.ts";
 
 export interface MissionRouterResult {
   workOrder: WorkOrder;
@@ -79,7 +80,7 @@ export function routeMissionRequest(
       businessValue: { valueType: "revenue", expectedValue: 1000, currency: "EUR", confidence: "medium" },
       status: "draft",
       createdByType: "joris",
-      createdById: "joris",
+      createdById: ORCHESTRATOR_AGENT_ID,
       requestedById: userId,
       createdAt: new Date().toISOString()
     };
@@ -109,7 +110,7 @@ export function routeMissionRequest(
       businessValue: { valueType: "activation", confidence: "high" },
       status: "draft",
       createdByType: "joris",
-      createdById: "joris",
+      createdById: ORCHESTRATOR_AGENT_ID,
       requestedById: userId,
       createdAt: new Date().toISOString(),
     };
@@ -139,7 +140,7 @@ export function routeMissionRequest(
       businessValue: { valueType: "learning", confidence: "high" },
       status: "draft",
       createdByType: "joris",
-      createdById: "joris",
+      createdById: ORCHESTRATOR_AGENT_ID,
       requestedById: userId,
       createdAt: new Date().toISOString(),
     };
@@ -150,19 +151,19 @@ export function routeMissionRequest(
       id: `wo_mission_fallback_${Date.now()}`,
       type: "mission",
       title: "Mission de clarification",
-      ownerAgentId: "joris",
-      assignedAgentId: "joris",
+      ownerAgentId: ORCHESTRATOR_AGENT_ID,
+      assignedAgentId: ORCHESTRATOR_AGENT_ID,
       objective: `Clarifier la demande: ${requestText}`,
       expectedOutput: { description: "Clarification or refined requirements", outputType: "text" },
       boostersRequested: [],
       riskLevel: "low",
       approvalGates: [],
       successMetric: { description: "User clarifies intent" },
-      nextAction: { description: "Ask user for clarification", actor: "joris" },
+      nextAction: { description: "Ask user for clarification", actor: ORCHESTRATOR_AGENT_ID },
       businessValue: { valueType: "learning", confidence: "low" },
       status: "draft",
       createdByType: "joris",
-      createdById: "joris",
+      createdById: ORCHESTRATOR_AGENT_ID,
       requestedById: userId,
       createdAt: new Date().toISOString(),
     };
