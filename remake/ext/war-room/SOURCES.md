@@ -67,3 +67,8 @@ Règle : un état sans source s'affiche « non branché » / « non instrumenté
 - La proposition de table plus haut est remplacée par ce contrat #425.
 
 Origine de l'accord : affichée « non vérifié » tant qu'un accord n'est pas prouvé émis côté serveur ; jamais affichée comme valide.
+
+## Constats Sentinelle sur #425 (affichés sur l'écran Approbation)
+- Expiration mesurée à l'heure du serveur, pas à `occurred_at`.
+- Voix : liste blanche (et non liste noire comme le CHECK actuel de #425).
+- `approval_granted` valide seulement si actor = utilisateur connecté (humain) ET précédé d'un `approval_requested` ; sinon « accord non valide ». La maquette ne peut le prouver : elle affiche toujours « accord non valide » / origine « non vérifié ».
