@@ -1,6 +1,8 @@
-// Captures 1440/390 (vide, erreur, validé) + axe. Requiert /tmp/pw (playwright + @axe-core/playwright déjà présents).
-import { chromium } from '/tmp/pw/node_modules/playwright/index.mjs';
-import AxeBuilder from '/tmp/pw/node_modules/@axe-core/playwright/dist/index.mjs';
+// Captures 1440/390 (vide, erreur, validé) + axe.
+// PW_PATH = dossier node_modules contenant playwright et @axe-core/playwright ; sinon résolution normale des paquets.
+const PW=process.env.PW_PATH;
+const { chromium } = await import(PW ? PW+'/playwright/index.mjs' : 'playwright');
+const { default: AxeBuilder } = await import(PW ? PW+'/@axe-core/playwright/dist/index.mjs' : '@axe-core/playwright');
 const b=await chromium.launch(); const out=[];
 for (const w of [1440,390]) {
   const ctx=await b.newContext({viewport:{width:w,height:w===390?844:900}}); const p=await ctx.newPage();

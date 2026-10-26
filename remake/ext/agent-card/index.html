@@ -9,6 +9,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 a{color:#8fb8ff}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:var(--p2);padding:8px;z-index:9}
 header{padding:20px 24px;border-bottom:1px solid var(--line)}
 header h1{margin:0;font-size:1.4rem}
@@ -58,11 +59,12 @@ footer{color:var(--mu);font-size:.85rem;padding:0 24px 24px;max-width:1360px;mar
 <main>
 <section class="panel" aria-labelledby="form-title">
   <h2 id="form-title">Formulaire de création</h2>
-  <div id="summary" role="alert" tabindex="-1" hidden>
+  <p id="live" class="sr-only" role="status" aria-live="polite"></p>
+  <div id="summary" tabindex="-1" hidden>
     <h3>La fiche contient <span id="errCount">0</span> erreur(s)</h3>
     <ul id="errList"></ul>
   </div>
-  <div id="okMsg" class="ok" role="status" hidden>Fiche valide (maquette). Enregistrement : à brancher, rien n'a été envoyé.</div>
+  <div id="okMsg" class="ok" hidden>Fiche valide (maquette). Enregistrement : à brancher, rien n'a été envoyé.</div>
   <form id="f" novalidate>
     <fieldset><legend>Identité</legend>
       <label for="name">Nom de l'agent (requis)</label>
@@ -72,7 +74,7 @@ footer{color:var(--mu);font-size:.85rem;padding:0 24px 24px;max-width:1360px;mar
       <p class="hint" id="role-hint">Valeurs de <code>AgentRoleId</code> du code.</p>
       <select id="role" aria-describedby="role-hint role-err" required>
         <option value="">— Choisir —</option>
-        <option>orchestrator</option><option>operator</option><option>scout</option><option>auditor</option><option>memory</option><option>money</option><option>builder</option><option>support</option><option>quality</option>
+        <option>orchestrator</option><option>operator</option><option>scout</option><option>auditor</option><option>memory</option><option>money</option><option>builder</option><option>closer</option><option>support</option><option>quality</option>
       </select>
       <p class="err" id="role-err"></p>
       <label for="tagline">Accroche (1 ligne)</label>
@@ -107,7 +109,7 @@ footer{color:var(--mu);font-size:.85rem;padding:0 24px 24px;max-width:1360px;mar
       <label for="skills">Compétences (identifiants du catalogue, séparés par des virgules)</label>
       <input id="skills" autocomplete="off">
       <label for="auto">Niveau d'autonomie</label>
-      <select id="auto"><option value="">— Non défini —</option><option>0</option><option>1</option><option>2</option><option>3</option></select>
+      <select id="auto"><option value="">— Non défini —</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
     </fieldset>
     <div class="btns">
       <button type="submit" class="primary" id="go">Valider la fiche</button>
@@ -119,14 +121,14 @@ footer{color:var(--mu);font-size:.85rem;padding:0 24px 24px;max-width:1360px;mar
 
 <section class="panel" aria-labelledby="prev-title">
   <h2 id="prev-title">Aperçu de la fiche</h2>
-  <article class="card" aria-live="polite">
+  <article class="card">
     <span class="tag ex" id="exTag" hidden>Exemple</span>
     <h3 id="pName">Agent sans nom</h3>
     <p class="meta" id="pMeta">Rôle non renseigné</p>
     <div class="status">
       <strong>Statut :</strong>
-      <span class="tag nb">Non branché</span>
-      <span class="tag ab">lu en base, à brancher</span>
+      <span class="tag nb" id="stLabel"></span>
+      <span class="tag ab" id="stSource"></span>
     </div>
     <dl>
       <dt>Mission</dt><dd id="pMission" class="empty">Vide — aucune mission saisie.</dd>
@@ -141,6 +143,9 @@ footer{color:var(--mu);font-size:.85rem;padding:0 24px 24px;max-width:1360px;mar
 <footer>Structure inspirée de <a href="https://github.com/msitarzewski/agency-agents">agency-agents</a> (© 2025 AgentLand Contributors, licence MIT). Voir THIRD_PARTY_NOTICES.</footer>
 <script>
 const $=id=>document.getElementById(id);
+// Seule source des libellés de statut : aucun statut réel écrit en dur (cf. SPEC).
+const AGENT_STATUS_DISPLAY={label:"Non branché",source:"lu en base, à brancher"};
+$("stLabel").textContent=AGENT_STATUS_DISPLAY.label;$("stSource").textContent=AGENT_STATUS_DISPLAY.source;
 const req={name:"Le nom est requis.",role:"Choisissez un rôle.",mission:"La mission est requise.",method:"Ajoutez au moins une étape.",deliv:"Ajoutez au moins un livrable.",guard:"Ajoutez au moins un garde-fou."};
 let isExample=false;
 function lines(v){return v.split("\n").map(s=>s.trim()).filter(Boolean)}
@@ -164,6 +169,7 @@ $("f").addEventListener("submit",e=>{
   const ul=$("errList");ul.textContent="";
   errs.forEach(k=>{const li=document.createElement("li"),a=document.createElement("a");a.href="#"+k;a.textContent=req[k];a.onclick=ev=>{ev.preventDefault();$(k).focus()};li.appendChild(a);ul.appendChild(li)});
   $("errCount").textContent=errs.length;$("summary").hidden=!errs.length;$("okMsg").hidden=!!errs.length;
+  $("live").textContent=errs.length?errs.length+" erreur(s) dans la fiche.":"Fiche valide (maquette).";
   if(errs.length)$("summary").focus();
 });
 $("ex").addEventListener("click",()=>{
@@ -176,7 +182,7 @@ $("ex").addEventListener("click",()=>{
   $("skills").value="exemple-skill-id";$("auto").value="1";
   render();
 });
-$("clr").addEventListener("click",()=>setTimeout(()=>{isExample=false;document.querySelectorAll("[aria-invalid]").forEach(e=>e.removeAttribute("aria-invalid"));document.querySelectorAll(".err").forEach(e=>e.textContent="");$("summary").hidden=true;$("okMsg").hidden=true;render()}));
+$("clr").addEventListener("click",()=>setTimeout(()=>{isExample=false;document.querySelectorAll("[aria-invalid]").forEach(e=>e.removeAttribute("aria-invalid"));document.querySelectorAll(".err").forEach(e=>e.textContent="");$("summary").hidden=true;$("okMsg").hidden=true;$("live").textContent="";render()}));
 render();
 </script>
 </body>
