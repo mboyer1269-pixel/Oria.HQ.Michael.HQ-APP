@@ -1,9 +1,9 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 664,
-    "live": 615,
-    "testOnly": 5,
+    "sourceFiles": 673,
+    "live": 622,
+    "testOnly": 7,
     "incubation": 44
   },
   "incubationByArea": {
@@ -35,6 +35,7 @@
     "src/app/api/arena/verdicts/[candidateId]/route.ts",
     "src/app/api/arena/verdicts/route.ts",
     "src/app/api/atelier/missions/[missionId]/artifacts/[artifactId]/route.ts",
+    "src/app/api/atelier/missions/[missionId]/close/route.ts",
     "src/app/api/atelier/missions/[missionId]/events/route.ts",
     "src/app/api/atelier/missions/[missionId]/interrupt/route.ts",
     "src/app/api/atelier/missions/[missionId]/resume/route.ts",
@@ -53,6 +54,8 @@
     "src/app/api/health/shadow-cronbeat/route.ts",
     "src/app/api/health/staging-runtime/route.ts",
     "src/app/api/hq/infrastructure/packages/[packageId]/export/route.ts",
+    "src/app/api/hq/subscription-quota/handler.ts",
+    "src/app/api/hq/subscription-quota/route.ts",
     "src/app/api/hq/theatre/stream/route.ts",
     "src/app/api/inngest/route.ts",
     "src/app/api/inventory/snapshot/route.ts",
@@ -361,6 +364,7 @@
     "src/features/workflows/workflow-run-timeline.ts",
     "src/features/workflows/workflow-run.ts",
     "src/features/workflows/workflows-page-data.ts",
+    "src/lib/demo-mode.ts",
     "src/lib/env.ts",
     "src/lib/logger.ts",
     "src/lib/rate-limit.ts",
@@ -433,6 +437,7 @@
     "src/server/ai/server-capability-catalog.ts",
     "src/server/ai/subscription-catalog.ts",
     "src/server/ai/subscription-owner.ts",
+    "src/server/ai/subscription-quota.ts",
     "src/server/ai/subscription-runtime.ts",
     "src/server/arena/arena-api-schema.ts",
     "src/server/arena/arena-batch-service.ts",
@@ -593,11 +598,13 @@
     "src/server/orchestration/paperclip-dispatch.ts",
     "src/server/orchestration/paperclip-read-handler.ts",
     "src/server/orchestration/workspace-binding.ts",
+    "src/server/outbound/consent-evidence.ts",
     "src/server/outbound/outbound-batch-approval.ts",
     "src/server/outbound/outbound-channel.ts",
     "src/server/outbound/outbound-executor-live.ts",
     "src/server/outbound/outbound-ledger.ts",
     "src/server/outbound/outbound-queue-intake.ts",
+    "src/server/outbound/outbound-route-auth.ts",
     "src/server/outbound/outbound-send-service.ts",
     "src/server/outbound/outbound-send-store.ts",
     "src/server/outbound/outbound-types.ts",
@@ -642,11 +649,13 @@
     "src/server/ventures/venture-score-shadow-runner.ts"
   ],
   "testOnly": [
+    "src/server/ai/claude-json-launcher.ts",
     "src/server/ledger/hash-chain-test-fixtures.ts",
     "src/server/missions/openhands-lifecycle.ts",
     "src/server/missions/openhands-pending-launches.ts",
     "src/server/outbound/outbound-executor-dry-run.ts",
-    "src/server/outbound/outbound-policy-engine.ts"
+    "src/server/outbound/outbound-policy-engine.ts",
+    "src/server/permissions/risky-action-gate.ts"
   ],
   "incubation": [
     "src/features/agents/agent-approval-persistence-read-models.ts",
