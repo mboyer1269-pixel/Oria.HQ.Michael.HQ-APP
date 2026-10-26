@@ -35,6 +35,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install bubblewrap (atelier sandbox tests)
+        # SENT-412-36/37: atelier runner steps fail closed without a working bwrap.
+        # ubuntu-24.04 restricts unprivileged user namespaces via AppArmor; lift it on this ephemeral runner only.
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          bwrap --ro-bind / / --unshare-net --die-with-parent true && echo "bwrap usable"
+
+
       - name: Typecheck
         run: npm run typecheck
 
