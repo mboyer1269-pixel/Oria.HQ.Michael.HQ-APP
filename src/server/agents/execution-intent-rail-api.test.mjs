@@ -74,8 +74,14 @@ const approveRoute = await jiti.import(
 // local ledger — must be imported in the same form the routes use.
 const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 const { evaluateLiveExecution } = await jiti.import("@/server/runtime/execution-guard");
-const { __clearAgentExecutionIntentsForTests, listPendingAgentExecutionIntents } =
-  await jiti.import("@/server/agents/execution-intent-repository");
+const {
+  __clearAgentExecutionIntentsForTests,
+  listPendingAgentExecutionIntents,
+  getAgentExecutionIntent,
+} = await jiti.import("@/server/agents/execution-intent-repository");
+const { hashExecutionIntentPayload } = await jiti.import(
+  "@/server/agents/execution-intent-payload-hash",
+);
 // The ledger reader is imported by PATH, not by "@/...", because ledger-events
 // reaches its repository through a relative specifier — that resolves to the
 // path form, which is a different instance from the alias form. Same trap as
@@ -149,9 +155,15 @@ async function getIntents(agentId) {
 }
 
 async function approveIntent(intentId) {
+  // G2: approval carries the hash of the reviewed payload (or a well-formed
+  // placeholder when the intent does not exist).
+  const stored = await getAgentExecutionIntent("michael-hq", intentId);
+  const expectedPayloadHash = stored ? hashExecutionIntentPayload(stored.payload) : "0".repeat(64);
   const response = await approveRoute.POST(
     new Request(`http://localhost/api/agents/execution-intents/${intentId}/approve`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expectedPayloadHash }),
     }),
     { params: Promise.resolve({ intentId }) },
   );

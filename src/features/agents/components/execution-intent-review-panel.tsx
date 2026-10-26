@@ -91,7 +91,7 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
   // Single handler for both CEO actions. Approve fires the n8n dispatch route;
   // reject is the pure terminal-status route. Both share the exact same
   // loading/error/refetch contract.
-  async function runAction(intentId: string, kind: ActionKind) {
+  async function runAction(intentId: string, kind: ActionKind, payloadHash?: string | null) {
     if (busyAction) return;
     setBusyAction({ id: intentId, kind });
     setError(null);
@@ -100,6 +100,8 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
       const response = await fetch(ACTION_ROUTE[kind](intentId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // G2: approval is bound to the payload hash the CEO reviewed.
+        ...(kind === "approve" ? { body: JSON.stringify({ expectedPayloadHash: payloadHash }) } : {}),
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
@@ -245,7 +247,7 @@ export function ExecutionIntentReviewPanel({ agentId }: ExecutionIntentReviewPan
                   <button
                     type="button"
                     disabled={locked}
-                    onClick={() => void runAction(row.intentId, "approve")}
+                    onClick={() => void runAction(row.intentId, "approve", row.payloadHash)}
                     aria-busy={approving}
                     className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
                   >

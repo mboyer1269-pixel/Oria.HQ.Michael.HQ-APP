@@ -352,3 +352,20 @@ export function __clearAgentExecutionIntentsForTests(): void {
   localIntents.length = 0;
   localSeq = 0;
 }
+
+/**
+ * Test-only: simulate an out-of-band write to a stored payload (local fallback
+ * only). Application code never mutates a payload after creation; this exists
+ * so the G2 approval binding can be proven against such a write.
+ */
+export function __mutateAgentExecutionIntentPayloadForTests(
+  workspaceId: string,
+  intentId: string,
+  mutate: (payload: AgentExecutionIntentPayload) => AgentExecutionIntentPayload,
+): void {
+  const row = localIntents.find((r) => r.workspace_id === workspaceId && r.intent_id === intentId);
+  if (!row) throw new AgentExecutionIntentNotFoundError(intentId);
+  row.payload = mutate(
+    structuredClone(row.payload) as unknown as AgentExecutionIntentPayload,
+  ) as unknown as AgentExecutionIntentRow["payload"];
+}

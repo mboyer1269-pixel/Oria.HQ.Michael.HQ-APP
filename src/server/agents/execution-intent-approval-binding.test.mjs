@@ -212,7 +212,7 @@ test("G2 — approval is bound to the reviewed payload hash", async (t) => {
         assert.equal(entry.workspaceId, WORKSPACE_ID);
       }
       const attempt = written.find((e) => e.eventType === "action");
-      assert.equal(attempt.metadata.payloadHash, expectedPayloadHash);
+      assert.equal(attempt.metadata.approvedDigest, expectedPayloadHash);
     } finally {
       spy.restore();
     }

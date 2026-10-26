@@ -11,6 +11,7 @@ import {
 import { extractEstimatedCostFromIntentData } from "@/server/michael-hq/telemetry-extract";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import { listPendingAgentExecutionIntents } from "@/server/agents/execution-intent-repository";
+import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
 
 export type TheatrePollSnapshot = {
   workspaceId: string;
@@ -56,6 +57,7 @@ export function mapIntentToTheatrePending(intent: AgentExecutionIntent): Theatre
     createdAt: intent.createdAt,
     actionType: intent.payload?.actionType,
     client: intent.payload?.client,
+    payloadHash: hashExecutionIntentPayload(intent.payload),
     ...(estimated
       ? {
           estimatedCostUsd: estimated.totalUsd,
