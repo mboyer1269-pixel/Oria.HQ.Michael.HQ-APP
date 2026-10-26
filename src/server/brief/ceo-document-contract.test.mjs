@@ -14,7 +14,7 @@ const jiti=createJiti(import.meta.url,{moduleCache:false,fsCache:false,alias:{
  'server-only':fixture('server-only','export {};'),
  '@/server/calendar/calendar-service':fixture('calendar','export async function listCalendarEvents(){return [];}'),
  '@/server/contact/contact-lead-repository':fixture('contact','export function createContactLeadRepository(){return {listRecent:async()=>[]};} export class ContactLeadRepositoryError extends Error {}'),
- '@/server/calendar/calendar-repository':fixture('calendar-error','export class CalendarRepositoryError extends Error {}'),
+ '@/server/calendar/calendar-repository':fixture('calendar-error','export class CalendarRepositoryError extends Error {} export function createCalendarRepository(){return {list:async()=>[]};}'),
  '@/server/brief/document-index':fixture('documents',`export async function getDocumentBriefSnapshot(){return globalThis.${holder}.documents;}`),
  '@/server/auth/owner':fixture('owner',`export async function requireOwnerApiSession(){return globalThis.${holder}.authorized?null:new Response('Unauthorized',{status:401});}`),
 }});

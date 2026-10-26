@@ -5,7 +5,17 @@ import { DEFAULT_WORKSPACE_SLUG } from "@/core/workspaces/registry";
 import type { CeoBriefSnapshot } from "@/core/types";
 import { createCalendarRepository } from "@/server/calendar/calendar-repository";
 import { createContactLeadRepository } from "@/server/contact/contact-lead-repository";
-import { getDocumentBriefSnapshot } from "@/server/brief/document-index";
+import { getDocumentBriefSnapshot, type DocumentBriefSnapshot } from "@/server/brief/document-index";
+
+/** Non-legacy workspaces cannot read the unscoped document index: report it as unknown, never as zero. */
+const UNSCOPED_DOCUMENTS_UNAVAILABLE: DocumentBriefSnapshot = {
+  source: "local_fixture",
+  status: "unavailable",
+  reason: "disabled",
+  totalCount: null,
+  byHat: {},
+  recent: [],
+};
 
 import { upcomingCalendarWindow } from "@/server/calendar/upcoming-window";
 
@@ -76,7 +86,7 @@ export async function buildCeoBriefSnapshot(ctx: WorkspaceContext = getActiveWor
     contactRepository.listRecent({ workspaceId: ctx.workspace.id, status: "new", limit: 5 }),
     contactRepository.listRecent({ workspaceId: ctx.workspace.id, limit: 5 }),
     // The document index is not workspace-scoped yet: only the legacy workspace may read it.
-    ctx.workspace.id === DEFAULT_WORKSPACE_SLUG ? getDocumentBriefSnapshot(3) : Promise.resolve({ totalCount: 0, byHat: {}, recent: [] }),
+    ctx.workspace.id === DEFAULT_WORKSPACE_SLUG ? getDocumentBriefSnapshot(3) : Promise.resolve(UNSCOPED_DOCUMENTS_UNAVAILABLE),
   ]);
 
   const agendaItems = events.map((event) => ({
