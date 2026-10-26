@@ -80,3 +80,47 @@ test("fail-closed: undeclared, empty or case-mismatched workspace is invisible t
     await rm(tmp, { recursive: true, force: true });
   }
 });
+
+test("frontmatter parsing: empty workspace cannot swallow the next line; duplicates and bad slugs rejected", async () => {
+  const { classifyFileEntryWorkspace, fileEntryWorkspaceId } = await loadModule();
+  const swallow = "---\nworkspace: \ntitle: t\n---\nbody\n";
+  assert.notEqual(fileEntryWorkspaceId(swallow), "title: t");
+  assert.equal(fileEntryWorkspaceId(swallow), null);
+  assert.equal(classifyFileEntryWorkspace(swallow).status, "empty");
+  assert.equal(classifyFileEntryWorkspace("---\nworkspace: ws-a\nworkspace: ws-b\ntitle: t\n---\n").status, "duplicate");
+  assert.equal(classifyFileEntryWorkspace("---\nworkspace: ws a!\ntitle: t\n---\n").status, "invalid");
+  assert.equal(classifyFileEntryWorkspace("---\nworkspace: WS-A\ntitle: t\n---\n").status, "invalid");
+  assert.equal(classifyFileEntryWorkspace("# no frontmatter\n").status, "missing");
+  assert.deepEqual(classifyFileEntryWorkspace("---\nworkspace: michael-hq\ntitle: t\n---\n"), { status: "declared", workspaceId: "michael-hq" });
+});
+
+test("loadScopedFileVault exposes the excluded count and the page notice shows it (count only)", async () => {
+  const { loadScopedFileVault } = await loadModule();
+  const { createJiti } = await import("jiti");
+  const { excludedFilesNotice } = await createJiti(import.meta.url).import(path.join(__dirname, "memory-vault-notice.ts"));
+  const tmp = await mkdtemp(path.join(os.tmpdir(), "vault-scope-"));
+  const prevCwd = process.cwd();
+  const prevWarn = console.warn;
+  console.warn = () => {};
+  try {
+    await mkdir(path.join(tmp, "memory", "notes"), { recursive: true });
+    await writeFile(path.join(tmp, "memory/notes/a.md"), entry("ws-a", "Alpha ok"));
+    await writeFile(path.join(tmp, "memory/notes/b.md"), entry("ws-b", "Bravo ok"));
+    await writeFile(path.join(tmp, "memory/notes/nofm.md"), "# Secret orphan\nbody\n");
+    await writeFile(path.join(tmp, "memory/notes/empty.md"), "---\nworkspace: \ntitle: Secret empty\n---\n");
+    await writeFile(path.join(tmp, "memory/notes/dup.md"), "---\nworkspace: ws-a\nworkspace: ws-b\ntitle: Secret dup\n---\n");
+    process.chdir(tmp);
+
+    const scoped = await loadScopedFileVault("ws-a");
+    assert.deepEqual(scoped.entries.map((e) => e.title), ["Alpha ok"]);
+    assert.equal(scoped.excludedCount, 3);
+    const notice = excludedFilesNotice(scoped.excludedCount);
+    assert.equal(notice, "3 fichiers exclus, sans espace déclaré");
+    assert.ok(!/Secret/.test(notice));
+    assert.equal(excludedFilesNotice(0), null);
+  } finally {
+    console.warn = prevWarn;
+    process.chdir(prevCwd);
+    await rm(tmp, { recursive: true, force: true });
+  }
+});

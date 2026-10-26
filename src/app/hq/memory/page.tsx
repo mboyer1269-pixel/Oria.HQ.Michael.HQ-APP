@@ -22,9 +22,10 @@ import {
 } from "@/server/memory/memory-graph";
 import {
   adaptVaultEntryToMemoryEntry,
-  loadFileVaultEntries,
+  loadScopedFileVault,
   mergeMemoryEntries,
 } from "@/server/memory/memory-file-vault";
+import { excludedFilesNotice } from "@/server/memory/memory-vault-notice";
 import { getLearningLoopReport } from "@/server/memory/learning-loop-service";
 import {
   listAllVaultEntriesForWorkspace,
@@ -121,7 +122,8 @@ export default async function MemoryPage() {
   const verifiedCount = vaultEntries.filter((e) => e.trustLevel === "verified").length;
   const proposedCount = vaultEntries.filter((e) => e.trustLevel === "proposed").length;
 
-  const fileEntries = await loadFileVaultEntries(workspaceId);
+  const { entries: fileEntries, excludedCount } = await loadScopedFileVault(workspaceId);
+  const excludedNotice = excludedFilesNotice(excludedCount);
   const allEntries = mergeMemoryEntries(
     fileEntries,
     vaultEntries.map(adaptVaultEntryToMemoryEntry),
@@ -158,6 +160,9 @@ export default async function MemoryPage() {
             <HqMetric label="Liens" value={graph.edges.length} tone="sky" />
             <HqMetric label="Orphelins" value={graph.orphanIds.length} tone={graph.orphanIds.length > 0 ? "amber" : "neutral"} />
           </div>
+          {excludedNotice && (
+            <p className="mt-2 text-xs text-neutral-500">{excludedNotice}</p>
+          )}
         </HqSummaryRail>
       </HqPageHeader>
 

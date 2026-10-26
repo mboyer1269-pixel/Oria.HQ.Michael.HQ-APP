@@ -41,49 +41,83 @@ async function collectMarkdownFiles(dir: string): Promise<string[]> {
   return collected;
 }
 
+/** Workspace slug format: lowercase slug, or `personal:<userId>` personal spaces. */
+const WORKSPACE_SLUG_RE = /^(?:[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?|personal:[A-Za-z0-9_-]{1,128})$/;
+
+export type FileEntryWorkspace =
+  | { status: "declared"; workspaceId: string }
+  | { status: "missing" | "empty" | "invalid" | "duplicate" };
+
 /**
- * Workspace owning a file entry, or null when undeclared.
+ * Workspace owning a file entry.
  *
  * Canonical key: the workspace slug, which is exactly `ctx.workspace.id`
  * (workspace-context.ts sets `id: config.slug`; registry.ts getDefaultWorkspace
  * sets `id: ACTIVE_WORKSPACE_CONFIG.slug`). Comparison is exact and
- * case-sensitive.
+ * case-sensitive; no normalization.
  *
- * Fail-closed: no frontmatter, no `workspace:` key, or an empty value returns
- * null and the file is excluded from every workspace.
+ * Fail-closed: no frontmatter / no `workspace:` key, an empty value, a value
+ * that is not a valid slug, or more than one `workspace:` key all mean the file
+ * belongs to no workspace. Only horizontal whitespace (`[ \t]`) is allowed
+ * around the colon, so an empty value can never swallow the next line.
  */
-export function fileEntryWorkspaceId(raw: string): string | null {
+export function classifyFileEntryWorkspace(raw: string): FileEntryWorkspace {
   const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  const line = fm?.[1].match(/^workspace[ \t]*:[ \t]*(.*)$/m);
-  const value = line?.[1].trim();
-  return value ? value : null;
+  if (!fm) return { status: "missing" };
+  const values = fm[1]
+    .split(/\r?\n/)
+    .map((line) => line.match(/^workspace[ \t]*:[ \t]*(.*?)[ \t]*$/i))
+    .filter((m): m is RegExpMatchArray => m !== null)
+    .map((m) => m[1]);
+  if (values.length === 0) return { status: "missing" };
+  if (values.length > 1) return { status: "duplicate" };
+  const value = values[0];
+  if (!value) return { status: "empty" };
+  if (!WORKSPACE_SLUG_RE.test(value)) return { status: "invalid" };
+  return { status: "declared", workspaceId: value };
 }
 
+/** Declared workspace slug of a file entry, or null when excluded (fail-closed). */
+export function fileEntryWorkspaceId(raw: string): string | null {
+  const result = classifyFileEntryWorkspace(raw);
+  return result.status === "declared" ? result.workspaceId : null;
+}
+
+export type ScopedFileVault = {
+  entries: MemoryEntry[];
+  /** Files excluded from every workspace (missing/empty/invalid/duplicate workspace). */
+  excludedCount: number;
+};
+
 /**
- * Loads file-backed memory entries from `memory/` that belong to `workspaceId`.
+ * Loads file-backed memory entries from `memory/` that belong to `workspaceId`,
+ * plus the count of files excluded for lack of a valid workspace declaration.
  * Entries of any other workspace are never returned.
- * Returns [] when the directory is absent or unreadable.
+ * Returns an empty result when the directory is absent or unreadable.
  */
-export async function loadFileVaultEntries(workspaceId: string): Promise<MemoryEntry[]> {
-  if (!workspaceId?.trim()) return [];
+export async function loadScopedFileVault(workspaceId: string): Promise<ScopedFileVault> {
+  if (!workspaceId?.trim()) return { entries: [], excludedCount: 0 };
   const root = path.join(process.cwd(), MEMORY_DIR);
   let files: string[];
   try {
     files = await collectMarkdownFiles(root);
   } catch {
-    return [];
+    return { entries: [], excludedCount: 0 };
   }
 
   const entries: MemoryEntry[] = [];
+  let excludedCount = 0;
   for (const file of files) {
     try {
       const raw = await fs.readFile(file, "utf8");
-      const owner = fileEntryWorkspaceId(raw);
-      if (owner === null) {
-        console.warn(`[memory-file-vault] excluded (no workspace frontmatter): ${path.basename(file)}`);
+      const owner = classifyFileEntryWorkspace(raw);
+      if (owner.status !== "declared") {
+        excludedCount += 1;
+        // File name only — never content or title.
+        console.warn(`[memory-file-vault] excluded (workspace ${owner.status}): ${path.basename(file)}`);
         continue;
       }
-      if (owner !== workspaceId) continue;
+      if (owner.workspaceId !== workspaceId) continue;
       const relativePath = path.relative(process.cwd(), file).split(path.sep).join("/");
       const entry = parseMemoryEntryMarkdown(raw, relativePath);
       if (entry) entries.push(entry);
@@ -91,7 +125,12 @@ export async function loadFileVaultEntries(workspaceId: string): Promise<MemoryE
       // Skip unreadable files; never fail the whole vault.
     }
   }
-  return entries;
+  return { entries, excludedCount };
+}
+
+/** Entries only — see loadScopedFileVault. */
+export async function loadFileVaultEntries(workspaceId: string): Promise<MemoryEntry[]> {
+  return (await loadScopedFileVault(workspaceId)).entries;
 }
 
 /**
