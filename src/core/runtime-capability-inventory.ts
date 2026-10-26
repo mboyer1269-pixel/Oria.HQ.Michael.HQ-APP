@@ -184,6 +184,11 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
   },
   {
     reason:
+      "Lanceur JSON strict Claude Code (abonnement claude.ai) : bibliothèque sans appelant — aucune route ni agent ne l'importe encore. Mêmes garde-fous que l'adaptateur abonnement (opt-in local, env nettoyé, --setting-sources vide, garde init apiKeySource). À déclarer comme capacité dès qu'une route propriétaire l'appelle.",
+    paths: ["src/server/ai/claude-json-launcher.ts"],
+  },
+  {
+    reason:
       "Sonde SSH Hermes de qualification opérateur : aucune route ni page applicative ne l'importe. Commande de statut seule, approbation écrite et environnement local requis ; aucun prompt modèle.",
     paths: ["src/server/agents/models/hermes-codex-connection-probe.ts"],
   },

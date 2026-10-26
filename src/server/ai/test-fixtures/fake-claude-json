@@ -1,0 +1,16 @@
+#!/bin/sh
+# Fake subscription Claude Code CLI for claude-json-launcher tests (SIMULATION: no network, no model).
+# Knobs from $HOME/fake.env (the launcher passes an allowlisted env, so HOME points at a test temp dir).
+[ -f "$HOME/fake.env" ] && . "$HOME/fake.env"
+if [ "$1" = "auth" ]; then
+  if [ -n "$FAKE_AUTH" ]; then echo "$FAKE_AUTH"; else echo '{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}'; fi; exit 0
+fi
+IN=$(cat)
+N=$(cat "$HOME/calls" 2>/dev/null || echo 0); N=$((N+1)); echo $N > "$HOME/calls"
+printf '%s' "$*" > "$HOME/args.$N"; printf '%s' "$IN" > "$HOME/input.$N"
+echo "{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"s\",\"apiKeySource\":\"${FAKE_API_KEY_SOURCE:-none}\"}"
+[ "${FAKE_API_KEY_SOURCE:-none}" != "none" ] && sleep 5
+echo '{"type":"assistant","message":{"model":"claude-sonnet-test","content":[]}}'
+# reply.N / reply hold the result text already JSON-encoded (a JSON string literal).
+if [ -f "$HOME/reply.$N" ]; then R=$(cat "$HOME/reply.$N"); else R=$(cat "$HOME/reply" 2>/dev/null || printf "%s" "\"{\\\"answer\\\":42}\""); fi
+printf '{"type":"result","subtype":"success","is_error":false,"result":%s}\n' "$R"
