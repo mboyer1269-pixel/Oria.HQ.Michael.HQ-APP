@@ -62,12 +62,20 @@ const ITEMS: PaletteItem[] = [
   { group: "Aller à", label: "Ventures", icon: Building2, href: "/hq/ventures" },
   { group: "Aller à", label: "Send Desk", icon: SendHorizonal, href: "/hq/outbound" },
   { group: "Aller à", label: "Sales Desk", icon: Car, href: "/hq/sales" },
-  { group: "Aller à", label: "Documents — statut du module", icon: FileText, href: "/dashboard/documents" },
+  { group: "Aller à", label: "Documents", icon: FileText, href: "/dashboard/documents" },
   { group: "Sur cette page", label: "Parler à Joris", icon: MessageSquare, href: "#command-center", anchor: true },
   { group: "Sur cette page", label: "File d'approbation", icon: CheckCheck, href: "#mission-draft-pending", anchor: true },
   { group: "Sur cette page", label: "Agenda · 14 prochains jours", icon: CalendarCheck, href: "#agenda-panel", anchor: true },
   { group: "Sur cette page", label: "Décisions · Ledger", icon: ScrollText, href: "#ledger-activity", anchor: true },
 ];
+
+// Label refinements live outside ITEMS on purpose: the array stays identical to
+// main so parallel edits to its lines (e.g. the orchestrator display-name PR) merge
+// without textual conflicts.
+const LABEL_OVERRIDES: Readonly<Partial<Record<string, string>>> = {
+  "/dashboard/documents": "Documents — statut du module",
+};
+for (const item of ITEMS) item.label = LABEL_OVERRIDES[item.href] ?? item.label;
 
 export function CommandPalette() {
   const router = useRouter();
