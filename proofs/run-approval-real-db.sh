@@ -40,11 +40,13 @@ PSQL="docker exec -i $PG_NAME psql -h 127.0.0.1 -U postgres -X -q -v ON_ERROR_ST
   cat "$ROOT/db/schema.sql"
   cat "$ROOT/db/migrations/0002_typed_ledger_events.sql"
   cat "$ROOT/db/migrations/0020_action_ledger_workspace_scope.sql"
+  cat "$ROOT/db/migrations/0022_action_ledger_hash_chain_phase1.sql"
+  cat "$ROOT/db/migrations/0023_action_ledger_hash_chain_phase2.sql"
   cat "$ROOT/db/migrations/0024_agent_execution_intents.sql"
   echo "grant usage on schema public to qualification_service;"
   echo "grant all on all tables in schema public to qualification_service;"
 } | $PSQL
-echo "✔ Real schema applied (schema.sql, 0002, 0020, 0024)."
+echo "✔ Real schema applied (schema.sql, 0002, 0020, 0022, 0023, 0024)."
 
 docker run -d --name "$REST_NAME" --network "$NET" -p 127.0.0.1:0:3000 \
   -e "PGRST_DB_URI=postgres://postgres@$PG_NAME:5432/postgres" \
