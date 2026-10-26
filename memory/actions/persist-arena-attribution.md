@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: persist-arena-attribution
 type: action
 title: Persister l'attribution candidat avec le verdict Arena

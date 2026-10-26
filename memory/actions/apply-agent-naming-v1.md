@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: apply-agent-naming-v1
 type: action
 title: Appliquer le naming agents v1 dans le repo (registre, UI, prompts, docs)

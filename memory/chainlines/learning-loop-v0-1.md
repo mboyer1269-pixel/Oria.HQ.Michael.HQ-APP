@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: chainline-learning-loop-v0-1
 type: chainline
 title: Chainline — Boucle d'apprentissage v0.1

@@ -13,8 +13,8 @@ import {
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { MemoryVaultExplorer } from "@/features/memory/components/memory-vault-explorer";
 import { MemoryWritePanel } from "@/features/memory/components/memory-write-panel";
-import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { requireOwnerAccess } from "@/server/auth/owner";
+import { authzIdentity, requireOwnerAccess } from "@/server/auth/owner";
+import { resolveMemoryWorkspace } from "@/server/memory/resolve-memory-workspace";
 import {
   buildChainlineGraph,
   buildMemoryGraph,
@@ -22,9 +22,10 @@ import {
 } from "@/server/memory/memory-graph";
 import {
   adaptVaultEntryToMemoryEntry,
-  loadFileVaultEntries,
+  loadScopedFileVault,
   mergeMemoryEntries,
 } from "@/server/memory/memory-file-vault";
+import { excludedFilesNotice } from "@/server/memory/memory-vault-notice";
 import { getLearningLoopReport } from "@/server/memory/learning-loop-service";
 import {
   listAllVaultEntriesForWorkspace,
@@ -106,18 +107,23 @@ export default async function MemoryPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
-  // Workspace is derived server-side from the active context — never trusted
-  // from the client. The write API (POST /api/memory) derives the same id, so
-  // the approval queue below reflects exactly what that route reads/writes.
-  const ctx = getActiveWorkspaceContext();
-  const workspaceId = ctx.workspace.id;
+  // Workspace is derived server-side from the authenticated session (same
+  // resolution as the workspace API routes) — never trusted from the client.
+  // No resolvable workspace (WorkspaceAccessError) renders a denied state
+  // instead of crashing the page.
+  const resolved = resolveMemoryWorkspace(authzIdentity(access.user));
+  if (resolved.status === "no-workspace") {
+    return <OwnerAccessDenied email={access.user.email} message={resolved.message} />;
+  }
+  const workspaceId = resolved.workspaceId;
   const pendingProposals = listPendingProposals(workspaceId);
 
   const vaultEntries = listAllVaultEntriesForWorkspace(workspaceId);
   const verifiedCount = vaultEntries.filter((e) => e.trustLevel === "verified").length;
   const proposedCount = vaultEntries.filter((e) => e.trustLevel === "proposed").length;
 
-  const fileEntries = await loadFileVaultEntries();
+  const { entries: fileEntries, excludedCount } = await loadScopedFileVault(workspaceId);
+  const excludedNotice = excludedFilesNotice(excludedCount);
   const allEntries = mergeMemoryEntries(
     fileEntries,
     vaultEntries.map(adaptVaultEntryToMemoryEntry),
@@ -126,7 +132,7 @@ export default async function MemoryPage() {
   const chainlines = buildChainlineGraph(allEntries);
   const duplicates = detectDuplicateMemory(allEntries);
   const decisionCount = allEntries.filter((e) => e.type === "decision").length;
-  const learningLoop = await getLearningLoopReport("michael-hq");
+  const learningLoop = await getLearningLoopReport(workspaceId);
 
   return (
     <CockpitShell active="memory" crumb="Mémoire">
@@ -154,6 +160,9 @@ export default async function MemoryPage() {
             <HqMetric label="Liens" value={graph.edges.length} tone="sky" />
             <HqMetric label="Orphelins" value={graph.orphanIds.length} tone={graph.orphanIds.length > 0 ? "amber" : "neutral"} />
           </div>
+          {excludedNotice && (
+            <p className="mt-2 text-xs text-neutral-500">{excludedNotice}</p>
+          )}
         </HqSummaryRail>
       </HqPageHeader>
 

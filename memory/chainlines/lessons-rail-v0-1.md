@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: chainline-lessons-rail-v0-1
 type: chainline
 title: Chainline — Rail de leçons vérifiées v0.1

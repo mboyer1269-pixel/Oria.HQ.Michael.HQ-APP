@@ -34,6 +34,8 @@ test("getActiveWorkspaceContext composes a consistent context (dev fallback)", (
   // Workspace + mode + assistant come from the configured source of truth.
   assert.equal(ctx.activeWorkspace.id, "michael-hq");
   assert.equal(ctx.workspace.id, "michael-hq");
+  // Canonical memory key: ctx.workspace.id IS the workspace slug (workspace-context.ts:31).
+  assert.equal(ctx.workspace.id, ctx.workspace.slug);
   assert.equal(ctx.activeMode.id, "hq");
   assert.equal(ctx.activeAgentProfile.id, "joris");
   assert.ok(ctx.activeAgentProfile.allowedTools.includes("calendar.book"));

@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: wire-lessons-rail-into-joris
 type: action
 title: Câbler la rail de leçons vérifiées dans le cerveau de Joris

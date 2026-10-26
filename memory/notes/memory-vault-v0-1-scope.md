@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: memory-vault-v0-1-scope
 type: note
 title: Memory Vault v0.1 scope — graph, chainline, file vault

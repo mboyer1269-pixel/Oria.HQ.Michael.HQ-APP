@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: phase-1-locked
 type: decision
 title: Phase 1 locked — no start without explicit mandate

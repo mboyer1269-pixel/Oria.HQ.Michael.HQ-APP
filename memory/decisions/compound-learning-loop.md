@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: compound-learning-loop
 type: decision
 title: Les verdicts Arena deviennent des leçons proposées (boucle composée)

@@ -336,25 +336,30 @@ export function buildLearningLoopReport(
 export function serializeLessonProposalMarkdown(
   proposal: LessonProposal,
   dateIso: string,
+  workspaceId: string,
 ): string {
+  // Frontmatter is line-based: strip CR/LF so no field can inject extra keys
+  // (e.g. a title carrying "\nworkspace: other").
+  const one = (value: string) => value.replace(/[\r\n]+/g, " ").trim();
   const agentLink =
     proposal.agentKey !== UNATTRIBUTED_AGENT_KEY
       ? `\n\nAgent concerné: [[agent:${normalizeMemoryId(proposal.agentKey)}]]`
       : "";
   return [
     "---",
-    `id: ${proposal.id}`,
+    `workspace: ${one(workspaceId)}`,
+    `id: ${one(proposal.id)}`,
     "type: note",
-    `title: ${proposal.title}`,
+    `title: ${one(proposal.title)}`,
     "status: proposed",
-    `tags: ${proposal.tags.join(", ")}`,
-    `confidence: ${proposal.confidence}`,
-    `sourceRefs: ${proposal.sourceRefs.join(", ")}`,
-    `createdAt: ${dateIso}`,
-    `updatedAt: ${dateIso}`,
+    `tags: ${proposal.tags.map(one).join(", ")}`,
+    `confidence: ${one(proposal.confidence)}`,
+    `sourceRefs: ${proposal.sourceRefs.map(one).join(", ")}`,
+    `createdAt: ${one(dateIso)}`,
+    `updatedAt: ${one(dateIso)}`,
     "---",
     "",
-    `# ${proposal.title}`,
+    `# ${one(proposal.title)}`,
     "",
     `${proposal.content}${agentLink}`,
     "",
