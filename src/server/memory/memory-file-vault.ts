@@ -6,6 +6,7 @@ import path from "node:path";
 import type { MemoryEntry } from "./memory-graph";
 import { normalizeMemoryId, parseMemoryEntryMarkdown } from "./memory-graph";
 import type { MemoryVaultEntry } from "./memory-vault-types";
+import { DEFAULT_WORKSPACE_SLUG } from "@/core/workspaces/registry";
 
 // ---------------------------------------------------------------------------
 // FILE-BACKED MEMORY VAULT (v0.1)
@@ -42,10 +43,23 @@ async function collectMarkdownFiles(dir: string): Promise<string[]> {
 }
 
 /**
- * Loads all file-backed memory entries from `memory/`.
+ * Workspace owning a file entry: frontmatter `workspace:` when present,
+ * otherwise the repo's default workspace (legacy entries predate scoping).
+ */
+export function fileEntryWorkspaceId(raw: string): string {
+  const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const line = fm?.[1].match(/^workspace\s*:\s*(.+)$/im);
+  const value = line?.[1].trim();
+  return value ? value : DEFAULT_WORKSPACE_SLUG;
+}
+
+/**
+ * Loads file-backed memory entries from `memory/` that belong to `workspaceId`.
+ * Entries of any other workspace are never returned.
  * Returns [] when the directory is absent or unreadable.
  */
-export async function loadFileVaultEntries(): Promise<MemoryEntry[]> {
+export async function loadFileVaultEntries(workspaceId: string): Promise<MemoryEntry[]> {
+  if (!workspaceId?.trim()) return [];
   const root = path.join(process.cwd(), MEMORY_DIR);
   let files: string[];
   try {
@@ -58,6 +72,7 @@ export async function loadFileVaultEntries(): Promise<MemoryEntry[]> {
   for (const file of files) {
     try {
       const raw = await fs.readFile(file, "utf8");
+      if (fileEntryWorkspaceId(raw) !== workspaceId) continue;
       const relativePath = path.relative(process.cwd(), file).split(path.sep).join("/");
       const entry = parseMemoryEntryMarkdown(raw, relativePath);
       if (entry) entries.push(entry);

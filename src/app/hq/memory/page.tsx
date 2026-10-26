@@ -14,7 +14,8 @@ import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { MemoryVaultExplorer } from "@/features/memory/components/memory-vault-explorer";
 import { MemoryWritePanel } from "@/features/memory/components/memory-write-panel";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
-import { requireOwnerAccess } from "@/server/auth/owner";
+import { authzIdentity, requireOwnerAccess } from "@/server/auth/owner";
+import { resolveAuthzContext } from "@/server/auth/authz-context";
 import {
   buildChainlineGraph,
   buildMemoryGraph,
@@ -106,10 +107,14 @@ export default async function MemoryPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
-  // Workspace is derived server-side from the active context — never trusted
-  // from the client. The write API (POST /api/memory) derives the same id, so
-  // the approval queue below reflects exactly what that route reads/writes.
-  const ctx = getActiveWorkspaceContext();
+  // Workspace is derived server-side from the authenticated session (same
+  // resolution as the workspace API routes) — never trusted from the client.
+  const identity = authzIdentity(access.user);
+  const ctx = getActiveWorkspaceContext({
+    ...resolveAuthzContext(identity),
+    email: identity.email,
+    emailVerified: identity.emailVerified,
+  });
   const workspaceId = ctx.workspace.id;
   const pendingProposals = listPendingProposals(workspaceId);
 
@@ -117,7 +122,7 @@ export default async function MemoryPage() {
   const verifiedCount = vaultEntries.filter((e) => e.trustLevel === "verified").length;
   const proposedCount = vaultEntries.filter((e) => e.trustLevel === "proposed").length;
 
-  const fileEntries = await loadFileVaultEntries();
+  const fileEntries = await loadFileVaultEntries(workspaceId);
   const allEntries = mergeMemoryEntries(
     fileEntries,
     vaultEntries.map(adaptVaultEntryToMemoryEntry),
@@ -126,7 +131,7 @@ export default async function MemoryPage() {
   const chainlines = buildChainlineGraph(allEntries);
   const duplicates = detectDuplicateMemory(allEntries);
   const decisionCount = allEntries.filter((e) => e.type === "decision").length;
-  const learningLoop = await getLearningLoopReport("michael-hq");
+  const learningLoop = await getLearningLoopReport(workspaceId);
 
   return (
     <CockpitShell active="memory" crumb="Mémoire">

@@ -29,7 +29,7 @@ export async function getLearningLoopReport(
     // No verdicts available — the loop simply has nothing to learn from yet.
   }
 
-  const fileEntries = await loadFileVaultEntries();
+  const fileEntries = await loadFileVaultEntries(workspaceId);
   const allEntries = mergeMemoryEntries(
     fileEntries,
     listAllVaultEntriesForWorkspace(workspaceId).map(adaptVaultEntryToMemoryEntry),
