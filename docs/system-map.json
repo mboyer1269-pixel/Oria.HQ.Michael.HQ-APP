@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 673,
-    "live": 622,
+    "sourceFiles": 675,
+    "live": 624,
     "testOnly": 7,
     "incubation": 44
   },
@@ -533,8 +533,10 @@
     "src/server/memory/memex-review-service.ts",
     "src/server/memory/memory-file-vault.ts",
     "src/server/memory/memory-graph.ts",
+    "src/server/memory/memory-vault-notice.ts",
     "src/server/memory/memory-vault-repository.ts",
     "src/server/memory/memory-vault-types.ts",
+    "src/server/memory/resolve-memory-workspace.ts",
     "src/server/michael-hq/billing-on-approve.ts",
     "src/server/michael-hq/billing-policy.ts",
     "src/server/michael-hq/finance-dashboard.ts",
