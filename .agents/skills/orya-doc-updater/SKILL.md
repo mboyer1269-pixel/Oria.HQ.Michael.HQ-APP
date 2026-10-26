@@ -16,8 +16,8 @@ This skill keeps Orya HQ documentation accurate, consistent, and current. It det
 
 ## When to Use
 
-- After code changes are merged that affect documented behavior.
-- After a PR merge to verify docs remain consistent.
+- After code changes are merged that affect documented behavior. <!-- R-NO-MERGE -->
+- After a PR merge to verify docs remain consistent. <!-- R-NO-MERGE -->
 - Periodically (e.g., end of sprint) as a documentation health check.
 - When a new feature or component is added without corresponding docs.
 - When cross-references between docs may have been invalidated.
@@ -104,7 +104,7 @@ Identify documentation gaps:
 For each identified issue:
 
 1. **Draft the update** — Write the corrected or new content.
-2. **Preserve existing content** — Do not delete comments, context, or sections unrelated to the change.
+2. **Preserve existing content** — Do not delete comments, context, or sections unrelated to the change. <!-- R-SCOPE-DISCIPLINE -->
 3. **Maintain conventions** — Follow the formatting and structure of the existing document.
 4. **Cross-reference** — Add or update links to related documents.
 5. **Protected files** — For SOUL.md identity sections, flag the need for update but do not modify without explicit mandate.
@@ -114,7 +114,7 @@ For each identified issue:
 1. Present the proposed changes to Michael.
 2. List each file and the sections modified.
 3. Explain why each change is needed (staleness, gap, broken reference).
-4. Request approval per [orya-pr-rules.md](../../rules/orya-pr-rules.md).
+4. Request approval per [orya-pr-rules.md](../../rules/orya-pr-rules.md). <!-- R-PRESENT-THEN-WAIT -->
 
 ## Output Format
 
@@ -160,18 +160,24 @@ The following files have restricted modification rules:
 
 | File | Restriction |
 |------|------------|
-| `SOUL.md` | Identity and values sections are read-only unless Michael mandates a change. Operational sections may be updated with approval. |
+| `SOUL.md` | Identity and values sections are read-only unless Michael mandates a change. Operational sections may be updated with approval. | <!-- R-PROTECTED-FILES -->
 | `AGENTS.md` | Canonical operating guide. Changes require careful review — must not conflict with established patterns. | <!-- R-PROTECTED-FILES -->
 | `.env*` | Never read or modify secret values. `.env.example` may be updated for placeholder documentation. | <!-- R-NO-SECRETS -->
 
-## Boundary Constraints
+## Boundaries
+
+rules: ["R-ZONE-GREEN", "R-ZONE-YELLOW", "R-PROTECTED-FILES", "R-PRESENT-THEN-WAIT"]
+
+## Action Zones
+
+Per-action zone reference (each restricted row cites its rule id).
 
 | Action | Zone | Rule |
 |--------|------|------|
 | Read all documentation files | Green | Always permitted |
 | Analyze staleness and cross-references | Green | Read-only analysis |
 | Draft documentation updates | Green | Drafting is permitted |
-| Commit documentation updates | **Yellow** | Requires Michael's approval |
+| Commit documentation updates | **Yellow** | Requires Michael's approval | <!-- R-PRESENT-THEN-WAIT -->
 | Modify SOUL.md identity sections | **Yellow** | Requires explicit mandate |
 | Modify product code to match docs | **Yellow** | This skill is docs-only; code changes go through Builder Agent |
 
@@ -184,4 +190,4 @@ The following files have restricted modification rules:
 - [ ] Updates drafted (if needed)
 - [ ] Protected file restrictions respected
 - [ ] Report generated
-- [ ] Approval requested for any commits
+- [ ] Approval requested for any commits <!-- R-PRESENT-THEN-WAIT -->

@@ -1,6 +1,6 @@
 # Orya Security Boundaries → moved to [core.md](core.md)
 
-Autonomy zones and security constraints are now defined **only** in [core.md](core.md) (rules-version 1). This file is kept as a stable pointer (other docs link here); do not restate rules here. <!-- rule:local -->
+Autonomy zones and security constraints are now defined **only** in [core.md](core.md) (rules-version 1). This file is kept as a stable pointer (other docs link here); do not restate rules here. <!-- rule:local(pointer file to core.md) -->
 
 | Former section | Rule ids in core.md |
 |---|---|

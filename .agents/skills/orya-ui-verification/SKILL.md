@@ -12,7 +12,7 @@ description: >
 
 ## Purpose
 
-This skill provides a structured workflow for verifying UI changes in the Orya HQ application. All verification happens on `localhost:3000` — no production access, no external deployments. The goal is to catch visual regressions, layout issues, responsive breakpoints, and accessibility problems before a PR is created.
+This skill provides a structured workflow for verifying UI changes in the Orya HQ application. All verification happens on `localhost:3000` — no production access, no external deployments. The goal is to catch visual regressions, layout issues, responsive breakpoints, and accessibility problems before a PR is created. <!-- R-NO-PROD-ACCESS -->
 
 ## When to Use
 
@@ -168,7 +168,13 @@ For the verification report:
 - [ ] BLOCKED — [critical visual regression or accessibility failure]
 ```
 
-## Boundary Constraints
+## Boundaries
+
+rules: ["R-ZONE-GREEN", "R-NO-PROD-ACCESS", "R-NO-DEPLOY"]
+
+## Action Zones
+
+Per-action zone reference (each restricted row cites its rule id).
 
 | Action | Zone | Rule |
 |--------|------|------|

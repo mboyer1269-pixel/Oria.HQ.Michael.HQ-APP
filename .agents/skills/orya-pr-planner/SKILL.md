@@ -20,7 +20,7 @@ This skill guides agents through the complete PR preparation workflow — from s
 - When preparing a branch for PR creation.
 - When scoping a set of changes to determine if they should be one PR or multiple.
 - When generating a PR description from completed work.
-- During pre-flight validation before requesting commit/PR approval.
+- During pre-flight validation before requesting commit/PR approval. <!-- R-PRESENT-THEN-WAIT -->
 
 ## When NOT to Use
 
@@ -45,10 +45,10 @@ The PR Gatekeeper logic ensures that only small, scoped, validated, and reversib
 
 1. **Gatekeeper Enforcement:**
    - **Block broad refactors:** Reject PRs that include unrelated cleanups or wide-reaching formatting changes.
-   - **Block unauthorized scope:** Reject PRs touching runtime execution, auth, RLS, secrets, `.env`, dependencies (`package.json`), or migrations unless explicitly approved by Michael.
+   - **Block unauthorized scope:** Reject PRs touching runtime execution, auth, RLS, secrets, `.env`, dependencies (`package.json`), or migrations unless explicitly approved by Michael. <!-- R-ZONE-YELLOW -->
    - **Enforce Reversibility:** Ensure the PR can be cleanly rolled back.
    - **Require Out-of-Scope Definitions:** Explicitly document what was intentionally left out of scope to prevent creep.
-2. Identify all files that have been modified, created, or deleted.
+2. Identify all files that have been modified, created, or deleted. <!-- R-NO-STRAY-CHANGES -->
 3. Classify each file into a component (core, features, docs, config, tests).
 4. Determine zone classification per R-ZONE-GREEN / R-ZONE-YELLOW / R-ZONE-RED ([core.md](../../rules/core.md)):
    - Are all changes Green zone?
@@ -63,7 +63,7 @@ The PR Gatekeeper logic ensures that only small, scoped, validated, and reversib
 1. Run `git diff --name-only` to list all changed files.
 2. Run `git diff` to inspect the full diff.
 3. Verify:
-   - No secrets, credentials, or `.env` values in the diff.
+   - No secrets, credentials, or `.env` values in the diff. <!-- R-NO-SECRETS -->
    - No unintended file changes.
    - No changes to protected files without mandate (R-PROTECTED-FILES).
    - No `node_modules/`, `.next/`, or other generated artifacts.
@@ -118,7 +118,7 @@ Generate a PR description using the template from [orya-pr-rules.md §3](../../r
 
 ### Step 6: Approval Request
 
-Present the following to Michael for approval:
+Present the following to Michael for approval: <!-- R-PRESENT-THEN-WAIT -->
 
 1. PR description (from Step 5).
 2. Full file list with diff summary.
@@ -126,7 +126,7 @@ Present the following to Michael for approval:
 4. Zone classification.
 5. Explicit request: "May I commit and create this PR?"
 
-**Do not commit or create the PR until Michael explicitly approves.**
+**Do not commit or create the PR until Michael explicitly approves.** <!-- R-PRESENT-THEN-WAIT -->
 
 ## Output Format
 
@@ -163,9 +163,9 @@ Ready for commit/PR approval: YES / NO (reason)
 
 - [ ] Scope analysis complete — all changes classified
 - [ ] Zone classification confirmed — no Red zone actions
-- [ ] Diff reviewed — no secrets, no unintended changes
+- [ ] Diff reviewed — no secrets, no unintended changes <!-- R-NO-SECRETS -->
 - [ ] All 4 validation checks pass
 - [ ] Branch name follows convention
 - [ ] Branch based on current `origin/main`
 - [ ] PR description generated
-- [ ] Approval requested from Michael
+- [ ] Approval requested from Michael <!-- R-PRESENT-THEN-WAIT -->

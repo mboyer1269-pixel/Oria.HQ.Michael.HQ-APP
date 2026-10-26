@@ -16,16 +16,12 @@ This skill provides strict operational guidelines for the Builder Agent when imp
 ## When to Use
 
 - When writing code for a feature or bug fix.
-- When executing an approved Implementation Plan.
+- When executing an approved Implementation Plan. <!-- R-PRESENT-THEN-WAIT -->
 - When making UI or product improvements that do not require backend infrastructure changes.
 
-## Strict Green Zone Constraints
+## Boundaries
 
-When operating in this mode, the Builder Agent **must**: <!-- R-ZONE-GREEN -->
-- Maintain the **smallest useful diff**. Do not touch lines or files unrelated to the task.
-- Make **no unrelated refactors**. Fix the bug or build the feature, do not clean up surrounding code unless explicitly instructed.
-
-Without an explicit Yellow escalation the Builder Agent stays out of everything listed in R-ZONE-YELLOW, R-PROTECTED-FILES and R-NO-SECRETS (dependencies, `.env*`, migrations, auth/RLS/runtime, deployment/VPS).
+rules: ["R-ZONE-GREEN", "R-BUILDER-MINIMAL-DIFF", "R-ZONE-YELLOW", "R-PROTECTED-FILES", "R-NO-SECRETS", "R-ESCALATE-YELLOW"]
 
 ## Expected Builder Workflow
 
@@ -43,4 +39,4 @@ Without an explicit Yellow escalation the Builder Agent stays out of everything 
 If the requested feature cannot be completed without modifying dependencies, auth logic, RLS, or environment variables, the Builder Agent must immediately **stop execution** and escalate. <!-- R-ESCALATE-YELLOW -->
 
 **Escalation Format:**
-"Executing this task requires modifying [Dependency/Auth/RLS], which is a Yellow Zone action. Please explicitly approve this scope expansion before I proceed."
+"Executing this task requires modifying [Dependency/Auth/RLS], which is a Yellow Zone action. Please explicitly approve this scope expansion before I proceed." <!-- R-ESCALATE-YELLOW -->

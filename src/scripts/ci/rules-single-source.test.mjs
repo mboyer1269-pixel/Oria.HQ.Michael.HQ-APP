@@ -23,7 +23,8 @@ const root = path.resolve(__dirname, "..", "..", "..");
 const CORE = path.join(root, ".agents/rules/core.md");
 const CHARTER = path.join(root, "src/features/agents/charter-seed.ts");
 
-import { KEY_PHRASES, uncitedRuleLines } from "./rules-scan.mjs";
+import { KEY_PHRASES, countLocalExemptions, uncitedRuleLines } from "./rules-scan.mjs";
+import { LOCK, vendoredState } from "./vendored-hash.mjs";
 
 const norm = (s) => s.toLowerCase().replace(/\s+/g, " ");
 const ID_DECL = /^- \*\*(R-[A-Z0-9-]+)\*\*/gm;
@@ -94,7 +95,7 @@ test("no file outside core.md recopies a rule's canonical text", async () => {
 // not Orya governance). Excluded from the normative-line scan by name.
 const VENDORED = [".agents/skills/supabase/", ".agents/skills/supabase-postgres-best-practices/"];
 
-test("every normative line outside core.md cites a rule id (or rule:local)", async () => {
+test("every normative / governance-subject line outside core.md cites a rule id (or rule:local(<reason>)); constraint sections hold only rules: [ids]", async () => {
   const files = [CHARTER, ...(await listAgentFiles(path.join(root, ".agents")))]
     .filter((f) => f !== CORE)
     .filter((f) => !VENDORED.some((v) => path.relative(root, f).startsWith(v)));
@@ -120,4 +121,22 @@ test("charter registry served to agents is byte-identical to the pre-change snap
     "utf8",
   );
   assert.equal(`${JSON.stringify(charterRegistry, null, 2)}\n`, snapshot);
+});
+
+// Ratchet: rule:local(<reason>) exemptions may only go down. Lower this number
+// when you promote one to an R- id; raising it fails CI by design.
+const FROZEN_RULE_LOCAL = 21;
+
+test(`rule:local exemptions do not grow (frozen at ${FROZEN_RULE_LOCAL})`, async () => {
+  const files = [CHARTER, ...(await listAgentFiles(path.join(root, ".agents")))]
+    .filter((f) => !VENDORED.some((v) => path.relative(root, f).startsWith(v)));
+  let n = 0;
+  for (const f of files) n += countLocalExemptions(await readFile(f, "utf8"));
+  assert.ok(n <= FROZEN_RULE_LOCAL, `rule:local count ${n} > frozen ${FROZEN_RULE_LOCAL}`);
+});
+
+test("vendored supabase* skill packs match the frozen content hash (incl. governance-subject lines)", async () => {
+  const frozen = JSON.parse(await readFile(LOCK, "utf8"));
+  assert.deepEqual(await vendoredState(), frozen,
+    "vendored skill content drifted: review the change for governance rules (cite R- ids), then run node src/scripts/ci/vendored-hash.mjs --write");
 });

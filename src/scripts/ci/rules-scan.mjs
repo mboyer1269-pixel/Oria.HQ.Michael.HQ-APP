@@ -3,15 +3,22 @@
 // Detector shared by the rules-single-source tests.
 //
 // 1. Legacy key phrases (KEY_PHRASES): exact canonical wording of a rule.
-// 2. Normative lines: outside core.md, any line in a scanned file that uses a
-//    normative keyword (EN: never, must, only; FR: jamais, interdit, doit,
-//    seul, aucun, with inflections) must cite an R- id from core.md, or carry
-//    an explicit `rule:local` marker (a skill- or agent-specific guideline
-//    that is not a governance rule). Rephrasing a rule cannot hide it.
+// 2. Constraint sections hold ids only: in markdown, every line under a
+//    `## Rules` / `## Boundaries` (or "... Constraints") heading must be
+//    `rules: ["R-…", ...]`; in charter-seed.ts, `escalation:` / `constraints:`
+//    values must be `ruleLabel("R-…#key")`. No prose, no rule:local there.
+// 3. Elsewhere, a line with a normative keyword (EN never/must/only; FR
+//    jamais/interdit/doit/seul/aucun, with inflections) or a governance
+//    subject (merge/fusionn, deploy/déploi, push, secret, pay/pai/dépense,
+//    delete/supprim, approv) must cite an R- id, or carry
+//    `rule:local(<non-empty reason>)`.
 //
-// Noise control (deliberately narrow): inline `code`, fenced code blocks,
-// markdown headings, hyphenated compounds (read-only, --name-only, docs-only)
-// and pure comment lines in .ts files are not scanned.
+// HEURISTIC ONLY — no guarantee value. Real enforcement is binding R- ids to
+// the G1 registry / execution guard (follow-up). Keyword lists are frozen.
+//
+// Not scanned (noise control): inline `code`, fenced code blocks, markdown
+// headings, hyphenated compounds (read-only, docs-only) and pure comment
+// lines in .ts files.
 
 const norm = (s) => s.toLowerCase().replace(/\s+/g, " ");
 
@@ -88,34 +95,65 @@ const KEY_PHRASES = {
 };
 
 const ID_REF = /\bR-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b/;
-const LOCAL_MARKER = /rule:local/;
+export const LOCAL_MARKER = /rule:local\(([^)]*\S[^)]*)\)/g;
+const BARE_LOCAL = /rule:local(?!\([^)]*\S[^)]*\))/;
 const KEYWORDS = [
   "never", "must", "only",
   "jamais", "interdit", "interdite", "interdits", "interdites",
   "doit", "doivent", "seul", "seule", "seuls", "seules",
   "aucun", "aucune", "aucuns", "aucunes",
 ];
-// Word boundary that also rejects hyphen compounds (read-only, docs-only).
 const NORMATIVE = new RegExp(`(?<![\\p{L}\\-])(?:${KEYWORDS.join("|")})(?![\\p{L}\\-])`, "iu");
+// Governance subjects: word-initial stems ("payload" is not a payment).
+const SUBJECTS = ["merge", "fusionn", "deploy", "déploi", "push", "secret", "pay(?!load)", "pai", "dépense", "delete", "supprim", "approv"];
+export const SUBJECT = new RegExp(`(?<![\\p{L}\\-])(?:${SUBJECTS.join("|")})`, "iu");
+const MD_CONSTRAINT_HEADING = /^#{2,3}\s+(?:.*\s)?(?:Rules|Boundaries|Constraints?)\s*$/i;
+const RULES_LINE = /^rules: \[\s*"R-[A-Z0-9-]+"(?:\s*,\s*"R-[A-Z0-9-]+")*\s*\]$/;
+const TS_CONSTRAINT_FIELD = /^\s*(escalation|constraints)\s*:/;
+const TS_RULE_LABEL_VALUE = /^\s*ruleLabel\("R-[A-Z0-9-]+#[a-z0-9-]+"\),?\s*$/;
 
-function normativeLines(text, file) {
+function scanLines(text, file) {
   const isTs = file.endsWith(".ts");
+  const lines = text.split("\n");
   const out = [];
   let fenced = false;
-  text.split("\n").forEach((raw, i) => {
-    const line = raw.trim();
+  let inConstraint = false;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i].trim();
+    const at = `${file}:${i + 1}: ${line}`;
     if (!isTs && line.startsWith("```")) {
       fenced = !fenced;
-      return;
+      continue;
     }
-    if (fenced) return;
-    if (!isTs && line.startsWith("#")) return;
-    if (isTs && /^(\/\/|\/\*|\*)/.test(line)) return;
+    if (fenced) continue;
+    if (!isTs && /^#{1,6}\s/.test(line)) {
+      inConstraint = MD_CONSTRAINT_HEADING.test(line);
+      continue;
+    }
+    if (!isTs && inConstraint) {
+      if (line && line !== "---" && !RULES_LINE.test(line)) out.push(`${at}  [constraint section: ids only]`);
+      continue;
+    }
+    if (isTs) {
+      const field = lines[i].match(TS_CONSTRAINT_FIELD);
+      if (field) {
+        const rest = lines[i].slice(lines[i].indexOf(":") + 1);
+        const value = rest.trim() ? rest : lines[i + 1] ?? "";
+        if (!TS_RULE_LABEL_VALUE.test(value)) out.push(`${at}  [constraint field ${field[1]}: ruleLabel(id) only]`);
+        if (!rest.trim()) i += 1;
+        continue;
+      }
+      if (/^(\/\/|\/\*|\*)/.test(line)) continue;
+    }
+    if (BARE_LOCAL.test(line)) {
+      out.push(`${at}  [rule:local needs a reason]`);
+      continue;
+    }
     const scanned = line.replace(/`[^`]*`/g, "");
-    if (!NORMATIVE.test(scanned)) return;
-    if (ID_REF.test(line) || LOCAL_MARKER.test(line)) return;
-    out.push(`${file}:${i + 1}: ${line}`);
-  });
+    if (!NORMATIVE.test(scanned) && !SUBJECT.test(scanned)) continue;
+    if (ID_REF.test(line) || /rule:local\([^)]*\S[^)]*\)/.test(line)) continue;
+    out.push(at);
+  }
   return out;
 }
 
@@ -126,5 +164,19 @@ export function uncitedRuleLines(text, file = "") {
   for (const [id, phrases] of Object.entries(KEY_PHRASES)) {
     for (const p of phrases) if (t.includes(norm(p))) hits.push(`${file}: recopies ${id}: ${p}`);
   }
-  return [...hits, ...normativeLines(text, file)];
+  return [...hits, ...scanLines(text, file)];
+}
+
+/** Governance-subject lines (no id) — used on vendored upstream files. */
+export function governanceSubjectLines(text, file = "") {
+  return text
+    .split("\n")
+    .map((l, i) => [l.replace(/`[^`]*`/g, ""), i])
+    .filter(([l]) => SUBJECT.test(l) && !ID_REF.test(l))
+    .map(([, i]) => `${file}:${i + 1}`);
+}
+
+/** Number of rule:local(<reason>) exemptions in `text`. */
+export function countLocalExemptions(text) {
+  return [...text.matchAll(LOCAL_MARKER)].length;
 }

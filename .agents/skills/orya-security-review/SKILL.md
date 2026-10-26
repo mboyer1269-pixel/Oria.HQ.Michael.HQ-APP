@@ -2,7 +2,7 @@
 name: Orya Security Review
 description: >
   Security audit skill for the QA / Security Agent. Performs zone classification,
-  secrets scanning, auth/RLS review, dependency vetting, and escalation for
+  secrets scanning, auth/RLS review, dependency vetting, and escalation for (R-NO-SECRETS)
   changes that touch sensitive boundaries in the Orya HQ codebase.
 ---
 
@@ -55,7 +55,7 @@ For each changed file, classify the change:
 | `src/server/**`, `src/app/api/**` | Yellow | API routes, middleware |
 | `src/core/**` | Yellow | Core contracts, type changes |
 | `db/**` | Yellow → Red | Migrations |
-| `.env*` | Red | Secret values |
+| `.env*` | Red | Secret values | <!-- R-NO-SECRETS -->
 | `package.json` (deps) | Yellow | New dependencies |
 | `next.config.ts` | Yellow | Build/runtime config |
 
@@ -63,9 +63,9 @@ For each changed file, classify the change:
 
 ### Step 2: Secrets Scan
 
-Check the diff for exposed secrets:
+Check the diff for exposed secrets: <!-- R-NO-SECRETS -->
 
-1. Scan for patterns that indicate secret leakage:
+1. Scan for patterns that indicate secret leakage: <!-- R-NO-SECRETS -->
    - API keys (patterns: `sk-`, `pk_`, `key_`, long alphanumeric strings)
    - Tokens (JWT patterns, bearer tokens)
    - URLs with embedded credentials
@@ -137,11 +137,11 @@ Generate a structured findings report:
 
 | Level | Definition | Action |
 |-------|-----------|--------|
-| **Critical** | Secret exposure, RLS bypass, auth vulnerability | Block PR. Immediate remediation required. |
-| **High** | Unprotected API route, excessive permissions, unsafe dependency | Block PR. Fix before merge. |
-| **Medium** | Missing input validation, suboptimal auth pattern, large unnecessary dependency | Flag for reviewer. Should fix before merge. |
+| **Critical** | Secret exposure, RLS bypass, auth vulnerability | Block PR. Immediate remediation required. | <!-- R-NO-SECRETS -->
+| **High** | Unprotected API route, excessive permissions, unsafe dependency | Block PR. Fix before merge. | <!-- R-PR-REVIEW -->
+| **Medium** | Missing input validation, suboptimal auth pattern, large unnecessary dependency | Flag for reviewer. Should fix before merge. | <!-- R-PR-REVIEW -->
 | **Low** | Minor code hygiene, logging concerns, non-ideal patterns | Note for improvement. Non-blocking. |
-| **Info** | Observation, suggestion, best practice note | For awareness only. | <!-- rule:local -->
+| **Info** | Observation, suggestion, best practice note | For awareness only. | <!-- rule:local(severity scale definition) -->
 
 ## Proactive Security Sweep
 
@@ -158,8 +158,8 @@ When performing a periodic security sweep (not tied to a specific PR):
 
 - [ ] All changed files zone-classified
 - [ ] No Red zone actions without explicit authorization
-- [ ] Secrets scan completed — no credentials in diff
+- [ ] Secrets scan completed — no credentials in diff <!-- R-NO-SECRETS -->
 - [ ] Auth/RLS impact assessed (if applicable)
 - [ ] Dependencies vetted (if applicable)
 - [ ] Findings report generated
-- [ ] Verdict issued (APPROVED / APPROVED WITH CONDITIONS / BLOCKED)
+- [ ] Verdict issued (APPROVED / APPROVED WITH CONDITIONS / BLOCKED) <!-- R-PR-REVIEW -->
