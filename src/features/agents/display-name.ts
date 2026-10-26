@@ -1,9 +1,10 @@
+import { normalizeDisplayText } from "@/core/text/display-text-rule";
+
 export const MAX_AGENT_DISPLAY_NAME_LENGTH = 80;
 
+/** Shared display-text rule (NFC, no Cc/Cf/U+2028/U+2029); mirrored by 0036's CHECK. */
 export function normalizeAgentDisplayName(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const name = value.trim();
-  return name && Array.from(name).length <= MAX_AGENT_DISPLAY_NAME_LENGTH && !/[\u0000-\u001f\u007f]/u.test(name) ? name : null;
+  return normalizeDisplayText(value, { maxLength: MAX_AGENT_DISPLAY_NAME_LENGTH });
 }
 
 export type AgentDisplayNameWriteResult =

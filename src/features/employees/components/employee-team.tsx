@@ -8,6 +8,7 @@ import { readEmployeesAction, saveEmployeeAction } from "@/features/employees/ac
 import type { EmployeeCommand, EmployeeFields, EmployeeListResult, EmployeeProfile, EmployeeScope } from "@/core/employees/types";
 
 import { clearIntention, intentionStorageKey, isIntentionStale, readIntention, retainIntention, type CreateIntention } from "@/features/employees/create-intention";
+import { isValidEmployeeField } from "@/core/employees/field-rules";
 
 const EMPTY: EmployeeFields = { displayName: "", specialty: "", instructions: "", assignmentRole: "", assignmentContext: "" };
 const FIELDS = [
@@ -191,12 +192,8 @@ function EmployeeTeamContent({ ventureId, initial, recoveryScope }: TeamProps) {
     {error && <p id={`${formId}-error`} role="alert" className="text-sm leading-6 text-amber-200">{error}</p>}
     {showForm && <form className="space-y-4 rounded-2xl border border-neutral-700 bg-neutral-950 p-5" onSubmit={(event) => {
       event.preventDefault();
-      const clean = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value.trim()])) as EmployeeFields;
-      const invalid = FIELDS.find(([key, , max]) => {
-        const controls = key === "instructions" || key === "assignmentContext"
-          ? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/ : /[\u0000-\u001f\u007f]/;
-        return !clean[key] || Array.from(clean[key]).length > max || controls.test(clean[key]);
-      });
+      const clean = Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value.normalize("NFC").trim()])) as EmployeeFields;
+      const invalid = FIELDS.find(([key]) => !isValidEmployeeField(key, clean[key]));
       if (invalid) {
         setInvalidField(invalid[0]);
         setError(`Le champ « ${invalid[1]} » est requis, doit respecter sa longueur maximale et ne doit pas contenir de caractères non autorisés.`);

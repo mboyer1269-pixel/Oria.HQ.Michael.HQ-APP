@@ -3,16 +3,12 @@ import { createHash, randomUUID } from "node:crypto";
 import type { EmployeeFields, EmployeeProfile, EmployeeScope, EmployeeStore } from "@/core/employees/types";
 import type { EmployeeProfileInsert, EmployeeProfileRow } from "@/server/db/types";
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
+import { EMPLOYEE_FIELD_KEYS, isValidEmployeeField } from "@/core/employees/field-rules";
 
 const columns = "id,creation_key,creation_payload_hash,owner_id,workspace_id,venture_id,display_name,specialty,instructions,assignment_role,assignment_context,state,revision";
-const limits = { displayName: 80, specialty: 120, instructions: 4000, assignmentRole: 120, assignmentContext: 2000 } as const;
 function fail(): never { throw new Error("Employee directory persistence unavailable."); }
 function validFields(fields: EmployeeFields): void {
-  for (const [key, max] of Object.entries(limits)) {
-    const value = fields[key as keyof EmployeeFields];
-    const controls = key === "instructions" || key === "assignmentContext" ? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u : /[\u0000-\u001f\u007f]/u;
-    if (typeof value !== "string" || value !== value.trim() || !value || [...value].length > max || controls.test(value)) fail();
-  }
+  for (const key of EMPLOYEE_FIELD_KEYS) if (!isValidEmployeeField(key, fields[key])) fail();
 }
 function fieldsToRow(fields: EmployeeFields) {
   validFields(fields);
@@ -67,7 +63,7 @@ export function createEmployeeStore(): EmployeeStore | null {
       const result = fromRow(data, scope);
       if (data.creation_key !== creationKey || data.creation_payload_hash !== payloadHash ||
         result.id !== row.id || result.state !== "draft" || result.revision !== 1 ||
-        Object.keys(limits).some(key => result[key as keyof EmployeeFields] !== fields[key as keyof EmployeeFields])) fail();
+        EMPLOYEE_FIELD_KEYS.some(key => result[key] !== fields[key])) fail();
       return result;
     },
     async change(scope, command) {
@@ -81,7 +77,7 @@ export function createEmployeeStore(): EmployeeStore | null {
       const result = fromRow(data, scope);
       if (result.id !== command.id || result.revision !== command.revision + 1 ||
         result.state !== (command.operation === "archive" ? "archived" : "draft") ||
-        (command.operation === "edit" && Object.keys(limits).some(key => result[key as keyof EmployeeFields] !== command[key as keyof EmployeeFields]))) fail();
+        (command.operation === "edit" && EMPLOYEE_FIELD_KEYS.some(key => result[key] !== command[key]))) fail();
       return result;
     },
   };
