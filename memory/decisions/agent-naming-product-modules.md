@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: agent-naming-product-modules
 type: decision
 title: Naming agents v1 — un visage (Joris), des modules fonctionnels

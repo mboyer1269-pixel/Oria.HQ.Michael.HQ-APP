@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: loi96
 type: venture
 title: Loi 96 — compliance venture (AgentBond)

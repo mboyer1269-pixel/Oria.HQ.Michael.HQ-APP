@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: implement-learning-loop-v0-1
 type: action
 title: Implémenter la boucle d'apprentissage v0.1 (Arena → Vault)

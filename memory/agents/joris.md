@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: joris
 type: agent
 title: Joris — booking and operations agent

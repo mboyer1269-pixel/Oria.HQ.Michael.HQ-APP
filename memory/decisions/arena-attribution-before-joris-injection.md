@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: arena-attribution-before-joris-injection
 type: decision
 title: Attribution candidat persistée avant injection Joris (décision CEO)

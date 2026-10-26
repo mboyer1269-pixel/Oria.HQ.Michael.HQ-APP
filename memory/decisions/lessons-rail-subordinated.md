@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: lessons-rail-subordinated
 type: decision
 title: La rail de leçons est advisory, bornée et subordonnée aux règles système

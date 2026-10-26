@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: implement-memory-vault-v0-1
 type: action
 title: Implement Memory Vault v0.1 (graph + chainline + file vault)

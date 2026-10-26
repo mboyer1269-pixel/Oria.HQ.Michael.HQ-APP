@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: memory-vault-contract
 type: source
 title: Memory Vault contract (docs/MEMORY_VAULT_CONTRACT.md)

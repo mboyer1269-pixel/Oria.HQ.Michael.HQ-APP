@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: memory-vault-file-first
 type: decision
 title: Memory Vault v0.1 is file-backed, no pgvector, no migration

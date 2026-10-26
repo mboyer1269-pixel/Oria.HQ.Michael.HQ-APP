@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: agents-operating-guide
 type: source
 title: AGENTS.md — canonical agent operating guide

@@ -1,4 +1,5 @@
 ---
+workspace: michael-hq
 id: roadmap-completion-2026-06
 type: source
 title: Roadmap HQ completion 2026-06 (P1-P11)
