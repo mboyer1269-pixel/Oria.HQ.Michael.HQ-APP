@@ -1,3 +1,4 @@
+import { AgentNameEditor } from "./agent-name-editor";
 import {
   Bot,
   ClipboardCheck,
@@ -31,7 +32,7 @@ const STATUS_STYLES: Record<AgentStatus, { badge: string; dot: string; label: st
   active: {
     badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
     dot: "bg-emerald-400",
-    label: "Actif",
+    label: "Profil activé",
   },
   standby: {
     badge: "border-amber-500/20 bg-amber-500/10 text-amber-300",
@@ -50,13 +51,13 @@ const STATUS_STYLES: Record<AgentStatus, { badge: string; dot: string; label: st
   },
 };
 
-export function AgentCard({ agent }: { agent: AgentProfile }) {
+export function AgentCard({ agent, naming }: { agent: AgentProfile; naming?: { available: boolean; defaultName: string } }) {
   const Icon = ROLE_ICONS[agent.role];
   const status = STATUS_STYLES[agent.status];
 
   return (
     <article className="flex flex-col gap-4 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900">
             <Icon className="h-4 w-4 text-neutral-400" />
@@ -105,6 +106,7 @@ export function AgentCard({ agent }: { agent: AgentProfile }) {
           ))}
         </ul>
       )}
+      {naming && <AgentNameEditor key={agent.name} agentId={agent.id} name={agent.name} defaultName={naming.defaultName} available={naming.available} />}
     </article>
   );
 }

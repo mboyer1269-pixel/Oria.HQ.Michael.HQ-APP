@@ -508,6 +508,12 @@ export type CeoBriefLeadItem = {
   createdAt: string;
 };
 
+/** Complete observation of a local fixture, never a claim about hosted documents. */
+export type DocumentSourceObservation = { source: "local_fixture" } & (
+  | { status: "available"; reason: null; totalCount: number }
+  | { status: "unavailable"; reason: "disabled" | "missing" | "read_error" | "invalid_data"; totalCount: null }
+);
+
 export type CeoBriefSnapshot = {
   generatedAt: string;
   headline: string;
@@ -520,8 +526,7 @@ export type CeoBriefSnapshot = {
     newCount: number;
     items: CeoBriefLeadItem[];
   };
-  documents: {
-    totalCount: number;
+  documents: DocumentSourceObservation & {
     byHat: Record<string, number>;
     recentFilenames: string[];
   };

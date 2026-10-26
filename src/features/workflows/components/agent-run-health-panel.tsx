@@ -1,5 +1,7 @@
 import { AlertTriangle, CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
-import type { AgentRunHealth, RunHealthReport } from "../agent-run-health";
+import type { AgentRunHealth } from "../agent-run-health";
+
+import { AGENT_ACTIVITY_LIMIT, type AgentRunObservation } from "../agent-run-observation";
 
 // ---------------------------------------------------------------------------
 // Agent run-health scorecard — reads the centralized RunHealthReport and shows,
@@ -107,20 +109,47 @@ function HealthCard({
 }
 
 export function AgentRunHealthPanel({
-  report,
+  observation,
   agentNames,
   nowMs,
 }: {
-  report: RunHealthReport;
+  observation: AgentRunObservation;
   agentNames: Readonly<Record<string, string>>;
   nowMs?: number;
 }) {
-  const { global, byAgent } = report;
+  const sourceNotice = (
+    <p className="text-xs leading-5 text-neutral-400">
+      {observation.source === "local"
+        ? "Source : journal local — session temporaire, non persistée."
+        : observation.source === "supabase" ? "Source : journal Supabase." : "Source du journal indisponible."}
+      {" "}Périmètre : les {AGENT_ACTIVITY_LIMIT} dernières entrées du journal de cet espace, pas l’historique complet.
+      {observation.missionSource && ` Source des missions : ${observation.missionSource}.`}
+    </p>
+  );
+  if (observation.status !== "complete" || observation.report === null) {
+    return (
+      <div className="grid gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5" role="status">
+        <p className="text-sm font-semibold text-neutral-300">
+          {observation.status === "unavailable"
+            ? "Activité indisponible. L’absence de runs ne peut pas être confirmée."
+            : "Observation partielle — les statuts des runs ne peuvent pas être confirmés."}
+        </p>
+        {observation.status === "partial" && (
+          <p className="text-sm text-neutral-300">
+            {observation.entries.length} entrée(s) du journal conservée(s). Enrichissement des missions indisponible ou illustratif ; statistiques de résultat et qualité observée suspendues.
+          </p>
+        )}
+        {sourceNotice}
+      </div>
+    );
+  }
+  const { global, byAgent } = observation.report;
 
   if (global.total === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/40 px-5 py-8 text-center">
-        <p className="text-sm font-semibold text-neutral-300">Aucun run observé</p>
+        <p className="text-sm font-semibold text-neutral-300">Aucun run observé dans cette source.</p>
+        {sourceNotice}
         <p className="mt-1 text-xs text-neutral-500">
           La santé des agents s&apos;allumera dès que des runs réels seront projetés depuis le ledger.
         </p>
@@ -130,6 +159,7 @@ export function AgentRunHealthPanel({
 
   return (
     <div className="grid gap-4">
+      {sourceNotice}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <RollupStat icon={CheckCircle2} label="Succès" value={global.success} tone="text-emerald-300" />
         <RollupStat icon={XCircle} label="Erreurs" value={global.failed} tone={global.failed > 0 ? "text-rose-300" : "text-neutral-300"} />

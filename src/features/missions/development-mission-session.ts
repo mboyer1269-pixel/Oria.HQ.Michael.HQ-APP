@@ -1,3 +1,4 @@
+import { employeePreparationSchema, type EmployeePreparation } from "../../core/employees/preparation";
 /**
  * Reprise d'une demande de mission de développement : logique pure.
  *
@@ -27,6 +28,23 @@ export const REQUEST_ID_PATTERN =
 /** Le suivi est cloisonné par projet : un autre workspace ne se reprend pas. */
 export function developmentMissionTrackingKey(workspaceId: string): string {
   return `hq:development-mission:${workspaceId}`;
+}
+
+/** Tab-only refusal marker, not authority or a durable recovery record. Retain it
+ * for old request IDs so a generic visit cannot retry a lost employee payload. */
+export function retainEmployeePreparationIntent(storage: Pick<Storage,"setItem">, workspaceId: string, requestId: string) {
+  storage.setItem(`${developmentMissionTrackingKey(workspaceId)}:employee:${requestId}`, "1");
+}
+export function requiresEmployeePreparationRestart(storage: Pick<Storage,"getItem">, workspaceId: string, requestId: string, linked: boolean, hasFrozenPayload: boolean): boolean {
+  if (hasFrozenPayload) return false;
+  return linked || storage.getItem(`${developmentMissionTrackingKey(workspaceId)}:employee:${requestId}`) !== null;
+}
+export const EMPLOYEE_PREPARATION_RESTART = "La charge initiale de cette préparation employé n’est plus disponible dans cet écran. Vérifie le reçu ou choisis explicitement une nouvelle mission ; aucun renvoi sous l’ancien identifiant.";
+
+/** Explicitly release a recovered request without discarding its read-only reference. */
+export function releaseRecoveredDevelopmentRequest(state: {activeRequestId:string|null;hasFrozenPayload:boolean;busy:boolean}) {
+  if (!state.activeRequestId || state.hasFrozenPayload || state.busy) return null;
+  return {activeRequestId:null,pendingRequestId:null,releasedRequestId:state.activeRequestId} as const;
 }
 
 export type TrackingValueKind = "empty" | "resumable" | "corrupt";
@@ -167,6 +185,7 @@ export function requestMethodFor(plan: Plan): "GET" | "POST" | null {
  * aucun contrat n'est ajouté ici.
  */
 export type DevelopmentPayload = {
+  employeePreparation?: EmployeePreparation;
   requestId: string;
   title: string;
   objective: string;
@@ -192,6 +211,7 @@ export type DevelopmentOutcome =
       missionStatus: string;
       updatedAt: string;
       executionRequested: false;
+      employeePreparation?: EmployeePreparation;
     }
   | {
       status:
@@ -250,7 +270,8 @@ export async function performDevelopmentRequest(input: {
       body.status === "saved" &&
       (typeof body.missionId !== "string" ||
         typeof body.title !== "string" ||
-        body.executionRequested !== false)
+        body.executionRequested !== false ||
+        (body.employeePreparation !== undefined && !employeePreparationSchema.safeParse(body.employeePreparation).success))
     ) {
       throw Error();
     }
@@ -280,13 +301,13 @@ export function describeReceipt(origin: ReceiptOrigin, title: string): string {
 }
 
 export const OUTCOME_MESSAGES: Record<string, string> = {
-  disabled: "Création durable désactivée sur cette instance.",
+  disabled: "Préparation désactivée : la création durable ou le répertoire des employés n’est pas ouvert sur cette instance.",
   unavailable: "Stockage durable indisponible. Vérifie le reçu avant toute reprise.",
   outcome_unknown:
     "Résultat incertain. Aucun nouvel identifiant ni renvoi automatique : vérifie le reçu.",
   not_found:
     "Aucune mission retrouvée avec cet identifiant. Tu peux réessayer le même contenu explicitement.",
-  conflict: "Cet identifiant correspond à une autre intention. Aucun écrasement effectué.",
+  conflict: "Intention incompatible ou référence de profil absente, modifiée ou archivée. Vérifie le reçu puis reviens à l’équipe pour une nouvelle préparation. Aucun écrasement effectué.",
   request_denied:
     "Origine refusée avant écriture. Corrige la connexion puis réessaie avec le même identifiant.",
   invalid_request: "Requête invalide, aucune écriture demandée.",

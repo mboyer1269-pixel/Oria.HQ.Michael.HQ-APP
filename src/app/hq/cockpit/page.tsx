@@ -1,4 +1,7 @@
-import { getDefaultWorkspace } from "@/core/workspaces/registry";
+import { getAgentDisplayNames } from "@/features/agents/actions/display-names";
+import { CommandCenter } from "@/features/hq/components/command-center";
+import { MissionDraftPendingPanel } from "@/features/hq/components/mission-draft-pending-panel";
+import { getDefaultWorkspace, getDefaultAssistantProfile } from "@/core/workspaces/registry";
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { ControlChain } from "@/features/cockpit/components/control-chain";
 import { FounderZeroStateCockpit } from "@/features/cockpit/components/founder-zero-state";
@@ -26,7 +29,10 @@ export default async function CockpitPage() {
     return <OwnerAccessDenied email={access.user.email} />;
   }
 
-  const workspaceId = getDefaultWorkspace({ ownerUserId: access.user.id }).id;
+  const workspace = getDefaultWorkspace({ ownerUserId: access.user.id });
+  const workspaceId = workspace.id;
+  const naming = await getAgentDisplayNames();
+  const assistant = naming?.workspaceId === workspace.id ? naming.assistant : getDefaultAssistantProfile(workspace);
   const userId = access.user.id;
   // One clock read for the whole request. Two reads could straddle midnight
   // and hand the page a date and an instant that disagree.
@@ -55,6 +61,10 @@ export default async function CockpitPage() {
 
   return (
     <CockpitShell active="cockpit" crumb="Cockpit">
+      <CommandCenter workspaceId={workspaceId} workspaceName={workspace.displayName} assistant={assistant} variant="cockpit" />
+      <div className="conversation-pending my-6">
+        <MissionDraftPendingPanel workspaceId={workspaceId} ledgerHref="/hq#ledger-activity" />
+      </div>
       {/* Read in this order: what state the workspace is in, then what the
           system is permitted to do about it — before anything it has done. */}
       <div className="mb-4 flex flex-col gap-3">

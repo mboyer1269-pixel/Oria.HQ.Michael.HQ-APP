@@ -54,6 +54,7 @@ export function MissionDossier({ missions, source, transferEnabled = false, pagi
             <div><dt className="text-xs text-neutral-400">Consommation observée</dt><dd className="mt-1 text-sm text-neutral-300">Inconnue</dd></div>
             <div><dt className="text-xs text-neutral-400">Validation indépendante</dt><dd className="mt-1 text-sm text-neutral-300">Non reliée à ce dossier</dd></div>
           </dl>
+          {dossier.employeePreparation&&<p className="mt-4 break-words text-sm text-amber-200">Profil à l’origine de la préparation : {dossier.employeePreparation.employeeId}, révision {dossier.employeePreparation.revision}, business {dossier.employeePreparation.ventureId}. Profil vérifié par une lecture avant l’enregistrement initial, conservée comme provenance historique. L’état actuel du profil n’est pas revérifié ici ; cette provenance n’attribue aucune exécution ni permission.</p>}
           <h4 className="mt-6 text-sm font-semibold text-white">Résultat attendu</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{selected.expectedOutput}</p>
           <MissionResultPanel key={`result:${selected.id}`} output={missionReportedOutput(selected)} source={source} />
           <p className="mt-5 border-t border-neutral-800 pt-4 text-sm leading-6 text-amber-200">{dossier.nextStep}</p>

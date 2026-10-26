@@ -32,6 +32,9 @@ type PanelVariant = "banner" | "embedded";
 
 type MissionDraftPendingPanelProps = {
   variant?: PanelVariant;
+  /** Reset transient feedback when the owning workspace changes. */
+  workspaceId?: string;
+  ledgerHref?: "/hq#ledger-activity" | "#ledger-activity";
   /** When true, refetch after Joris chat responses in Command Center. */
   listenForDraftChanges?: boolean;
 };
@@ -48,8 +51,13 @@ function dispatchDraftChanged() {
   window.dispatchEvent(new CustomEvent(MISSION_DRAFT_CHANGED_EVENT));
 }
 
-export function MissionDraftPendingPanel({
+export function MissionDraftPendingPanel({ workspaceId, ...props }: MissionDraftPendingPanelProps) {
+  return <MissionDraftPendingPanelInstance key={workspaceId ?? "default"} {...props} />;
+}
+
+function MissionDraftPendingPanelInstance({
   variant = "banner",
+  ledgerHref = "#ledger-activity",
   listenForDraftChanges = true,
 }: MissionDraftPendingPanelProps) {
   const [pending, setPending] = useState<MissionDraftPendingClientView | null>(null);
@@ -59,6 +67,10 @@ export function MissionDraftPendingPanel({
   const [dismissedExpired, setDismissedExpired] = useState(false);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const actionInFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  const readSequence = useRef(0);
+  const terminalFeedback = useRef<{ draftId: string; state: "confirmed" | "cancelled" } | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const cancelledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const syncUxFromPending = useCallback(
@@ -76,7 +88,8 @@ export function MissionDraftPendingPanel({
   );
 
   const loadPending = useCallback(
-    async (options?: { skipUxSync?: boolean }) => {
+    async () => {
+      const sequence = ++readSequence.current;
       try {
         const response = await fetch("/api/missions/draft/pending", { cache: "no-store" });
         const data = (await response.json()) as MissionDraftPendingClientView & { error?: string };
@@ -85,6 +98,19 @@ export function MissionDraftPendingPanel({
           throw new Error(data.error ?? `API ${response.status}`);
         }
 
+        if (!mountedRef.current || sequence !== readSequence.current) return;
+        if (actionInFlightRef.current && !terminalFeedback.current) return;
+        setRefreshError(null);
+        const feedback = terminalFeedback.current;
+        if (feedback && (data.status === "none" || data.pendingDraftId === feedback.draftId)) {
+          // The refresh acknowledges the consumed draft; it is not a new action result.
+          return;
+        }
+        terminalFeedback.current = null;
+        if (cancelledTimerRef.current) {
+          clearTimeout(cancelledTimerRef.current);
+          cancelledTimerRef.current = null;
+        }
         setPending(data);
         if (data.status !== "expired") {
           setDismissedExpired(false);
@@ -93,10 +119,14 @@ export function MissionDraftPendingPanel({
           setConfirmed(null);
           setFeedbackMessage(null);
         }
-        if (!options?.skipUxSync) {
-          syncUxFromPending(data, false);
-        }
+        syncUxFromPending(data, false);
       } catch (err) {
+        if (!mountedRef.current || sequence !== readSequence.current) return;
+        if (actionInFlightRef.current && !terminalFeedback.current) return;
+        if (terminalFeedback.current) {
+          setRefreshError("Résultat de l’action conservé. La lecture des nouvelles propositions est indisponible.");
+          return;
+        }
         setFeedbackMessage(
           err instanceof Error ? err.message : "Impossible de charger la proposition.",
         );
@@ -127,7 +157,10 @@ export function MissionDraftPendingPanel({
   }, [listenForDraftChanges, loadPending]);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
+      readSequence.current += 1;
       if (cancelledTimerRef.current) {
         clearTimeout(cancelledTimerRef.current);
       }
@@ -139,6 +172,10 @@ export function MissionDraftPendingPanel({
       return;
     }
 
+    const actionDraftId = pending.pendingDraftId;
+    readSequence.current += 1;
+    terminalFeedback.current = null;
+    setRefreshError(null);
     actionInFlightRef.current = true;
     setUx(kind === "confirm" ? "confirming" : "cancelling");
     setFeedbackMessage(null);
@@ -155,6 +192,7 @@ export function MissionDraftPendingPanel({
       if (!response.ok) {
         throw new Error(data.error ?? `API ${response.status}`);
       }
+      if (!mountedRef.current) return;
 
       if (kind === "confirm") {
         const mapped = mapConfirmDraftResponse(data);
@@ -164,6 +202,7 @@ export function MissionDraftPendingPanel({
             calendarEvent: mapped.calendarEvent,
             summary: mapped.summary,
           });
+          terminalFeedback.current = { draftId: actionDraftId, state: "confirmed" };
           setUx("confirmed");
           window.dispatchEvent(new CustomEvent("michael-hq:calendar-changed"));
         } else {
@@ -174,11 +213,15 @@ export function MissionDraftPendingPanel({
         const mapped = mapCancelDraftResponse(data);
         if (mapped.outcome === "cancelled") {
           setConfirmed(null);
+          terminalFeedback.current = { draftId: actionDraftId, state: "cancelled" };
           setUx("cancelled");
           if (cancelledTimerRef.current) {
             clearTimeout(cancelledTimerRef.current);
           }
           cancelledTimerRef.current = setTimeout(() => {
+            if (!mountedRef.current || terminalFeedback.current?.draftId !== actionDraftId
+              || terminalFeedback.current.state !== "cancelled") return;
+            // Keep the consumed identity so a delayed read cannot resurrect it.
             setUx("idle");
             setFeedbackMessage(null);
             cancelledTimerRef.current = null;
@@ -190,8 +233,9 @@ export function MissionDraftPendingPanel({
       }
 
       dispatchDraftChanged();
-      await loadPending({ skipUxSync: true });
+      await loadPending();
     } catch (err) {
+      if (!mountedRef.current) return;
       setFeedbackMessage(err instanceof Error ? err.message : "Action impossible.");
       setUx("error");
     } finally {
@@ -248,6 +292,7 @@ export function MissionDraftPendingPanel({
             {confirmed.summary ? (
               <p className="mt-2 text-sm leading-6 text-neutral-500">{confirmed.summary}</p>
             ) : null}
+            {refreshError && <p role="status" className="mt-2 text-sm text-amber-200">{refreshError}</p>}
             <details className="mt-3 rounded-lg border border-neutral-800 bg-neutral-950/50 p-3">
               <summary className="cursor-pointer text-xs font-semibold text-neutral-400">
                 Détails techniques
@@ -255,7 +300,7 @@ export function MissionDraftPendingPanel({
               <p className="mt-2 font-mono text-xs text-emerald-200/90">missionId: {confirmed.missionId}</p>
             </details>
             <Link
-              href="#ledger-activity"
+              href={ledgerHref}
               className="mt-3 inline-flex text-sm font-semibold text-emerald-300 underline-offset-2 hover:underline"
             >
               Voir dans Ledger Activity
@@ -283,6 +328,7 @@ export function MissionDraftPendingPanel({
             <p className="mt-1 text-sm leading-6 text-neutral-300">
               Aucun rendez-vous n&apos;a été créé. Tu peux demander une nouvelle proposition via Joris.
             </p>
+            {refreshError && <p role="status" className="mt-2 text-sm text-amber-200">{refreshError}</p>}
           </div>
         </div>
       </section>

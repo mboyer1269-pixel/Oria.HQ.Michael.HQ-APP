@@ -2,6 +2,7 @@ import "server-only";
 
 import fs from "fs/promises";
 import path from "path";
+import type { DocumentSourceObservation } from "@/core/types";
 import {
   isFileDocumentStoreAllowed,
   warnIfUnsafeFileDocumentStore,
@@ -14,34 +15,35 @@ export type DocumentIndexEntry = {
   created_at: string;
 };
 
-export type DocumentBriefSnapshot = {
-  totalCount: number;
+export type DocumentBriefSnapshot = DocumentSourceObservation & {
   byHat: Record<string, number>;
-  recent: Array<{
-    id: string;
-    filename: string;
-    hat: string;
-  }>;
+  recent: Array<Pick<DocumentIndexEntry, "id" | "filename" | "hat">>;
 };
 
+type ReadResult = { status: "available"; documents: DocumentIndexEntry[] } | {
+  status: "unavailable"; reason: "disabled" | "missing" | "read_error" | "invalid_data";
+};
+
+// Keep the filesystem path statically traceable. Tests inject a reader, not an
+// arbitrary path that would make the deployment bundle include the whole repo.
 async function readDocumentIndex(
-  dbPath = path.join(process.cwd(), "db", "documents.json"),
-): Promise<DocumentIndexEntry[]> {
+  readContent = () => fs.readFile(path.join(process.cwd(), "db", "documents.json"), "utf-8"),
+): Promise<ReadResult> {
   // db/documents.json is a dev/test fixture, never a production datastore. In
-  // production this is fail-closed (returns empty without reading the file)
+  // production this is fail-closed (unavailable without reading the file)
   // unless the explicit unsafe break-glass flag is set.
   if (!isFileDocumentStoreAllowed()) {
-    return [];
+    return { status: "unavailable", reason: "disabled" };
   }
   warnIfUnsafeFileDocumentStore();
 
   try {
-    const content = await fs.readFile(dbPath, "utf-8");
+    const content = await readContent();
     const parsed: unknown = JSON.parse(content);
 
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) return { status: "unavailable", reason: "invalid_data" };
 
-    return parsed.filter((doc): doc is DocumentIndexEntry => {
+    const valid = parsed.every((doc): doc is DocumentIndexEntry => {
       if (!doc || typeof doc !== "object") return false;
 
       const candidate = doc as Partial<DocumentIndexEntry>;
@@ -53,19 +55,19 @@ async function readDocumentIndex(
         typeof candidate.created_at === "string"
       );
     });
+    return valid ? { status: "available", documents: parsed as DocumentIndexEntry[] } : { status: "unavailable", reason: "invalid_data" };
   } catch (error) {
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
 
-    if (code !== "ENOENT") {
-      console.error("Document index read failed:", error);
-    }
-
-    return [];
+    // Do not expose paths, fixture contents or parser excerpts in logs/API.
+    return { status: "unavailable", reason: code === "ENOENT" ? "missing" : error instanceof SyntaxError ? "invalid_data" : "read_error" };
   }
 }
 
-export async function getDocumentBriefSnapshot(limit = 3, dbPath?: string): Promise<DocumentBriefSnapshot> {
-  const documents = await readDocumentIndex(dbPath);
+export async function getDocumentBriefSnapshot(limit = 3, readContent?: () => Promise<string>): Promise<DocumentBriefSnapshot> {
+  const result = await readDocumentIndex(readContent);
+  if (result.status === "unavailable") return { source: "local_fixture", status: "unavailable", reason: result.reason, totalCount: null, byHat: {}, recent: [] };
+  const documents = result.documents;
   const byHat = documents.reduce<Record<string, number>>((acc, doc) => {
     acc[doc.hat] = (acc[doc.hat] || 0) + 1;
     return acc;
@@ -81,6 +83,7 @@ export async function getDocumentBriefSnapshot(limit = 3, dbPath?: string): Prom
     }));
 
   return {
+    source: "local_fixture", status: "available", reason: null,
     totalCount: documents.length,
     byHat,
     recent,

@@ -5,14 +5,24 @@ import { DEFAULT_WORKSPACE_SLUG } from "@/core/workspaces/registry";
 import type { CeoBriefSnapshot } from "@/core/types";
 import { createCalendarRepository } from "@/server/calendar/calendar-repository";
 import { createContactLeadRepository } from "@/server/contact/contact-lead-repository";
-import { getDocumentBriefSnapshot } from "@/server/brief/document-index";
+import { getDocumentBriefSnapshot, type DocumentBriefSnapshot } from "@/server/brief/document-index";
+
+/** Non-legacy workspaces cannot read the unscoped document index: report it as unknown, never as zero. */
+const UNSCOPED_DOCUMENTS_UNAVAILABLE: DocumentBriefSnapshot = {
+  source: "local_fixture",
+  status: "unavailable",
+  reason: "disabled",
+  totalCount: null,
+  byHat: {},
+  recent: [],
+};
 
 import { upcomingCalendarWindow } from "@/server/calendar/upcoming-window";
 
 function buildHeadline(input: {
   upcomingCount: number;
   newLeadCount: number;
-  documentCount: number;
+  documentCount: number | null;
 }) {
   const parts: string[] = [];
 
@@ -32,8 +42,12 @@ function buildHeadline(input: {
     );
   }
 
-  if (parts.length === 0 && input.documentCount > 0) {
-    return `${input.documentCount} document${input.documentCount > 1 ? "s" : ""} dans ton coffre privé.`;
+  if (parts.length === 0 && input.documentCount !== null && input.documentCount > 0) {
+    return `${input.documentCount} document${input.documentCount > 1 ? "s" : ""} dans la fixture locale de démonstration.`;
+  }
+
+  if (input.documentCount === null) {
+    return [...parts, "Documents indisponibles : leur absence ne peut pas être confirmée."].join(" · ");
   }
 
   if (parts.length === 0) {
@@ -72,7 +86,7 @@ export async function buildCeoBriefSnapshot(ctx: WorkspaceContext = getActiveWor
     contactRepository.listRecent({ workspaceId: ctx.workspace.id, status: "new", limit: 5 }),
     contactRepository.listRecent({ workspaceId: ctx.workspace.id, limit: 5 }),
     // The document index is not workspace-scoped yet: only the legacy workspace may read it.
-    ctx.workspace.id === DEFAULT_WORKSPACE_SLUG ? getDocumentBriefSnapshot(3) : Promise.resolve({ totalCount: 0, byHat: {}, recent: [] }),
+    ctx.workspace.id === DEFAULT_WORKSPACE_SLUG ? getDocumentBriefSnapshot(3) : Promise.resolve(UNSCOPED_DOCUMENTS_UNAVAILABLE),
   ]);
 
   const agendaItems = events.map((event) => ({
@@ -96,6 +110,7 @@ export async function buildCeoBriefSnapshot(ctx: WorkspaceContext = getActiveWor
   const nextEvent = agendaItems[0];
   const newestLead = leadItems[0];
 
+  const { recent, ...documentObservation } = documents;
   return {
     generatedAt: new Date().toISOString(),
     headline: buildHeadline({
@@ -117,9 +132,9 @@ export async function buildCeoBriefSnapshot(ctx: WorkspaceContext = getActiveWor
       items: leadItems,
     },
     documents: {
-      totalCount: documents.totalCount,
+      ...documentObservation,
       byHat: documents.byHat,
-      recentFilenames: documents.recent.map((doc) => doc.filename),
+      recentFilenames: recent.map((doc) => doc.filename),
     },
   };
 }
