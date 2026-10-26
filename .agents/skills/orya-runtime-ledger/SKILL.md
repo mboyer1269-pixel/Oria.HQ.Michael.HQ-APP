@@ -7,6 +7,8 @@ description: >
   human approval.
 ---
 
+> **Rules:** R-ZONE-YELLOW, R-NO-PROD-ACCESS, R-PROVEN-VS-ASSUMED — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Orya Runtime Ledger
 
 ## Purpose

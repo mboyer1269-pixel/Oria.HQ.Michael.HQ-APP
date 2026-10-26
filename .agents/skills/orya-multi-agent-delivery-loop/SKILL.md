@@ -6,6 +6,8 @@ description: >
   ensures small, safe PRs.
 ---
 
+> **Rules:** R-SCOPE-DISCIPLINE, R-NO-AGENT-ESCALATION, R-VALIDATION-GATES, R-PR-REVIEW, R-NO-MERGE, R-GREEN-NEEDS-RUN-LINK — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Orya Multi-Agent Delivery Loop
 
 ## Purpose

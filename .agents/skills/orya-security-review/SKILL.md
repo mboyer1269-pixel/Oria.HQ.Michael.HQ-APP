@@ -6,6 +6,8 @@ description: >
   changes that touch sensitive boundaries in the Orya HQ codebase.
 ---
 
+> **Rules:** R-ZONE-GREEN, R-ZONE-YELLOW, R-ZONE-RED, R-NO-SECRETS, R-ESCALATE-RED, R-PR-REVIEW — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Orya Security Review
 
 ## Purpose

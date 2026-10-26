@@ -1,6 +1,24 @@
 import type { AgentCharter } from "./agent-charter";
 
 /**
+ * Governance rules these charters implement. Single source of truth for the
+ * rule text: .agents/rules/core.md (rules-version 1) — cite ids, never recopy.
+ * Reference only; no runtime behavior depends on this list.
+ */
+export const CHARTER_RULE_REFS = [
+  "R-MICHAEL-DECIDES",
+  "R-ASK-BEFORE-SENSITIVE",
+  "R-ZONE-GREEN",
+  "R-ZONE-YELLOW",
+  "R-ZONE-RED",
+  "R-ESCALATE-YELLOW",
+  "R-ESCALATE-RED",
+  "R-NO-PAID-API",
+  "R-NO-EXTERNAL-CONTACT",
+  "R-NO-SECRETS",
+] as const;
+
+/**
  * Charter registry — operational DNA for every Oria agent.
  *
  * One charter per registry agent (enforced by validateAgentCharters).

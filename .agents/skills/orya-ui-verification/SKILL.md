@@ -6,6 +6,8 @@ description: >
   screenshot capture, and visual regression reporting. Green zone only.
 ---
 
+> **Rules:** R-ZONE-GREEN, R-NO-PROD-ACCESS, R-NO-DEPLOY, R-PROVEN-VS-ASSUMED — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Orya UI Verification
 
 ## Purpose

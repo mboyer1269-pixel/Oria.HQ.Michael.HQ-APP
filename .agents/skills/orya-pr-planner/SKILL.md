@@ -6,6 +6,8 @@ description: >
   Used by the Architect and Builder agents before committing changes.
 ---
 
+> **Rules:** R-BRANCH-HYGIENE, R-COMMIT-HYGIENE, R-PR-TEMPLATE, R-PR-REVIEW, R-NO-MERGE, R-PROTECTED-FILES, R-VALIDATION-GATES, R-GREEN-NEEDS-RUN-LINK — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Orya PR Planner
 
 ## Purpose
@@ -48,7 +50,7 @@ The PR Gatekeeper logic ensures that only small, scoped, validated, and reversib
    - **Require Out-of-Scope Definitions:** Explicitly document what was intentionally left out of scope to prevent creep.
 2. Identify all files that have been modified, created, or deleted.
 3. Classify each file into a component (core, features, docs, config, tests).
-4. Determine zone classification per [orya-security-boundaries.md](../../rules/orya-security-boundaries.md):
+4. Determine zone classification per R-ZONE-GREEN / R-ZONE-YELLOW / R-ZONE-RED ([core.md](../../rules/core.md)):
    - Are all changes Green zone?
    - Do any changes fall in Yellow zone?
    - Are any Red zone actions involved? → **Stop immediately.**
@@ -63,21 +65,12 @@ The PR Gatekeeper logic ensures that only small, scoped, validated, and reversib
 3. Verify:
    - No secrets, credentials, or `.env` values in the diff.
    - No unintended file changes.
-   - No changes to protected files without mandate (see [orya-pr-rules.md §8](../../rules/orya-pr-rules.md)).
+   - No changes to protected files without mandate (R-PROTECTED-FILES).
    - No `node_modules/`, `.next/`, or other generated artifacts.
 
 ### Step 3: Pre-Flight Validation
 
-Run all four mandatory checks:
-
-```bash
-npm run typecheck
-npm run lint
-npm run build
-npm run smoke:joris
-```
-
-All four must pass. If any fails, stop and fix before proceeding.
+Run the mandatory checks per R-VALIDATION-GATES; a failing check stops the PR.
 
 For documentation-only PRs, also confirm:
 ```bash

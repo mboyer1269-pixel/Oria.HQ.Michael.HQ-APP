@@ -6,6 +6,8 @@ description: >
   update workflows, and documentation consistency across the Orya HQ repository.
 ---
 
+> **Rules:** R-ZONE-GREEN, R-NO-SECRETS, R-SCOPE-DISCIPLINE, R-VALIDATION-GATES — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Orya Doc Updater
 
 ## Purpose

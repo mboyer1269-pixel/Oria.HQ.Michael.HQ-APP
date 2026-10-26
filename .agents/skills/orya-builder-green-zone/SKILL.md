@@ -5,6 +5,8 @@ description: >
   smallest useful diff, prevents unrelated refactors, and mandates validation.
 ---
 
+> **Rules:** R-SCOPE-DISCIPLINE, R-ZONE-GREEN, R-ZONE-YELLOW, R-ESCALATE-YELLOW, R-PROTECTED-FILES, R-NO-SECRETS, R-VALIDATION-GATES, R-HANDOFF — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Orya Builder Green Zone
 
 ## Purpose
@@ -23,24 +25,13 @@ When operating in this mode, the Builder Agent **must**:
 - Maintain the **smallest useful diff**. Do not touch lines or files unrelated to the task.
 - Make **no unrelated refactors**. Fix the bug or build the feature, do not clean up surrounding code unless explicitly instructed.
 
-The Builder Agent **must NEVER** (without explicit Yellow Zone escalation):
-- Modify `package.json` or `package-lock.json` (no dependency changes).
-- Modify `.env` or `.env.local` files.
-- Create or alter database migrations.
-- Touch auth context, RLS policies, or runtime execution parameters.
-- Modify production deployment scripts or VPS configurations.
+Without an explicit Yellow escalation the Builder Agent stays out of everything listed in R-ZONE-YELLOW, R-PROTECTED-FILES and R-NO-SECRETS (dependencies, `.env*`, migrations, auth/RLS/runtime, deployment/VPS).
 
 ## Expected Builder Workflow
 
 1. **Review Plan:** Read the Architect's Implementation Plan.
 2. **Execute:** Write the code, strictly adhering to the smallest useful diff principle.
-3. **Validate:** Before concluding work, run the mandatory validation suite:
-   ```bash
-   npm run typecheck
-   npm run lint
-   npm run build
-   npm run smoke:joris
-   ```
+3. **Validate:** Before concluding work, run the validation suite per R-VALIDATION-GATES.
 4. **Output:** Generate an Execution Summary containing:
    - Files changed.
    - Confirmation that constraints were respected (no auth/deps/env changes).

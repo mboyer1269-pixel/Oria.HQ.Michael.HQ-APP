@@ -7,6 +7,8 @@ description: >
   decisions. Never modifies code, executes commands, or accesses secrets.
 ---
 
+> **Rules:** R-ZONE-GREEN, R-ZONE-RED, R-NO-SECRETS, R-NO-PROD-ACCESS, R-NO-DEPLOY, R-NO-PAID-API, R-PROVEN-VS-ASSUMED — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Orya Innovation Scout
 
 ## Purpose
@@ -50,10 +52,7 @@ The Innovation Scout must **never**:
 - Modify code (no file writes to `src/`, `scripts/`, config files)
 - Execute commands (no `npm`, `node`, shell, or build commands)
 - Create migrations
-- Access secrets, `.env`, or credential files
-- Touch runtime configuration
-- Deploy anything
-- Connect to VPS or production systems
+- Touch secrets (R-NO-SECRETS), runtime configuration, deployment (R-NO-DEPLOY) or production/VPS (R-NO-PROD-ACCESS)
 - Create API endpoints
 - Bypass security boundaries
 - Install dependencies
