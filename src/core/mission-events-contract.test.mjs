@@ -26,9 +26,11 @@ test("schema: valid event parses; cost/source consistency; approval binding; voi
   assert.ok(C.missionEventSchema.safeParse(base({ eventType: "tool_call_completed", costMicroUsd: 5, costSource: "measured", provider: "anthropic", model: "claude-sonnet-4-5" })).success);
   assert.ok(!C.missionEventSchema.safeParse(base({ eventType: "approval_granted", capability: "merge:pr", grantId: "g" })).success);
   assert.ok(!C.missionEventSchema.safeParse(grant("tool:x", "g", H("a"), { expiresAt: null })).success);
-  for (const cap of ["merge:pr", "payment", "external_send:email", "delete:file"])
+  for (const cap of ["merge:pr", "payment", "external_send:email", "external_send.email", "delete:file", "harness_change", "unsandboxed:shell", "connector:calendar"])
     assert.ok(!C.missionEventSchema.safeParse(grant(cap, "g", H("a"), { channel: "voice" })).success, cap);
-  assert.ok(C.missionEventSchema.safeParse(grant("connector:calendar", "g", H("a"), { channel: "voice" })).success);
+  assert.ok(C.missionEventSchema.safeParse(grant("repo.read", "g", H("a"), { channel: "voice" })).success);
+  for (const cap of ["delete_repo", "payments:card"]) assert.ok(!C.missionEventSchema.safeParse(grant(cap, "g", H("a"))).success, cap);
+  for (const channel of ["agent", "system"]) assert.ok(!C.missionEventSchema.safeParse(grant("tool:x", "g", H("a"), { channel })).success, channel);
   assert.ok(!C.missionEventSchema.safeParse({ ...base(), extra: 1 }).success);
 });
 

@@ -8,8 +8,10 @@ export const TERMINAL_STATES = new Set<MissionState>(["cancelled", "succeeded", 
 
 /** Closed allowlist: capabilities a mission may use without a human grant. Anything else needs approval. */
 export const CAPABILITY_ALLOWLIST = ["repo.read", "repo.write_branch", "test.run", "build.run", "llm.subscription"] as const;
-/** Capability classes the voice channel may never approve. */
-export const VOICE_FORBIDDEN_APPROVAL_CLASSES = ["external_send", "payment", "merge", "delete"] as const;
+/** Approval-requiring capability classes (closed list; mirrors public.mission_capabilities). Class = text before the first ':' or '.'. */
+export const CAPABILITY_APPROVAL_CLASSES = ["connector", "secret", "egress", "tool", "harness_change", "unsandboxed", "external_send", "payment", "merge", "delete"] as const;
+/** Event types a JWT (authenticated) caller may insert directly; everything else is service_role only. */
+export const AUTHENTICATED_INSERTABLE_EVENT_TYPES = ["mission_queued", "mission_cancelled", "approval_rejected"] as const;
 /** Existing ad-hoc approvals mapped onto the grant model (migration path in spec). */
 export const LEGACY_APPROVAL_CAPABILITIES = { approveHarnessChange: "harness_change", approveUnsandboxed: "unsandboxed" } as const;
 
@@ -42,13 +44,19 @@ export const missionEventSchema = z.object({
   .refine(e => (e.costMicroUsd === null) === (e.costSource === null), { message: "cost_source must be set iff cost_micro_usd is set" })
   .refine(e => !["approval_requested", "approval_granted", "approval_consumed"].includes(e.eventType) || (e.payloadHash !== null && e.capability !== null && e.grantId !== null), { message: "approval events bind payloadHash, capability, grantId" })
   .refine(e => !["approval_requested", "approval_granted"].includes(e.eventType) || e.expiresAt !== null, { message: "approval requests/grants need expiresAt" })
-  .refine(e => !(e.channel === "voice" && ["approval_granted", "approval_consumed"].includes(e.eventType) && isVoiceForbidden(e.capability)), { message: "voice may not approve external_send/payment/merge/delete" });
+  .refine(e => e.capability === null || isKnownCapability(e.capability), { message: "capability not in the closed list" })
+  .refine(e => e.eventType !== "approval_granted" || ["screen", "mobile", "voice"].includes(e.channel), { message: "grants come from a human channel" })
+  .refine(e => !(e.channel === "voice" && ["approval_granted", "approval_consumed"].includes(e.eventType) && isVoiceForbidden(e.capability)), { message: "voice may approve only free, reversible allowlisted capabilities" });
 
 export type MissionEvent = z.infer<typeof missionEventSchema>;
 
-export function capabilityClass(cap: string): string { return cap.split(":")[0]; }
+export function capabilityClass(cap: string): string { return cap.split(/[:.]/)[0]; }
+export function isKnownCapability(cap: string): boolean {
+  return (CAPABILITY_ALLOWLIST as readonly string[]).includes(cap) || (CAPABILITY_APPROVAL_CLASSES as readonly string[]).includes(capabilityClass(cap));
+}
+/** Voice may approve only exact allowlisted (free, reversible) capabilities. */
 export function isVoiceForbidden(cap: string | null): boolean {
-  return cap !== null && (VOICE_FORBIDDEN_APPROVAL_CLASSES as readonly string[]).includes(capabilityClass(cap));
+  return cap !== null && !(CAPABILITY_ALLOWLIST as readonly string[]).includes(cap);
 }
 export function requiresApproval(cap: string): boolean {
   return !(CAPABILITY_ALLOWLIST as readonly string[]).includes(cap);

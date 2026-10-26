@@ -69,53 +69,91 @@ test("cost_source must be consistent with cost_micro_usd", async () => {
   await ins(db, { seq: 2, event_type: "tool_call_completed", state: "running", cost_micro_usd: 1200, cost_source: "estimated", provider: "anthropic", model: "claude-sonnet-4-5" });
 });
 
-test("approval binds to payload_hash: stale after a different hash, single-use, expiry, voice refused", async () => {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const req = (seq, o) => ({ seq, event_type: "approval_requested", state: "waiting_approval", actor: "agent:builder", channel: "agent", expires_at: FUT, ...o });
+const grantOf = (seq, o) => ({ seq, event_type: "approval_granted", state: "approved", actor: MEMBER, expires_at: FUT, ...o });
+
+test("approval binds to payload_hash: stale after a different hash, single-use, voice refused", async () => {
   const db = await setup();
   const appr = { capability: "connector:gmail", grant_id: "g1", payload_hash: H("a") };
   await ins(db, { seq: 1 });
-  await ins(db, { seq: 2, event_type: "approval_requested", state: "waiting_approval", ...appr, expires_at: FUT });
-  await ins(db, { seq: 3, event_type: "approval_granted", state: "approved", ...appr, expires_at: FUT, actor: MEMBER });
+  await ins(db, req(2, appr));
+  await ins(db, grantOf(3, appr));
   let s = (await db.query("select stale, consumed from public.mission_approval_status where grant_id='g1'")).rows[0];
   assert.deepEqual(s, { stale: false, consumed: false });
   await ins(db, { seq: 4, event_type: "approval_consumed", state: "running", ...appr });
   await assert.rejects(ins(db, { seq: 5, event_type: "approval_consumed", state: "running", ...appr }), /single_use/);
-  s = (await db.query("select consumed from public.mission_approval_status where grant_id='g1'")).rows[0];
-  assert.equal(s.consumed, true);
+  assert.equal((await db.query("select consumed from public.mission_approval_status where grant_id='g1'")).rows[0].consumed, true);
 
-  // Stale: grant g2 then payload changes -> consumption refused, view says stale.
   const a2 = { capability: "egress:api.example.com", grant_id: "g2", payload_hash: H("b") };
-  await ins(db, { seq: 5, event_type: "approval_granted", state: "approved", ...a2, expires_at: FUT });
-  await ins(db, { seq: 6, event_type: "payload_changed", state: "approval_stale", payload_hash: H("c") });
+  await ins(db, req(5, a2)); await ins(db, grantOf(6, a2));
+  await ins(db, { seq: 7, event_type: "payload_changed", state: "approval_stale", payload_hash: H("c") });
   assert.equal((await db.query("select stale from public.mission_approval_status where grant_id='g2'")).rows[0].stale, true);
-  await assert.rejects(ins(db, { seq: 7, event_type: "approval_consumed", state: "running", ...a2 }), /stale/);
+  await assert.rejects(ins(db, { seq: 8, event_type: "approval_consumed", state: "running", ...a2 }), /stale/);
 
-  // Expired grant.
   const a3 = { capability: "secret:stripe", grant_id: "g3", payload_hash: H("c") };
-  await ins(db, { seq: 7, event_type: "approval_granted", state: "approved", ...a3, expires_at: "2026-10-25T12:00:01Z" });
-  await assert.rejects(ins(db, { seq: 8, event_type: "approval_consumed", state: "running", ...a3, occurred_at: "2026-10-25T13:00:00Z" }), /expired/);
+  await ins(db, req(8, a3)); await ins(db, grantOf(9, a3));
+  await assert.rejects(ins(db, { seq: 10, event_type: "approval_consumed", state: "running", ...a3, payload_hash: H("d") }), /another payload/);
 
-  // Mismatched payload on consumption.
-  await assert.rejects(ins(db, { seq: 8, event_type: "approval_consumed", state: "running", ...a3, payload_hash: H("d") }), /another payload/);
-
-  // Voice may not approve merge/payment/external_send/delete; may approve others.
-  await assert.rejects(ins(db, { seq: 8, event_type: "approval_granted", state: "approved", capability: "merge:pr", grant_id: "g4", payload_hash: H("c"), expires_at: FUT, channel: "voice" }), /voice_no_irreversible/);
-  await assert.rejects(ins(db, { seq: 8, event_type: "approval_granted", state: "approved", capability: "payment", grant_id: "g4", payload_hash: H("c"), expires_at: FUT, channel: "voice" }), /voice_no_irreversible/);
-  await ins(db, { seq: 8, event_type: "approval_granted", state: "approved", capability: "connector:calendar", grant_id: "g5", payload_hash: H("c"), expires_at: FUT, channel: "voice" });
+  // Voice: refused for every approval-requiring class, whatever the separator.
+  for (const [i, cap] of ["payment", "external_send.email", "external_send:email", "harness_change", "unsandboxed:shell", "connector:calendar", "merge:pr", "delete:file"].entries()) {
+    const m = "voice" + i; const o = { mission_id: m, capability: cap, grant_id: "vg" + i, payload_hash: H("c") };
+    await ins(db, req(1, o));
+    await assert.rejects(ins(db, grantOf(2, { ...o, channel: "voice" })), /voice_not_approvable/, cap);
+  }
+  // Closed list: unknown classes (delete_repo, payments) refused outright.
+  for (const cap of ["delete_repo", "payments:card", "rm.rf"]) await assert.rejects(ins(db, req(10, { capability: cap, grant_id: "x", payload_hash: H("c") })), /closed list/, cap);
+  // Voice may approve a free, reversible capability.
+  await ins(db, req(10, { capability: "repo.read", grant_id: "free", payload_hash: H("c") }));
+  await ins(db, grantOf(11, { capability: "repo.read", grant_id: "free", payload_hash: H("c"), channel: "voice" }));
   // Approval without expiry / hash refused.
-  await assert.rejects(ins(db, { seq: 9, event_type: "approval_requested", state: "waiting_approval", capability: "tool:x", grant_id: "g6", payload_hash: H("c") }), /approval_expiry/);
-  await assert.rejects(ins(db, { seq: 9, event_type: "approval_requested", state: "waiting_approval", capability: "tool:x", grant_id: "g6", expires_at: FUT }), /approval_binding/);
+  await assert.rejects(ins(db, req(12, { capability: "tool:x", grant_id: "g6", payload_hash: H("c"), expires_at: null })), /approval_expiry/);
+  await assert.rejects(ins(db, req(12, { capability: "tool:x", grant_id: "g6" })), /approval_binding/);
 });
 
-test("RLS: members read/insert, non-members see nothing and cannot insert, no update grant", async () => {
+test("self-approval refused: agent/system channel, no prior request, requester = approver, non-member actor", async () => {
+  const db = await setup();
+  const o = { capability: "external_send:email", grant_id: "g1", payload_hash: H("a") };
+  await ins(db, { seq: 1 });
+  await assert.rejects(ins(db, grantOf(2, o)), /no matching approval_requested/);
+  await ins(db, req(2, o));
+  await assert.rejects(ins(db, grantOf(3, { ...o, channel: "agent", actor: "agent:bot" })), /grant_human_channel|human workspace member/);
+  await assert.rejects(ins(db, grantOf(3, { ...o, channel: "system" })), /grant_human_channel/);
+  await assert.rejects(ins(db, grantOf(3, { ...o, channel: "agent" })), /grant_human_channel/);
+  await assert.rejects(ins(db, grantOf(3, { ...o, actor: "agent:bot" })), /human workspace member/);
+  await assert.rejects(ins(db, grantOf(3, { ...o, actor: OUTSIDER })), /human workspace member/);
+  await assert.rejects(ins(db, grantOf(3, { ...o, payload_hash: H("b") })), /no matching approval_requested/);
+  await ins(db, req(3, { ...o, grant_id: "g2", actor: MEMBER, channel: "screen" }));
+  await assert.rejects(ins(db, grantOf(4, { ...o, grant_id: "g2" })), /requester cannot approve/);
+});
+
+test("expiry uses now(): backdated consumption of an expired grant refused; future occurred_at refused", async () => {
+  const db = await setup();
+  const o = { capability: "secret:stripe", grant_id: "g1", payload_hash: H("a") };
+  await ins(db, { seq: 1 });
+  await assert.rejects(ins(db, req(2, { ...o, expires_at: "2020-01-01T00:00:00Z" })), /must be in the future/);
+  const soon = new Date(Date.now() + 1500).toISOString();
+  await ins(db, req(2, { ...o, expires_at: soon }));
+  await ins(db, grantOf(3, { ...o, expires_at: soon }));
+  await sleep(1700);
+  await assert.rejects(ins(db, { seq: 4, event_type: "approval_consumed", state: "running", ...o, occurred_at: "2019-01-01T00:00:00Z" }), /expired/);
+  await assert.rejects(ins(db, { seq: 4, occurred_at: new Date(Date.now() + 10 * 60_000).toISOString() }), /future/);
+  await ins(db, { seq: 4, event_type: "step_started", state: "running", occurred_at: new Date(Date.now() + 30_000).toISOString() }); // within skew
+});
+
+test("RLS: members read and insert only privilege-reducing events as themselves; non-members refused", async () => {
   const db = await setup();
   await ins(db, {});
   await db.exec(`set role authenticated; set request.jwt.claim.sub = '${MEMBER}';`);
   assert.equal((await db.query("select count(*)::int c from public.mission_events")).rows[0].c, 1);
-  await ins(db, { seq: 2, event_type: "mission_started", state: "running" });
+  for (const t of ["approval_granted", "approval_consumed", "run_cost_recorded", "tool_call_completed", "mission_started", "mission_succeeded"])
+    await assert.rejects(ins(db, { seq: 2, event_type: t, state: "running", actor: MEMBER, capability: "repo.read", grant_id: "g", payload_hash: H("a"), expires_at: FUT, ...(t.includes("cost") || t.includes("tool") ? { cost_micro_usd: 1, cost_source: "measured" } : {}) }), /row-level security/, t);
+  await assert.rejects(ins(db, { seq: 2, event_type: "mission_cancelled", state: "cancelled", actor: "someone-else" }), /actor must be the authenticated user/);
+  await ins(db, { seq: 2, event_type: "mission_cancelled", state: "cancelled", actor: MEMBER });
   await db.exec(`set request.jwt.claim.sub = '${OUTSIDER}';`);
   assert.equal((await db.query("select count(*)::int c from public.mission_events")).rows[0].c, 0);
   assert.equal((await db.query("select count(*)::int c from public.mission_approval_status")).rows[0].c, 0);
-  await assert.rejects(ins(db, { seq: 3, event_type: "mission_failed", state: "failed" }), /row-level security/);
+  await assert.rejects(ins(db, { seq: 3, event_type: "mission_cancelled", state: "cancelled", actor: OUTSIDER }), /row-level security/);
   await db.exec(`set request.jwt.claim.sub = '${MEMBER}';`);
   await assert.rejects(db.query("update public.mission_events set state='failed'"), /permission denied/);
   await db.exec("set role anon;");

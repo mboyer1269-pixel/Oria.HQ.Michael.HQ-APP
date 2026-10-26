@@ -44,13 +44,46 @@ create table if not exists public.mission_events (
     or (payload_hash is not null and capability is not null and grant_id is not null)),
   constraint mission_events_approval_expiry check (
     event_type not in ('approval_requested','approval_granted') or expires_at is not null),
-  -- Voice may never approve irreversible/external capabilities.
-  constraint mission_events_voice_no_irreversible_approval check (
-    not (channel = 'voice' and event_type in ('approval_granted','approval_consumed')
-         and split_part(capability, ':', 1) in ('external_send','payment','merge','delete')))
+  -- Grants are human decisions: never from the agent or system channel.
+  constraint mission_events_grant_human_channel check (
+    event_type <> 'approval_granted' or channel in ('screen','mobile','voice'))
 );
 
-create index if not exists mission_events_mission_seq_idx on public.mission_events (mission_id, seq);
+-- Closed capability registry (SQL source of truth; mirrored by CAPABILITY_* in
+-- src/core/mission-events-contract.ts). A capability is accepted only if it
+-- matches an 'exact' row, or its class (text before the first ':' or '.') matches
+-- a 'class' row. Unknown capabilities are refused at insert.
+create table if not exists public.mission_capabilities (
+  name text primary key check (name ~ '^[a-z][a-z0-9_.]{0,79}$'),
+  match_kind text not null check (match_kind in ('exact','class')),
+  requires_approval boolean not null,
+  voice_approvable boolean not null default false,
+  constraint mission_capabilities_voice_only_free check (not voice_approvable or not requires_approval)
+);
+insert into public.mission_capabilities (name, match_kind, requires_approval, voice_approvable) values
+  ('repo.read','exact',false,true), ('repo.write_branch','exact',false,true),
+  ('test.run','exact',false,true), ('build.run','exact',false,true), ('llm.subscription','exact',false,true),
+  ('connector','class',true,false), ('secret','class',true,false), ('egress','class',true,false),
+  ('tool','class',true,false), ('harness_change','class',true,false), ('unsandboxed','class',true,false),
+  ('external_send','class',true,false), ('payment','class',true,false), ('merge','class',true,false),
+  ('delete','class',true,false)
+on conflict (name) do nothing;
+alter table public.mission_capabilities enable row level security;
+revoke all on public.mission_capabilities from public, anon, authenticated;
+grant select on public.mission_capabilities to authenticated, service_role;
+drop policy if exists mission_capabilities_read on public.mission_capabilities;
+create policy mission_capabilities_read on public.mission_capabilities for select to authenticated using (true);
+
+create or replace function public.mission_capability_lookup(cap text)
+returns public.mission_capabilities language sql stable set search_path = public, pg_temp as $$
+  select c.* from public.mission_capabilities c
+  where (c.match_kind = 'exact' and c.name = cap)
+     or (c.match_kind = 'class' and c.name = (regexp_split_to_array(cap, '[:.]'))[1])
+  order by (c.match_kind = 'exact') desc limit 1
+$$;
+
+-- (mission_id, seq) lookups are served by the unique (workspace_id, mission_id, seq) index.
+drop index if exists public.mission_events_mission_seq_idx;
 create index if not exists mission_events_trace_idx on public.mission_events (trace_id);
 create index if not exists mission_events_workspace_occurred_idx on public.mission_events (workspace_id, occurred_at desc);
 -- Single-use grants: a grant can be consumed at most once.
@@ -74,17 +107,72 @@ language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   expected integer;
   g record;
+  r record;
+  cap public.mission_capabilities;
   latest_hash text;
 begin
   if (select auth.uid()) is not null and not exists (select 1 from public.workspace_members m
       where m.workspace_id = new.workspace_id and m.user_id = (select auth.uid())) then
     raise exception 'new row violates row-level security policy for table "mission_events"' using errcode = '42501';
   end if;
+  -- Mirror of the insert policy, checked first so JWT callers get a clear refusal.
+  if (select auth.uid()) is not null then
+    if new.event_type not in ('mission_queued','mission_cancelled','approval_rejected') then
+      raise exception 'new row violates row-level security policy for table "mission_events" (event_type % is service_role only)', new.event_type using errcode = '42501';
+    end if;
+    if new.actor <> (select auth.uid())::text then
+      raise exception 'actor must be the authenticated user' using errcode = '42501';
+    end if;
+  end if;
   perform pg_advisory_xact_lock(hashtextextended(new.workspace_id || '/' || new.mission_id, 0));
   select coalesce(max(seq), 0) + 1 into expected from public.mission_events
     where workspace_id = new.workspace_id and mission_id = new.mission_id;
   if new.seq <> expected then
     raise exception 'mission_events seq must be % (got %)', expected, new.seq using errcode = '23514';
+  end if;
+  -- Server clock is authoritative: occurred_at may not be in the future
+  -- (60 s skew tolerance). Expiry decisions below use now(), never occurred_at.
+  if new.occurred_at > now() + interval '60 seconds' then
+    raise exception 'occurred_at is in the future' using errcode = '23514';
+  end if;
+  if new.capability is not null then
+    cap := public.mission_capability_lookup(new.capability);
+    if cap.name is null then
+      raise exception 'capability % is not in mission_capabilities (closed list)', new.capability using errcode = '23514';
+    end if;
+    if new.channel = 'voice' and new.event_type in ('approval_granted','approval_consumed') and not cap.voice_approvable then
+      raise exception 'voice_not_approvable: voice may not approve %', new.capability using errcode = '23514';
+    end if;
+  end if;
+  if new.event_type in ('approval_requested','approval_granted') and new.expires_at <= now() then
+    raise exception 'approval expires_at must be in the future' using errcode = '23514';
+  end if;
+  if new.event_type = 'approval_granted' then
+    -- No self-approval: a JWT caller may only grant as itself; the actor must be
+    -- a human workspace member; a matching prior request must exist and the
+    -- approver cannot be the requester.
+    if (select auth.uid()) is not null and new.actor <> (select auth.uid())::text then
+      raise exception 'self_approval: grant actor must be the authenticated user' using errcode = '42501';
+    end if;
+    if new.actor !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+       or not exists (select 1 from public.workspace_members m
+         where m.workspace_id = new.workspace_id and m.user_id = new.actor::uuid) then
+      raise exception 'self_approval: grant actor must be a human workspace member' using errcode = '42501';
+    end if;
+    select * into r from public.mission_events
+      where workspace_id = new.workspace_id and mission_id = new.mission_id
+        and event_type = 'approval_requested' and grant_id = new.grant_id
+        and payload_hash = new.payload_hash and capability = new.capability
+      order by seq desc limit 1;
+    if not found then
+      raise exception 'self_approval: no matching approval_requested for grant %', new.grant_id using errcode = '23514';
+    end if;
+    if r.actor = new.actor then
+      raise exception 'self_approval: requester cannot approve its own request' using errcode = '42501';
+    end if;
+    if r.expires_at <= now() then
+      raise exception 'approval request % expired', new.grant_id using errcode = '23514';
+    end if;
   end if;
   if new.event_type = 'approval_consumed' then
     select * into g from public.mission_events
@@ -96,7 +184,7 @@ begin
     if g.payload_hash <> new.payload_hash or g.capability <> new.capability then
       raise exception 'approval grant % bound to another payload/capability', new.grant_id using errcode = '23514';
     end if;
-    if g.expires_at <= new.occurred_at then
+    if g.expires_at <= now() then
       raise exception 'approval grant % expired', new.grant_id using errcode = '23514';
     end if;
     select payload_hash into latest_hash from public.mission_events
@@ -132,8 +220,12 @@ drop policy if exists mission_events_member_insert on public.mission_events;
 create policy mission_events_member_read on public.mission_events for select to authenticated
   using (exists (select 1 from public.workspace_members m
     where m.workspace_id = mission_events.workspace_id and m.user_id = (select auth.uid())));
+-- Direct (JWT) inserts are limited to privilege-reducing human events. Grants,
+-- consumption, costs, tool calls and state progress are written only by the
+-- server with service_role (human approval goes through a server route that
+-- passes the session user as actor; see spec section 4).
 create policy mission_events_member_insert on public.mission_events for insert to authenticated
-  with check (exists (select 1 from public.workspace_members m
+  with check (event_type in ('mission_queued','mission_cancelled','approval_rejected') and exists (select 1 from public.workspace_members m
     where m.workspace_id = mission_events.workspace_id and m.user_id = (select auth.uid())));
 
 -- Derived approval status per grant (security_invoker: caller's RLS applies).
