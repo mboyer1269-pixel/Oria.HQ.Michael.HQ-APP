@@ -6,7 +6,6 @@ import path from "node:path";
 import type { MemoryEntry } from "./memory-graph";
 import { normalizeMemoryId, parseMemoryEntryMarkdown } from "./memory-graph";
 import type { MemoryVaultEntry } from "./memory-vault-types";
-import { DEFAULT_WORKSPACE_SLUG } from "@/core/workspaces/registry";
 
 // ---------------------------------------------------------------------------
 // FILE-BACKED MEMORY VAULT (v0.1)
@@ -43,14 +42,21 @@ async function collectMarkdownFiles(dir: string): Promise<string[]> {
 }
 
 /**
- * Workspace owning a file entry: frontmatter `workspace:` when present,
- * otherwise the repo's default workspace (legacy entries predate scoping).
+ * Workspace owning a file entry, or null when undeclared.
+ *
+ * Canonical key: the workspace slug, which is exactly `ctx.workspace.id`
+ * (workspace-context.ts sets `id: config.slug`; registry.ts getDefaultWorkspace
+ * sets `id: ACTIVE_WORKSPACE_CONFIG.slug`). Comparison is exact and
+ * case-sensitive.
+ *
+ * Fail-closed: no frontmatter, no `workspace:` key, or an empty value returns
+ * null and the file is excluded from every workspace.
  */
-export function fileEntryWorkspaceId(raw: string): string {
+export function fileEntryWorkspaceId(raw: string): string | null {
   const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  const line = fm?.[1].match(/^workspace\s*:\s*(.+)$/im);
+  const line = fm?.[1].match(/^workspace[ \t]*:[ \t]*(.*)$/m);
   const value = line?.[1].trim();
-  return value ? value : DEFAULT_WORKSPACE_SLUG;
+  return value ? value : null;
 }
 
 /**
@@ -72,7 +78,12 @@ export async function loadFileVaultEntries(workspaceId: string): Promise<MemoryE
   for (const file of files) {
     try {
       const raw = await fs.readFile(file, "utf8");
-      if (fileEntryWorkspaceId(raw) !== workspaceId) continue;
+      const owner = fileEntryWorkspaceId(raw);
+      if (owner === null) {
+        console.warn(`[memory-file-vault] excluded (no workspace frontmatter): ${path.basename(file)}`);
+        continue;
+      }
+      if (owner !== workspaceId) continue;
       const relativePath = path.relative(process.cwd(), file).split(path.sep).join("/");
       const entry = parseMemoryEntryMarkdown(raw, relativePath);
       if (entry) entries.push(entry);

@@ -13,9 +13,8 @@ import {
 import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { MemoryVaultExplorer } from "@/features/memory/components/memory-vault-explorer";
 import { MemoryWritePanel } from "@/features/memory/components/memory-write-panel";
-import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { authzIdentity, requireOwnerAccess } from "@/server/auth/owner";
-import { resolveAuthzContext } from "@/server/auth/authz-context";
+import { resolveMemoryWorkspace } from "@/server/memory/resolve-memory-workspace";
 import {
   buildChainlineGraph,
   buildMemoryGraph,
@@ -109,13 +108,13 @@ export default async function MemoryPage() {
 
   // Workspace is derived server-side from the authenticated session (same
   // resolution as the workspace API routes) — never trusted from the client.
-  const identity = authzIdentity(access.user);
-  const ctx = getActiveWorkspaceContext({
-    ...resolveAuthzContext(identity),
-    email: identity.email,
-    emailVerified: identity.emailVerified,
-  });
-  const workspaceId = ctx.workspace.id;
+  // No resolvable workspace (WorkspaceAccessError) renders a denied state
+  // instead of crashing the page.
+  const resolved = resolveMemoryWorkspace(authzIdentity(access.user));
+  if (resolved.status === "no-workspace") {
+    return <OwnerAccessDenied email={access.user.email} message={resolved.message} />;
+  }
+  const workspaceId = resolved.workspaceId;
   const pendingProposals = listPendingProposals(workspaceId);
 
   const vaultEntries = listAllVaultEntriesForWorkspace(workspaceId);
