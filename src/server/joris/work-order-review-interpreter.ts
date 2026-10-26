@@ -24,6 +24,7 @@ import type {
 } from "../agents/work-order-review-contract";
 
 import type { ApprovalGate } from "../agents/agent-profile-contract";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // Input / Output types
@@ -323,7 +324,7 @@ export function createBlockedExecutionReviewResult(
       `En tant que CEO / Workflow Owner, tu peux approuver pour planification, demander des modifications, rejeter, ou poser des questions.`,
       `Aucune exécution directe ne peut être autorisée via un Work Order Review.`,
       ``,
-      `💡 *Human-on-the-Loop : Cette protection garantit que Joris ne peut jamais exécuter, publier, déployer, contacter ou dépenser sans un workflow de validation complet.*`,
+      `💡 *Human-on-the-Loop : Cette protection garantit que ${ORCHESTRATOR_DISPLAY_NAME} ne peut jamais exécuter, publier, déployer, contacter ou dépenser sans un workflow de validation complet.*`,
     ].join("\n"),
     issues: [{
       code: "blocked_execution_request",

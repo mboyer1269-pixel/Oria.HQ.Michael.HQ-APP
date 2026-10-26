@@ -24,6 +24,7 @@ import {
   type ServerCapabilityCatalog,
   type ServerEmissionAssessment,
 } from "@/server/ai/server-capability-catalog";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../features/agents/orchestrator-display";
 
 export type ModelRouteInput = {
   /** Binding-aware callers log the actual target at dispatch instead. */
@@ -212,7 +213,7 @@ function routeByKeywords(input: ModelRouteInput): RouteCandidate | null {
     return {
       modelId: PREMIUM_MODEL_ID,
       mode: resolveMode(mode, "brute"),
-      reason: "Demande à fort impact business: on privilégie le jugement et le ton de Joris.",
+      reason: `Demande à fort impact business: on privilégie le jugement et le ton de ${ORCHESTRATOR_DISPLAY_NAME}.`,
       via: "keyword",
     };
   }
@@ -266,7 +267,7 @@ function routeBySemanticFallback(message: string): RouteCandidate {
   return {
     modelId: ECONOMY_MODEL_ID,
     mode: "economy",
-    reason: "Tâche simple ou opérationnelle: Joris économise le budget IA.",
+    reason: `Tâche simple ou opérationnelle: ${ORCHESTRATOR_DISPLAY_NAME} économise le budget IA.`,
     via: "default",
   };
 }

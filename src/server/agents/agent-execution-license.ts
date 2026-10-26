@@ -63,6 +63,7 @@ export const agentLicenseRegistry: AgentExecutionLicense[] = [
   // ── Joris -- Director / Mission Router ──────────────────────────────────
   {
     agentId: ORCHESTRATOR_AGENT_ID,
+    // eslint-disable-next-line no-restricted-syntax -- license registry label; module is loaded by raw-TS tests that cannot resolve the naming layer
     label: "Joris -- Director",
     defaultZone: "green",
     allowedTools: ["calendar.book", "brief.generate", "mission.plan", "board.consult"],

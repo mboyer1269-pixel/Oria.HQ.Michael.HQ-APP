@@ -2,6 +2,7 @@ import { validateWorkOrder, type WorkOrder, type WorkOrderValidationResult } fro
 import { ApprovalGate } from "../agents/agent-profile-contract";
 import { BoosterType } from "../agents/booster-contract";
 import { ORCHESTRATOR_AGENT_ID } from "../../config/agents/orchestrator.ts";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../features/agents/orchestrator-display";
 
 export interface MissionRouterResult {
   workOrder: WorkOrder;
@@ -79,6 +80,7 @@ export function routeMissionRequest(
       nextAction: { description: "Draft landing page copy", actor: "revenue-operator" },
       businessValue: { valueType: "revenue", expectedValue: 1000, currency: "EUR", confidence: "medium" },
       status: "draft",
+      // eslint-disable-next-line no-restricted-syntax -- persisted WorkOrderCreatedByType category value
       createdByType: "joris",
       createdById: ORCHESTRATOR_AGENT_ID,
       requestedById: userId,
@@ -109,6 +111,7 @@ export function routeMissionRequest(
       nextAction: { description: "Write initial implementation", actor: "product-builder" },
       businessValue: { valueType: "activation", confidence: "high" },
       status: "draft",
+      // eslint-disable-next-line no-restricted-syntax -- persisted WorkOrderCreatedByType category value
       createdByType: "joris",
       createdById: ORCHESTRATOR_AGENT_ID,
       requestedById: userId,
@@ -139,6 +142,7 @@ export function routeMissionRequest(
       nextAction: { description: "Gather data sources", actor: "innovation-scout" },
       businessValue: { valueType: "learning", confidence: "high" },
       status: "draft",
+      // eslint-disable-next-line no-restricted-syntax -- persisted WorkOrderCreatedByType category value
       createdByType: "joris",
       createdById: ORCHESTRATOR_AGENT_ID,
       requestedById: userId,
@@ -162,12 +166,13 @@ export function routeMissionRequest(
       nextAction: { description: "Ask user for clarification", actor: ORCHESTRATOR_AGENT_ID },
       businessValue: { valueType: "learning", confidence: "low" },
       status: "draft",
+      // eslint-disable-next-line no-restricted-syntax -- persisted WorkOrderCreatedByType category value
       createdByType: "joris",
       createdById: ORCHESTRATOR_AGENT_ID,
       requestedById: userId,
       createdAt: new Date().toISOString(),
     };
-    summary = "Demande générique. Voici un brouillon de Mission de clarification bas risque. Joris reste le propriétaire.";
+    summary = `Demande générique. Voici un brouillon de Mission de clarification bas risque. ${ORCHESTRATOR_DISPLAY_NAME} reste le propriétaire.`;
   }
 
   return {

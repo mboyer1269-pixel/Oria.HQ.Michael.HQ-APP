@@ -23,7 +23,7 @@ interface CockpitTopbarProps {
 export function CockpitTopbar({ crumb, userInitial }: CockpitTopbarProps) {
   const { language, setLanguage, mounted } = useUILanguage();
   // Before mount: use default FR copy (stable, matches SSR).
-  const copy = getUICopy(mounted ? language : "fr");
+  const copy = getUICopy(mounted ? language : "fr", ORCHESTRATOR_DISPLAY_NAME);
 
   return (
     <header className="sticky top-0 z-30 flex items-center gap-2 md:gap-3.5 border-b border-white/[0.06] bg-[#080b16]/75 px-3 md:px-5 py-3 backdrop-blur-xl">

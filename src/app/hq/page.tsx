@@ -168,9 +168,9 @@ export default async function HqPage() {
                   <CheckCircle2 className="h-4 w-4" />
                   Workspace Michael HQ actif
                 </div>
-                <div className="flex items-center gap-2 text-amber-300">
+                <div className="flex items-center gap-2 text-neutral-400">
                   <Bot className="h-4 w-4" />
-                  {ORCHESTRATOR_DISPLAY_NAME} branché au contexte actif
+                  {ORCHESTRATOR_DISPLAY_NAME} · état de connexion non instrumenté
                 </div>
                 <div className="flex items-center gap-2 text-neutral-400">
                   <CalendarCheck className="h-4 w-4" />
@@ -182,7 +182,9 @@ export default async function HqPage() {
           </div>
           <div className="mt-4 grid gap-2">
             <HqMetric label="Workspace" value="actif" tone="emerald" />
-            <HqMetric label={ORCHESTRATOR_DISPLAY_NAME} value="branché" tone="amber" />
+            {/* No live health/connection signal exists for the orchestrator yet: show an
+                honest state instead of a fabricated "branché". */}
+            <HqMetric label={ORCHESTRATOR_DISPLAY_NAME} value="non instrumenté" tone="neutral" />
             <HqMetric label="Runtime" value="verrouillé" tone="violet" />
           </div>
           <form action={signOutAction} className="mt-5">

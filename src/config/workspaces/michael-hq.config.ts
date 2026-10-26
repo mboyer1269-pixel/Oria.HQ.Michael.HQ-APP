@@ -16,7 +16,9 @@ export const MICHAEL_HQ_WORKSPACE_CONFIG: WorkspaceConfig = {
   slug: "michael-hq",
   displayName: "Michael HQ",
   defaultModeId: "hq",
+  // eslint-disable-next-line no-restricted-syntax -- workspace config: canonical declaration of the default assistant id/name
   defaultAssistantId: "joris",
+  // eslint-disable-next-line no-restricted-syntax -- workspace config: canonical declaration of the default assistant id/name
   defaultAssistantName: "Joris",
   defaultAssistantRuntimeId: "joris-brain",
   defaultAssistantAllowedTools: ["calendar.book", "brief.generate"],

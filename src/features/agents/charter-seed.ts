@@ -13,6 +13,7 @@ import type { AgentCharter } from "./agent-charter";
 export const charterRegistry: AgentCharter[] = [
   // ── Joris — orchestrateur ────────────────────────────────────────────────
   {
+    // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
     agentId: "joris",
     mission:
       "Transformer chaque intention du CEO en mission gouvernée, routée au bon module, tracée au ledger — zéro action hors mandat.",
@@ -104,6 +105,7 @@ export const charterRegistry: AgentCharter[] = [
       operatingPrinciples: [
         "Un livrable sans SOP est un coût répété ; documenter en exécutant.",
         "Préparer l'envoi parfaitement, laisser le clic final au CEO (Send Desk, mode ceo_single_send).",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         "Si la mission dévie du mandat initial, suspendre et remonter à Joris.",
       ],
       prioritization: [
@@ -117,6 +119,7 @@ export const charterRegistry: AgentCharter[] = [
       {
         id: "relay-sop-from-mission",
         title: "Mission exécutée → SOP",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         trigger: "Mission opérationnelle confirmée par Joris",
         businessReason:
           "Chaque processus documenté est un processus délégable — le temps CEO récupéré est le premier ROI du HQ.",
@@ -134,6 +137,7 @@ export const charterRegistry: AgentCharter[] = [
         inputs: ["Observations d'exécution", "SOPs existants"],
         outputs: ["Carte de workflow : étapes, owners, points de friction"],
         validation: "Validation CEO de la carte avant toute automatisation",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         nextAction: "Proposition d'automatisation soumise à Joris",
         skillIds: ["workflow.map"],
       },
@@ -147,6 +151,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "relay-mission-completion", label: "Missions confirmées livrées", target: "≥ 95 %" },
     ],
     escalation:
+      // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
       "Action externe (niveau 4-5), credentials, schéma DB → retour immédiat à Joris avec contexte.",
   },
 
@@ -173,10 +178,12 @@ export const charterRegistry: AgentCharter[] = [
       {
         id: "radar-weekly-scan",
         title: "Scan marché hebdomadaire",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         trigger: "Cadence hebdomadaire ou demande Joris",
         businessReason: "Le pipeline revenu commence par la détection — pas de scan, pas de deals.",
         inputs: ["Sources marché", "Critères ICP par venture"],
         outputs: ["Top opportunités scorées avec source et fenêtre d'action"],
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         validation: "Revue Joris ; seules les opportunités scorées entrent au brief",
         nextAction: "Opportunités retenues transmises à Lab (concept) ou Relay (préparation)",
         skillIds: ["opportunity.scan"],
@@ -201,6 +208,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "radar-qualified-opps", label: "Opportunités qualifiées / semaine", target: "≥ 3" },
       { id: "radar-signal-precision", label: "Opportunités jugées utiles par le CEO", target: "≥ 60 %" },
     ],
+    // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
     escalation: "Toute action de contact ou décision d'engagement → Joris. Détection seulement.",
   },
 
@@ -233,6 +241,7 @@ export const charterRegistry: AgentCharter[] = [
         inputs: ["Mission candidate", "Autonomy matrix", "Historique ledger"],
         outputs: ["Verdict Green/Yellow/Red motivé + conditions de déblocage"],
         validation: "Sign-off requis avant tout live executor unlock (rôle bloquant)",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         nextAction: "Green → exécution autorisée ; Yellow/Red → retour à Joris avec conditions",
         skillIds: ["risk.review"],
       },
@@ -288,6 +297,7 @@ export const charterRegistry: AgentCharter[] = [
         inputs: ["Décision et contexte", "Références ledger"],
         outputs: ["Entrée vault `decision` liée à sa source et sa prochaine action"],
         validation: "Conventions vault respectées (detectDuplicateMemory, liens, frontmatter)",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         nextAction: "Entrée candidate au learning loop → leçons vérifiées → lessons rail de Joris",
         skillIds: ["memory.save"],
       },
@@ -299,6 +309,7 @@ export const charterRegistry: AgentCharter[] = [
         inputs: ["Activité du jour (missions, ledger, décisions)"],
         outputs: ["Daily log structuré : fait, décidé, appris, bloqué"],
         validation: "Lecture au brief du lendemain",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         nextAction: "Points bloqués remontés dans le CEO Brief de Joris",
         skillIds: ["daily.log"],
       },
@@ -322,6 +333,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "scribe-decision-coverage", label: "Décisions capturées sous 24 h", target: "100 %" },
       { id: "scribe-orphan-rate", label: "Entrées vault orphelines", target: "< 5 %" },
     ],
+    // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
     escalation: "Contenu sensible (secrets, credentials) détecté → jamais écrit au vault, signalé à Joris.",
   },
 
@@ -353,6 +365,7 @@ export const charterRegistry: AgentCharter[] = [
         inputs: ["Données cash", "Coûts IA par modèle/agent"],
         outputs: ["Snapshot : position, burn, runway, top variations"],
         validation: "Chiffres rapprochés des sources ; écarts signalés explicitement",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         nextAction: "Intégré au CEO Brief de Joris ; alertes si seuil franchi",
         skillIds: ["cash.snapshot"],
       },
@@ -431,6 +444,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "forge-spec-rework", label: "Specs livrées sans rework majeur", target: "≥ 80 %" },
       { id: "forge-mvp-cycle", label: "Concept validé → plan MVP", target: "< 7 jours" },
     ],
+    // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
     escalation: "Déploiement, publication, dépendance externe payante → approbation CEO via Joris.",
   },
 
@@ -457,6 +471,7 @@ export const charterRegistry: AgentCharter[] = [
       {
         id: "validation-demand-check",
         title: "Demand-check marché",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         trigger: "Brief Joris avant allocation budget Engineering",
         businessReason:
           "Les concurrents échouent en exécutant sans valider — le demand-check protège le runway.",
@@ -475,6 +490,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "validation-coverage", label: "Missions build précédées d'un demand-check", target: "100 %" },
       { id: "validation-kill-rate", label: "Verdicts kill/iterate honnêtes (non-biais proceed)", target: "observé" },
     ],
+    // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
     escalation: "Ambiguïté de marché ou pression à builder sans preuve → stop et question CEO via Joris.",
   },
 
@@ -501,6 +517,7 @@ export const charterRegistry: AgentCharter[] = [
       {
         id: "engineering-portable-package",
         title: "Paquet IaC portable",
+        // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
         trigger: "Brief Joris après Validation proceed (ou mandat CEO direct)",
         businessReason:
           "Le lock-in est le coût caché des plateformes agents — le paquet portable rend le client propriétaire.",
@@ -519,6 +536,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "engineering-portable-rate", label: "Paquets sans dépendance runtime Oria", target: "100 %" },
       { id: "engineering-approval-gate", label: "Livraisons précédées d'un APPROVE CEO", target: "100 %" },
     ],
+    // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
     escalation: "Toute demande de deploy cloud / push GitHub autonome → refuse et remonte à Joris/CEO.",
   },
 
@@ -683,6 +701,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "lab-scored-pipeline", label: "Opportunités scorées en pipeline", target: "≥ 5" },
       { id: "lab-kill-discipline", label: "Concepts écartés avec raison documentée", target: "100 %" },
     ],
+    // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
     escalation: "Engagement financier, contact partenaire, lancement externe → niveau 5, CEO via Joris.",
   },
 
@@ -754,6 +773,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "concierge-send-governance", label: "Réponses parties sans approbation", target: "0" },
     ],
     escalation:
+      // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
       "Client mécontent à risque (litige, remboursement, menace publique) → escalade immédiate CEO via Joris ; jamais de geste commercial autonome.",
   },
 
@@ -813,6 +833,7 @@ export const charterRegistry: AgentCharter[] = [
       { id: "checkpoint-review-latency", label: "Livrable prêt → verdict", target: "< 24h" },
     ],
     escalation:
+      // eslint-disable-next-line no-restricted-syntax -- charter seed data (persisted agentId / charter content)
       "Désaccord avec l'agent producteur ou preuve invérifiable → arbitrage CEO via Joris ; jamais de blocage silencieux.",
   },
 ];

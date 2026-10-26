@@ -27,6 +27,7 @@ const createEventSchema = z
     dateISO: dateSchema,
     startTime: timeSchema,
     endTime: timeSchema,
+    // eslint-disable-next-line no-restricted-syntax -- persisted calendar source enum value
     source: z.enum(["api", "internal", "joris"]).default("api"),
     remindersMinutes: z.array(z.number().int().min(0).max(10080)).max(5).default([60, 15]),
     notes: z.string().trim().max(2000).optional(),

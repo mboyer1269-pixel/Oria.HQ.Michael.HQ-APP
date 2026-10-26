@@ -5,6 +5,7 @@
 
 import type { MemoryEvidencePack } from "@/server/agents/evidence/memory-evidence-pack";
 import type { MemexContextEnrichmentTrace } from "@/server/joris/memex-context-source";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../features/agents/orchestrator-display";
 
 export type MemexMemoryEvidenceConfidence = "none" | "low" | "medium" | "high";
 
@@ -50,10 +51,10 @@ export function summarizeMemexMemoryEvidence(input: {
   const limitations = [...BASE_LIMITATIONS];
 
   if (!pack) {
-    limitations.push("No Memex memory was injected; Joris must rely on existing memory rails.");
+    limitations.push(`No Memex memory was injected; ${ORCHESTRATOR_DISPLAY_NAME} must rely on existing memory rails.`);
   }
   if (pack && pack.redactionsApplied > 0) {
-    limitations.push("Sensitive-looking values were redacted before reaching Joris.");
+    limitations.push(`Sensitive-looking values were redacted before reaching ${ORCHESTRATOR_DISPLAY_NAME}.`);
   }
   if (pack && pack.conflicts.length > 0) {
     limitations.push("Conflicting memories were marked and must not be merged silently.");

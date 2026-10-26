@@ -15,6 +15,7 @@
 import { MICHAEL_HQ_WORKSPACE_CONFIG } from "../workspaces/michael-hq.config.ts";
 
 /** Historical orchestrator id; used only when the config provides none. */
+// eslint-disable-next-line no-restricted-syntax -- config source: historical fallback orchestrator id
 const FALLBACK_ORCHESTRATOR_AGENT_ID = "joris";
 
 export const ORCHESTRATOR_AGENT_ID: string =

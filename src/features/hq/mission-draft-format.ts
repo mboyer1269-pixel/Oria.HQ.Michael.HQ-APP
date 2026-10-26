@@ -1,4 +1,5 @@
 import type { CalendarEvent, CommandResult, MissionDraftPreview } from "@/features/hq/types";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../agents/orchestrator-display";
 
 export const MISSION_DRAFT_CHANGED_EVENT = "michael-hq:mission-draft-changed";
 
@@ -138,7 +139,7 @@ export function mapConfirmDraftResponse(body: Pick<
       outcome: "unavailable",
       message:
         summary ||
-        "La proposition calendrier a expiré. Demande un nouveau rendez-vous via Joris.",
+        `La proposition calendrier a expiré. Demande un nouveau rendez-vous via ${ORCHESTRATOR_DISPLAY_NAME}.`,
     };
   }
 

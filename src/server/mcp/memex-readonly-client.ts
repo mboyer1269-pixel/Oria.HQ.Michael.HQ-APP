@@ -31,6 +31,7 @@ import {
   type MemoryEvidencePack,
   type MemoryTrustLevel,
 } from "@/server/agents/evidence/memory-evidence-pack";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // Environment gate — local stdio only; cloud never spawns Memex by default
@@ -78,7 +79,7 @@ export function resolveMemexExecutionEnvironment(
     return {
       spawnAllowed: false,
       kind: "cloud",
-      reason: `cloud marker "${cloudMarker}" — Memex stdio stays unavailable; Joris uses existing context only`,
+      reason: `cloud marker "${cloudMarker}" — Memex stdio stays unavailable; ${ORCHESTRATOR_DISPLAY_NAME} uses existing context only`,
     };
   }
   if (typeof env[MEMEX_CORE_ROOT_ENV_VAR] !== "string" || env[MEMEX_CORE_ROOT_ENV_VAR]!.trim() === "") {

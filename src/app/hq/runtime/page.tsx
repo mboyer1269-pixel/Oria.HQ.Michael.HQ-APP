@@ -203,6 +203,7 @@ export default async function RuntimePage({
       .map(([id, eventCount]) => ({ id, label: id, eventCount }));
     flowData = {
       agents: knownAgents.length > 0 ? knownAgents : [
+        // eslint-disable-next-line no-restricted-syntax -- runtime filter id matches the persisted event source value
         { id: "joris", label: ORCHESTRATOR_DISPLAY_NAME, eventCount: 0 },
         { id: "agent_hermes", label: "Relay", eventCount: 0 },
       ],

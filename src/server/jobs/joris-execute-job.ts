@@ -51,6 +51,7 @@ export function resolveJorisJobContext(data: JorisExecuteEventData) {
 export const jorisExecuteJob = inngest.createFunction(
   {
     id: "joris-execute",
+    // eslint-disable-next-line no-restricted-syntax -- Inngest job registration name (persisted)
     name: "Joris — Execute Command",
     retries: 2,
     // Timeout covers long LLM chains (board.consult, multi-step agents).

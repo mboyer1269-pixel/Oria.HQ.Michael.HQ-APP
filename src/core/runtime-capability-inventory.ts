@@ -1,3 +1,4 @@
+import { ORCHESTRATOR_DISPLAY_NAME } from "../features/agents/orchestrator-display";
 // src/core/runtime-capability-inventory.ts
 //
 // The hand-authored inventory of executors inside a DECLARED SCOPE, the effect
@@ -334,17 +335,17 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
   },
   {
     id: "joris_memex_context_lookup",
-    label: "Joris · contexte Memex local",
+    label: `${ORCHESTRATOR_DISPLAY_NAME} · contexte Memex local`,
     executorKey: "enrichJorisMemoryContextWithMemex",
     effect: "external_call",
     gate: "owner_session",
     detail:
-      "Quand le pont local est explicitement activé, chaque message Joris peut démarrer le serveur MCP Memex en stdio et y lire du contexte. Le transport reste local et lecture seule.",
+      `Quand le pont local est explicitement activé, chaque message ${ORCHESTRATOR_DISPLAY_NAME} peut démarrer le serveur MCP Memex en stdio et y lire du contexte. Le transport reste local et lecture seule.`,
     evidence: {
       path: "src/server/mcp/memex-stdio-transport.ts",
       mustContain: "client.callTool(",
       because:
-        "The Joris brain reaches this MCP client through memex-context-source. The official stdio transport spawns a local process and calls a read-only Memex tool.",
+        `The ${ORCHESTRATOR_DISPLAY_NAME} brain reaches this MCP client through memex-context-source. The official stdio transport spawns a local process and calls a read-only Memex tool.`,
     },
     covers: [
       "src/server/joris/brain.ts",
@@ -354,11 +355,11 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
   },
   {
     id: "memex_http_read",
-    label: "HQ / Joris · lecture Memex distante",
+    label: `HQ / ${ORCHESTRATOR_DISPLAY_NAME} · lecture Memex distante`,
     executorKey: null,
     effect: "external_call",
     gate: "owner_session",
-    detail: "Pont HTTP opt-in, credential read_only limité au workspace. Consultation manuelle ou contexte Joris ; aucun droit de publication.",
+    detail: `Pont HTTP opt-in, credential read_only limité au workspace. Consultation manuelle ou contexte ${ORCHESTRATOR_DISPLAY_NAME} ; aucun droit de publication.`,
     evidence: { path: "src/server/mcp/memex-http-rpc.ts", mustContain: "await fetcher(", because: "Bounded HTTP wire reached through the separately gated read transport." },
     covers: ["src/server/mcp/memex-http-transport.ts", "src/app/api/memory/search/route.ts", "src/app/api/memory/search/search-handler.ts"],
   },
@@ -384,17 +385,17 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
   },
   {
     id: "joris_public_inventory_sync",
-    label: "Joris / Sales · synchronisation d'inventaire public",
+    label: `${ORCHESTRATOR_DISPLAY_NAME} / Sales · synchronisation d'inventaire public`,
     executorKey: "syncPublicInventory",
     effect: "external_call",
     gate: "owner_session",
     detail:
-      "Télécharge les pages d'inventaire Buckingham allowlistées. Joris peut le déclencher depuis le chat, tout comme la route propriétaire du Sales Desk.",
+      `Télécharge les pages d'inventaire Buckingham allowlistées. ${ORCHESTRATOR_DISPLAY_NAME} peut le déclencher depuis le chat, tout comme la route propriétaire du Sales Desk.`,
     evidence: {
       path: "src/server/inventory/public-inventory-sync.ts",
       mustContain: "fetchImpl(url,",
       because:
-        "The sync service performs the injected-or-global fetch. Its callers are owner-authenticated routes and Joris intents behind the owner chat session.",
+        `The sync service performs the injected-or-global fetch. Its callers are owner-authenticated routes and ${ORCHESTRATOR_DISPLAY_NAME} intents behind the owner chat session.`,
     },
     covers: [
       "src/app/api/inventory/sync/route.ts",
@@ -405,17 +406,17 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
   },
   {
     id: "joris_market_advantage_brief",
-    label: "Joris / Sales · comparables AutoTrader",
+    label: `${ORCHESTRATOR_DISPLAY_NAME} / Sales · comparables AutoTrader`,
     executorKey: "fetchMarketAdvantageBrief",
     effect: "external_call",
     gate: "owner_session",
     detail:
-      "Télécharge une recherche AutoTrader allowlistée pour produire un brief marché. Un message Joris ciblé ou la route propriétaire peut lancer cet appel.",
+      `Télécharge une recherche AutoTrader allowlistée pour produire un brief marché. Un message ${ORCHESTRATOR_DISPLAY_NAME} ciblé ou la route propriétaire peut lancer cet appel.`,
     evidence: {
       path: "src/server/market/fetch-market-comps.ts",
       mustContain: "fetchImpl(url,",
       because:
-        "The market brief service performs the injected-or-global fetch and is called directly by the owner route and by Joris inventory-market intents.",
+        `The market brief service performs the injected-or-global fetch and is called directly by the owner route and by ${ORCHESTRATOR_DISPLAY_NAME} inventory-market intents.`,
     },
     covers: [
       "src/app/api/sales/market-brief/route.ts",
@@ -424,17 +425,17 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
   },
   {
     id: "joris_marketplace_vdp_enrichment",
-    label: "Joris / Marketplace · enrichissement photo VDP",
+    label: `${ORCHESTRATOR_DISPLAY_NAME} / Marketplace · enrichissement photo VDP`,
     executorKey: "prepareMarketplaceListing",
     effect: "external_call",
     gate: "owner_session",
     detail:
-      "La préparation d'une fiche Marketplace télécharge par défaut la VDP allowlistée pour compléter ses photos. Joris peut déclencher cette préparation depuis le chat.",
+      `La préparation d'une fiche Marketplace télécharge par défaut la VDP allowlistée pour compléter ses photos. ${ORCHESTRATOR_DISPLAY_NAME} peut déclencher cette préparation depuis le chat.`,
     evidence: {
       path: "src/server/inventory/vdp-photo-enrich.ts",
       mustContain: "fetchImpl(check.normalizedUrl,",
       because:
-        "prepareMarketplaceListing calls this injected-or-global fetch by default. Both the API route and the Joris listing intent require the owner session.",
+        `prepareMarketplaceListing calls this injected-or-global fetch by default. Both the API route and the ${ORCHESTRATOR_DISPLAY_NAME} listing intent require the owner session.`,
     },
     covers: [
       "src/app/api/marketplace/listings/route.ts",
@@ -643,7 +644,7 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
   },
   {
     id: "joris_reply_generation",
-    label: "Joris · génération de réponse",
+    label: `${ORCHESTRATOR_DISPLAY_NAME} · génération de réponse`,
     executorKey: "/api/joris/chat",
     effect: "external_call",
     gate: "owner_session",

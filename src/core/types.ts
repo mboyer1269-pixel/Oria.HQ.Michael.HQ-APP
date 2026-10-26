@@ -374,6 +374,7 @@ export type CalendarIntent = {
   notes?: string;
 };
 
+// eslint-disable-next-line no-restricted-syntax -- persisted CalendarEventSource enum value
 export type CalendarEventSource = "api" | "internal" | "joris";
 
 export type CalendarStorageMode = "local" | "supabase";

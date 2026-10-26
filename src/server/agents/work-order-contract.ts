@@ -105,6 +105,7 @@ export interface WorkOrderValidationTest {
 // Provenance Types
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line no-restricted-syntax -- persisted WorkOrderCreatedByType category value
 export type WorkOrderCreatedByType = "human" | "joris" | "agent" | "system";
 
 // ---------------------------------------------------------------------------

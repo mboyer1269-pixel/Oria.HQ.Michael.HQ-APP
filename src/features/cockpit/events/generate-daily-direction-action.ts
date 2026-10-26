@@ -13,6 +13,7 @@ import {
   projectTodayDailyDirection,
   type DailyDirectionProjection,
 } from "./daily-direction-projection";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../agents/orchestrator-display";
 
 export type GenerateDailyDirectionState =
   | { status: "idle" }
@@ -68,7 +69,7 @@ export async function generateDailyDirectionAction(): Promise<GenerateDailyDirec
   if (!result.ok) {
     return {
       status: "error",
-      message: `Joris n'a pas pu générer la direction : ${result.reason}`,
+      message: `${ORCHESTRATOR_DISPLAY_NAME} n'a pas pu générer la direction : ${result.reason}`,
     };
   }
 

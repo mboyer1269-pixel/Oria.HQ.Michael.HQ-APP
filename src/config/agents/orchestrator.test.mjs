@@ -21,3 +21,12 @@ test("orchestrator id config keeps default behaviour ('joris')", async () => {
   assert.ok(license.agentLicenseRegistry.some((l) => l.agentId === "joris"));
   assert.equal(display.ORCHESTRATOR_DISPLAY_NAME, "Joris");
 });
+
+test("cockpit topbar copy interpolates the orchestrator display name (no hard-coded name)", async () => {
+  const { createJiti } = await import("jiti");
+  const jiti = createJiti(import.meta.url, { alias: { "@": path.join(projectRoot, "src") } });
+  const copy = await jiti.import(path.join(projectRoot, "src/features/hq/i18n/ui-copy.ts"));
+  assert.equal(copy.getUICopy("fr").jorisBadge, "Joris · assistant");
+  assert.equal(copy.getUICopy("fr", "Ava").jorisBadge, "Ava · assistant");
+  assert.match(copy.getUICopy("en", "Ava").jorisTooltip, /^Ava powers/);
+});

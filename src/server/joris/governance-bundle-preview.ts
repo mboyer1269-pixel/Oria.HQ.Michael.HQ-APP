@@ -47,6 +47,7 @@ import {
   createWorkOrderGovernanceBundleSummary,
   hasForbiddenGovernanceBundleFields,
 } from "../agents/work-order-governance-bundle";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // Input / Output types
@@ -231,7 +232,7 @@ export function formatJorisGovernanceBundlePreview(
     "#### 🔍 Validation",
     ...validationLines,
     "",
-    "💡 *Aperçu Joris — Human-on-the-Loop : aucun appel à un système externe, " +
+    `💡 *Aperçu ${ORCHESTRATOR_DISPLAY_NAME} — Human-on-the-Loop : aucun appel à un système externe, ` +
       "aucune écriture en base, aucun déclenchement runtime n'a été effectué. " +
       "approve_to_plan reste de la planification uniquement, jamais une autorisation d'exécution.*",
   ].join("\n");

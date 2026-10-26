@@ -233,6 +233,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
       const data = (await response.json()) as ChatResponse & ErrorResponse;
 
       if (!response.ok) {
+        // eslint-disable-next-line no-restricted-syntax -- internal 'Joris API <status>' error token matched by regex in toUserError, never shown
         throw new Error(data.error ?? `Joris API ${response.status}`);
       }
 

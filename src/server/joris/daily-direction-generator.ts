@@ -59,6 +59,7 @@ export type DailyDirectionGeneratorResult =
 // Prompts
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line no-restricted-syntax -- LLM system prompt persona (prompt content)
 const JORIS_DAILY_DIRECTION_SYSTEM = `Tu es Joris, l'operating partner de Michael Boyer.
 Ta mission ici est unique et précise : générer la direction quotidienne à partir des events réels fournis.
 

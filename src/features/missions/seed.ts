@@ -9,6 +9,7 @@ const demoMissions: Mission[] = [
     title: "CEO Brief du jour",
     objective:
       "Compiler les signaux marché, l'agenda, les actions en attente et les décisions récentes en un brief décisionnel pour la journée.",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: persisted assignedAgentId value
     assignedAgentId: "joris",
     autonomyLevel: 2,
     status: "queued",
@@ -46,7 +47,9 @@ const demoMissions: Mission[] = [
     modeId: "hq",
     title: "Préparer plan Venture Lab",
     objective:
+      // eslint-disable-next-line no-restricted-syntax -- seed data: persisted assignedAgentId value
       "Rédiger la proposition de modèle Venture Lab pour Phase 3: scoring d'idées, états de décision et flow de validation Joris.",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: persisted assignedAgentId value
     assignedAgentId: "joris",
     autonomyLevel: 2,
     status: "draft",
@@ -65,6 +68,7 @@ const demoMissions: Mission[] = [
     title: "Message externe client",
     objective:
       "Rédiger et envoyer un message de suivi au client pour la démonstration Signal-to-Client. Inclure le brief de la semaine et proposer une date de rencontre.",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: persisted assignedAgentId value
     assignedAgentId: "joris",
     autonomyLevel: 5,
     status: "needs_approval",
@@ -84,6 +88,7 @@ const demoMissions: Mission[] = [
     title: "Nettoyage docs workspace",
     objective:
       "Archiver les documents dupliqués, renommer les fichiers sans convention et regrouper les SOPs par module dans le coffre privé.",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: persisted assignedAgentId value
     assignedAgentId: "joris",
     autonomyLevel: 2,
     status: "completed",

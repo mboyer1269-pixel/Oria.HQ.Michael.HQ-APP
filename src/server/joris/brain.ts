@@ -62,6 +62,7 @@ import {
   withMemexEvidencePreview,
 } from "@/server/joris/memex-memory-evidence-summary";
 import type { MemoryVaultReadResult } from "@/server/memory/memory-vault-types";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../features/agents/orchestrator-display";
 
 const DEFAULT_GOVERNANCE_AUDIT_LIMIT = 500;
 
@@ -132,7 +133,7 @@ function buildVaultContextNote(vault: MemoryVaultReadResult): string | null {
 
 function buildFallbackSummary(intent: JorisIntent, message: string) {
   if (intent === "board.consult") {
-    return "Je vais traiter ça comme une décision stratégique: Board activé, synthèse par Joris, puis une seule action prioritaire. La connexion modèle premium sera branchée côté serveur ensuite.";
+    return `Je vais traiter ça comme une décision stratégique: Board activé, synthèse par ${ORCHESTRATOR_DISPLAY_NAME}, puis une seule action prioritaire. La connexion modèle premium sera branchée côté serveur ensuite.`;
   }
 
   if (intent === "opportunity.score") {
