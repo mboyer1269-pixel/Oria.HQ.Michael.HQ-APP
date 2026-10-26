@@ -5,6 +5,7 @@
 const SCOUT = ".agents/skills/orya-innovation-scout/SKILL.md";
 const PLANNER = ".agents/skills/orya-pr-planner/SKILL.md";
 const CHARTER = "src/features/agents/charter-seed.ts";
+const LOCK = "src/scripts/ci/vendored-skills.lock.json";
 const BOUNDARY_IDS = 'rules: ["R-SCOUT-READ-ONLY", "R-ZONE-RED", "R-NO-SECRETS", "R-NO-DEPLOY", "R-NO-PROD-ACCESS", "R-ESCALATE-RED"]';
 
 const insertAfter = (anchor, add) => (t) => {
@@ -58,5 +59,35 @@ export const CASES = [
     name: "rule added to vendored supabase/SKILL.md",
     file: ".agents/skills/supabase/SKILL.md", probe: null, vendored: true,
     apply: insertAfter("## Core Principles", "\nAgents must never deploy migrations without approval."),
+  },
+  {
+    name: "rule:local inside an ## Action Zones section",
+    file: ".agents/skills/orya-runtime-ledger/SKILL.md", probe: "Read archived entries",
+    apply: insertAfter("|--------|------|------|", "| Read archived entries | Green | read-only | <!-- rule:local(convenience) -->"),
+  },
+  {
+    name: "rule:local inside an Escalation section",
+    file: ".agents/skills/orya-builder-green-zone/SKILL.md", probe: "Ask Michael first",
+    apply: insertAfter("## Escalation to Yellow Zone", "\nAsk Michael first. <!-- rule:local(convenience) -->"),
+  },
+  {
+    name: "sentence with 'merging' (stem merg)",
+    file: PLANNER, probe: "Merging to main is reserved for Michael",
+    apply: insertAfter("## Checklist", "\nMerging to main is reserved for Michael."),
+  },
+  {
+    name: "sentence with 'fusion' (stem fusion)",
+    file: CHARTER, probe: "Pas de fusion sans Michael",
+    apply: (t) => t.replace("successCriteria: [", 'successCriteria: [\n      "Pas de fusion sans Michael",'),
+  },
+  {
+    name: "line-44 overlap note removed from the vendored lock",
+    file: LOCK, lock: "required overlap note missing",
+    apply: (t) => { const d = JSON.parse(t); d.overlaps = []; return `${JSON.stringify(d, null, 2)}\n`; },
+  },
+  {
+    name: "bogus overlaps id in the vendored lock",
+    file: LOCK, lock: "cites unknown id",
+    apply: (t) => t.replace('"overlaps": "R-NO-SECRETS"', '"overlaps": "R-NO-SUCH-RULE"'),
   },
 ];

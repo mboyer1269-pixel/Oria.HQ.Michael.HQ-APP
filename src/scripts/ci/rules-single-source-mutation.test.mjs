@@ -23,6 +23,15 @@ for (const c of CASES) {
     const text = await readFile(path.join(root, c.file), "utf8");
     const mutated = c.apply(text);
     assert.notEqual(mutated, text, "mutation did not apply");
+    if (c.lock) {
+      // Lock-file cases: the note must be gone or point at an undeclared id.
+      const core = await readFile(path.join(root, ".agents/rules/core.md"), "utf8");
+      const ids = new Set([...core.matchAll(/^- \*\*(R-[A-Z0-9-]+)\*\*/gm)].map((m) => m[1]));
+      const notes = JSON.parse(mutated).overlaps ?? [];
+      const ok = notes.some((o) => o.file === "supabase/SKILL.md" && o.line === 44 && ids.has(o.overlaps));
+      assert.equal(ok, false, "lock mutation left a valid line-44 note");
+      return;
+    }
     if (c.vendored) {
       assert.notEqual(sha(mutated), sha(text), "vendored drift must change the content hash");
       return;
@@ -33,7 +42,7 @@ for (const c of CASES) {
 }
 
 test("unmutated files are clean (no false positives)", async () => {
-  for (const f of new Set(CASES.filter((c) => !c.vendored).map((c) => c.file))) {
+  for (const f of new Set(CASES.filter((c) => !c.vendored && !c.lock).map((c) => c.file))) {
     assert.deepEqual(uncitedRuleLines(await readFile(path.join(root, f), "utf8"), f), [], f);
   }
 });

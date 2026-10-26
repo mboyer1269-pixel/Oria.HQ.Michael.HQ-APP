@@ -105,9 +105,11 @@ const KEYWORDS = [
 ];
 const NORMATIVE = new RegExp(`(?<![\\p{L}\\-])(?:${KEYWORDS.join("|")})(?![\\p{L}\\-])`, "iu");
 // Governance subjects: word-initial stems ("payload" is not a payment).
-const SUBJECTS = ["merge", "fusionn", "deploy", "déploi", "push", "secret", "pay(?!load)", "pai", "dépense", "delete", "supprim", "approv"];
+const SUBJECTS = ["merg", "fusion", "deploy", "déploi", "push", "secret", "pay(?!load)", "pai", "dépense", "delete", "supprim", "approv"];
 export const SUBJECT = new RegExp(`(?<![\\p{L}\\-])(?:${SUBJECTS.join("|")})`, "iu");
 const MD_CONSTRAINT_HEADING = /^#{2,3}\s+(?:.*\s)?(?:Rules|Boundaries|Constraints?)\s*$/i;
+// Sections where rule:local is refused (ids required), but tables/prose allowed.
+const MD_NO_LOCAL_HEADING = /^#{2,3}\s+(?:.*\s)?(?:Action Zones|Escalation)\b.*$/i;
 const RULES_LINE = /^rules: \[\s*"R-[A-Z0-9-]+"(?:\s*,\s*"R-[A-Z0-9-]+")*\s*\]$/;
 const TS_CONSTRAINT_FIELD = /^\s*(escalation|constraints)\s*:/;
 const TS_RULE_LABEL_VALUE = /^\s*ruleLabel\("R-[A-Z0-9-]+#[a-z0-9-]+"\),?\s*$/;
@@ -118,6 +120,7 @@ function scanLines(text, file) {
   const out = [];
   let fenced = false;
   let inConstraint = false;
+  let noLocal = false;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim();
     const at = `${file}:${i + 1}: ${line}`;
@@ -128,6 +131,7 @@ function scanLines(text, file) {
     if (fenced) continue;
     if (!isTs && /^#{1,6}\s/.test(line)) {
       inConstraint = MD_CONSTRAINT_HEADING.test(line);
+      noLocal = MD_NO_LOCAL_HEADING.test(line);
       continue;
     }
     if (!isTs && inConstraint) {
@@ -147,6 +151,10 @@ function scanLines(text, file) {
     }
     if (BARE_LOCAL.test(line)) {
       out.push(`${at}  [rule:local needs a reason]`);
+      continue;
+    }
+    if (!isTs && noLocal && /rule:local/.test(line)) {
+      out.push(`${at}  [rule:local refused in Action Zones/Escalation: cite an R- id]`);
       continue;
     }
     const scanned = line.replace(/`[^`]*`/g, "");
