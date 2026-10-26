@@ -97,6 +97,8 @@ const serverEnvSchema = z.object({
   // Atelier (local subscription CLI missions): absolute store / allowed repos root.
   ORIA_ATELIER_ROOT: z.string().optional(),
   ORIA_ATELIER_REPOS_ROOT: z.string().optional(),
+  // Risky-action kill-switch (spend/send): OFF unless exactly "1"; routes also require confirm:true.
+  ORIA_RISKY_ACTIONS_ENABLED: z.string().optional(),
   // Subscription quota meter: local log roots (tests/overrides). Defaults ~/.claude/projects, ~/.codex/sessions.
   ORIA_CLAUDE_PROJECTS_DIR: z.string().optional(),
   ORIA_CODEX_SESSIONS_DIR: z.string().optional(),
