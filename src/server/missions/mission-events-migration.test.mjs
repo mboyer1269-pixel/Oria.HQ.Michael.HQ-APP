@@ -111,6 +111,22 @@ test("approval binds to payload_hash: stale after a different hash, single-use, 
   await assert.rejects(ins(db, req(12, { capability: "tool:x", grant_id: "g6" })), /approval_binding/);
 });
 
+test("voice approval: exactly repo.read, repo.write_branch, test.run, build.run; refused for every other registry capability", async () => {
+  const db = await setup();
+  const VOICE = ["repo.read", "repo.write_branch", "test.run", "build.run"];
+  const rows = (await db.query("select name, match_kind, voice_approvable from public.mission_capabilities order by name")).rows;
+  assert.deepEqual(rows.filter(r => r.voice_approvable).map(r => r.name).sort(), [...VOICE].sort());
+  for (const [i, r] of rows.entries()) {
+    const cap = r.match_kind === "class" ? r.name + ":x" : r.name;
+    const o = { mission_id: "vr" + i, capability: cap, grant_id: "vr" + i, payload_hash: H("c") };
+    await ins(db, req(1, o));
+    if (VOICE.includes(cap)) await ins(db, grantOf(2, { ...o, channel: "voice" }));
+    else await assert.rejects(ins(db, grantOf(2, { ...o, channel: "voice" })), /voice_not_approvable/, cap);
+  }
+  // The table itself refuses flagging any other capability as voice-approvable.
+  await assert.rejects(db.query("update public.mission_capabilities set voice_approvable = true where name = 'llm.subscription'"), /voice_allowlist/);
+});
+
 test("self-approval refused: agent/system channel, no prior request, requester = approver, non-member actor", async () => {
   const db = await setup();
   const o = { capability: "external_send:email", grant_id: "g1", payload_hash: H("a") };

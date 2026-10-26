@@ -58,11 +58,13 @@ create table if not exists public.mission_capabilities (
   match_kind text not null check (match_kind in ('exact','class')),
   requires_approval boolean not null,
   voice_approvable boolean not null default false,
-  constraint mission_capabilities_voice_only_free check (not voice_approvable or not requires_approval)
+  constraint mission_capabilities_voice_only_free check (not voice_approvable or not requires_approval),
+  -- Voice may approve exactly these four capabilities, nothing else (mirrored by VOICE_APPROVABLE_CAPABILITIES).
+  constraint mission_capabilities_voice_allowlist check (not voice_approvable or (match_kind = 'exact' and name in ('repo.read','repo.write_branch','test.run','build.run')))
 );
 insert into public.mission_capabilities (name, match_kind, requires_approval, voice_approvable) values
   ('repo.read','exact',false,true), ('repo.write_branch','exact',false,true),
-  ('test.run','exact',false,true), ('build.run','exact',false,true), ('llm.subscription','exact',false,true),
+  ('test.run','exact',false,true), ('build.run','exact',false,true), ('llm.subscription','exact',false,false),
   ('connector','class',true,false), ('secret','class',true,false), ('egress','class',true,false),
   ('tool','class',true,false), ('harness_change','class',true,false), ('unsandboxed','class',true,false),
   ('external_send','class',true,false), ('payment','class',true,false), ('merge','class',true,false),
@@ -140,7 +142,7 @@ begin
     if cap.name is null then
       raise exception 'capability % is not in mission_capabilities (closed list)', new.capability using errcode = '23514';
     end if;
-    if new.channel = 'voice' and new.event_type in ('approval_granted','approval_consumed') and not cap.voice_approvable then
+    if new.channel = 'voice' and new.event_type in ('approval_granted','approval_consumed') and not (cap.voice_approvable and new.capability in ('repo.read','repo.write_branch','test.run','build.run')) then
       raise exception 'voice_not_approvable: voice may not approve %', new.capability using errcode = '23514';
     end if;
   end if;

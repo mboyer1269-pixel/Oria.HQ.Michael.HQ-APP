@@ -29,6 +29,11 @@ test("schema: valid event parses; cost/source consistency; approval binding; voi
   for (const cap of ["merge:pr", "payment", "external_send:email", "external_send.email", "delete:file", "harness_change", "unsandboxed:shell", "connector:calendar"])
     assert.ok(!C.missionEventSchema.safeParse(grant(cap, "g", H("a"), { channel: "voice" })).success, cap);
   assert.ok(C.missionEventSchema.safeParse(grant("repo.read", "g", H("a"), { channel: "voice" })).success);
+  assert.deepEqual([...C.VOICE_APPROVABLE_CAPABILITIES], ["repo.read", "repo.write_branch", "test.run", "build.run"]);
+  for (const cap of C.CAPABILITY_ALLOWLIST)
+    assert.equal(C.missionEventSchema.safeParse(grant(cap, "g", H("a"), { channel: "voice" })).success, C.VOICE_APPROVABLE_CAPABILITIES.includes(cap), cap);
+  for (const cls of C.CAPABILITY_APPROVAL_CLASSES)
+    assert.ok(!C.missionEventSchema.safeParse(grant(cls + ":x", "g", H("a"), { channel: "voice" })).success, cls);
   for (const cap of ["delete_repo", "payments:card"]) assert.ok(!C.missionEventSchema.safeParse(grant(cap, "g", H("a"))).success, cap);
   for (const channel of ["agent", "system"]) assert.ok(!C.missionEventSchema.safeParse(grant("tool:x", "g", H("a"), { channel })).success, channel);
   assert.ok(!C.missionEventSchema.safeParse({ ...base(), extra: 1 }).success);
