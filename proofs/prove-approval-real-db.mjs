@@ -93,6 +93,7 @@ const jiti = createJiti(path.join(ROOT, "proofs/prove-approval-real-db.mjs"), {
   alias: {
     "@": path.join(ROOT, "src"),
     "server-only": path.join(ROOT, "src/scripts/smoke/server-only-stub.mjs"),
+    "next/headers": path.join(ROOT, "proofs/next-headers-stub.mjs"),
   },
 });
 const createRoute = await jiti.import(path.join(ROOT, "src/app/api/agents/[agentId]/execution-intents/route.ts"));
