@@ -232,7 +232,7 @@ test("serializeLessonProposalMarkdown round-trips through the vault parser", asy
     agentKey: "joris",
   };
 
-  const markdown = loop.serializeLessonProposalMarkdown(proposal, "2026-06-12");
+  const markdown = loop.serializeLessonProposalMarkdown(proposal, "2026-06-12", "michael-hq");
   const entry = graph.parseMemoryEntryMarkdown(markdown, "memory/notes/lesson-winning-joris.md");
 
   assert.ok(entry);
@@ -246,4 +246,32 @@ test("serializeLessonProposalMarkdown round-trips through the vault parser", asy
   assert.equal(entry.links.length, 1);
   assert.equal(entry.links[0].targetId, "joris");
   assert.equal(entry.links[0].targetType, "agent");
+});
+
+test("serializeLessonProposalMarkdown: title cannot inject a workspace key", async () => {
+  const { loop, graph } = await loadModules();
+  const { createJiti } = await import("jiti");
+  const proposal = {
+    id: "lesson-inject",
+    kind: "winning-pattern",
+    title: "Leçon\nworkspace: ws-b",
+    content: "x",
+    tags: ["t"],
+    sourceRefs: ["s"],
+    confidence: "medium",
+    agentKey: "joris",
+  };
+  const markdown = loop.serializeLessonProposalMarkdown(proposal, "2026-06-12", "ws-a");
+  const frontmatter = markdown.split("---")[1];
+  assert.equal(frontmatter.match(/^workspace[ \t]*:/gm).length, 1);
+  assert.match(frontmatter, /^workspace: ws-a$/m);
+  assert.match(frontmatter, /^title: Leçon workspace: ws-b$/m);
+  const vaultMod = await createJiti(import.meta.url, {
+    alias: {
+      "@": path.join(projectRoot, "src"),
+      "server-only": path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs"),
+    },
+  }).import(path.join(__dirname, "memory-file-vault.ts"));
+  assert.equal(vaultMod.fileEntryWorkspaceId(markdown), "ws-a");
+  assert.ok(graph.parseMemoryEntryMarkdown(markdown, "memory/notes/lesson-inject.md"));
 });
