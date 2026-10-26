@@ -33,6 +33,7 @@ import {
   HqWidget,
   HqWidgetGrid,
 } from "@/features/hq/components/hq-widget-system";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 export const dynamic = "force-dynamic";
 
@@ -202,7 +203,8 @@ export default async function RuntimePage({
       .map(([id, eventCount]) => ({ id, label: id, eventCount }));
     flowData = {
       agents: knownAgents.length > 0 ? knownAgents : [
-        { id: "joris", label: "Joris", eventCount: 0 },
+        // eslint-disable-next-line no-restricted-syntax -- runtime filter id matches the persisted event source value
+        { id: "joris", label: ORCHESTRATOR_DISPLAY_NAME, eventCount: 0 },
         { id: "agent_hermes", label: "Relay", eventCount: 0 },
       ],
       decisions,

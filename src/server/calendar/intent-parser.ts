@@ -105,6 +105,7 @@ export function parseCalendarIntent(message: string): CalendarIntent | null {
     remindersMinutes: duration >= 60 ? [60, 15] : [15],
     needsConfirmation: false,
     confidence: 0.78,
+    // eslint-disable-next-line no-restricted-syntax -- persisted calendar event notes text
     notes: "Créé par Joris Book avec defaults FR-CA.",
   };
 }

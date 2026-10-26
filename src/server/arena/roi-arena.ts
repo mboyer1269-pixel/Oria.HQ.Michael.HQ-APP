@@ -3,6 +3,7 @@ import {
   buildDryRunExecutionPlan,
 } from "@/server/runtime/execution-guard";
 import type { ExecutionGuardInput } from "@/server/runtime/execution-guard";
+import { ORCHESTRATOR_AGENT_ID } from "../../config/agents/orchestrator.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -338,7 +339,7 @@ export function evaluateCandidate(
   const autonomyLevel = candidate.autonomyLevel ?? 1;
   const guardInput: ExecutionGuardInput = {
     skillId: candidate.skillId ?? "mission.plan",
-    agentId: candidate.agentId ?? "joris",
+    agentId: candidate.agentId ?? ORCHESTRATOR_AGENT_ID,
     requestedMode: context.requestedMode ?? "dry-run",
     autonomyLevel,
   };

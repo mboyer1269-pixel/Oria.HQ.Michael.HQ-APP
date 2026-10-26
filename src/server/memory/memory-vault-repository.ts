@@ -92,9 +92,12 @@ const seedEntries: MemoryVaultEntry[] = [
     id: "mem_seed_decision_004",
     workspaceId: "michael-hq",
     type: "decision",
+    // eslint-disable-next-line no-restricted-syntax -- persisted memory tag / seeded vault entry content
     title: "Memory Vault: Joris reads only verified entries (max 20, workspace-scoped)",
     content:
+      // eslint-disable-next-line no-restricted-syntax -- persisted memory tag / seeded vault entry content
       "Joris reads from the Memory Vault only at invocation start. Only 'verified' entries are injected. Max 20 entries, ordered by updatedAt DESC. Cross-workspace reads are permanently forbidden. Joris proposes (trustLevel: proposed) but cannot write directly.",
+    // eslint-disable-next-line no-restricted-syntax -- persisted memory tag / seeded vault entry content
     tags: ["memory-vault", "joris", "context-injection", "trust-level"],
     author: "human",
     trustLevel: "verified",

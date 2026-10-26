@@ -25,6 +25,7 @@ import {
   formatMissionDraftSchedule,
   MISSION_DRAFT_CHANGED_EVENT,
 } from "@/features/hq/mission-draft-format";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 type ChatResponse = {
   consumptionMode?: "subscription" | "pay_per_use_api";
@@ -76,10 +77,10 @@ function formatLedgerLabel(status: ActionLedgerStatus) {
 }
 
 function toUserError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Joris est temporairement indisponible.";
+  const message = error instanceof Error ? error.message : `${ORCHESTRATOR_DISPLAY_NAME} est temporairement indisponible.`;
 
   if (/Joris API \d+/.test(message)) {
-    return "Joris ne répond pas pour le moment. Réessaie dans quelques instants.";
+    return `${ORCHESTRATOR_DISPLAY_NAME} ne répond pas pour le moment. Réessaie dans quelques instants.`;
   }
 
   return message;
@@ -232,6 +233,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
       const data = (await response.json()) as ChatResponse & ErrorResponse;
 
       if (!response.ok) {
+        // eslint-disable-next-line no-restricted-syntax -- internal 'Joris API <status>' error token matched by regex in toUserError, never shown
         throw new Error(data.error ?? `Joris API ${response.status}`);
       }
 
@@ -271,9 +273,9 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
       <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-400">Command Center</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Parler à Joris</h2>
+          <h2 className="mt-2 text-2xl font-semibold text-white">Parler à {ORCHESTRATOR_DISPLAY_NAME}</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-neutral-400">
-            Décris ton objectif et le résultat attendu. Joris peut préparer une réponse ou une proposition ; cela ne lance pas automatiquement une équipe d’agents.
+            Décris ton objectif et le résultat attendu. {ORCHESTRATOR_DISPLAY_NAME} peut préparer une réponse ou une proposition ; cela ne lance pas automatiquement une équipe d’agents.
           </p>
         </div>
         <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
@@ -298,7 +300,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
             onChange={(event) => editCommand(event.target.value)}
             className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-neutral-600"
             placeholder="Quel résultat veux-tu obtenir pour ton projet ?"
-            aria-label="Commande pour Joris"
+            aria-label={`Commande pour ${ORCHESTRATOR_DISPLAY_NAME}`}
           />
         </div>
         <button
@@ -307,7 +309,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
           className="inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 font-semibold text-neutral-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 md:w-auto"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          {loading ? "Joris traite..." : "Envoyer"}
+          {loading ? `${ORCHESTRATOR_DISPLAY_NAME} traite...` : "Envoyer"}
         </button>
       </form>
       <p className="mt-2 text-xs text-neutral-500">La saisie non envoyée reste dans cet onglet, par projet, pendant 24 heures après modification. Elle n’est jamais envoyée automatiquement.</p>
@@ -358,7 +360,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
             <div>
-              <p className="text-sm font-semibold text-white">Réponse de Joris</p>
+              <p className="text-sm font-semibold text-white">Réponse de {ORCHESTRATOR_DISPLAY_NAME}</p>
               <p className="mt-1 text-sm leading-6 text-neutral-300">{result.summary}</p>
             </div>
           </div>
@@ -465,7 +467,7 @@ function CommandCenterInstance({ workspaceId }: { workspaceId: string }) {
         >
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-medium text-red-100">Joris n&apos;a pas pu compléter ça.</p>
+            <p className="font-medium text-red-100">{ORCHESTRATOR_DISPLAY_NAME} n&apos;a pas pu compléter ça.</p>
             <p className="mt-1 leading-6">{error}</p>
           </div>
         </div>

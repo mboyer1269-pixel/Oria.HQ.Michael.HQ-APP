@@ -7,6 +7,7 @@
 // See docs/MEMORY_VAULT_CONTRACT.md for the full contract.
 
 export type MemoryVaultEntryType = "decision" | "sop" | "note" | "source" | "doc";
+// eslint-disable-next-line no-restricted-syntax -- persisted MemoryVaultAuthor value
 export type MemoryVaultAuthor = "human" | "joris" | "agent";
 export type MemoryVaultTrustLevel = "verified" | "proposed" | "draft";
 

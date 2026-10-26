@@ -5,6 +5,7 @@ import { requireOwnerApiSession } from "@/server/auth/owner";
 import { syncPublicInventory } from "@/server/inventory/public-inventory-sync";
 import { BUCKINGHAM_DEFAULT_INVENTORY_URLS } from "@/server/inventory/public-inventory-allowlist";
 import { buildInventoryDebrief } from "@/features/inventory/inventory-debrief";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../../../features/agents/orchestrator-display";
 
 // POST /api/inventory/sync — allowlisted public HTML fetch → in-memory snapshot
 // No credentials. Manual ingest remains available via POST /api/inventory/snapshot.
@@ -60,6 +61,6 @@ export async function POST(request: Request) {
     note:
       "Public allowlist sync only (buckinghamgm.com). " +
       "Vehicles + debrief returned for the Sales Desk visual grid. " +
-      "Next: open a stock card or ask Joris for a market brief (ex. Hyundai Tucson 2023).",
+      `Next: open a stock card or ask ${ORCHESTRATOR_DISPLAY_NAME} for a market brief (ex. Hyundai Tucson 2023).`,
   });
 }

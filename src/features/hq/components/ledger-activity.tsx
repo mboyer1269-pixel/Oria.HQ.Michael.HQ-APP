@@ -14,6 +14,7 @@ import {
 import type { LedgerEventType } from "@/features/skills/types";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import { listMissionsForWorkspace } from "@/server/missions";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 const EVENT_TYPE_STYLES: Record<LedgerEventType, string> = {
   decision: "border-sky-500/20 bg-sky-500/10 text-sky-200",
@@ -132,7 +133,7 @@ export async function LedgerActivity() {
         <div className="mt-5 rounded-lg border border-dashed border-neutral-800 bg-neutral-900/40 px-4 py-8 text-center">
           <p className="text-sm text-neutral-300">Aucun événement ledger pour ce workspace.</p>
           <p className="mt-2 text-xs leading-6 text-neutral-500">
-            En local, lance <span className="font-mono text-neutral-400">npm run smoke:joris</span> ou réserve via Joris
+            En local, lance <span className="font-mono text-neutral-400">npm run smoke:joris</span> ou réserve via {ORCHESTRATOR_DISPLAY_NAME}
             pour voir decision + action apparaître ici.
           </p>
         </div>

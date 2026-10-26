@@ -17,6 +17,7 @@ export const hqModules: HqModule[] = [
   },
   {
     id: "joris-brain",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: product capability titles
     title: "Joris Brain",
     subtitle: "Cerveau serveur, mémoire, modèles IA, Board et outils.",
     status: "foundation",
@@ -25,6 +26,7 @@ export const hqModules: HqModule[] = [
   {
     id: "permission-center",
     title: "Permission Center",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: product capability titles
     subtitle: "Ce que Joris peut faire seul, demander ou ne jamais faire.",
     status: "foundation",
     autonomyLevel: 5,
@@ -38,6 +40,7 @@ export const hqModules: HqModule[] = [
   },
   {
     id: "joris-book",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: product capability titles
     title: "Joris Book",
     subtitle: "Rendez-vous et rappels en langage naturel, FR-CA par défaut.",
     status: "foundation",

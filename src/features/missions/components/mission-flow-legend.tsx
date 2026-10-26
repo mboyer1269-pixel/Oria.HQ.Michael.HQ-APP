@@ -1,4 +1,5 @@
 import { BookOpen, CalendarClock, ClipboardList, Lock, ShieldAlert } from "lucide-react";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 const LEGEND_ITEMS = [
   {
@@ -15,7 +16,7 @@ const LEGEND_ITEMS = [
   },
   {
     icon: ClipboardList,
-    label: "Plan Joris (dry-run)",
+    label: `Plan ${ORCHESTRATOR_DISPLAY_NAME} (dry-run)`,
     detail: "mission.plan dans le chat — texte seulement, aucune mission créée.",
     tone: "text-sky-300 border-sky-500/20 bg-sky-500/5",
   },

@@ -17,12 +17,14 @@ const demo_memorySubjects: MemorySubject[] = [
     title: "SOVRA Operating Model",
     status: "active",
     summary:
+      // eslint-disable-next-line no-restricted-syntax -- seed data: persisted memory id / historical notes and PR titles
       "Modèle de holding agentique : Joris orchestre, les agents Hermes exécutent dans leur périmètre, le CEO garde la décision finale.",
     decisions: [
       "Memory Wiki avant Workboard — savoir ce qui s'est passé d'abord.",
       "Pas de stockage brut automatique — résumés opérationnels seulement.",
     ],
     risks: ["Modèle encore documentaire — pas de persistance."],
+    // eslint-disable-next-line no-restricted-syntax -- seed data: persisted memory id / historical notes and PR titles
     nextActions: ["Brancher le Memory Log Contract (dry-run Joris)."],
     relatedRefs: [
       "docs/AGENTIC_HOLDING_COMPANY_OPERATING_MODEL.md",
@@ -32,7 +34,9 @@ const demo_memorySubjects: MemorySubject[] = [
     lastUpdated: "2026-05-23",
   },
   {
+    // eslint-disable-next-line no-restricted-syntax -- seed data: persisted memory id / historical notes and PR titles
     id: "joris",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: persisted memory id / historical notes and PR titles
     title: "Joris Operating Partner",
     status: "active",
     summary:
@@ -161,7 +165,9 @@ const demo_recentDailyLogs: DailyLog[] = [
   {
     date: "2026-05-21",
     summary:
+      // eslint-disable-next-line no-restricted-syntax -- seed data: persisted memory id / historical notes and PR titles
       "Réintégration contrôlée des additions Codex : skills docs, config dev, prompt Joris. Un lot, un risque, une PR.",
+    // eslint-disable-next-line no-restricted-syntax -- seed data: persisted memory id / historical notes and PR titles
     mergedPrs: ["#43 skills docs", "#44 dev config", "#45 Joris system prompt"],
     decisions: ["Landing order par lot de risque (A → J)."],
     blockers: ["Lots G/H/I (cron, AI, DB) en attente de mandat explicite."],

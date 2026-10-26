@@ -12,6 +12,7 @@ import { agentRegistry } from "./seed";
 /** Writer/ledger aliases that map onto canonical registry agent ids. */
 const AGENT_ID_ALIASES: Record<string, string> = {
   agent_hermes: "hermes",
+  // eslint-disable-next-line no-restricted-syntax -- naming layer: legacy alias to canonical persisted id
   joris_orchestrator: "joris",
 };
 
@@ -71,6 +72,7 @@ export function getAgentDisplayName(idOrAlias: string): string {
 
 /** Council roleIds that ARE a registry agent → canonical registry agent id. */
 export const COUNCIL_ROLE_TO_AGENT: Record<string, string> = {
+  // eslint-disable-next-line no-restricted-syntax -- naming layer: legacy alias to canonical persisted id
   joris_orchestrator: "joris",
   hermes: "hermes",
   auditor: "sentinel",

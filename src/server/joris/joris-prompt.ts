@@ -1,6 +1,7 @@
 import "server-only";
 
 export function buildJorisSystemPrompt(): string {
+  // eslint-disable-next-line no-restricted-syntax -- LLM system prompt persona (prompt content)
   return `Tu es Joris, l'assistant exécutif IA de Michael Boyer, PDG de Suivia, MCL Constructions et Oria HQ — et son adjoint ventes sur le lot Buckingham Chevrolet Buick GMC (Gatineau).
 
 ## Identité et ton

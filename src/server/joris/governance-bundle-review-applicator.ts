@@ -58,6 +58,7 @@ import type {
   WorkOrderReviewIntentType,
 } from "./work-order-review-interpreter";
 import { interpretWorkOrderReviewMessage } from "./work-order-review-interpreter";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // Input / Output types
@@ -485,7 +486,7 @@ export function formatApplicationMessage(
     "#### 🔍 Validation",
     validationLine,
     "",
-    "💡 *Applicateur Joris (dry-run) : aucune persistance, aucun appel externe, aucun déclenchement runtime. " +
+    `💡 *Applicateur ${ORCHESTRATOR_DISPLAY_NAME} (dry-run) : aucune persistance, aucun appel externe, aucun déclenchement runtime. ` +
       "approve_to_plan reste de la planification uniquement, jamais une autorisation d'exécution.*",
   ].join("\n");
 }

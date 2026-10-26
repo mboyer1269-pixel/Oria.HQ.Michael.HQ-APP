@@ -23,6 +23,7 @@ export function buildCalendarCommandFromIntent(
     dateISO: calendarIntent.dateISO,
     startTime: calendarIntent.startTime,
     endTime: calendarIntent.endTime,
+    // eslint-disable-next-line no-restricted-syntax -- persisted mission draft source value
     source: "joris",
     remindersMinutes: calendarIntent.remindersMinutes,
     notes: calendarIntent.notes,

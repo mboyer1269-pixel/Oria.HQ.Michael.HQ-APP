@@ -47,6 +47,7 @@ type RunScript = {
 
 const RUN_SCRIPTS: RunScript[] = [
   // Joris: brief generation mid-flight — 3 steps done, validation active.
+  // eslint-disable-next-line no-restricted-syntax -- seed data: persisted agentId value
   { agentId: "joris", workflowId: "joris-ceo-brief", doneSteps: 3, cursor: "active", conclude: "running", startOffsetMin: 0 },
   // Relay: a SOP run fully completed with a recorded outcome.
   { agentId: "hermes", doneSteps: 5, cursor: "none", conclude: "completed", startOffsetMin: 8, observedOutcomeId: "obs-relay-demo" },
@@ -141,6 +142,7 @@ export function buildWorkflowDemoObservations(): ObservedAgentOutcome[] {
     {
       ...base,
       id: "obs-joris-demo",
+      // eslint-disable-next-line no-restricted-syntax -- seed data: persisted agentId value
       agentId: "joris",
       metrics: {
         realizedProfitCents: 0,

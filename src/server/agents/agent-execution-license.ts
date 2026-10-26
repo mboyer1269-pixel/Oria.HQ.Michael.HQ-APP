@@ -17,6 +17,7 @@
  */
 
 import type { ExecutionZone } from "../../core/types.ts";
+import { ORCHESTRATOR_AGENT_ID } from "../../config/agents/orchestrator.ts";
 
 export type AllowedVisibility = "internal" | "unlisted" | "public";
 
@@ -61,7 +62,8 @@ export type AgentExecutionLicense = {
 export const agentLicenseRegistry: AgentExecutionLicense[] = [
   // ── Joris -- Director / Mission Router ──────────────────────────────────
   {
-    agentId: "joris",
+    agentId: ORCHESTRATOR_AGENT_ID,
+    // eslint-disable-next-line no-restricted-syntax -- license registry label; module is loaded by raw-TS tests that cannot resolve the naming layer
     label: "Joris -- Director",
     defaultZone: "green",
     allowedTools: ["calendar.book", "brief.generate", "mission.plan", "board.consult"],

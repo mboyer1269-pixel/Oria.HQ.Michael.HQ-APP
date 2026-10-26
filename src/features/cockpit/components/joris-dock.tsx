@@ -15,6 +15,7 @@
 
 import { useState, type FormEvent } from "react";
 import { AlertCircle, Loader2, Send } from "lucide-react";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // Joris dock — omnipresent conversation surface.
@@ -30,22 +31,24 @@ type ChatResponse = {
   requiresConfirmation?: boolean;
 };
 
+// eslint-disable-next-line no-restricted-syntax -- internal chat role token / 'Joris API' error token matched by regex (unrendered component)
 type Turn = { role: "user" | "joris"; text: string; muted?: boolean };
 
 const SEED: Turn[] = [
   {
+    // eslint-disable-next-line no-restricted-syntax -- internal chat role token / 'Joris API' error token matched by regex (unrendered component)
     role: "joris",
     text: "Bonjour Michael. Je propose, prépare et recommande; jamais d'exécution sans ton aval, un ledger et des bornes. Que veux-tu faire ?",
   },
 ];
 
 function toUserError(error: unknown) {
-  const message = error instanceof Error ? error.message : "Joris est temporairement indisponible.";
+  const message = error instanceof Error ? error.message : `${ORCHESTRATOR_DISPLAY_NAME} est temporairement indisponible.`;
   if (/Joris API 401/.test(message)) {
-    return "Joris nécessite une session active (Supabase) pour répondre. La fondation, elle, est déjà branchée sur le vrai signal.";
+    return `${ORCHESTRATOR_DISPLAY_NAME} nécessite une session active (Supabase) pour répondre. La fondation, elle, est déjà branchée sur le vrai signal.`;
   }
   if (/Joris API \d+/.test(message)) {
-    return "Joris ne répond pas pour le moment. Réessaie dans quelques instants.";
+    return `${ORCHESTRATOR_DISPLAY_NAME} ne répond pas pour le moment. Réessaie dans quelques instants.`;
   }
   return message;
 }
@@ -71,9 +74,12 @@ export function JorisDock() {
         body: JSON.stringify({ message: text, locale: "fr-CA" }),
       });
       const data = (await response.json()) as ChatResponse & { error?: string };
+      // eslint-disable-next-line no-restricted-syntax -- internal chat role token / 'Joris API' error token matched by regex (unrendered component)
       if (!response.ok) throw new Error(data.error ?? `Joris API ${response.status}`);
+      // eslint-disable-next-line no-restricted-syntax -- internal chat role token / 'Joris API' error token matched by regex (unrendered component)
       setTurns((prev) => [...prev, { role: "joris", text: data.summary }]);
     } catch (err) {
+      // eslint-disable-next-line no-restricted-syntax -- internal chat role token / 'Joris API' error token matched by regex (unrendered component)
       setTurns((prev) => [...prev, { role: "joris", text: toUserError(err), muted: true }]);
     } finally {
       setLoading(false);
@@ -85,7 +91,7 @@ export function JorisDock() {
       <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
         <span className="h-[30px] w-[30px] shrink-0 rounded-[10px] bg-[radial-gradient(circle_at_30%_30%,#22d3ee,#8b5cf6_70%)] shadow-[0_0_18px_rgba(139,92,246,.6)]" />
         <div className="flex-1">
-          <p className="text-sm font-bold text-[#eff1fb]">Joris</p>
+          <p className="text-sm font-bold text-[#eff1fb]">{ORCHESTRATOR_DISPLAY_NAME}</p>
           <p className="text-[10.5px] font-semibold text-emerald-300">chat owner-gated · propose seulement</p>
         </div>
       </div>
@@ -117,7 +123,7 @@ export function JorisDock() {
         )}
         {loading ? (
           <span className="inline-flex items-center gap-2 self-start text-[12px] text-[#646c8e]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Joris réfléchit…
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> {ORCHESTRATOR_DISPLAY_NAME} réfléchit…
           </span>
         ) : null}
       </div>
@@ -126,8 +132,8 @@ export function JorisDock() {
         <input
           value={command}
           onChange={(e) => setCommand(e.target.value)}
-          placeholder="Parle à Joris…"
-          aria-label="Message pour Joris"
+          placeholder={`Parle à ${ORCHESTRATOR_DISPLAY_NAME}…`}
+          aria-label={`Message pour ${ORCHESTRATOR_DISPLAY_NAME}`}
           className="min-w-0 flex-1 rounded-[10px] border border-white/10 bg-black/35 px-3 py-2.5 text-[12.5px] text-[#eff1fb] outline-none transition placeholder:text-[#646c8e] focus:border-violet-500/60"
         />
         <button

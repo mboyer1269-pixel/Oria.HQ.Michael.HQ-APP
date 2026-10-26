@@ -10,6 +10,7 @@ import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
 import { logger } from "@/lib/logger";
 import { chatModelOptions, chatModelSelectionSchema, loadChatCapabilityCatalog, resolveChatModelBinding } from "@/server/joris/chat-model-binding";
+import { ORCHESTRATOR_DISPLAY_NAME } from "../../../../features/agents/orchestrator-display";
 
 const requestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { error: "Joris a eu un probleme serveur." },
+      { error: `${ORCHESTRATOR_DISPLAY_NAME} a eu un probleme serveur.` },
       { status: 500 },
     );
   }

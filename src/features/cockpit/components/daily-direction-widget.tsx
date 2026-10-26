@@ -27,6 +27,7 @@ import {
 import { generateDailyDirectionAction } from "@/features/cockpit/events/generate-daily-direction-action";
 import type { DailyDirectionProjection } from "@/features/cockpit/events/daily-direction-projection";
 import type { DailyDirectionItem } from "@/features/cockpit/events/event-record";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -84,7 +85,7 @@ function GeneratingState() {
   return (
     <div className="flex items-center gap-3 py-6 text-[#8791b7]">
       <Loader2 className="h-4 w-4 shrink-0 animate-spin text-violet-400" aria-hidden="true" />
-      <span className="text-sm">Joris lit tes events et prépare le plan du jour…</span>
+      <span className="text-sm">{ORCHESTRATOR_DISPLAY_NAME} lit tes events et prépare le plan du jour…</span>
     </div>
   );
 }
@@ -99,7 +100,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
       <div className="flex items-start gap-3">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-rose-200">Joris ne répond pas</p>
+          <p className="text-sm font-semibold text-rose-200">{ORCHESTRATOR_DISPLAY_NAME} ne répond pas</p>
           <p className="mt-1 text-xs leading-5 text-rose-200/70">{message}</p>
           <button
             type="button"
@@ -127,7 +128,7 @@ function DirectionDisplay({ projection }: { projection: DailyDirectionProjection
       {payload.isZeroState && payload.zeroStateMessage ? (
         <div className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-4 py-3">
           <p className="text-[12.5px] leading-6 text-amber-200">
-            <span className="font-bold">Joris : </span>
+            <span className="font-bold">{ORCHESTRATOR_DISPLAY_NAME} : </span>
             {payload.zeroStateMessage}
           </p>
         </div>
@@ -248,7 +249,7 @@ export function DailyDirectionWidget({
             <Zap className="h-3.5 w-3.5" aria-hidden="true" />
             Daily Direction
           </p>
-          <h2 className="mt-2 text-xl font-extrabold text-[#eff1fb]">Plan du jour — Joris</h2>
+          <h2 className="mt-2 text-xl font-extrabold text-[#eff1fb]">Plan du jour — {ORCHESTRATOR_DISPLAY_NAME}</h2>
         </div>
 
         {widgetState.phase === "ready" ? (

@@ -1,3 +1,4 @@
+import { ORCHESTRATOR_DISPLAY_NAME } from "../agents/orchestrator-display";
 // src/features/hq/capability-status.ts
 //
 // HQ Capability Status — the honest, single source of truth for what is
@@ -136,7 +137,7 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
   },
   {
     id: "joris_marketplace_listing_prepare",
-    label: "Marketplace listing via Joris",
+    label: `Marketplace listing via ${ORCHESTRATOR_DISPLAY_NAME}`,
     status: "shadow",
     surface: "/api/joris/chat",
     evidence: "src/server/joris/marketplace-listing-intent.ts (intent marketplace.listing.prepare)",
@@ -157,7 +158,7 @@ export const HQ_CAPABILITIES: readonly CapabilityRecord[] = [
     status: "shadow",
     surface: "/hq/sales",
     evidence:
-      "marketing-content-pack.ts + /api/sales/marketing/content-pack + Joris sales.marketing.prepare",
+      `marketing-content-pack.ts + /api/sales/marketing/content-pack + ${ORCHESTRATOR_DISPLAY_NAME} sales.marketing.prepare`,
     note: "Post FB, Marketplace, SMS livre, pub, Reel — prepare-only. Pas d'auto-publish.",
   },
 ];

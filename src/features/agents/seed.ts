@@ -12,9 +12,11 @@ import type { AgentProfile } from "./types";
  */
 export const agentRegistry: AgentProfile[] = [
   {
+    // eslint-disable-next-line no-restricted-syntax -- agent registry seed: canonical persisted id/name (the fallback source)
     id: "joris",
     lore:
       "Le majordome du HQ. Il comprend, il route, il orchestre — et rien ne part sans le sceau du patron.",
+    // eslint-disable-next-line no-restricted-syntax -- agent registry seed: canonical persisted id/name (the fallback source)
     name: "Joris",
     role: "orchestrator",
     tagline: "Chef d'orchestre — intention, routage cerveau, missions, approbation",
@@ -65,6 +67,7 @@ export const agentRegistry: AgentProfile[] = [
     skillIds: ["opportunity.scan", "lead.triage"],
     constraints: [
       "Lecture seule — aucun envoi, aucun contact externe",
+      // eslint-disable-next-line no-restricted-syntax -- agent registry seed: canonical persisted id/name (the fallback source)
       "Aucune décision sans validation Joris",
     ],
     ventures: ["suivia", "mcl"],
@@ -155,6 +158,7 @@ export const agentRegistry: AgentProfile[] = [
     role: "builder",
     tagline: "Agent d'ingénierie souverain — Docker, Terraform, dépôts clonables",
     description:
+      // eslint-disable-next-line no-restricted-syntax -- agent registry seed: canonical persisted id/name (the fallback source)
       "Reçoit les briefs de Joris et génère des paquets de code portables. Aucun déploiement autonome — soumission au rail d'approbation avec télémétrie Michael HQ.",
     status: "active",
     autonomyLevel: 2,

@@ -10,27 +10,28 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
+import { ORCHESTRATOR_DISPLAY_NAME } from "@/features/agents/orchestrator-display";
 
 const hqZones = [
   {
-    title: "Joris Core",
+    title: `${ORCHESTRATOR_DISPLAY_NAME} Core`,
     text: "Agent relationnel par défaut, prêt à être personnalisé sans changer le moteur.",
     href: "#command-center",
-    cta: "Parler à Joris",
+    cta: `Parler à ${ORCHESTRATOR_DISPLAY_NAME}`,
     status: "Actif",
     icon: BookOpenCheck,
   },
   {
     title: "Command Center",
-    text: "Le point d'entrée pour parler à Joris, tester une commande et voir le résultat clair.",
+    text: `Le point d'entrée pour parler à ${ORCHESTRATOR_DISPLAY_NAME}, tester une commande et voir le résultat clair.`,
     href: "#command-center",
-    cta: "Parler à Joris",
+    cta: `Parler à ${ORCHESTRATOR_DISPLAY_NAME}`,
     status: "Prêt",
     icon: MessageSquareText,
   },
   {
     title: "Agenda",
-    text: "Les prochains bookings apparaissent ici dès que Joris les ajoute au calendrier.",
+    text: `Les prochains bookings apparaissent ici dès que ${ORCHESTRATOR_DISPLAY_NAME} les ajoute au calendrier.`,
     href: "#agenda-panel",
     cta: "Voir les bookings",
     status: "Branché",
@@ -61,7 +62,7 @@ const hqZones = [
 ];
 
 const permissionNotes = [
-  "Actions internes simples: Joris peut préparer dans le workspace actif.",
+  `Actions internes simples: ${ORCHESTRATOR_DISPLAY_NAME} peut préparer dans le workspace actif.`,
   "Bookings personnels: permis quand c'est clair, réversible et journalisé.",
   "Messages externes, dépenses, conformité ou changements sensibles: confirmation avant action.",
 ];
@@ -78,7 +79,7 @@ export function PrivateHqOverview() {
             </div>
             <h2 className="mt-4 text-2xl font-semibold text-white md:text-3xl">Le premier workspace sur Oria.</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-400">
-              Un espace propriétaire pour piloter Joris, tes bookings, les documents, les permissions et les futurs
+              Un espace propriétaire pour piloter {ORCHESTRATOR_DISPLAY_NAME}, tes bookings, les documents, les permissions et les futurs
               modes métier sans mélanger les responsabilités.
             </p>
           </div>
@@ -149,7 +150,7 @@ export function PrivateHqOverview() {
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
           <div>
-            <h3 className="font-semibold text-emerald-50">Permissions, contexte et autonomie de Joris</h3>
+            <h3 className="font-semibold text-emerald-50">Permissions, contexte et autonomie de {ORCHESTRATOR_DISPLAY_NAME}</h3>
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               {permissionNotes.map((note) => (
                 <p key={note} className="rounded-lg border border-emerald-500/15 bg-neutral-950/50 p-3 text-sm leading-6 text-emerald-100">

@@ -51,6 +51,7 @@ function normalizeTime(value: string) {
 }
 
 function normalizeSource(value: string): CalendarEventSource {
+  // eslint-disable-next-line no-restricted-syntax -- parses the persisted calendar source enum value
   if (value === "api" || value === "joris" || value === "internal") return value;
 
   return "internal";
