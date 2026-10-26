@@ -16,8 +16,8 @@
 |---|---|
 | LIVE | 622 |
 | TEST_ONLY | 7 |
-| INCUBATION | 44 |
-| **Total source** | **673** |
+| INCUBATION | 45 |
+| **Total source** | **674** |
 
 ## Incubation by area (built, not wired)
 
@@ -32,6 +32,7 @@
 | server/arena | 2 |
 | server/missions | 2 |
 | server/ventures | 2 |
+| core/mission-events-contract.ts | 1 |
 | features/agents | 1 |
 | features/outbound | 1 |
 | features/skills | 1 |
@@ -44,6 +45,7 @@
 
 These are healthy to keep — they are tested scaffolding. But nothing in the running product depends on them yet. Wire them to a route/page to graduate them to LIVE.
 
+- `src/core/mission-events-contract.ts`
 - `src/features/agents/agent-approval-persistence-read-models.ts`
 - `src/features/cockpit/components/agent-approval-preview-panel.tsx`
 - `src/features/cockpit/components/cockpit-overview.tsx`
