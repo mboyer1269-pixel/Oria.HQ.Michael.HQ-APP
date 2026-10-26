@@ -12,7 +12,7 @@
 
 ## SQL canonique de cette livraison
 
-**Le seul delta complet proposé pour le schéma staging observé est `db/migrations/drafts/names_employees_staging_delta.sql`.** Il contient les deux tables, contraintes, indexes, grants, policies et trigger, avec l’idempotence intégrée. Une transaction, délais bornés et préconditions refusant les objets déjà présents ; jamais de replay de l’historique entier.
+**Le delta de schéma est désormais porté par les migrations numérotées idempotentes `db/migrations/0033_workspaces.sql`, `0034_display_text_rule.sql`, `0035_employee_profiles.sql` et `0036_agent_display_names.sql`** (avec leurs `_revert`/`_verify`), prouvées en PGlite par `src/server/db/migrations-0033-0036-pglite.test.mjs`. L’ancien `names_employees_staging_delta.sql` ciblant un projet staging nommé est supprimé. Rien n’est appliqué à une base distante.
 
 Le fichier historique externe `/workspace/oria-staging-qualification/delta-review-only.sql` est obsolète pour cette livraison et ne doit pas être utilisé. Les deux brouillons individuels sont les fragments sources ; ne pas les appliquer après le delta complet. `employee_profiles_idempotency_upgrade.sql` est seulement une alternative si l’ancien schéma employee_profiles a entre-temps été appliqué : ne pas l’enchaîner après le delta complet. Toute dérive du schéma impose comparaison avant écriture, pas ajout d’IF NOT EXISTS pour la masquer.
 

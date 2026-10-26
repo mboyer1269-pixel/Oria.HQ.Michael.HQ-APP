@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 693,
-    "live": 642,
+    "sourceFiles": 695,
+    "live": 644,
     "testOnly": 7,
     "incubation": 44
   },
@@ -132,11 +132,13 @@
     "src/app/page.tsx",
     "src/config/ventures/loi96-profile.ts",
     "src/config/workspaces/michael-hq.config.ts",
+    "src/core/employees/field-rules.ts",
     "src/core/employees/preparation.ts",
     "src/core/employees/types.ts",
     "src/core/openhands-launch-contract.ts",
     "src/core/openhands-result-contract.ts",
     "src/core/runtime-capability-inventory.ts",
+    "src/core/text/display-text-rule.ts",
     "src/core/types.ts",
     "src/core/ventures/build-outreach-email.ts",
     "src/core/ventures/venture-market-profile.ts",

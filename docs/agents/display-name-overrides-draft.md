@@ -6,7 +6,7 @@ Le nom est une donnée de présentation. L’ID de registre, le runtime, les out
 
 `AGENT_DISPLAY_NAMES_LIVE = false`. Aucun mécanisme d’environnement ne l’active. La table n’a pas été créée ni interrogée sur un service réel. Aucun stockage mémoire ou navigateur n’est utilisé comme remplacement. L’éditeur et la page signalent l’indisponibilité ; aucune sauvegarde réussie ne peut être annoncée avec le drapeau fermé.
 
-Les SQL de `db/migrations/drafts/agent_display_names*.sql` sont des **brouillons non appliqués**, selon la convention locale des migrations draft/not-live. Le fichier revert détruit les surcharges : il nécessite une décision et une sauvegarde avant tout usage futur. Le fichier verify lit uniquement les catalogues et ne remplace pas un test RLS authentifié.
+Les SQL de `db/migrations/0036_agent_display_names*.sql` (après `0033_workspaces.sql` et `0034_display_text_rule.sql`) sont **numérotés, idempotents et non appliqués** à une base distante. Les politiques RLS exigent `auth.uid() = user_id` et l’appartenance au workspace (`workspace_members`) en USING et WITH CHECK ; la validation du nom est la règle partagée `src/core/text/display-text-rule.ts` et son miroir SQL `public.oria_display_text_ok`. Le fichier revert détruit les surcharges : il nécessite une décision et une sauvegarde avant tout usage futur. Le fichier verify lit uniquement les catalogues et ne remplace pas un test RLS authentifié.
 
 ## Frontière d’accès et données
 

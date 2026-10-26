@@ -1,4 +1,4 @@
--- DRAFT / NOT LIVE. Read-only schema inspection, NOT proof of authenticated
+-- NOT APPLIED. Read-only schema inspection, NOT proof of authenticated
 -- isolation, atomicity or concurrent revision behavior. No DB used in this lot.
 select schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
 from pg_policies where schemaname = 'public' and tablename = 'employee_profiles';

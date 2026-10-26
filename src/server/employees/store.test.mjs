@@ -47,9 +47,9 @@ test('bounds and controls enforced; multiline instructions supported',async()=>{
  for(const patch of [{displayName:''},{displayName:' Bob '},{displayName:'x'.repeat(81)},{specialty:'x\n'},{instructions:'bad\u0001'}]){const db=set([]);await assert.rejects(createEmployeeStore().create(scope,{...fields,...patch},key));assert.equal(db.calls.length,0);}
  set([calls=>({data:calls.find(c=>c[0]==='insert')[1],error:null})]);assert.equal((await createEmployeeStore().create(scope,{...fields,instructions:'Line 1\nLine 2\tX'},key)).instructions,'Line 1\nLine 2\tX');
 });
-test('draft SQL statically preserves isolation and atomic single-row schema (not DB proof)',()=>{
- const sql=fs.readFileSync('db/migrations/drafts/employee_profiles.sql','utf8');assert.match(sql,/DRAFT \/ NOT LIVE/);assert.match(sql,/foreign key \(venture_id, workspace_id\) references public\.ventures\(id, workspace_id\)/);assert.match(sql,/enable row level security/);assert.match(sql,/to anon, authenticated using \(false\) with check \(false\)/);assert.match(sql,/revoke all on public\.employee_profiles from public, anon, authenticated, service_role/);assert.match(sql,/OLD\.state <> 'draft'/);assert.match(sql,/NEW\.revision <> OLD\.revision \+ 1/);assert.match(sql,/must be archived/);assert.doesNotMatch(sql,/on delete cascade/i);assert.doesNotMatch(sql,/language plpgsql security definer/i);assert.equal((sql.match(/create table /g)||[]).length,1);
- const numbered=fs.readdirSync('db/migrations').filter(n=>/^\d.*\.sql$/.test(n));assert.ok(numbered.every(n=>!n.includes('employee_profiles')));
+test('numbered SQL statically preserves isolation and atomic single-row schema (not DB proof)',()=>{
+ const sql=fs.readFileSync('db/migrations/0035_employee_profiles.sql','utf8');assert.match(sql,/NOT APPLIED/);assert.match(sql,/foreign key \(venture_id, workspace_id\) references public\.ventures\(id, workspace_id\)/);assert.match(sql,/enable row level security/);assert.match(sql,/to anon, authenticated using \(false\) with check \(false\)/);assert.match(sql,/revoke all on public\.employee_profiles from public, anon, authenticated, service_role/);assert.match(sql,/OLD\.state <> 'draft'/);assert.match(sql,/NEW\.revision <> OLD\.revision \+ 1/);assert.match(sql,/must be archived/);assert.doesNotMatch(sql,/on delete cascade/i);assert.doesNotMatch(sql,/language plpgsql security definer/i);assert.equal((sql.match(/create table /g)||[]).length,1);
+ assert.ok(fs.readdirSync('db/migrations/drafts').every(n=>!n.includes('employee_profiles')));
 });
 
 // Combined proof: REAL service -> REAL store -> stateful synthetic PostgREST
@@ -172,11 +172,12 @@ test('unknown DB outcome is not retried; malformed keys rejected before adapter 
  const db=set([{data:null,error:{code:'57014',message:'timeout'}}]);
  assert.equal((await saveEmployee(scope,{operation:'create',creationKey:key,...fields},createEmployeeStore())).status,'unavailable');assert.equal(db.calls.filter(c=>c[0]==='insert').length,1);assert.equal(db.calls.filter(c=>c[0]==='from').length,1);
 });
-test('upgrade draft statically preserves legacy null pairs and enforces immutable new intentions',()=>{
- const sql=fs.readFileSync('db/migrations/drafts/employee_profiles_idempotency_upgrade.sql','utf8');
- assert.match(sql,/add column creation_key uuid/);assert.match(sql,/create unique index employee_profiles_creation_key_unique on public\.employee_profiles\(creation_key\) where creation_key is not null/);
+test('legacy upgrade draft is superseded: the numbered create already carries the idempotency pair',()=>{
+ assert.equal(fs.existsSync('db/migrations/drafts/employee_profiles_idempotency_upgrade.sql'),false);
+ const sql=fs.readFileSync('db/migrations/0035_employee_profiles.sql','utf8');
+ assert.match(sql,/create unique index if not exists employee_profiles_creation_key_unique on public\.employee_profiles\(creation_key\) where creation_key is not null/);
  assert.match(sql,/creation_key is null and creation_payload_hash is null/);
  assert.match(sql,/NEW.creation_key is null or NEW.creation_payload_hash is null/);
  assert.match(sql,/NEW.creation_key is distinct from OLD.creation_key/);assert.match(sql,/NEW.creation_payload_hash is distinct from OLD.creation_payload_hash/);
- assert.match(sql,/security invoker/);assert.doesNotMatch(sql,/^grant /mi);assert.doesNotMatch(sql,/^update /mi);
+ assert.match(sql,/security invoker/);assert.doesNotMatch(sql,/^update /mi);
 });
