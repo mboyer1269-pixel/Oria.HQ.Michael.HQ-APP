@@ -1,0 +1,44 @@
+[1440/appr] axe violations: 0
+[1440] état atelier final : Attend ta validation
+[1440] clins d'œil journalisés : 1
+[390/appr] axe violations: 0
+[390] état atelier final : Attend ta validation
+[390] clins d'œil journalisés : 1
+clics: 80, échecs: 0
+[1440/atl] axe violations: 0
+[1440] état atelier final : Attend ta validation
+[1440] clins d'œil journalisés : 3
+[390/atl] note : #pauseRun recouvert pendant un changement de mise en page, clic par événement
+[390/atl] axe violations: 0
+[390] état atelier final : Attend ta validation
+[390] clins d'œil journalisés : 3
+[workflow] état final : Terminé — en attente de fusion manuelle
+clics: 60, échecs: 0
+[1440/cost] axe violations: 0
+[1440] état atelier final : Attend ta validation
+[1440] clins d'œil journalisés : 1
+[390/cost] axe violations: 0
+[390] état atelier final : Attend ta validation
+[390] clins d'œil journalisés : 1
+clics: 22, échecs: 0
+[1440/dash] axe violations: 0
+[1440] état atelier final : Attend ta validation
+[1440] clins d'œil journalisés : 1
+[390/dash] axe violations: 0
+[390] état atelier final : Attend ta validation
+[390] clins d'œil journalisés : 1
+clics: 30, échecs: 0
+[1440/mis] axe violations: 0
+[1440] état atelier final : Attend ta validation
+[1440] clins d'œil journalisés : 1
+[390/mis] axe violations: 0
+[390] état atelier final : Attend ta validation
+[390] clins d'œil journalisés : 1
+clics: 30, échecs: 0
+[1440/riso] axe violations: 0
+[1440] état atelier final : Attend ta validation
+[1440] clins d'œil journalisés : 3
+[390/riso] axe violations: 0
+[390] état atelier final : Attend ta validation
+[390] clins d'œil journalisés : 3
+clics: 6, échecs: 0

@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>War room design — Oria HQ (maquette, données exemple)</title>
+<style>
+:root{--bg:#0c0e12;--p1:#13161c;--p2:#1a1e26;--line:#2c323d;--tx:#eceef1;--mu:#aab1bc;--am:#f5b041;--am2:#ffd28a;--ok:#5fd39a;--wa:#ffb86b;--er:#ff8a8a;--pink:#ff48b0;--blue:#3d8bff;--paper:#f4eee0;--r:14px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-size:15px;line-height:1.5}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;min-height:44px;min-width:44px;border-radius:10px;border:1px solid var(--line);background:var(--p2);padding:0 14px;font-weight:600}
+button:hover{border-color:#4a5363}button:focus-visible,input:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--am2);outline-offset:2px}
+.pri{background:var(--am);color:#1a1205;border-color:var(--am)}.pri:hover{background:var(--am2)}
+.ghost{background:transparent}
+.skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;z-index:99;background:var(--am);color:#000;padding:8px}
+header{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--p1);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+.brand{font-weight:800;letter-spacing:.02em;display:flex;align-items:center;gap:8px;margin-right:auto}
+.brand b{color:var(--am)}
+.tag{font-size:12px;font-weight:700;border:1px solid var(--wa);color:var(--wa);border-radius:999px;padding:2px 9px;white-space:nowrap}
+nav.top{display:flex;gap:6px}nav.top button[aria-current=page]{background:var(--am);color:#1a1205;border-color:var(--am)}
+main{padding:16px 18px 90px}
+.view[hidden]{display:none!important}
+h1,h2,h3{margin:0;line-height:1.25}h1{font-size:20px}h2{font-size:16px}h3{font-size:14px}
+.mu{color:var(--mu)}.ex{font-size:11px;font-weight:700;color:#1a1205;background:var(--wa);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle;white-space:nowrap}
+.card{background:var(--p1);border:1px solid var(--line);border-radius:var(--r)}
+/* ---------- Dashboard ---------- */
+.dash{display:grid;grid-template-columns:260px minmax(0,1fr) minmax(0,1fr);gap:14px;height:calc(100vh - 150px);min-height:560px}
+.side{display:flex;flex-direction:column;padding:12px;gap:10px;overflow:auto}
+.side input{width:100%;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0 12px}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.hist button{width:100%;text-align:left;background:transparent;border-color:transparent;font-weight:500;display:flex;flex-direction:column;justify-content:center;padding:6px 10px}
+.hist button[aria-current=true]{background:var(--p2);border-color:var(--am)}
+.hist small{color:var(--mu);font-weight:400}
+.grp{font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 2px}
+.pane{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.pane-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.pane-h .sp{margin-left:auto;display:flex;gap:6px}
+.msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.m{max-width:88%;padding:10px 12px;border-radius:12px;background:var(--p2);border:1px solid var(--line)}
+.m.me{align-self:flex-end;background:#2a2215;border-color:#5b4620}
+.m .who{font-size:12px;color:var(--mu);font-weight:700;display:flex;gap:6px;align-items:center}
+.comp{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);align-items:flex-end}
+.comp textarea{flex:1;min-height:44px;max-height:140px;resize:vertical;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 10px}
+.chips button{min-height:44px;font-size:13px;font-weight:500;border-radius:999px}
+.av{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#222;flex:none;border:2px solid var(--line)}
+.av.lg{width:52px;height:52px}
+.st{font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;border:1px solid}
+.st.run{color:var(--ok);border-color:var(--ok)}.st.wait{color:var(--wa);border-color:var(--wa)}.st.idle{color:var(--mu);border-color:var(--line)}
+.agents{display:flex;gap:6px;overflow-x:auto;padding:10px 14px;border-bottom:1px solid var(--line)}
+.agents button{flex:none;display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border-radius:999px;font-weight:600;white-space:nowrap}
+.agents button[aria-pressed=true]{border-color:var(--am);background:#2a2215}
+.agents .av{width:34px;height:34px}
+.busy .av{box-shadow:0 0 0 3px var(--ok)}
+.appr{border:1px dashed var(--wa);border-radius:12px;padding:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#1f1a12}
+.mswitch{display:none}
+/* ---------- Atelier ---------- */
+.atl{display:grid;grid-template-columns:360px minmax(0,1fr);gap:14px}
+.plan{padding:14px;display:flex;flex-direction:column;gap:12px}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:s}
+.steps li{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--p2)}
+.steps li::before{counter-increment:s;content:counter(s);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;background:var(--bg);border:1px solid var(--line);flex:none}
+.steps li[data-s=done]::before{content:"✓";background:var(--ok);color:#06210f;border-color:var(--ok)}
+.steps li[data-s=run]{border-color:var(--ok)}.steps li[data-s=run]::before{border-color:var(--ok);color:var(--ok)}
+.steps li[data-s=gate]{border-color:var(--wa)}
+.steps .sl{font-size:12px;color:var(--mu)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding:8px 10px 0;overflow-x:auto}
+.tabs [role=tab]{border-radius:10px 10px 0 0;border-bottom:none;background:transparent;white-space:nowrap}
+.tabs [role=tab][aria-selected=true]{background:var(--p2);border-color:var(--am);color:var(--am2)}
+.tp{padding:14px;min-height:420px}
+.term{background:#07080a;border:1px solid var(--line);border-radius:10px;padding:12px;font:13px/1.55 ui-monospace,Menlo,monospace;min-height:340px;max-height:460px;overflow:auto;white-space:pre-wrap}
+.term .c{color:#8fc1ff}.term .o{color:var(--ok)}.term .w{color:var(--wa)}
+.files{display:grid;grid-template-columns:220px 1fr;gap:10px}
+.files ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.files ul button{width:100%;text-align:left;font:13px ui-monospace,monospace;background:transparent}
+.files ul button[aria-current=true]{border-color:var(--am);background:var(--p2)}
+.diff{font:13px/1.6 ui-monospace,monospace;background:#07080a;border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;overflow:auto}
+.diff .a{color:var(--ok)}.diff .d{color:var(--er)}
+.prev{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper);color:#1d1b16;max-width:560px}
+.prev .bar{background:#ddd4bf;padding:6px 10px;font:12px ui-monospace,monospace;color:#3a352b}
+.prev .bd{padding:18px}.prev .bd button{background:#1d1b16;color:var(--paper);border-color:#1d1b16}
+.checks{list-style:none;padding:0;margin:10px 0;display:flex;flex-direction:column;gap:6px}
+.checks li{display:flex;gap:8px;align-items:center}
+.ok{color:var(--ok)}.pend{color:var(--wa)}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--ok);border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-1px}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* ---------- Riso ---------- */
+.riso-stage{position:fixed;right:18px;bottom:84px;width:150px;height:150px;pointer-events:none;z-index:40}
+.riso-mark{width:100%;height:100%;opacity:0;background:var(--paper);clip-path:polygon(4% 9%,96% 2%,99% 88%,8% 97%);box-shadow:0 6px 20px #000a}
+.riso-mark .p1,.riso-mark .p2{mix-blend-mode:multiply}
+.riso-mark.go{animation:rIn 1.9s steps(12) forwards}
+.riso-mark.go .p2{animation:rReg 1.9s steps(12) forwards}
+@keyframes rIn{0%{opacity:0;transform:scale(.6) rotate(-14deg)}15%{opacity:1;transform:scale(1.08) rotate(3deg)}25%{transform:scale(1) rotate(0)}80%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
+@keyframes rReg{0%{transform:translate(9px,7px)}30%{transform:translate(-3px,2px)}45%,100%{transform:translate(3px,2px)}}
+@media (prefers-reduced-motion:reduce){.riso-mark.go,.riso-mark.go .p2{animation:rFade 1.9s steps(2) forwards}.spin{animation:none}@keyframes rFade{0%,80%{opacity:1}100%{opacity:0}}}
+.gal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.gal .card{padding:16px;display:flex;flex-direction:column;gap:10px}
+.paper{background:var(--paper);border-radius:12px;height:170px;display:grid;place-items:center;position:relative;overflow:hidden}
+.paper svg{width:130px;height:130px}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+#status{pointer-events:none;position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#20252f;border:1px solid var(--am);color:var(--tx);border-radius:12px;padding:10px 16px;z-index:50;max-width:min(92vw,620px);font-weight:600;box-shadow:0 8px 30px #0008}
+#status:empty{display:none}
+.drawer-bg{display:none}
+/* ---------- Mobile 390 ---------- */
+@media (max-width:900px){
+ header{padding:8px 12px}nav.top{width:100%;order:3}nav.top button{flex:1;padding:0 6px}
+ main{padding:10px 10px 90px}
+ .dash{display:block;height:auto}
+ .mswitch{display:flex;gap:6px;margin-bottom:10px;position:sticky;top:112px;z-index:15;background:var(--bg);padding:4px 0}
+ .mswitch button{flex:1}.mswitch button[aria-pressed=true]{background:var(--am);color:#1a1205;border-color:var(--am)}
+ .dash .pane{height:calc(100vh - 230px);min-height:480px}
+ .dash[data-m=conv] #workPane,.dash[data-m=work] #convPane{display:none}
+ .side{position:fixed;inset:0 20% 0 0;z-index:60;transform:translateX(-105%);transition:transform .2s,visibility .2s;border-radius:0;visibility:hidden}
+ .side.open{transform:none;visibility:visible}.drawer-bg.open{display:block;position:fixed;inset:0;background:#000a;z-index:55}
+ .atl{grid-template-columns:1fr}.files{grid-template-columns:1fr}.gal{grid-template-columns:1fr}
+ .riso-stage{width:110px;height:110px;right:10px}
+ .hide-m{display:none}
+}
+@media (min-width:901px){.only-m{display:none!important}}
+
+nav.top{overflow-x:auto;scrollbar-width:thin}nav.top button{white-space:nowrap}
+.lux{background:linear-gradient(180deg,#151821,#101219);border:1px solid #262c38;border-radius:16px;box-shadow:0 1px 0 #ffffff0d inset,0 20px 40px -24px #000}
+.g2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px}.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.pad{padding:16px}.kv{display:grid;grid-template-columns:130px 1fr;gap:6px 12px;font-size:14px}.kv dt{color:var(--mu)}.kv dd{margin:0;font-family:ui-monospace,monospace;word-break:break-all}
+pre.pl{background:#07080a;border:1px solid var(--line);border-radius:12px;padding:14px;font:13px/1.6 ui-monospace,monospace;overflow:auto;max-height:340px;margin:0}
+.seg{display:flex;gap:4px;padding:4px;background:#0a0c10;border:1px solid var(--line);border-radius:12px;overflow-x:auto}.seg button{border:none;background:transparent;white-space:nowrap}.seg button[aria-pressed=true]{background:var(--p2);color:var(--am2);box-shadow:0 0 0 1px var(--am) inset}
+.lock{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#0d0f14}
+.lock label{display:flex;gap:10px;align-items:center;min-height:44px;min-width:0}.lock label span{min-width:0}code{overflow-wrap:anywhere}.lux{min-width:0}.lock input{width:22px;height:22px;accent-color:var(--am)}
+.locked{background:#2a2f3a;color:var(--tx);border-color:#4a5363}
+.nb{color:var(--wa);font-weight:700}
+.chipst{display:inline-flex;align-items:center;gap:6px;border-radius:999px;border:1px solid var(--line);padding:2px 10px;font-size:13px;font-weight:600;min-height:32px}
+.chipst.new{border-style:dashed;border-color:var(--wa)}
+.stgrid{display:flex;flex-wrap:wrap;gap:6px}.stgrid button{border-radius:999px;font-size:13px}.stgrid button[aria-pressed=true]{border-color:var(--am);color:var(--am2)}
+.bigst{font-size:28px;font-weight:800;letter-spacing:-.02em}
+.unv{display:inline-block;background:#3a1f1f;color:#ffc4c4;border:1px solid var(--er);border-radius:8px;padding:2px 8px;font-size:12px;font-weight:700}
+.stop{background:#5c1d1d;border-color:var(--er);color:#fff}
+.banner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border:1px solid var(--er);background:linear-gradient(90deg,#3a1717,#1d1214);border-radius:14px;padding:12px 16px;margin-bottom:14px}
+.bar2{height:8px;border-radius:99px;background:#252a35;overflow:hidden}.bar2 i{display:block;height:100%;background:var(--am)}
+.tid{font-family:ui-monospace,monospace;font-size:13px;min-height:44px}
+@media (max-width:900px){.g2,.g4{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.tbl-wrap{overflow-x:auto}}
+.ni{border:1px dashed #6b7280;border-radius:12px;padding:12px 14px;background:#11141a;color:var(--mu)}.ni strong{color:var(--tx)}
+.unk{color:#c9b8ff}.st.unk{color:#c9b8ff;border-color:#8b74e8;background:#1d1830}.steps li[data-s=unk]{border-color:#8b74e8}.steps li[data-s=unk]::before{content:"?";background:#1d1830;color:#c9b8ff;border-color:#8b74e8}
+.real{font-size:11px;font-weight:700;color:#06210f;background:var(--ok);border-radius:6px;padding:1px 6px;margin-left:6px}
+.dl{font:13px/1.6 ui-monospace,monospace;white-space:pre-wrap;background:#07080a;border:1px solid var(--line);border-radius:12px;padding:10px;margin:0}.dl .a{color:var(--ok)}.dl .d{color:var(--er)}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+ <defs>
+  <filter id="cut" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5"/></filter>
+  <filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="9" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -1.6 1.15" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>
+  <symbol id="m-code" viewBox="0 0 120 120"><g class="p1" filter="url(#cut)"><path d="M22 92 L52 30 L70 92Z" fill="#ff48b0" filter="url(#grain)"/></g><g class="p2" filter="url(#cut)"><path d="M48 92 L76 38 L100 92Z" fill="#0078bf" filter="url(#grain)"/></g></symbol>
+  <symbol id="m-crown" viewBox="0 0 120 120"><g class="p1" filter="url(#cut)"><path d="M18 88 L24 38 L44 62 L60 28 L76 62 L96 38 L102 88Z" fill="#ffb000" filter="url(#grain)"/></g><g class="p2" filter="url(#cut)"><rect x="22" y="84" width="78" height="12" fill="#ff48b0" filter="url(#grain)"/><circle cx="60" cy="28" r="7" fill="#ff48b0" filter="url(#grain)"/></g></symbol>
+  <symbol id="m-stamp" viewBox="0 0 120 120"><g class="p1" filter="url(#cut)"><circle cx="60" cy="60" r="40" fill="#0078bf" filter="url(#grain)"/></g><g class="p2" filter="url(#cut)"><path d="M40 62 L54 76 L82 44" fill="none" stroke="#ff48b0" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" filter="url(#grain)"/></g></symbol>
+ </defs>
+</svg>
+<header>
+ <div class="brand"><span aria-hidden="true">◆</span> Oria <b>HQ</b> <span class="tag">Maquette · données « exemple »</span></div>
+ <nav class="top" aria-label="Sections">
+  <button id="nav-dash" aria-current="page" data-view="dash">Dashboard</button>
+  <button id="nav-atl" data-view="atl">Atelier</button>
+  <button id="nav-riso" data-view="riso">Clins d'œil</button>
+  <button id="nav-appr" data-view="appr">Approbations</button>
+  <button id="nav-mis" data-view="mis">Missions</button>
+  <button id="nav-cost" data-view="cost">Coûts</button>
+ </nav>
+</header>
+<main id="main" tabindex="-1">
+<!-- ================= DASHBOARD ================= -->
+<section class="view" id="v-dash" aria-labelledby="t-dash">
+ <h1 id="t-dash" class="hide-m" style="margin-bottom:10px">Dashboard <span class="mu" style="font-size:14px;font-weight:500">— Conversation à gauche, Work à droite</span></h1>
+ <div class="mswitch only-m" role="group" aria-label="Basculer l'espace affiché">
+  <button id="ms-hist" class="ghost" aria-label="Ouvrir l'historique" aria-expanded="false" aria-controls="side">☰</button>
+  <button id="ms-conv" aria-pressed="true">Conversation</button>
+  <button id="ms-work" aria-pressed="false">Work <span id="workBadge" class="ex" style="background:var(--ok)">2</span></button>
+ </div>
+ <div class="drawer-bg" id="drawerBg"></div>
+ <div class="dash" id="dash" data-m="conv">
+  <aside class="card side" id="side" aria-label="Historique des conversations">
+   <button id="newConv" class="pri">＋ Nouvelle conversation</button>
+   <label for="q" class="mu" style="font-size:13px">Rechercher dans l'historique</label>
+   <input id="q" type="search" placeholder="ex. tarifs, onboarding…">
+   <div class="grp">Aujourd'hui</div><ul class="hist" id="hist"></ul>
+   <p id="noHit" class="mu" hidden>Aucune conversation trouvée.</p>
+   <button id="closeSide" class="ghost only-m">Fermer l'historique</button>
+  </aside>
+  <section class="card pane" id="convPane" aria-labelledby="convTitle">
+   <div class="pane-h"><h2 id="convTitle">Brainstorm</h2><span class="ex">exemple</span>
+    <div class="sp"><button id="toWork" class="ghost" title="Transformer la dernière idée en mission Work">→ Envoyer à Work</button></div></div>
+   <div class="msgs" id="convMsgs" aria-live="polite"></div>
+   <div class="chips" aria-label="Amorces">
+    <button id="chip1" data-p="Trois idées pour l'onboarding des nouveaux clients">💡 Idées onboarding</button>
+    <button id="chip2" data-p="Résume les décisions de cette conversation">🧾 Résumer</button>
+   </div>
+   <form class="comp" id="convForm"><label for="convIn" class="skip">Message</label><textarea id="convIn" rows="1" placeholder="Écris librement… (Entrée pour envoyer)"></textarea><button id="convSend" class="pri" type="submit">Envoyer</button></form>
+  </section>
+  <section class="card pane" id="workPane" aria-labelledby="workTitle">
+   <div class="pane-h"><h2 id="workTitle">Work</h2><span class="mu" style="font-size:13px">échanges avec les agents</span>
+    <div class="sp"><button id="openAtl" class="ghost">Ouvrir l'Atelier ↗</button></div></div>
+   <div class="agents" role="group" aria-label="Filtrer par agent" id="agentBar"></div>
+   <div class="msgs" id="workMsgs" aria-live="polite"></div>
+   <form class="comp" id="workForm"><label for="workIn" class="skip">Consigne à l'agent</label><textarea id="workIn" rows="1" placeholder="Consigne à l'agent sélectionné…"></textarea><button id="workSend" class="pri" type="submit">Envoyer</button></form>
+  </section>
+ </div>
+</section>
+<!-- ================= ATELIER ================= -->
+<section class="view" id="v-atl" hidden aria-labelledby="t-atl">
+ <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+  <img class="av lg" src="../avatars-v2/figurine/nexus-tete-64.webp" alt="">
+  <div><h1 id="t-atl">Atelier — Page de réservation <span class="ex">exemple</span></h1><p class="mu" style="margin:0">Mission menée par Nexus (code) et Aegis (vérification). Orchestration : Ronny.</p></div>
+  <span id="atlState" class="st idle" style="margin-left:auto">En attente du plan</span>
+ </div>
+ <div class="atl">
+  <section class="card plan" aria-labelledby="t-plan">
+   <h2 id="t-plan">Plan</h2>
+   <ol class="steps" id="steps"></ol>
+   <div class="row">
+    <button id="approvePlan" class="pri">Valider le plan</button>
+    <button id="runStep">Lancer l'étape suivante</button>
+    <button id="pauseRun" class="ghost">Pause</button>
+   </div>
+   <p class="mu" style="font-size:13px;margin:0">Les validations humaines (◆) bloquent la suite tant que tu n'as pas tranché. Rien n'est fusionné automatiquement.</p>
+  </section>
+  <section class="card" aria-label="Espace de travail">
+   <div class="tabs" role="tablist" aria-label="Vues de l'espace de travail" id="atlTabs">
+    <button role="tab" id="tab-log" aria-selected="true" aria-controls="tp-log">Journal</button>
+    <button role="tab" id="tab-files" aria-selected="false" aria-controls="tp-files" tabindex="-1">Fichiers <span id="fileCount" class="mu">0</span></button>
+    <button role="tab" id="tab-prev" aria-selected="false" aria-controls="tp-prev" tabindex="-1">Aperçu</button>
+    <button role="tab" id="tab-pr" aria-selected="false" aria-controls="tp-pr" tabindex="-1">PR & validations</button>
+   </div>
+   <div class="tp" role="tabpanel" id="tp-log" aria-labelledby="tab-log" tabindex="0">
+    <div class="row" style="margin-bottom:8px"><button id="copyLog" class="ghost">Copier le journal</button><button id="clearLog" class="ghost">Effacer l'affichage</button></div>
+    <div class="term" id="term" role="log" aria-label="Journal du terminal"><span class="mu">$ en attente — valide le plan pour démarrer (exemple)</span></div>
+   </div>
+   <div class="tp" role="tabpanel" id="tp-files" aria-labelledby="tab-files" tabindex="0" hidden>
+    <div class="files"><ul id="fileList" aria-label="Fichiers modifiés"></ul><div class="diff" id="diff">Aucun fichier modifié pour l'instant.</div></div>
+   </div>
+   <div class="tp" role="tabpanel" id="tp-prev" aria-labelledby="tab-prev" tabindex="0" hidden>
+    <div class="row" style="margin-bottom:10px"><button id="reloadPrev" class="ghost">↻ Recharger l'aperçu</button><button id="prevMobile" class="ghost" aria-pressed="false">Format 390</button></div>
+    <div class="prev" id="prevBox"><div class="bar">localhost:3000/reserver — exemple</div><div class="bd" id="prevBd"><p>L'aperçu apparaît quand l'étape « Page » est terminée.</p></div></div>
+   </div>
+   <div class="tp" role="tabpanel" id="tp-pr" aria-labelledby="tab-pr" tabindex="0" hidden>
+    <h2>PR brouillon <span class="ex">exemple</span></h2>
+    <p class="mu" id="prLine">Pas encore ouverte — elle s'ouvre après l'étape « Tests ».</p>
+    <ul class="checks" id="checks"></ul>
+    <div class="appr" id="prAppr"><strong>Validation humaine</strong><span class="mu">La fusion reste manuelle, jamais automatique.</span>
+     <button id="prApprove" class="pri">Approuver le livrable</button><button id="prChanges">Demander des changements</button></div>
+   </div>
+  </section>
+ </div>
+</section>
+<!-- ================= RISO ================= -->
+<section class="view" id="v-riso" hidden aria-labelledby="t-riso">
+ <h1 id="t-riso">Clins d'œil « Papier riso »</h1>
+ <p class="mu" style="max-width:760px">Pas un avatar : un tampon découpé, deux encres décalées, grain de papier. Il apparaît une seule fois, 1,9 s, quand un <strong>événement réel</strong> arrive. Jamais en boucle, jamais au repos. Mouvement réduit : apparition fixe puis fondu.</p>
+ <div class="gal">
+  <article class="card"><div class="paper"><svg aria-hidden="true"><use href="#m-code"/></svg></div><h2>Deux triangles — code</h2><p class="mu" style="margin:0">Déclencheur : une étape de code se termine avec un commit.</p><button id="rp-code">Rejouer l'événement exemple</button></article>
+  <article class="card"><div class="paper"><svg aria-hidden="true"><use href="#m-crown"/></svg></div><h2>Couronne — Ronny</h2><p class="mu" style="margin:0">Déclencheur : Ronny répartit une mission entre agents (chef d'orchestre).</p><button id="rp-crown">Rejouer l'événement exemple</button></article>
+  <article class="card"><div class="paper"><svg aria-hidden="true"><use href="#m-stamp"/></svg></div><h2>Tampon — validation</h2><p class="mu" style="margin:0">Déclencheur : tu approuves un livrable (validation humaine).</p><button id="rp-stamp">Rejouer l'événement exemple</button></article>
+ </div>
+ <h2 style="margin:20px 0 6px">Journal des clins d'œil réellement déclenchés</h2>
+ <table><thead><tr><th>Heure</th><th>Symbole</th><th>Événement</th></tr></thead><tbody id="risoLog"><tr><td colspan="3" class="mu">Aucun pour l'instant.</td></tr></tbody></table>
+</section>
+
+<!-- ================= APPROBATION PAYLOAD EXACT ================= -->
+<section class="view" id="v-appr" hidden aria-labelledby="t-appr">
+ <h1 id="t-appr" style="margin-bottom:4px">Approbation au payload exact <span class="ex">exemple</span></h1>
+ <div class="ni" style="margin-bottom:10px"><strong>File d'approbations transverse : non instrumenté.</strong> Seuls les reçus de dispatch existent <span class="real">réel</span> : <code>payloadHash</code> (paperclip-dispatch.ts:10), <code>confirmedBy</code> (paperclip-dispatch-store.ts:35), contrat OpenHands (openhands-launch-contract.ts:54). Le gabarit ci-dessous est un <span class="ex">exemple</span>.</div>
+ <details class="lux pad" style="margin-bottom:12px"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:700">Règles Sentinelle (voix vs écran)</summary><ul style="margin:6px 0 0;padding-left:20px"><li>La voix peut seulement : mettre en file, refuser, annuler, et approuver une action réversible et gratuite (branche seule, sans push).</li><li>Envoi, paiement, fusion, suppression : validation à l'écran uniquement, diff et empreinte visibles.</li><li>L'approbation expire vite (10 min ici) et tombe si le payload change.</li><li>Chaque décision est journalisée : qui, quand, empreinte, canal.</li></ul></details>
+ <p class="mu" style="margin:0 0 12px">Tu approuves exactement ce qui sera exécuté : le payload, son empreinte SHA-256 et son expiration. Double verrou de la PR #420 : kill-switch <code>ORIA_RISKY_ACTIONS_ENABLED=1</code> + <code>confirm: true</code>.</p>
+ <div class="seg" role="group" aria-label="Type d'action" id="apSeg">
+  <button id="ap-merge" aria-pressed="true">Fusion</button><button id="ap-deploy" aria-pressed="false">Déploiement</button><button id="ap-spend" aria-pressed="false">Dépense</button><button id="ap-delete" aria-pressed="false">Suppression</button><button id="ap-cap" aria-pressed="false">Nouvelle capacité</button>
+ </div>
+ <div class="g2" style="margin-top:14px">
+  <section class="lux pad" aria-labelledby="apT"><h2 id="apT">Carte Agent Inbox — exemple de rendu</h2><p class="mu" id="apDesc" style="margin:4px 0 10px"></p><pre class="pl" id="apPayload" tabindex="0" aria-label="Payload complet"></pre>
+   <div class="row" style="margin-top:10px"><button id="apEdit">Modifier les arguments</button><button id="apReply" class="ghost">Répondre à l'agent</button><button id="apIgnore" class="ghost">Ignorer</button><button id="apCopy" class="ghost">Copier le payload</button></div><p id="apReplyOut" class="mu" aria-live="polite" style="margin:8px 0 0"></p>
+<div class="ni" style="margin-top:12px"><strong>Notification (aperçu)</strong> : « Une approbation t'attend — Nexus » · jamais de payload dans la notification. Plafond vocal : exclu. <div class="row" style="margin-top:8px"><button id="apNotif" class="ghost">Ouvrir depuis la notification</button></div></div></section>
+  <section class="lux pad" aria-labelledby="apT2" style="display:flex;flex-direction:column;gap:12px"><h2 id="apT2">Contrôle</h2>
+   <dl class="kv"><dt>Empreinte</dt><dd id="apHash">calcul…</dd><dt>Expire</dt><dd id="apExp"></dd><dt>Gate (PR #420)</dt><dd id="apGate"></dd><dt>Exécution</dt><dd id="apMode"></dd><dt>Canal</dt><dd>screen (voice interdit par CHECK mission_events_voice_no_irreversible_approval, #425)</dd><dt>Origine de l'accord</dt><dd id="apOrig"><span class="unv">non vérifié</span> — jamais affiché comme valide</dd><dt>Source</dt><dd style="font-family:inherit">reçus de dispatch sur main (payloadHash, confirmedBy) · <code>grant_id</code>/<code>expires_at</code> : #425 non fusionnée, bloquée</dd></dl>
+   <label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="lkUnsb" style="width:22px;height:22px;accent-color:var(--am)"> Bac à sable indisponible (<code>sandbox_unavailable</code>) — simulé</label>
+   <div class="lock" role="group" aria-label="Double verrou (simulé dans la maquette)">
+    <label><input type="checkbox" id="lkSwitch"> Kill-switch levé (<code>ORIA_RISKY_ACTIONS_ENABLED=1</code>) — simulé</label>
+    <label><input type="checkbox" id="lkConfirm"> J'envoie <code>confirm: true</code> pour ce payload exact</label>
+   </div>
+   <div class="row"><button id="apGo" class="locked" aria-disabled="true">🔒 Approuver ce payload</button><button id="apNo">Refuser</button></div>
+   <p id="apOut" class="mu" style="margin:0" aria-live="polite"></p>
+  </section>
+ </div>
+ <div class="g2" style="margin-top:14px"><section class="lux pad" aria-labelledby="apDT"><h2 id="apDT">Diff depuis la revue</h2><div id="apStale" hidden class="banner" style="margin:8px 0"><strong>Approbation périmée</strong><span>Ancienne : <code id="apOld"></code></span><span>Nouvelle : <code id="apNew"></code></span><span>Nouvelle revue requise.</span></div><pre class="dl" id="apDiff">Aucune approbation encore : rien à comparer.</pre></section>
+  <section class="lux pad" aria-labelledby="apJT"><h2 id="apJT">Journal des décisions <span class="unv">non vérifié</span></h2><p class="mu" style="font-size:12px;margin:2px 0 6px">Sources possibles : governance_decisions (db/migrations/0008:40), events (0017:22). Non branché.</p><table><thead><tr><th>Qui</th><th>Quand</th><th>Empreinte</th><th>Canal</th><th>Décision</th></tr></thead><tbody id="apLog"><tr><td colspan="5" class="mu">Aucune décision.</td></tr></tbody></table></section>
+ </div>
+</section>
+<!-- ================= VIE DE MISSION ================= -->
+<section class="view" id="v-mis" hidden aria-labelledby="t-mis">
+ <h1 id="t-mis" style="margin-bottom:4px">Vie de mission <span class="tag">dépend de #425 (brouillon, bloquée)</span></h1>
+ <div class="ni" style="margin-bottom:10px"><strong>Cycle de vie live : non instrumenté.</strong> Aucune mission en cours n'est lisible ici. <code>waiting_approval</code>, worker bloqué et annulation confirmée n'existent pas ; <code>outcome_unknown</code> n'existe que dans le CLI (development-mission.mjs:14). Gabarit ci-dessous = <span class="ex">exemple</span>.</div>
+ <section class="lux pad" style="margin-bottom:12px" aria-labelledby="absT"><h2 id="absT">Pendant ton absence</h2><dl class="kv" style="margin-top:8px"><dt>Décisions</dt><dd style="font-family:inherit" class="nb">non branché</dd><dt>Résultats inconnus</dt><dd style="font-family:inherit" class="nb">non branché</dd><dt>Dépenses</dt><dd style="font-family:inherit">aucun appel d'API payante (garde-fou)</dd></dl><button id="absWhy" class="ghost" style="margin-top:8px">Pourquoi non branché ?</button></section>
+ <p class="mu" style="margin:0 0 12px">États réels de <code>MissionStatus</code> (src/core/types.ts:192-199 sur main : 7 valeurs). Les états en pointillés (waiting_approval, outcome_unknown, blocked, cancelled live) viendront du contrat <code>mission_events</code> d'Atelier (spec attendue le 27 oct.) : <strong>non instrumenté</strong> d'ici là.</p>
+ <div class="stgrid" role="group" aria-label="Prévisualiser un état" id="stGrid"></div>
+ <div class="g2" style="margin-top:14px">
+  <section class="lux pad" aria-labelledby="misT"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><img class="av lg" src="../avatars-v2/figurine/nexus-tete-64.webp" alt=""><div><h2 id="misT">Page de réservation <span class="ex">exemple</span></h2><p class="mu" style="margin:0">Worker : Nexus · mission m_exemple_01</p></div></div>
+   <p class="bigst" id="misState" style="margin:14px 0 4px"></p><p class="mu" id="misNote" style="margin:0 0 10px"></p>
+   <dl class="kv"><dt>Dernier signal</dt><dd id="misBeat"></dd><dt>Résultat</dt><dd><span class="unv" id="misUnv">résultat non vérifié</span></dd></dl>
+   <div class="row" style="margin-top:14px"><button id="misStop" class="stop">■ Arrêter la mission</button><button id="misSilent" class="ghost" aria-pressed="false">Simuler : worker muet</button><button id="misVerify" class="ghost">Vérifier le résultat</button></div>
+   <p id="misOut" class="mu" aria-live="polite" style="margin:10px 0 0"></p></section>
+  <section class="lux pad" aria-labelledby="misT3"><h2 id="misT3">Historique (append-only, façon Temporal) — exemple de rendu</h2><ol class="steps" id="misTl" aria-label="Événements de mission" style="margin:10px 0 14px"></ol><h3>États d'annulation</h3>
+   <ol class="steps" id="cancelSteps" style="margin-top:10px"><li data-s="todo"><div>Annulation en cours<div class="sl">demande envoyée au worker</div></div></li><li data-s="todo"><div>Annulée<div class="sl">le worker a confirmé l'arrêt</div></div></li><li data-s="todo"><div>Non confirmée — <span class="unk">inconnu</span><div class="sl">aucun signal : ni réussi ni échoué, l'arrêt n'est pas prouvé</div></div></li></ol>
+   <p class="mu" style="font-size:13px">« Non confirmée » correspond à <code>outcome_unknown</code> (proposé) : on ne prétend jamais qu'une mission est arrêtée sans signal.</p></section>
+ </div>
+</section>
+<!-- ================= COUTS & QUOTAS ================= -->
+<section class="view" id="v-cost" hidden aria-labelledby="t-cost">
+ <h1 id="t-cost" style="margin-bottom:10px">Coûts et quotas par fournisseur <span class="tag">dépend de #425 (brouillon, bloquée)</span></h1>
+ <div class="banner" role="region" aria-label="API payante bloquée"><strong>⛔ API payante bloquée</strong><span>Les agents travaillent sur abonnements uniquement. Le compteur de quota (PR #419) est la seule source.</span><button id="bnQuota" class="ghost" style="margin-left:auto">Voir le compteur</button></div>
+ <div class="ni" id="costEmpty"><strong>Coûts : non instrumenté.</strong> Aucune donnée de coût ni de quota n'est lue aujourd'hui. Seul garde-fou réel : <strong>aucun appel d'API payante</strong>.<div class="row" style="margin-top:8px"><button id="costTpl" aria-expanded="false" aria-controls="costTplBox">Voir l'exemple de rendu</button></div></div>
+ <div id="costTplBox" hidden class="lux pad" style="margin-top:12px" aria-label="Exemple de rendu"><p class="tag" style="display:inline-block">EXEMPLE DE RENDU — aucune donnée réelle</p><div class="g4" id="provGrid" style="margin-top:12px"></div>
+ <section class="lux pad" style="margin-top:14px" aria-labelledby="t-mc"><h2 id="t-mc">Coût par mission</h2><p class="mu" style="margin:4px 0 10px"><code>costMicroUsd</code> et <code>traceId</code> n'existent pas encore sur main → <span class="nb">non branché</span>. Les valeurs ci-dessous sont des exemples.</p>
+  <div class="tbl-wrap"><table><thead><tr><th>Mission</th><th>Fournisseur</th><th>traceId</th><th>costMicroUsd</th></tr></thead><tbody id="mcBody"></tbody></table></div>
+  <div id="trace" class="lux pad" style="margin-top:12px" hidden tabindex="-1"><h3 id="traceT"></h3><pre class="pl" id="traceP"></pre><button id="traceClose" class="ghost" style="margin-top:8px">Fermer la trace</button></div></section></div>
+</section>
+</main>
+<div class="riso-stage" aria-hidden="true"><svg class="riso-mark" id="risoMark" viewBox="0 0 120 120"><use id="risoUse" href="#m-code"/></svg></div>
+<div id="status" role="status" aria-live="polite" data-count="0"></div>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const F='../avatars-v2/figurine/';
+const AG=[{id:'ori',n:'Ori',r:'coordination'},{id:'nexus',n:'Nexus',r:'code'},{id:'aegis',n:'Aegis',r:'vérification'},{id:'scout',n:'Scout',r:'recherche'},{id:'nova',n:'Nova',r:'design'},{id:'pulse',n:'Pulse',r:'suivi'}];
+let cnt=0;function say(t){cnt++;const s=$('#status');s.textContent=t;s.dataset.count=cnt;clearTimeout(say.t);say.t=setTimeout(()=>{},10)}
+const esc=t=>t.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+/* ---- riso: only on real events ---- */
+const RN={code:'Deux triangles',crown:'Couronne',stamp:'Tampon'};
+function riso(kind,why){const m=$('#risoMark');$('#risoUse').setAttribute('href','#m-'+kind);m.classList.remove('go');void m.getBoundingClientRect();m.classList.add('go');
+ const tb=$('#risoLog');if(tb.querySelector('td[colspan]'))tb.innerHTML='';const tr=document.createElement('tr');tr.innerHTML=`<td>${new Date().toTimeString().slice(0,8)}</td><td>${RN[kind]}</td><td>${esc(why)}</td>`;tb.prepend(tr)}
+/* ---- nav ---- */
+function go(v){$$('.view').forEach(x=>x.hidden=x.id!=='v-'+v);$$('nav.top button').forEach(b=>b.dataset.view===v?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current'));$('#main').focus({preventScroll:true});window.scrollTo(0,0)}
+$$('nav.top button').forEach(b=>b.onclick=()=>{go(b.dataset.view);say('Section ouverte : '+b.textContent)});
+/* ---- conversations ---- */
+const CONVS=[{id:'c1',t:'Brainstorm tarifs 2027',w:'il y a 2 h',m:[['me','On réfléchit aux paliers de prix.'],['ai','Trois pistes exemple : abonnement simple, palier équipe, à l\'usage.']]},
+{id:'c2',t:'Idées onboarding clients',w:'hier',m:[['me','Comment accueillir un nouveau client ?'],['ai','Exemple : un appel de 15 min, une checklist partagée, un premier livrable en 48 h.']]},
+{id:'c3',t:'Page de réservation',w:'lundi',m:[['me','Il faut une page de réservation simple.'],['ai','Exemple : formulaire en 3 champs, confirmation par courriel.']]}];
+let cur=CONVS[0];
+function drawHist(f=''){const h=$('#hist');h.innerHTML='';const L=CONVS.filter(c=>c.t.toLowerCase().includes(f.toLowerCase()));$('#noHit').hidden=L.length>0;
+ L.forEach(c=>{const li=document.createElement('li');li.innerHTML=`<button id="h-${c.id}" aria-current="${c===cur}">${esc(c.t)}<small>${c.w} · exemple</small></button>`;li.firstChild.onclick=()=>{cur=c;drawConv();drawHist($('#q').value);closeSide();say('Conversation ouverte : '+c.t)};h.append(li)})}
+function msg(box,who,txt,av){const d=document.createElement('div');d.className='m'+(who==='me'?' me':'');d.innerHTML=`<div class="who">${av?`<img class="av" style="width:22px;height:22px" src="${F+av}-tete-64.webp" alt="">`:''}${who==='me'?'Michael':(av?esc(AG.find(a=>a.id===av).n):'Oria')}${who==='me'?'':'<span class="ex">exemple</span>'}</div><div>${esc(txt)}</div>`;box.append(d);box.scrollTop=1e6;return d}
+function drawConv(){$('#convTitle').textContent=cur.t;const b=$('#convMsgs');b.innerHTML='';cur.m.forEach(([w,t])=>msg(b,w,t))}
+function sendConv(t){t=t.trim();if(!t){say('Écris un message avant d\'envoyer.');$('#convIn').focus();return}cur.m.push(['me',t]);msg($('#convMsgs'),'me',t);const r='Réponse simulée (exemple) : je note « '+t.slice(0,60)+' ». Veux-tu l\'envoyer à Work ?';cur.m.push(['ai',r]);setTimeout(()=>msg($('#convMsgs'),'ai',r),350);$('#convIn').value='';say('Message envoyé dans « '+cur.t+' »')}
+$('#convForm').onsubmit=e=>{e.preventDefault();sendConv($('#convIn').value)};
+$('#convIn').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendConv(e.target.value)}};
+$$('.chips button').forEach(b=>b.onclick=()=>sendConv(b.dataset.p));
+$('#newConv').onclick=()=>{const c={id:'c'+(CONVS.length+1),t:'Nouvelle conversation',w:'maintenant',m:[]};CONVS.unshift(c);cur=c;drawHist();drawConv();closeSide();setM('conv');$('#convIn').focus();say('Nouvelle conversation créée')};
+$('#q').oninput=e=>drawHist(e.target.value);
+/* ---- work ---- */
+let agentSel='all';const WORK=[{a:'ori',t:'Ronny a réparti « Page de réservation » : Nexus code, Aegis vérifie.'},{a:'nexus',t:'Étape 2/5 en cours : composant formulaire.',busy:1},{a:'aegis',t:'J\'attends ta validation du plan avant les tests.',ask:1}];
+function drawAgents(){const b=$('#agentBar');b.innerHTML=`<button id="ag-all" aria-pressed="${agentSel==='all'}">Tous</button>`+AG.map(a=>`<button id="ag-${a.id}" aria-pressed="${agentSel===a.id}" class="${WORK.some(w=>w.a===a.id&&w.busy)?'busy':''}"><img class="av" src="${F+a.id}-tete-64.webp" alt="">${a.n}<span class="skip">, ${a.r}</span></button>`).join('');
+ $$('#agentBar button').forEach(x=>x.onclick=()=>{agentSel=x.id.slice(3);drawAgents();drawWork();say(agentSel==='all'?'Tous les agents affichés':'Fil filtré : '+x.textContent.trim())})}
+function drawWork(){const b=$('#workMsgs');b.innerHTML='';const L=WORK.filter(w=>agentSel==='all'||w.a===agentSel);if(!L.length){b.innerHTML='<p class="mu">Aucun échange avec cet agent pour l\'instant. Écris-lui une consigne ci-dessous.</p>'}
+ L.forEach((w,i)=>{const d=msg(b,w.me?'me':'ai',w.t,w.me?null:w.a);if(w.ask&&!w.done){const k=WORK.indexOf(w);const ap=document.createElement('div');ap.className='appr';ap.innerHTML=`<strong>Validation demandée</strong><button id="wa-ok-${k}" class="pri">Approuver</button><button id="wa-no-${k}">Refuser</button>`;d.append(ap);
+  ap.querySelector('.pri').onclick=()=>{w.done=1;WORK.push({a:w.a,t:'Merci, validation reçue. Je lance les tests.'});steps[0].s='done';drawSteps();drawWork();riso('stamp','Plan validé depuis Work');say('Plan approuvé : Aegis continue')};
+  ap.querySelector('button:not(.pri)').onclick=()=>{w.done=1;WORK.push({a:w.a,t:'Compris, je mets en pause et j\'attends tes précisions.'});drawWork();say('Refus envoyé à '+AG.find(a=>a.id===w.a).n)}}})}
+$('#workForm').onsubmit=e=>{e.preventDefault();const t=$('#workIn').value.trim();if(!t){say('Écris une consigne avant d\'envoyer.');$('#workIn').focus();return}const a=agentSel==='all'?'ori':agentSel;WORK.push({me:1,a,t});WORK.push({a,t:'Bien reçu (exemple) — je l\'ajoute à ma file.'});$('#workIn').value='';drawWork();say('Consigne envoyée à '+AG.find(x=>x.id===a).n)};
+$('#toWork').onclick=()=>{const last=[...cur.m].reverse().find(m=>m[0]==='me');if(!last){say('Rien à envoyer : écris d\'abord une idée.');return}WORK.push({a:'ori',t:'Ronny a transformé « '+last[1].slice(0,50)+' » en mission et l\'a confiée à Nexus.'});agentSel='all';drawAgents();drawWork();setM('work');riso('crown','Ronny répartit une mission depuis Conversation');say('Idée envoyée à Work comme mission')};
+$('#openAtl').onclick=()=>{go('atl');say('Atelier ouvert sur la mission en cours')};
+/* ---- mobile switch + drawer ---- */
+function setM(m){$('#dash').dataset.m=m;$('#ms-conv').setAttribute('aria-pressed',m==='conv');$('#ms-work').setAttribute('aria-pressed',m==='work')}
+$('#ms-conv').onclick=()=>{setM('conv');say('Espace Conversation affiché')};$('#ms-work').onclick=()=>{setM('work');say('Espace Work affiché')};
+function closeSide(){$('#side').classList.remove('open');$('#drawerBg').classList.remove('open');$('#ms-hist').setAttribute('aria-expanded','false')}
+$('#ms-hist').onclick=()=>{$('#side').classList.add('open');$('#drawerBg').classList.add('open');$('#ms-hist').setAttribute('aria-expanded','true');$('#newConv').focus();say('Historique ouvert')};
+$('#closeSide').onclick=()=>{closeSide();$('#ms-hist').focus();say('Historique fermé')};$('#drawerBg').onclick=()=>{closeSide();say('Historique fermé')};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#side').classList.contains('open')){closeSide();$('#ms-hist').focus()}});
+/* ---- atelier ---- */
+const steps=[{t:'Plan validé par Michael',k:'gate',s:'todo'},{t:'Schéma de données',k:'code',f:'db/reservations.sql',d:'+ create table reservations (\n+   id uuid primary key,\n+   nom text not null,\n+   date date not null\n+ );'},{t:'Page « Réserver »',k:'code',f:'src/app/reserver/page.tsx',d:'+ export default function Reserver() {\n+   return <form>…3 champs…</form>;\n+ }'},{t:'Tests (Aegis)',k:'test',f:'tests/reserver.spec.ts',d:'+ test("envoie le formulaire", …)'},{t:'Revue humaine de la PR',k:'gate'}];
+steps.forEach(s=>s.s=s.s||'todo');let running=false,paused=false;const files=[];
+function drawSteps(){$('#steps').innerHTML=steps.map((s,i)=>`<li data-s="${s.s==='todo'&&s.k==='gate'?'gate':s.s}"><div><div>${s.k==='gate'?'◆ ':''}${esc(s.t)}</div><div class="sl">${s.s==='done'?'terminée':s.s==='run'?'<span class="spin" aria-hidden="true"></span> en cours':s.k==='gate'?'validation humaine':'à faire'}</div></div></li>`).join('');
+ const st=$('#atlState');const nx=steps.find(s=>s.s!=='done');$('#approvePlan').textContent=steps[0].s==='done'?'Plan validé ✓':'Valider le plan';st.className='st '+(running?'run':nx&&nx.k==='gate'?'wait':'idle');st.textContent=running?'Agent au travail':!nx?'Terminé — en attente de fusion manuelle':nx.k==='gate'?'Attend ta validation':paused?'En pause':'Prêt'}
+function log(h){const t=$('#term');if(t.querySelector('.mu')&&!t.dataset.on){t.innerHTML='';t.dataset.on=1}t.insertAdjacentHTML('beforeend',h+'\n');t.scrollTop=1e6}
+$('#approvePlan').onclick=()=>{if(steps[0].s==='done'){say('Le plan est déjà validé. Lance l\'étape suivante.');return}steps[0].s='done';drawSteps();log('<span class="o">✓ plan validé par Michael (exemple)</span>');riso('stamp','Plan validé dans l\'Atelier');say('Plan validé : l\'étape 2 peut démarrer')};
+$('#runStep').onclick=()=>{if(running){say('Une étape tourne déjà, attends sa fin.');return}const i=steps.findIndex(s=>s.s!=='done');if(i<0){say('Toutes les étapes sont terminées.');return}const s=steps[i];
+ if(s.k==='gate'){selTab(i===0?'log':'pr');say(i===0?'Bloqué : valide d\'abord le plan.':'Bloqué : la revue humaine de la PR t\'attend (onglet PR).');return}
+ paused=false;running=true;s.s='run';drawSteps();selTab('log');log('<span class="c">$ nexus run "'+s.t+'"</span>');say('Étape lancée : '+s.t);
+ const L=s.k==='test'?['aegis › npx playwright test','<span class="o">  3 passed (exemple)</span>']:['écriture '+s.f,'git add '+s.f,'git commit -m "'+s.t+'"'];let j=0;
+ const tick=()=>{if(paused){running=false;s.s='todo';drawSteps();log('<span class="w">⏸ pause demandée — étape remise en file</span>');return}if(j<L.length){log(L[j++]);setTimeout(tick,420);return}
+  running=false;s.s='done';if(s.f){files.push(s);$('#fileCount').textContent=files.length;drawFiles()}if(s.k==='code'){riso('code','Commit : '+s.t)}if(i===2)drawPrev();if(s.k==='test')openPR();drawSteps();log('<span class="o">✓ '+esc(s.t)+' terminée</span>');say('Étape terminée : '+s.t)};setTimeout(tick,420)};
+$('#pauseRun').onclick=()=>{if(!running){say('Rien ne tourne : aucune étape à mettre en pause.');return}paused=true;say('Pause demandée — l\'étape s\'arrête proprement')};
+$('#copyLog').onclick=()=>{const t=$('#term').innerText;navigator.clipboard?.writeText(t).catch(()=>{});say('Journal copié ('+t.split('\n').length+' lignes)')};
+$('#clearLog').onclick=()=>{$('#term').innerHTML='<span class="mu">$ affichage effacé (l\'historique reste dans la mission)</span>';delete $('#term').dataset.on;say('Affichage du journal effacé')};
+function drawFiles(sel){const u=$('#fileList');u.innerHTML=files.map((f,i)=>`<li><button id="f-${i}" aria-current="${sel===i}">${esc(f.f)}</button></li>`).join('');$$('#fileList button').forEach((b,i)=>b.onclick=()=>{drawFiles(i);$('#diff').innerHTML=files[i].d.split('\n').map(l=>`<span class="a">${esc(l)}</span>`).join('\n');say('Diff affiché : '+files[i].f)})}
+function drawPrev(){$('#prevBd').innerHTML='<h3 style="font-size:20px">Réserver une place</h3><p>Nom, date, courriel — exemple</p><button id="prevTry">Essayer « Réserver »</button><p id="prevOut" aria-live="polite"></p>';$('#prevTry').onclick=()=>{$('#prevOut').textContent='✓ Réservation de test enregistrée (exemple, aucune donnée réelle).';say('Aperçu : formulaire testé')}}
+$('#reloadPrev').onclick=()=>{const b=$('#prevBd');b.style.opacity=.4;setTimeout(()=>b.style.opacity=1,250);say(steps[2].s==='done'?'Aperçu rechargé':'Aperçu rechargé — la page n\'existe pas encore (étape 3)')};
+$('#prevMobile').onclick=e=>{const on=e.currentTarget.getAttribute('aria-pressed')!=='true';e.currentTarget.setAttribute('aria-pressed',on);$('#prevBox').style.maxWidth=on?'390px':'560px';say(on?'Aperçu au format 390':'Aperçu au format large')};
+function openPR(){$('#prLine').innerHTML='PR brouillon « Page de réservation » ouverte par Nexus — <strong>non fusionnée</strong> (exemple).';$('#checks').innerHTML='<li><span class="ok">✓</span> Lint</li><li><span class="ok">✓</span> Tests Playwright (3)</li><li><span class="ok">✓</span> axe : 0 violation</li><li><span class="pend">◆</span> Revue humaine : en attente</li>'}
+$('#prApprove').onclick=()=>{if(steps[3].s!=='done'){selTab('pr');say('Pas encore : la PR s\'ouvre après les tests (étape 4).');return}steps[4].s='done';drawSteps();$('#checks').lastElementChild.innerHTML='<span class="ok">✓</span> Revue humaine : approuvée par Michael';riso('stamp','Livrable approuvé (fusion manuelle)');say('Livrable approuvé. La fusion reste à faire à la main.')};
+$('#prChanges').onclick=()=>{WORK.push({a:'nexus',t:'Changements demandés sur la PR — je reprends l\'étape « Page ».'});drawWork();if(steps[2].s==='done'){steps[2].s='todo';steps[3].s='todo';drawSteps()}say('Demande de changements envoyée à Nexus (visible dans Work)')};
+function selTab(n){$$('#atlTabs [role=tab]').forEach(t=>{const on=t.id==='tab-'+n;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;$('#'+t.getAttribute('aria-controls')).hidden=!on})}
+$$('#atlTabs [role=tab]').forEach((t,i,a)=>{t.onclick=()=>{selTab(t.id.slice(4));say('Onglet : '+t.textContent.trim())};t.onkeydown=e=>{let k={ArrowRight:1,ArrowLeft:-1}[e.key];if(e.key==='Home')k=-i;if(e.key==='End')k=a.length-1-i;if(k!==undefined){e.preventDefault();const n=a[(i+k+a.length)%a.length];n.focus();n.click()}}});
+/* ---- riso replay ---- */
+['code','crown','stamp'].forEach(k=>$('#rp-'+k).onclick=()=>{riso(k,'Rejoué depuis la galerie (exemple)');say('Clin d\'œil rejoué : '+RN[k])});
+
+/* ---- approbations ---- */
+const TPL={merge:{d:'Fusion d\'une PR — irréversible sur la branche cible.',p:{kind:'merge',repo:'mboyer1269-pixel/Oria.HQ.Michael.HQ-APP',pr:0,base:'main',head:'design/exemple',method:'squash',headSha:'exemple-0000000'}},
+deploy:{d:'Déploiement en production.',p:{kind:'deploy',target:'production',service:'exemple-web',commit:'exemple-0000000',rollback:'auto si santé KO'}},
+spend:{d:'Dépense (kind « spend » de la PR #420).',p:{kind:'spend',vendor:'exemple',amountMicroUsd:12500000,currency:'USD',reason:'exemple'}},
+cap:{d:'Nouvelle capacité hors liste fermée #425 (repo.read, repo.write_branch, test.run, build.run, llm.subscription, harness_change, unsandboxed) : connecteur, secret, sortie réseau, outil. Accord valable une seule fois. Source : non instrumenté (mission_events absent).',p:{kind:'new_capability',capability:'network_egress',target:'api.exemple.com:443',grant:'once',alternatives:['connector','secret','tool','approveHarnessChange','approveUnsandboxed']}},
+delete:{d:'Suppression définitive.',p:{kind:'delete',resource:'exemple/fichier.txt',scope:'workspace exemple',backup:false}}};
+let apK='merge',apP,apExpAt;
+async function apDraw(){const t=TPL[apK];apP=JSON.parse(JSON.stringify(t.p));apP.confirm=false;apP.issuedAt=new Date().toISOString();apExpAt=Date.now()+10*60e3;apP.expiresAt=new Date(apExpAt).toISOString();$('#apDesc').textContent=t.d+' (exemple)';$('#lkSwitch').checked=false;$('#lkConfirm').checked=false;await apRender()}
+async function apRender(){$('#apPayload').textContent=JSON.stringify(apP,null,2);try{const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(apP)));$('#apHash').textContent='sha256:'+[...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}catch{$('#apHash').textContent='non disponible dans ce navigateur'}apLock()}
+function apLock(){const ok=$('#lkSwitch').checked&&$('#lkConfirm').checked&&Date.now()<apExpAt&&!($('#lkUnsb')&&$('#lkUnsb').checked&&!$('#lkConfirm').checked);const b=$('#apGo');b.className=ok?'pri':'locked';b.setAttribute('aria-disabled',!ok);b.textContent=ok?'Approuver ce payload':'🔒 Approuver ce payload';
+ $('#apMode').innerHTML=$('#lkUnsb').checked?'<span class="nb">sans bac à sable</span> — exige <code>approveUnsandboxed: true</code>':'bac à sable bwrap';$('#apGate').textContent=!$('#lkSwitch').checked?'403 risky_actions_disabled':!$('#lkConfirm').checked?'409 confirm_required':'ouvert (simulé)'}
+setInterval(()=>{if(!apExpAt)return;const r=Math.max(0,apExpAt-Date.now());$('#apExp').textContent=r?`dans ${Math.floor(r/60e3)} min ${String(Math.floor(r/1e3)%60).padStart(2,'0')} s`:'expiré — régénère le payload';if(!r)apLock()},1000);
+$$('#apSeg button').forEach(b=>b.onclick=async()=>{apK=b.id.slice(3);$$('#apSeg button').forEach(x=>x.setAttribute('aria-pressed',x===b));await apDraw();$('#apOut').textContent='';say('Gabarit : '+b.textContent)});
+$('#lkSwitch').onchange=$('#lkConfirm').onchange=async()=>{apP.confirm=$('#lkConfirm').checked;await apRender();say('Verrou : '+$('#apGate').textContent)};
+let apApproved=null;const apLogAdd=(d)=>{const tb=$('#apLog');if(tb.querySelector('td[colspan]'))tb.innerHTML='';tb.insertAdjacentHTML('afterbegin',`<tr><td>Michael</td><td>${new Date().toTimeString().slice(0,8)}</td><td><code>${$('#apHash').textContent.slice(7,19)}…</code></td><td>écran</td><td>${d}</td></tr>`)};
+function apDiffDraw(){if(!apApproved)return;const a=apApproved.txt.split('\n'),b=$('#apPayload').textContent.split('\n');const out=[];b.forEach((l,i)=>{if(a[i]!==l){if(a[i]!==undefined)out.push('<span class="d">- '+esc(a[i])+'</span>');out.push('<span class="a">+ '+esc(l)+'</span>')}});$('#apDiff').innerHTML=out.length?out.join('\n'):'Identique au payload approuvé.';if(out.length){$('#apStale').hidden=false;$('#apOld').textContent=apApproved.h.slice(7,23)+'…';$('#apNew').textContent=$('#apHash').textContent.slice(7,23)+'…';$('#lkConfirm').checked=false;apP.confirm=false;apLock()}if(out.length&&!apApproved.fell){apApproved.fell=1;$('#apOut').innerHTML='<span class="nb">⚠ Approbation tombée : le payload a changé (nouvelle empreinte). Réapprouve.</span>';apLogAdd('tombée (payload modifié)')}}
+$('#lkUnsb').onchange=async()=>{await apRender();say('Mode d\'exécution : '+$('#apMode').textContent)};
+$('#apGo').onclick=()=>{if($('#apGo').getAttribute('aria-disabled')==='true'){$('#apOut').textContent='Verrouillé : '+$('#apGate').textContent+'. Lève les deux verrous.';say('Approbation bloquée par le double verrou');return}apApproved={txt:$('#apPayload').textContent,h:$('#apHash').textContent};$('#apStale').hidden=true;$('#apDiff').textContent='Identique au payload approuvé.';apLogAdd('approuvée');$('#apOrig').innerHTML='<span class="unv">non vérifié</span> — l\'origine serveur n\'est pas prouvable dans la maquette (P0 #425 : approval_granted forgeable)';$('#apOut').textContent='Décision notée (non valide tant que l\'origine serveur n\'est pas vérifiée) pour '+$('#apHash').textContent.slice(0,19)+'… (exemple, rien n\'est exécuté)';say('Payload exact approuvé (simulé)')};
+$('#apReply').onclick=()=>{$('#apReplyOut').textContent='Réponse envoyée à l\'agent (exemple) : « Précise la cible avant que je valide. » — rien n\'est approuvé.';apLogAdd('réponse');say('Réponse envoyée à l\'agent')};
+$('#apIgnore').onclick=()=>{$('#apReplyOut').textContent='Ignorée : la carte reste dans la boîte, rien n\'est exécuté.';apLogAdd('ignorée');say('Carte ignorée')};
+$('#apNotif').onclick=()=>{$('#apPayload').focus();say('Écran d\'approbation ouvert depuis la notification — rien n\'est approuvé')};
+$('#apNo').onclick=()=>{apLogAdd('refusée');$('#apOut').textContent='✕ Refusé. Le payload est jeté, rien n\'est exécuté.';say('Payload refusé')};
+$('#apCopy').onclick=()=>{navigator.clipboard?.writeText($('#apPayload').textContent).catch(()=>{});say('Payload copié')};
+$('#apEdit').onclick=async()=>{apP.note=(apP.note||0)+1;await apRender();apDiffDraw();say('Payload modifié : nouvelle empreinte, approbation précédente invalide')};
+/* ---- missions ---- */
+const MS=[['draft','Brouillon',1],['queued','En file',1],['running','En cours',1],['needs_approval','Attend une approbation',1],['completed','Terminée',1],['failed','Échouée',1],['cancelled','Annulée',1],['waiting_approval','Attente d\'approbation (payload_hash, expires_at, grant_id)',0],['approval_stale','Approbation périmée (vue mission_approval_status)',0],['blocked','Worker bloqué',0],['outcome_unknown','Inconnu — ni réussi ni échoué',0]];
+let misS='running',beat=Date.now()-4000,silent=false,cancelT;
+function misDraw(){$('#stGrid').innerHTML=MS.map(([k,l,e])=>`<button id="st-${k}" aria-pressed="${k===misS}" class="${e?'':'chipst new'}"><code>${k}</code>${e?'':' · proposé'}</button>`).join('');$$('#stGrid button').forEach(b=>b.onclick=()=>{misS=b.id.slice(3);misDraw();tl('Aperçu état : '+misS);say('État prévisualisé : '+misS)});
+ const m=MS.find(x=>x[0]===misS);$('#misState').textContent=m[1];$('#misState').className='bigst '+(misS==='outcome_unknown'?'unk':misS==='completed'?'ok':misS==='failed'?'nb':'');$('#misNote').innerHTML=m[2]?'<code>'+m[0]+'</code> existe dans types.ts':'<code>'+m[0]+'</code> <span class="nb">n\'existe pas encore côté code</span>'}
+setInterval(()=>{if(misS==='running'&&!silent&&Math.random()<.3)beat=Date.now();const s=Math.round((Date.now()-beat)/1000);$('#misBeat').textContent=`il y a ${s} s (${new Date(beat).toTimeString().slice(0,8)}) — exemple`},1000);
+function tl(t){$('#misTl').insertAdjacentHTML('beforeend',`<li data-s="${/inconnu|unknown/i.test(t)?'unk':'done'}"><div>${esc(t)}<div class="sl">${new Date().toTimeString().slice(0,8)} · événement ${$('#misTl').children.length+1}, jamais réécrit</div></div></li>`)}
+function cs(i,st){$$('#cancelSteps li')[i].dataset.s=st}
+$('#misStop').onclick=()=>{if(['cancelled','outcome_unknown','completed','failed'].includes(misS)){say('Mission déjà terminée : rien à arrêter');$('#misOut').textContent='Rien à arrêter dans l\'état '+misS+'.';return}clearTimeout(cancelT);[0,1,2].forEach(i=>cs(i,'todo'));cs(0,'run');$('#misOut').textContent='Annulation en cours…';tl('event_type: mission_cancelled demandé');say('Arrêt demandé au worker');
+ cancelT=setTimeout(()=>{cs(0,'done');if(silent){cs(2,'unk');misS='outcome_unknown';$('#misOut').textContent='Non confirmée : aucun signal du worker. Vérifie à la main.'}else{cs(1,'done');misS='cancelled';$('#misOut').textContent='Annulée : le worker a confirmé.'}tl(silent?'event_type: outcome_unknown (arrêt non confirmé — inconnu)':'event_type: mission_cancelled');misDraw();say('Annulation : '+(silent?'non confirmée':'annulée'))},silent?2500:1500)};
+$('#misSilent').onclick=e=>{silent=!silent;e.currentTarget.setAttribute('aria-pressed',silent);say(silent?'Worker muet simulé : plus de signal':'Worker de nouveau joignable')};
+$('#misVerify').onclick=()=>{$('#misUnv').textContent='non vérifiable : aucune validation indépendante branchée';say('Vérification : pas de source branchée, le badge reste')};
+misS='running';$('#nav-mis').addEventListener('click',()=>{misS=misS||'running'});
+/* ---- coûts ---- */
+const PROV=[{n:'Claude',src:'auth vue à l\'initialisation (pas auth status) · PR #419 logs locaux',badge:'mesuré',rows:[['Brûlage 5 h','exemple : 1,2 M tokens'],['Brûlage 7 j','exemple : 9,8 M tokens'],['Restant','non rapporté (pas de jauge dans les logs)']],pct:null},
+{n:'Codex',src:'auth vue à l\'initialisation · PR #419 rate_limits',badge:'mesuré',rows:[['Utilisé (fenêtre principale)','exemple : 38 %'],['Réinitialisation','exemple : dans 2 h']],pct:38},
+{n:'Cursor',src:null,rows:[['Abonnement','non branché']],pct:null},{n:'Gemini',src:null,rows:[['Abonnement','non branché']],pct:null}];
+$('#provGrid').innerHTML=PROV.map((p,i)=>`<article class="lux pad" id="prov-${i}" tabindex="-1"><h2>${p.n} <span class="ex">exemple</span>${p.badge?` <span class="chipst" style="min-height:0">${p.badge}</span>`:' <span class="chipst" style="min-height:0">estimé : aucun</span>'}</h2><p class="mu" style="font-size:12px;margin:2px 0 10px">${p.src?'Source : '+p.src:'<span class="nb">non branché</span> — aucune source'}</p>${p.pct!=null?`<div class="bar2" role="img" aria-label="${p.pct} % utilisé (exemple)"><i style="width:${p.pct}%"></i></div>`:''}<dl class="kv" style="grid-template-columns:1fr;margin-top:8px">${p.rows.map(([k,v])=>`<dt>${k}</dt><dd style="font-family:inherit" class="${/non /.test(v)?'nb':''}">${v}</dd>`).join('')}</dl><button id="pv-${i}" class="ghost" style="margin-top:8px">${p.src?'Détails de la source':'Pourquoi non branché ?'}</button></article>`).join('');
+PROV.forEach((p,i)=>$('#pv-'+i).onclick=()=>say(p.n+' : '+(p.src?'lu depuis '+p.src+', zéro réseau, propriétaire uniquement':'aucun connecteur de quota dans le repo, rien n\'est inventé')));
+const MC=[['Page de réservation','Claude','tr_exemple_7f3a',412000],['Résumé onboarding','Codex','tr_exemple_19bc',88000],['Audit axe','Claude','tr_exemple_c02e',153000]];
+$('#mcBody').innerHTML=MC.map(([m,f,t,c],i)=>`<tr><td>${m} <span class="ex">exemple</span></td><td>${f}</td><td><button id="tr-${i}" class="ghost tid">${t}</button></td><td><span class="nb">non branché</span><br><span class="mu" style="font-size:12px">exemple : ${c.toLocaleString('fr-CA')} µ$ (${(c/1e6).toFixed(2)} $)</span></td></tr>`).join('');
+MC.forEach(([m,f,t,c],i)=>$('#tr-'+i).onclick=()=>{$('#trace').hidden=false;$('#traceT').textContent='Trace '+t+' (exemple)';const sp=[['step_started plan',Math.round(c*.1),'measured',1],['tool_call_completed code',Math.round(c*.5),'measured',1],['tool_call_completed tests',Math.round(c*.2),'estimated',2],['run_cost_recorded',Math.round(c*.2),'estimated',1]];const me=sp.filter(x=>x[2]==='measured').reduce((a,x)=>a+x[1],0),es=sp.filter(x=>x[2]==='estimated').reduce((a,x)=>a+x[1],0);$('#traceP').textContent='trace '+t+' — '+m+'\n'+sp.map(([n,v,k,d])=>`${'  '.repeat(d)}└ ${n}  cost_micro_usd=${v}  cost_source=${k}`).join('\n')+`\n\nmesuré : ${me} µ$ · estimé : ${es} µ$ (jamais additionnés)`;$('#trace').focus();say('Trace ouverte : '+t)});
+$('#traceClose').onclick=()=>{$('#trace').hidden=true;say('Trace fermée')};
+$('#costTpl').onclick=e=>{const b=$('#costTplBox');b.hidden=!b.hidden;e.currentTarget.setAttribute('aria-expanded',!b.hidden);e.currentTarget.textContent=b.hidden?'Voir le gabarit (exemple)':'Masquer le gabarit';say(b.hidden?'Gabarit masqué':'Gabarit exemple affiché')};
+$('#absWhy').onclick=()=>say('Aucune table mission_events ni journal de décisions n\'existe : rien n\'est inventé (voir SOURCES.md)');
+$('#bnQuota').onclick=()=>{$('#costTplBox').hidden=false;$('#costTpl').setAttribute('aria-expanded','true');$('#prov-1').focus();$('#prov-1').scrollIntoView({block:'center'});say('Compteur de quota (PR #419) affiché')};
+apDraw();misDraw();
+drawHist();drawConv();drawAgents();drawWork();drawSteps();
+</script>
+</body>
+</html>
