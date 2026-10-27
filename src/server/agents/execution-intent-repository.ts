@@ -27,6 +27,7 @@ import type { VenturePersistenceMode } from "@/features/ventures/venture-save-ty
 import { isLocalPersistenceFallbackAllowed } from "@/lib/server-env";
 import type { AgentExecutionIntentInsert, AgentExecutionIntentRow } from "@/server/db/types";
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
+import { stableStringify, type CanonicalJson } from "@/server/ledger/hash-chain-canonicalizer";
 
 const PRODUCTION_GUARD_MESSAGE =
   "Agent execution intent persistence is unavailable: Supabase is not configured " +
@@ -258,6 +259,10 @@ export type ExecutionIntentTransitionPatch = {
   // decision cannot overwrite an in-flight one. When omitted, the freshly read
   // status is used (back-compatible for callers without a cross-request race).
   expectedFromStatus?: AgentExecutionIntentStatus;
+  // G2: when set, the transition only applies while the stored payload is
+  // STILL equal to this snapshot (jsonb equality in Postgres; canonical JSON
+  // equality in the local fallback). A mismatch raises a concurrency error.
+  expectedPayload?: AgentExecutionIntentPayload;
 };
 
 /**
@@ -274,6 +279,7 @@ export async function transitionAgentExecutionIntent(
 
   if (!db) {
     assertLocalFallbackAvailable();
+    beforeLocalTransitionForTests?.(workspaceId, intentId, patch);
     const row = localIntents.find(
       (r) => r.workspace_id === workspaceId && r.intent_id === intentId,
     );
@@ -284,6 +290,13 @@ export async function transitionAgentExecutionIntent(
     // writer advanced the row, so a stale decision must not proceed.
     if (patch.expectedFromStatus !== undefined && from !== patch.expectedFromStatus) {
       throw new AgentExecutionIntentConcurrencyError(patch.expectedFromStatus, patch.toStatus);
+    }
+    if (
+      patch.expectedPayload !== undefined &&
+      stableStringify(row.payload as CanonicalJson) !==
+        stableStringify(patch.expectedPayload as unknown as CanonicalJson)
+    ) {
+      throw new AgentExecutionIntentConcurrencyError(from, patch.toStatus);
     }
     if (!canTransitionExecutionIntent(from, patch.toStatus)) {
       throw new AgentExecutionIntentTransitionError(from, patch.toStatus);
@@ -318,13 +331,18 @@ export async function transitionAgentExecutionIntent(
   // `from` status. This closes the read-then-update TOCTOU where a concurrent
   // approve+reject both observe `pending`. `select()` returns the affected rows
   // so a zero-row result means we lost the race.
-  const { data, error } = await db
+  let query = db
     .from("agent_execution_intents")
     .update(update)
     .eq("workspace_id", workspaceId)
     .eq("intent_id", intentId)
-    .eq("status", guardFrom)
-    .select();
+    .eq("status", guardFrom);
+  if (patch.expectedPayload !== undefined) {
+    // jsonb = jsonb: the claim only lands on the exact payload whose hash the
+    // caller verified (key order is irrelevant to jsonb equality).
+    query = query.eq("payload", JSON.stringify(patch.expectedPayload));
+  }
+  const { data, error } = await query.select();
   if (error) {
     throw new AgentExecutionIntentRepositoryError("transition");
   }
@@ -351,4 +369,32 @@ export function getAgentExecutionIntentPersistenceMode(): VenturePersistenceMode
 export function __clearAgentExecutionIntentsForTests(): void {
   localIntents.length = 0;
   localSeq = 0;
+}
+
+/**
+ * Test-only: simulate an out-of-band write to a stored payload (local fallback
+ * only). Application code never mutates a payload after creation; this exists
+ * so the G2 approval binding can be proven against such a write.
+ */
+export function __mutateAgentExecutionIntentPayloadForTests(
+  workspaceId: string,
+  intentId: string,
+  mutate: (payload: AgentExecutionIntentPayload) => AgentExecutionIntentPayload,
+): void {
+  const row = localIntents.find((r) => r.workspace_id === workspaceId && r.intent_id === intentId);
+  if (!row) throw new AgentExecutionIntentNotFoundError(intentId);
+  row.payload = mutate(
+    structuredClone(row.payload) as unknown as AgentExecutionIntentPayload,
+  ) as unknown as AgentExecutionIntentRow["payload"];
+}
+
+let beforeLocalTransitionForTests:
+  | ((workspaceId: string, intentId: string, patch: ExecutionIntentTransitionPatch) => void)
+  | undefined;
+
+/** Test-only: run a callback at the start of each local-fallback transition. */
+export function __setBeforeLocalTransitionHookForTests(
+  hook: typeof beforeLocalTransitionForTests,
+): void {
+  beforeLocalTransitionForTests = hook;
 }

@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 675,
-    "live": 624,
+    "sourceFiles": 676,
+    "live": 625,
     "testOnly": 7,
     "incubation": 44
   },
@@ -388,6 +388,7 @@
     "src/server/agents/engineering-package-store.ts",
     "src/server/agents/evidence/memory-evidence-pack.ts",
     "src/server/agents/execution-intent-approval-service.ts",
+    "src/server/agents/execution-intent-payload-hash.ts",
     "src/server/agents/execution-intent-repository.ts",
     "src/server/agents/models/account-identity-repository.ts",
     "src/server/agents/models/agent-model-profile-contract.ts",

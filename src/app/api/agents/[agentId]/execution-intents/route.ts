@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
 import { z } from "zod";
 import { getAuthenticatedActorId, requireOwnerApiSession } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
@@ -182,5 +183,13 @@ export async function GET(
     (intent) => intent.agentId === agentId,
   );
 
-  return NextResponse.json({ agentId, intents: pending });
+  // G2: each intent carries the hash of its stored payload; the CEO client
+  // echoes it back on approve so a changed payload is refused (409).
+  return NextResponse.json({
+    agentId,
+    intents: pending.map((intent) => ({
+      ...intent,
+      payloadHash: hashExecutionIntentPayload(intent.payload),
+    })),
+  });
 }

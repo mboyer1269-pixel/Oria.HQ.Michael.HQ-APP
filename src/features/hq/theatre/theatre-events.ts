@@ -29,6 +29,8 @@ export type TheatrePendingIntent = {
   estimatedCostUsd?: number;
   estimatedCostCents?: number;
   telemetryModelId?: string;
+  /** G2: server-computed hash of the stored payload; echoed back on approve. */
+  payloadHash?: string;
 };
 
 export type TheatreLineTone = "neon" | "amber" | "red" | "neutral";

@@ -29,11 +29,13 @@ export type ExecutionIntentReviewRow = {
     ventureId: string | null;
     dataKeys: string[];
   };
+  /** G2: server-computed payload hash, echoed back on approve (null if absent). */
+  payloadHash: string | null;
 };
 
 /** Projects a single execution intent into a display-only review row. */
 export function projectExecutionIntentForReview(
-  intent: AgentExecutionIntent,
+  intent: AgentExecutionIntent & { payloadHash?: string },
 ): ExecutionIntentReviewRow {
   const { payload } = intent;
   const dataKeys =
@@ -58,12 +60,13 @@ export function projectExecutionIntentForReview(
       ventureId: payload.ventureId ?? null,
       dataKeys,
     },
+    payloadHash: intent.payloadHash ?? null,
   };
 }
 
 /** Projects a list of execution intents, preserving order (most-recent first). */
 export function projectExecutionIntentsForReview(
-  intents: readonly AgentExecutionIntent[],
+  intents: readonly (AgentExecutionIntent & { payloadHash?: string })[],
 ): ExecutionIntentReviewRow[] {
   return intents.map(projectExecutionIntentForReview);
 }

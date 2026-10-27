@@ -34,6 +34,7 @@ import {
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { listActionLedgerForWorkspace } from "@/server/actions/action-ledger-read";
 import { listPendingAgentExecutionIntents } from "@/server/agents/execution-intent-repository";
+import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
 import { collectDecisionSignalSnapshot } from "@/server/decision-spine/collect-decision-signals";
 import { computeNextBestActions } from "@/server/decision-spine/next-best-action";
 
@@ -440,6 +441,7 @@ export async function CommandTower() {
             createdAt: intent.createdAt,
             actionType: intent.payload?.actionType,
             client: intent.payload?.client,
+            payloadHash: hashExecutionIntentPayload(intent.payload),
           }),
         ),
       )

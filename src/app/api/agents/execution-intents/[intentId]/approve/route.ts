@@ -12,6 +12,20 @@ import {
 import { approveAndDispatchExecutionIntent } from "@/server/agents/execution-intent-approval-service";
 import { billApprovedIntentUsage } from "@/server/michael-hq/billing-on-approve";
 import { logger } from "@/lib/logger";
+import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
+
+type ApprovalConflictReason = "changed" | "already_decided";
+
+function conflict(intentId: string, reason: ApprovalConflictReason, status?: string) {
+  const error =
+    reason === "changed"
+      ? "Execution intent payload changed since it was reviewed."
+      : "Execution intent is not pending.";
+  return NextResponse.json(
+    { error, reason, intentId, ...(status ? { status } : {}) },
+    { status: 409 },
+  );
+}
 
 /**
  * POST /api/agents/execution-intents/:intentId/approve
@@ -26,13 +40,24 @@ import { logger } from "@/lib/logger";
  */
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ intentId: string }> },
 ) {
   const authResponse = await requireOwnerApiSession();
   if (authResponse) return authResponse;
 
   const { intentId } = await params;
+  // G2: the body carries ONLY the hash of the payload the CEO reviewed. Any
+  // other field (approvedBy, actorId, workspaceId, ...) is ignored: actor and
+  // workspace come from the session/server context below.
+  const body = (await request.json().catch(() => null)) as { expectedPayloadHash?: unknown } | null;
+  const expectedPayloadHash = body?.expectedPayloadHash;
+  if (typeof expectedPayloadHash !== "string" || !/^[0-9a-f]{64}$/.test(expectedPayloadHash)) {
+    return NextResponse.json(
+      { error: "expectedPayloadHash is required.", intentId },
+      { status: 400 },
+    );
+  }
   const ctx = getActiveWorkspaceContext();
 
   const intent = await getAgentExecutionIntent(ctx.workspace.id, intentId);
@@ -40,10 +65,13 @@ export async function POST(
     return NextResponse.json({ error: "Execution intent not found." }, { status: 404 });
   }
   if (intent.status !== "pending") {
-    return NextResponse.json(
-      { error: "Execution intent is not pending.", intentId, status: intent.status },
-      { status: 409 },
-    );
+    return conflict(intentId, "already_decided", intent.status);
+  }
+  // Recompute from the stored row. `intent.payload` (this exact snapshot) is
+  // what gets dispatched below, so the approved hash is the dispatched payload.
+  const payloadHash = hashExecutionIntentPayload(intent.payload);
+  if (payloadHash !== expectedPayloadHash) {
+    return conflict(intentId, "changed");
   }
 
   const tool = mcpToolRegistry.get(intent.toolName);
@@ -81,6 +109,8 @@ export async function POST(
           // Claim from `pending`: if a concurrent reject already moved it, this
           // raises a concurrency error (-> 409) and no dispatch happens.
           expectedFromStatus: "pending",
+          // G2: claim only the exact payload whose hash was just verified.
+          expectedPayload: intent.payload,
           updatedAt: new Date().toISOString(),
         }),
       recordAttempt: () =>
@@ -103,6 +133,7 @@ export async function POST(
             intentId,
             toolName: intent.toolName,
             actionType: intent.payload.actionType,
+            approvedDigest: payloadHash,
           },
         }),
       dispatch: () =>
@@ -134,6 +165,13 @@ export async function POST(
           toStatus: "failed",
           updatedAt: new Date().toISOString(),
           failureCode,
+        }),
+      revertClaim: () =>
+        transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
+          toStatus: "pending",
+          expectedFromStatus: "executing",
+          expectedPayload: intent.payload,
+          updatedAt: new Date().toISOString(),
         }),
       revertToPending: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
@@ -176,6 +214,18 @@ export async function POST(
       });
     }
 
+    if ("reason" in result) {
+      logger.error(
+        result.claimReverted
+          ? "agent.execution-intent.approve.ledger_failed_claim_reverted"
+          : "agent.execution-intent.approve.ledger_failed_claim_revert_failed",
+        { intentId, workspaceId: ctx.workspace.id, alert: !result.claimReverted },
+      );
+      return NextResponse.json(
+        { intentId, status: result.status, error: result.error, reason: result.reason },
+        { status: 500 },
+      );
+    }
     return NextResponse.json(
       { intentId, status: result.status, error: result.error },
       { status: result.httpStatus },
@@ -184,10 +234,10 @@ export async function POST(
     if (err instanceof AgentExecutionIntentConcurrencyError) {
       // A concurrent action (e.g. a reject) moved the intent out of `pending`
       // before this approval could claim it. No dispatch happened.
-      return NextResponse.json(
-        { error: "Execution intent is not pending.", intentId },
-        { status: 409 },
-      );
+      // Zero rows on the claim: either the status moved (decided) or the
+      // stored payload no longer equals the verified snapshot (changed).
+      const fresh = await getAgentExecutionIntent(ctx.workspace.id, intentId).catch(() => null);
+      return conflict(intentId, fresh?.status === "pending" ? "changed" : "already_decided");
     }
     logger.error("agent.execution-intent.approve.failed", {
       intentId,

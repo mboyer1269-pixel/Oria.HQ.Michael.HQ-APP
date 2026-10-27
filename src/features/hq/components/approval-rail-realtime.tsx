@@ -53,7 +53,7 @@ export function ApprovalRailRealtime({
     [intents],
   );
 
-  async function runAction(intentId: string, kind: ActionKind) {
+  async function runAction(intentId: string, kind: ActionKind, payloadHash?: string) {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     setBusy({ intentId, kind });
@@ -65,6 +65,8 @@ export function ApprovalRailRealtime({
       const response = await fetch(ACTION_ROUTE[kind](intentId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // G2: approval is bound to the payload hash the CEO reviewed.
+        ...(kind === "approve" ? { body: JSON.stringify({ expectedPayloadHash: payloadHash }) } : {}),
         signal: controller.signal,
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
@@ -203,7 +205,7 @@ export function ApprovalRailRealtime({
                         <button
                           type="button"
                           disabled={Boolean(busy)}
-                          onClick={() => void runAction(intent.intentId, isConfirm)}
+                          onClick={() => void runAction(intent.intentId, isConfirm, intent.payloadHash)}
                           className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-3 font-mono text-xs font-bold transition ${
                             isConfirm === "approve"
                               ? "bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
