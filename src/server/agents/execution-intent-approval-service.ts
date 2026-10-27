@@ -32,11 +32,26 @@ export type ExecutionIntentApprovalDeps = {
   markFailed: (failureCode: string) => Promise<unknown>;
   /** executing -> pending (retryable after a transient rate-limit). */
   revertToPending: () => Promise<unknown>;
+  /**
+   * Compensation when the attempt Ledger write fails after the claim:
+   * CONDITIONAL executing -> pending (same id + workspace, still executing).
+   * Throws if it matched zero rows.
+   */
+  revertClaim: () => Promise<unknown>;
 };
 
 export type ExecutionIntentApprovalResult =
   | { ok: true; status: "executed"; actionRef?: string; output?: Record<string, unknown> }
-  | { ok: false; status: "blocked" | "failed" | "pending"; error: string; httpStatus: number };
+  | { ok: false; status: "blocked" | "failed" | "pending"; error: string; httpStatus: number }
+  | {
+      ok: false;
+      status: "pending" | "executing";
+      error: string;
+      httpStatus: 500;
+      reason: "ledger_unavailable";
+      /** false = the conditional revert matched 0 rows; operator alert needed. */
+      claimReverted: boolean;
+    };
 
 export async function approveAndDispatchExecutionIntent(
   deps: ExecutionIntentApprovalDeps,
@@ -51,7 +66,24 @@ export async function approveAndDispatchExecutionIntent(
   }
 
   await deps.markExecuting();
-  await deps.recordAttempt();
+  // No dispatch may start without a recorded attempt. If the Ledger write
+  // fails, undo the claim conditionally and stop.
+  try {
+    await deps.recordAttempt();
+  } catch {
+    const claimReverted = await deps.revertClaim().then(
+      () => true,
+      () => false,
+    );
+    return {
+      ok: false,
+      status: claimReverted ? "pending" : "executing",
+      error: "Ledger unavailable; execution intent was not dispatched.",
+      httpStatus: 500,
+      reason: "ledger_unavailable",
+      claimReverted,
+    };
+  }
 
   const result = await deps.dispatch();
 

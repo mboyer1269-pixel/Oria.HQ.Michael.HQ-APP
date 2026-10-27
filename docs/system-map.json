@@ -389,6 +389,7 @@
     "src/server/agents/engineering-package-store.ts",
     "src/server/agents/evidence/memory-evidence-pack.ts",
     "src/server/agents/execution-intent-approval-service.ts",
+    "src/server/agents/execution-intent-payload-hash.ts",
     "src/server/agents/execution-intent-repository.ts",
     "src/server/agents/models/account-identity-repository.ts",
     "src/server/agents/models/agent-model-profile-contract.ts",
