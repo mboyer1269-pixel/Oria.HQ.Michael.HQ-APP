@@ -1,0 +1,3 @@
+## 2024-10-27 - Keyboard Accessibility for Visually Hidden Interactive Elements
+**Learning:** Interactive elements that are visually hidden by default (e.g., using `opacity: 0` on drag handles so they only appear on hover) remain completely invisible to keyboard users who navigate via `Tab`. Standard focus rings aren't sufficient if the element's opacity is still 0.
+**Action:** Always add `focus-visible:opacity-100` alongside standard focus ring classes (like `focus-visible:outline-none focus-visible:ring-2`) to any interactive element that relies on hover for visibility, ensuring keyboard users can see where their focus is.
