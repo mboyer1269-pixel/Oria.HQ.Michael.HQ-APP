@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+      # Stacked PRs (base = a feature branch) get CI too. Same events, same
+      # read-only token; no pull_request_target, no new secrets.
+      - 'feat/**'
   push:
     branches:
       - main
