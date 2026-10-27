@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 676,
-    "live": 625,
+    "sourceFiles": 677,
+    "live": 626,
     "testOnly": 7,
     "incubation": 44
   },
