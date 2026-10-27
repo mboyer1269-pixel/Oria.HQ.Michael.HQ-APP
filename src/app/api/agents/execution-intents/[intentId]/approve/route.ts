@@ -12,6 +12,7 @@ import {
 import { approveAndDispatchExecutionIntent } from "@/server/agents/execution-intent-approval-service";
 import { billApprovedIntentUsage } from "@/server/michael-hq/billing-on-approve";
 import { logger } from "@/lib/logger";
+import { dispatchGovernedTool } from "@/server/runtime/governed-tool-dispatch";
 import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
 
 type ApprovalConflictReason = "changed" | "already_decided";
@@ -136,8 +137,19 @@ export async function POST(
             approvedDigest: payloadHash,
           },
         }),
+      // G1: guardGovernedAction re-reads the G2 approval (the claimed row) and
+      // recomputes the payload hash server-side before the tool may run.
       dispatch: () =>
-        tool.handler(intent.payload, { workspaceId: ctx.workspace.id, agentId: intent.agentId }),
+        dispatchGovernedTool(
+          {
+            workspaceId: ctx.workspace.id,
+            intentId,
+            toolName: intent.toolName,
+            agentId: intent.agentId,
+            payload: intent.payload,
+          },
+          (payload) => tool.handler(payload, { workspaceId: ctx.workspace.id, agentId: intent.agentId }),
+        ),
       recordResult: (ok, phase) =>
         recordLedgerEvent(ctx, {
           eventType: "result",
