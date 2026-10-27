@@ -601,3 +601,79 @@ export function buildDryRunExecutionPlan(input: ExecutionGuardInput): DryRunExec
     requiredLedgerEventsIfLive,
   };
 }
+
+// ---------------------------------------------------------------------------
+// G1: governed actions bound to core.md rule ids
+// ---------------------------------------------------------------------------
+//
+// The guard judges the ACTION an agent is about to run, not the wording of a
+// rule. Each governed action maps to the core.md id (.agents/rules/core.md)
+// that forbids it without an approved decision. Unknown actions are refused
+// (fail-closed, R-RISK-ROUND-UP). An approved decision only unlocks the exact
+// action and payload hash it was granted for.
+
+export const GOVERNED_ACTION_RULES = {
+  merge: "R-NO-MERGE",
+  deploy: "R-NO-DEPLOY",
+  remote_migration: "R-NO-PROD-ACCESS",
+  spend: "R-NO-PAID-API",
+  pay: "R-NO-PAID-API",
+  delete: "R-ZONE-RED",
+  secret_access: "R-NO-SECRETS",
+  external_contact: "R-NO-EXTERNAL-CONTACT",
+} as const;
+
+export type GovernedAction = keyof typeof GOVERNED_ACTION_RULES;
+export type GovernedRuleId = (typeof GOVERNED_ACTION_RULES)[GovernedAction] | "R-RISK-ROUND-UP";
+
+export type ApprovedDecision = {
+  status: "approved";
+  action: string;
+  payloadHash: string;
+};
+
+export type GovernedActionRequest = {
+  agentId: string;
+  action: string;
+  payloadHash: string;
+  approvedDecision?: ApprovedDecision | null;
+};
+
+export type GovernedActionVerdict<T> =
+  | { allowed: true; ruleId: GovernedRuleId; reason: string; executed: true; result: T }
+  | { allowed: false; ruleId: GovernedRuleId; reason: string; executed: false };
+
+function isGovernedAction(action: string): action is GovernedAction {
+  return Object.prototype.hasOwnProperty.call(GOVERNED_ACTION_RULES, action);
+}
+
+/**
+ * Run `execute` only if the governed action carries an approved decision for
+ * this exact action and payload hash. Otherwise refuse with the rule id and
+ * never call `execute`.
+ */
+export function guardGovernedAction<T>(
+  request: GovernedActionRequest,
+  execute: () => T,
+): GovernedActionVerdict<T> {
+  if (!isGovernedAction(request.action)) {
+    return {
+      allowed: false,
+      ruleId: "R-RISK-ROUND-UP",
+      reason: `Unknown action "${request.action}" — refused (fail-closed).`,
+      executed: false,
+    };
+  }
+  const ruleId = GOVERNED_ACTION_RULES[request.action];
+  const decision = request.approvedDecision;
+  if (!decision || decision.status !== "approved") {
+    return { allowed: false, ruleId, reason: `${request.action} requires an approved decision (${ruleId}).`, executed: false };
+  }
+  if (decision.action !== request.action) {
+    return { allowed: false, ruleId, reason: `Approved decision covers "${decision.action}", not "${request.action}" (${ruleId}).`, executed: false };
+  }
+  if (!request.payloadHash || decision.payloadHash !== request.payloadHash) {
+    return { allowed: false, ruleId, reason: `Approved decision payload hash does not match the request (${ruleId}).`, executed: false };
+  }
+  return { allowed: true, ruleId, reason: `Approved decision matches ${request.action} payload (${ruleId}).`, executed: true, result: execute() };
+}
