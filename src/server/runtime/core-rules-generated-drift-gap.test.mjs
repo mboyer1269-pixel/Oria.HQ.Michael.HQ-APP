@@ -53,13 +53,15 @@ test("core-rules.generated.ts matches core.md (ids and kinds, no drift)", async 
 for (const [label, registry] of [["empty", []], ["malformed", [{ nope: 1 }, "R-NO-MERGE", null]], ["not an array", "garbage"]]) {
   test(`${label} generated registry -> guard refuses every governed action (fail closed)`, () => {
     assert.equal(typeof guard[GUARD_FACTORY], "function", `missing factory ${GUARD_FACTORY}(deps)`);
-    let g;
-    try { g = guard[GUARD_FACTORY]({ registry }); } catch { return; } // throwing at load is fail-closed too
+    // Construction must SUCCEED and return a guard that refuses explicitly: a
+    // throwing seam is not accepted as fail-closed (it proves nothing).
+    const g = guard[GUARD_FACTORY]({ registry });
+    assert.equal(typeof g?.guardGovernedAction, "function", "factory returned no guard");
     for (const action of Object.keys(guard.GOVERNED_ACTION_RULES)) {
       const s = spy();
       const v = g.guardGovernedAction({ agentId: "a", action, payloadHash: "h",
         approvedDecision: { status: "approved", action, payloadHash: "h" } }, s.fn);
-      assert.equal(v.allowed, false, action);
+      assert.deepEqual([v.allowed, v.verdict, v.ruleId, v.executed], [false, "BLOCK", "R-RISK-ROUND-UP", false], action);
       assert.equal(s.n, 0, action);
     }
   });
