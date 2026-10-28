@@ -45,26 +45,8 @@ test("fix1: a conditional claim revert that matches 0 rows is reported as revert
   assert.equal(res.revert, "revert_conflict");
 });
 
-test("fix1/P2: rate-limited revert is conditional on the payload too (expectedPayload guard)", async () => {
-  const id = await createIntent("atelier-revert-payload");
-  await exhaustRateLimit(await getIntent(id));
-  repo.__setBeforeLocalTransitionHookForTests((ws, intentId, patch) => {
-    if (intentId !== id || patch.toStatus !== "pending") return;
-    repo.__setBeforeLocalTransitionHookForTests(null);
-    // Status stays `executing`; only the payload moves. Only expectedPayload can catch it.
-    repo.__mutateAgentExecutionIntentPayloadForTests(ws, intentId, (p) => ({ ...p, client: "Moved Inc" }));
-  });
-  const n8n = installN8n();
-  try {
-    const r = await approve(id);
-    assert.equal(r.status, 409);
-    assert.equal(r.body.reason, "revert_conflict");
-    assert.equal((await getIntent(id)).status, "executing");
-    assert.equal(n8n.calls.length, 0);
-  } finally { clearHook(); n8n.restore(); rateLimit.__resetRateLimitersForTests(); }
-});
-
 test("fix2: a transient (non-conflict) error in the route maps to 503, not a generic 500", async () => {
+  rateLimit.__resetRateLimitersForTests();
   const id = await createIntent("atelier-503");
   repo.__setBeforeLocalTransitionHookForTests((ws, intentId, patch) => {
     if (intentId === id && patch.toStatus === "executing") throw new Error("db connection reset");
@@ -78,6 +60,7 @@ test("fix2: a transient (non-conflict) error in the route maps to 503, not a gen
 });
 
 test("fix3: markExecuted fails after dispatch → uncertain/dispatched response, stays executing, alert, no resend", async () => {
+  rateLimit.__resetRateLimitersForTests();
   const id = await createIntent("atelier-mark-executed");
   repo.__setBeforeLocalTransitionHookForTests((ws, intentId, patch) => {
     if (intentId === id && patch.toStatus === "executed") throw new Error("db write lost");
@@ -110,6 +93,7 @@ test("fix2: markFailed failing after a plain dispatch failure does not become a 
 });
 
 test("fix4: the refusal ledger event uses operation 'refuse', not 'execute'", async () => {
+  rateLimit.__resetRateLimitersForTests();
   const id = await createIntent("atelier-refuse-op");
   repo.__setBeforeLocalTransitionHookForTests((ws, intentId, patch) => {
     if (intentId !== id || patch.toStatus !== "executing") return;
@@ -127,6 +111,7 @@ test("fix4: the refusal ledger event uses operation 'refuse', not 'execute'", as
 });
 
 test("P2: post-claim refusal keeps 403 + ruleId even when markFailed fails", async () => {
+  rateLimit.__resetRateLimitersForTests();
   const id = await createIntent("atelier-403-markfailed");
   repo.__setBeforeLocalTransitionHookForTests((ws, intentId, patch) => {
     if (intentId !== id) return;
@@ -155,4 +140,25 @@ test("P2: ledger failure after a success raises an alert and keeps the executed 
     assert.equal(res.status, "executed");
     assert.ok(spy.events.includes("agent.execution-intent.ledger_result.failed"));
   } finally { spy.restore(); }
+});
+
+// Last: exhausts the in-memory n8n window, which the test reset does not clear.
+test("fix1/P2: rate-limited revert is conditional on the payload too (expectedPayload guard)", async () => {
+  rateLimit.__resetRateLimitersForTests();
+  const id = await createIntent("atelier-revert-payload");
+  await exhaustRateLimit(await getIntent(id));
+  repo.__setBeforeLocalTransitionHookForTests((ws, intentId, patch) => {
+    if (intentId !== id || patch.toStatus !== "pending") return;
+    repo.__setBeforeLocalTransitionHookForTests(null);
+    // Status stays `executing`; only the payload moves. Only expectedPayload can catch it.
+    repo.__mutateAgentExecutionIntentPayloadForTests(ws, intentId, (p) => ({ ...p, client: "Moved Inc" }));
+  });
+  const n8n = installN8n();
+  try {
+    const r = await approve(id);
+    assert.equal(r.status, 409);
+    assert.equal(r.body.reason, "revert_conflict");
+    assert.equal((await getIntent(id)).status, "executing");
+    assert.equal(n8n.calls.length, 0);
+  } finally { clearHook(); n8n.restore(); rateLimit.__resetRateLimitersForTests(); }
 });
