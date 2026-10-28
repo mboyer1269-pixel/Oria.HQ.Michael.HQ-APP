@@ -10,6 +10,10 @@ import { governanceSubjectLines } from "./rules-scan.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 export const VENDORED = [".agents/skills/supabase", ".agents/skills/supabase-postgres-best-practices"];
+export function toPosixRel(root, file, p = path) {
+  return p.relative(root, file).split(p.sep).join("/");
+}
+
 export const LOCK = path.join(root, "src/scripts/ci/vendored-skills.lock.json");
 
 async function files(dir) {
@@ -28,7 +32,7 @@ export async function vendoredState() {
     const h = createHash("sha256");
     let subjectLines = 0;
     for (const f of (await files(path.join(root, dir))).sort()) {
-      const rel = path.relative(root, f);
+      const rel = toPosixRel(root, f);
       const buf = await readFile(f);
       h.update(`${rel}\0`).update(buf).update("\0");
       subjectLines += governanceSubjectLines(buf.toString("utf8"), rel).length;

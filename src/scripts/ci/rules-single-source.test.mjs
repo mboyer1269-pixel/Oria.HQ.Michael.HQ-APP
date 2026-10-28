@@ -24,7 +24,7 @@ const CORE = path.join(root, ".agents/rules/core.md");
 const CHARTER = path.join(root, "src/features/agents/charter-seed.ts");
 
 import { KEY_PHRASES, countLocalExemptions, uncitedRuleLines } from "./rules-scan.mjs";
-import { LOCK, vendoredState } from "./vendored-hash.mjs";
+import { LOCK, toPosixRel, vendoredState } from "./vendored-hash.mjs";
 
 const norm = (s) => s.toLowerCase().replace(/\s+/g, " ");
 const ID_DECL = /^- \*\*(R-[A-Z0-9-]+)\*\*/gm;
@@ -63,7 +63,7 @@ test("charter-seed.ts and every SKILL.md reference known rule ids", async () => 
     .map((d) => path.join(skillsDir, d.name, "SKILL.md"));
   for (const file of [CHARTER, ...skills]) {
     const refs = [...new Set((await readFile(file, "utf8")).match(ID_REF) ?? [])];
-    const rel = path.relative(root, file);
+    const rel = toPosixRel(root, file);
     assert.ok(refs.length > 0, `${rel} references no rule id from .agents/rules/core.md`);
     const unknown = refs.filter((r) => !ids.has(r));
     assert.deepEqual(unknown, [], `${rel} references unknown rule ids`);
@@ -84,7 +84,7 @@ test("no file outside core.md recopies a rule's canonical text", async () => {
     for (const file of files) {
       const text = norm(await readFile(file, "utf8"));
       for (const p of phrases) {
-        if (text.includes(norm(p))) hits.push(`${path.relative(root, file)}: ${id} ("${p}")`);
+        if (text.includes(norm(p))) hits.push(`${toPosixRel(root, file)}: ${id} ("${p}")`);
       }
     }
   }
@@ -98,9 +98,9 @@ const VENDORED = [".agents/skills/supabase/", ".agents/skills/supabase-postgres-
 test("every normative / governance-subject line outside core.md cites a rule id (or rule:local(<reason>)); constraint sections hold only rules: [ids]", async () => {
   const files = [CHARTER, ...(await listAgentFiles(path.join(root, ".agents")))]
     .filter((f) => f !== CORE)
-    .filter((f) => !VENDORED.some((v) => path.relative(root, f).startsWith(v)));
+    .filter((f) => !VENDORED.some((v) => toPosixRel(root, f).startsWith(v)));
   const hits = [];
-  for (const f of files) hits.push(...uncitedRuleLines(await readFile(f, "utf8"), path.relative(root, f)));
+  for (const f of files) hits.push(...uncitedRuleLines(await readFile(f, "utf8"), toPosixRel(root, f)));
   assert.deepEqual(hits, [], `normative lines without an R- id:\n${hits.join("\n")}`);
 });
 
@@ -129,7 +129,7 @@ const FROZEN_RULE_LOCAL = 21;
 
 test(`rule:local exemptions do not grow (frozen at ${FROZEN_RULE_LOCAL})`, async () => {
   const files = [CHARTER, ...(await listAgentFiles(path.join(root, ".agents")))]
-    .filter((f) => !VENDORED.some((v) => path.relative(root, f).startsWith(v)));
+    .filter((f) => !VENDORED.some((v) => toPosixRel(root, f).startsWith(v)));
   let n = 0;
   for (const f of files) n += countLocalExemptions(await readFile(f, "utf8"));
   assert.ok(n <= FROZEN_RULE_LOCAL, `rule:local count ${n} > frozen ${FROZEN_RULE_LOCAL}`);
