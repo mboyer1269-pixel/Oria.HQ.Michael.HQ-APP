@@ -299,10 +299,14 @@ function insertApprovedDecision(pg, { workspaceId, intentId, payloadHash, userId
      'approved', 'real-db proof', true, 'approved', ${expires}, null,
      '${workspaceId}', '${intentId}', '${payloadHash}') returning id`);
 }
+// 0033 requires payload_hash = 64-char lowercase hex.
+const hex64 = (tag) => createHash("sha256").update(String(tag)).digest("hex");
 let seq = 0;
 const USER = "00000000-0000-4000-8000-0000000000b1";
+// Seed the decision owner in auth.users (FK from agent_review_approval_events.user_id).
+sql(`insert into auth.users(id) values ('${USER}') on conflict (id) do nothing`);
 const seedDecision = (over = {}) => {
-  const d = { workspaceId: "ws-g1b", intentId: `intent-g1b-${++seq}`, payloadHash: `hash-g1b-${seq}`, userId: USER, ttlMs: 3_600_000, ...over };
+  const d = { workspaceId: "ws-g1b", intentId: `intent-g1b-${++seq}`, payloadHash: hex64(`g1b-${seq}`), userId: USER, ttlMs: 3_600_000, ...over };
   return { ...d, id: insertApprovedDecision(sql, d) };
 };
 const consume = (d, over = {}) => {
@@ -327,7 +331,7 @@ await step("6. consume_approval_decision: service_role only; refuses expired / b
   // (c) bindings
   const c = seedDecision();
   assert.equal(consume(c, { intentId: "intent-other" }), 0, "(c) other intent_id consumed");
-  assert.equal(consume(c, { payloadHash: "hash-other" }), 0, "(c) other payload_hash consumed");
+  assert.equal(consume(c, { payloadHash: hex64("other") }), 0, "(c) other payload_hash consumed");
   assert.equal(consume(c, { workspaceId: "ws-other" }), 0, "(c) other workspace_id consumed");
   // control, then (d) replay
   assert.equal(consume(c), 1, "control: valid decision must be consumed exactly once");
@@ -372,7 +376,7 @@ await step("9. two concurrent create_approval_decision for one intent -> exactly
   const [cmd, ...args] = PSQL.split(" ");
   const { spawn } = await import("node:child_process");
   const run = () => new Promise((resolve) => {
-    const p = spawn(cmd, [...args, "-A", "-t", "-c", CREATE_CONTRACT.call("ws-g1b", intent, "hash-create", USER)]);
+    const p = spawn(cmd, [...args, "-A", "-t", "-c", CREATE_CONTRACT.call("ws-g1b", intent, hex64("create"), USER)]);
     p.on("close", resolve);
   });
   await Promise.all([run(), run()]);
