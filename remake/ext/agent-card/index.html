@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Créer un agent — fiche standard (maquette Oria)</title>
+<style>
+:root{--bg:#0c0e12;--p1:#13161c;--p2:#1a1e26;--line:#2c323d;--tx:#eceef1;--mu:#aab1bc;--ok:#5fd39a;--er:#ff8a8a;--wa:#ffb86b;--blue:#3d8bff;--r:14px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:#8fb8ff}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:var(--p2);padding:8px;z-index:9}
+header{padding:20px 24px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:1.4rem}
+header p{margin:4px 0 0;color:var(--mu)}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;padding:24px;max-width:1360px;margin:auto}
+@media (max-width:900px){main{grid-template-columns:1fr;padding:16px}}
+section.panel{background:var(--p1);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+h2{font-size:1.15rem;margin:0 0 12px}
+fieldset{border:1px solid var(--line);border-radius:10px;margin:0 0 16px;padding:12px 14px}
+legend{font-weight:600;padding:0 6px}
+label{display:block;font-weight:600;margin:10px 0 4px}
+.hint{color:var(--mu);font-size:.9rem;margin:2px 0 4px}
+input,select,textarea{width:100%;min-height:44px;background:var(--p2);color:var(--tx);border:1px solid #646d7c;border-radius:8px;padding:10px;font:inherit}
+textarea{min-height:88px}
+[aria-invalid=true]{border-color:var(--er);border-width:2px}
+.err{color:var(--er);font-size:.9rem;margin:4px 0 0}
+.err:empty{display:none}
+:focus-visible{outline:3px solid #8fb8ff;outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+button{min-height:44px;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--p2);color:var(--tx);font:inherit;cursor:pointer}
+button.primary{background:#2f6fd6;border-color:#2f6fd6;color:#fff;font-weight:600}
+#summary{border:2px solid var(--er);border-radius:10px;padding:12px 14px;margin-bottom:16px;background:#2a1517}
+#summary[hidden]{display:none}
+#summary h3{margin:0 0 6px;font-size:1rem;color:var(--er)}
+.ok{border:2px solid var(--ok);border-radius:10px;padding:12px 14px;margin-bottom:16px;background:#12261c;color:var(--ok)}
+.ok[hidden]{display:none}
+.tag{display:inline-block;font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.tag[hidden]{display:none}
+.tag.ex{color:var(--wa)}.tag.nb{color:var(--mu)}.tag.ab{color:#8fb8ff}
+.card h3{font-size:1.3rem;margin:6px 0 2px}
+.card .meta{color:var(--mu);margin:0 0 12px}
+.card dl{margin:0}
+.card dt{font-weight:700;margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.card dd{margin:4px 0 0;color:var(--tx)}
+.card dd.empty{color:var(--mu);font-style:italic}
+.card ol,.card ul{margin:4px 0 0;padding-left:20px}
+.status{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px;border:1px dashed var(--line);border-radius:10px;margin:8px 0}
+footer{color:var(--mu);font-size:.85rem;padding:0 24px 24px;max-width:1360px;margin:auto}
+</style>
+</head>
+<body>
+<a class="skip" href="#form-title">Aller au formulaire</a>
+<header>
+  <h1>Créer un agent</h1>
+  <p>Fiche agent standard : mission, méthode, livrables. Maquette statique, aucune donnée n'est enregistrée.</p>
+</header>
+<main>
+<section class="panel" aria-labelledby="form-title">
+  <h2 id="form-title">Formulaire de création</h2>
+  <p id="live" class="sr-only" role="status" aria-live="polite"></p>
+  <div id="summary" tabindex="-1" hidden>
+    <h3>La fiche contient <span id="errCount">0</span> erreur(s)</h3>
+    <ul id="errList"></ul>
+  </div>
+  <div id="okMsg" class="ok" hidden>Fiche valide (maquette). Enregistrement : à brancher, rien n'a été envoyé.</div>
+  <form id="f" novalidate>
+    <fieldset><legend>Identité</legend>
+      <label for="name">Nom de l'agent (requis)</label>
+      <input id="name" name="name" autocomplete="off" aria-describedby="name-err" required>
+      <p class="err" id="name-err"></p>
+      <label for="role">Rôle (requis)</label>
+      <p class="hint" id="role-hint">Valeurs de <code>AgentRoleId</code> du code.</p>
+      <select id="role" aria-describedby="role-hint role-err" required>
+        <option value="">— Choisir —</option>
+        <option>orchestrator</option><option>operator</option><option>scout</option><option>auditor</option><option>memory</option><option>money</option><option>builder</option><option>closer</option><option>support</option><option>quality</option>
+      </select>
+      <p class="err" id="role-err"></p>
+      <label for="tagline">Accroche (1 ligne)</label>
+      <input id="tagline" autocomplete="off">
+    </fieldset>
+    <fieldset><legend>Mission</legend>
+      <label for="mission">Mission (requise, 1 phrase, 200 caractères max.)</label>
+      <p class="hint" id="mission-hint">Le résultat dont l'agent est responsable.</p>
+      <textarea id="mission" maxlength="200" aria-describedby="mission-hint mission-err" required></textarea>
+      <p class="err" id="mission-err"></p>
+    </fieldset>
+    <fieldset><legend>Méthode</legend>
+      <label for="method">Étapes (requis, une par ligne)</label>
+      <p class="hint" id="method-hint">Déclencheur → entrées → sorties → validation → suite.</p>
+      <textarea id="method" aria-describedby="method-hint method-err" required></textarea>
+      <p class="err" id="method-err"></p>
+    </fieldset>
+    <fieldset><legend>Livrables</legend>
+      <label for="deliv">Livrables (requis, un par ligne)</label>
+      <p class="hint" id="deliv-hint">Champ dédié à brancher (dérivé de <code>workflows[].outputs</code>).</p>
+      <textarea id="deliv" aria-describedby="deliv-hint deliv-err" required></textarea>
+      <p class="err" id="deliv-err"></p>
+    </fieldset>
+    <fieldset><legend>Garde-fous</legend>
+      <label for="guard">Interdits (requis, un par ligne)</label>
+      <textarea id="guard" aria-describedby="guard-err" required></textarea>
+      <p class="err" id="guard-err"></p>
+      <label for="esc">Escalade</label>
+      <input id="esc" autocomplete="off">
+    </fieldset>
+    <fieldset><legend>Capacités</legend>
+      <label for="skills">Compétences (identifiants du catalogue, séparés par des virgules)</label>
+      <input id="skills" autocomplete="off">
+      <label for="auto">Niveau d'autonomie</label>
+      <select id="auto"><option value="">— Non défini —</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+    </fieldset>
+    <div class="btns">
+      <button type="submit" class="primary" id="go">Valider la fiche</button>
+      <button type="button" id="ex">Remplir avec un exemple</button>
+      <button type="reset" id="clr">Vider</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel" aria-labelledby="prev-title">
+  <h2 id="prev-title">Aperçu de la fiche</h2>
+  <article class="card">
+    <span class="tag ex" id="exTag" hidden>Exemple</span>
+    <h3 id="pName">Agent sans nom</h3>
+    <p class="meta" id="pMeta">Rôle non renseigné</p>
+    <div class="status">
+      <strong>Statut :</strong>
+      <span class="tag nb" id="stLabel"></span>
+      <span class="tag ab" id="stSource"></span>
+    </div>
+    <dl>
+      <dt>Mission</dt><dd id="pMission" class="empty">Vide — aucune mission saisie.</dd>
+      <dt>Méthode</dt><dd id="pMethod" class="empty">Vide — aucune étape saisie.</dd>
+      <dt>Livrables <span class="tag ab" id="delivTodo"></span></dt><dd id="pDeliv" class="empty">Vide — aucun livrable saisi.</dd>
+      <dt>Garde-fous</dt><dd id="pGuard" class="empty">Vide — aucun interdit saisi.</dd>
+      <dt>Capacités</dt><dd id="pCap" class="empty">Vide — aucune compétence saisie.</dd>
+    </dl>
+  </article>
+</section>
+</main>
+<footer>Structure inspirée de <a href="https://github.com/msitarzewski/agency-agents">agency-agents</a> (© 2025 AgentLand Contributors, licence MIT). Voir THIRD_PARTY_NOTICES.</footer>
+<script>
+const $=id=>document.getElementById(id);
+// Seule source des libellés de statut : aucun statut réel écrit en dur (cf. SPEC).
+const AGENT_STATUS_DISPLAY={label:"Non branché",source:"lu en base, à brancher",fieldTodo:"à brancher"};
+$("stLabel").textContent=AGENT_STATUS_DISPLAY.label;$("stSource").textContent=AGENT_STATUS_DISPLAY.source;$("delivTodo").textContent=AGENT_STATUS_DISPLAY.fieldTodo;
+const req={name:"Le nom est requis.",role:"Choisissez un rôle.",mission:"La mission est requise.",method:"Ajoutez au moins une étape.",deliv:"Ajoutez au moins un livrable.",guard:"Ajoutez au moins un garde-fou."};
+let isExample=false;
+function lines(v){return v.split("\n").map(s=>s.trim()).filter(Boolean)}
+function list(el,arr,tag,empty){el.textContent="";if(!arr.length){el.className="empty";el.textContent=empty;return}el.className="";const l=document.createElement(tag);arr.forEach(t=>{const li=document.createElement("li");li.textContent=t;l.appendChild(li)});el.appendChild(l)}
+function render(){
+  $("exTag").hidden=!isExample;
+  $("pName").textContent=$("name").value.trim()||"Agent sans nom";
+  $("pMeta").textContent=($("role").value?"Rôle : "+$("role").value:"Rôle non renseigné")+($("tagline").value.trim()?" · "+$("tagline").value.trim():"");
+  const m=$("mission").value.trim();$("pMission").className=m?"":"empty";$("pMission").textContent=m||"Vide — aucune mission saisie.";
+  list($("pMethod"),lines($("method").value),"ol","Vide — aucune étape saisie.");
+  list($("pDeliv"),lines($("deliv").value),"ul","Vide — aucun livrable saisi.");
+  const g=lines($("guard").value);if($("esc").value.trim())g.push("Escalade : "+$("esc").value.trim());
+  list($("pGuard"),g,"ul","Vide — aucun interdit saisi.");
+  const c=$("skills").value.split(",").map(s=>s.trim()).filter(Boolean);if($("auto").value)c.push("Autonomie : "+$("auto").value);
+  list($("pCap"),c,"ul","Vide — aucune compétence saisie.");
+}
+$("f").addEventListener("input",()=>{render();$("okMsg").hidden=true});
+$("f").addEventListener("submit",e=>{
+  e.preventDefault();const errs=[];
+  for(const k in req){const el=$(k),bad=!el.value.trim();el.setAttribute("aria-invalid",bad);$(k+"-err").textContent=bad?req[k]:"";if(bad)errs.push(k)}
+  const ul=$("errList");ul.textContent="";
+  errs.forEach(k=>{const li=document.createElement("li"),a=document.createElement("a");a.href="#"+k;a.textContent=req[k];a.onclick=ev=>{ev.preventDefault();$(k).focus()};li.appendChild(a);ul.appendChild(li)});
+  $("errCount").textContent=errs.length;$("summary").hidden=!errs.length;$("okMsg").hidden=!!errs.length;
+  $("live").textContent=errs.length?errs.length+" erreur(s) dans la fiche.":"Fiche valide (maquette).";
+  if(errs.length)$("summary").focus();
+});
+$("ex").addEventListener("click",()=>{
+  isExample=true;
+  $("name").value="Exemple — Agent de veille";$("role").value="scout";$("tagline").value="Exemple : accroche d'une ligne";
+  $("mission").value="Exemple : livrer chaque semaine une synthèse de veille validée par un humain.";
+  $("method").value="Exemple : déclencheur — demande hebdomadaire\nExemple : collecter les sources autorisées\nExemple : rédiger la synthèse\nExemple : faire valider avant diffusion";
+  $("deliv").value="Exemple : synthèse hebdomadaire (brouillon interne)";
+  $("guard").value="Exemple : aucun envoi externe sans approbation";$("esc").value="Exemple : rendre la main à l'orchestrateur en cas de doute";
+  $("skills").value="exemple-skill-id";$("auto").value="1";
+  render();
+});
+$("clr").addEventListener("click",()=>setTimeout(()=>{isExample=false;document.querySelectorAll("[aria-invalid]").forEach(e=>e.removeAttribute("aria-invalid"));document.querySelectorAll(".err").forEach(e=>e.textContent="");$("summary").hidden=true;$("okMsg").hidden=true;$("live").textContent="";render()}));
+render();
+</script>
+</body>
+</html>
