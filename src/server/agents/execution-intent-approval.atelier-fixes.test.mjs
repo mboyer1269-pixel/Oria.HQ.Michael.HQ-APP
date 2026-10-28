@@ -39,9 +39,10 @@ test("fix1: a conditional claim revert that matches 0 rows is reported as revert
   const res = await service.approveAndDispatchExecutionIntent(baseDeps({
     recordAttempt: async () => { throw new Error("ledger down"); },
     revertClaim: async () => { throw new Error("0 rows"); },
+    readStatus: async () => "executed", // what the store holds after the conflict
   }));
   assert.equal(res.ok, false);
-  assert.equal(res.status, "executing");
+  assert.equal(res.status, "executed", "status must be re-read from the store, not assumed");
   assert.equal(res.revert, "revert_conflict");
 });
 

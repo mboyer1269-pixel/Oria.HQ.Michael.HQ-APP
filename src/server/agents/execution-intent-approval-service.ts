@@ -13,6 +13,9 @@
 // here.
 
 import { logger } from "@/lib/logger";
+import type { AgentExecutionIntentStatus } from "@/features/agents/execution-intent";
+
+export type RereadStatus = AgentExecutionIntentStatus | "unknown";
 import type { SentinelleDecision } from "@/server/runtime/execution-guard";
 import type { GovernedRefusal, McpToolResult } from "@/server/agents/tools/types";
 
@@ -42,6 +45,8 @@ export type ExecutionIntentApprovalDeps = {
   markFailed: (failureCode: string, fromStatus?: "pending" | "executing") => Promise<unknown>;
   /** executing -> pending (retryable after a transient rate-limit). */
   revertToPending: () => Promise<unknown>;
+  /** Re-read the stored status after a revert conflict (never trust a guess). */
+  readStatus?: () => Promise<AgentExecutionIntentStatus | null | undefined>;
   /**
    * Compensation when the attempt Ledger write fails after the claim:
    * CONDITIONAL executing -> pending (same id + workspace, still executing).
@@ -91,14 +96,16 @@ export type ExecutionIntentApprovalResult =
   | {
       /** Rate-limited revert matched 0 rows (row no longer executing/same payload). */
       ok: false;
-      status: "executing";
+      /** Status re-read from the store, or "unknown" if that read failed. */
+      status: RereadStatus;
       error: string;
       httpStatus: 409;
       reason: "revert_conflict";
     }
   | {
       ok: false;
-      status: "pending" | "executing";
+      /** "pending" when reverted; otherwise re-read from the store, or "unknown". */
+      status: RereadStatus;
       error: string;
       httpStatus: 500;
       reason: "ledger_unavailable";
@@ -140,7 +147,7 @@ export async function approveAndDispatchExecutionIntent(
     );
     return {
       ok: false,
-      status: claimReverted ? "pending" : "executing",
+      status: claimReverted ? "pending" : await rereadStatus(deps),
       error: "Ledger unavailable; execution intent was not dispatched.",
       httpStatus: 500,
       reason: "ledger_unavailable",
@@ -175,7 +182,7 @@ export async function approveAndDispatchExecutionIntent(
       });
       return {
         ok: false,
-        status: "executing",
+        status: await rereadStatus(deps),
         error: "Rate-limited, but the intent could not be safely returned to pending; not re-dispatchable.",
         httpStatus: 409,
         reason: "revert_conflict",
@@ -266,4 +273,19 @@ export async function approveAndDispatchExecutionIntent(
     error: result.error ?? "n8n dispatch failed.",
     httpStatus: 502,
   };
+}
+
+/** Status from the store after a conflict; "unknown" if it cannot be read. */
+async function rereadStatus(deps: ExecutionIntentApprovalDeps): Promise<RereadStatus> {
+  if (!deps.readStatus) return "unknown";
+  try {
+    const status = await deps.readStatus();
+    return status ?? "unknown";
+  } catch (err) {
+    logger.error("agent.execution-intent.reread_status.failed", {
+      alert: true,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return "unknown";
+  }
 }

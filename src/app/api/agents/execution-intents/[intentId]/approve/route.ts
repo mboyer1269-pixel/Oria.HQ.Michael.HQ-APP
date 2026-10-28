@@ -217,6 +217,8 @@ export async function POST(
           expectedPayload: intent.payload,
           updatedAt: new Date().toISOString(),
         }),
+      readStatus: async () =>
+        (await getAgentExecutionIntent(ctx.workspace.id, intentId))?.status,
       revertToPending: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "pending",
@@ -355,6 +357,7 @@ export async function POST(
       intentId,
       reason: err instanceof Error ? err.message : "unknown",
       workspaceId: ctx.workspace.id,
+      alert: true,
     });
     // Not a state conflict: transient or of unknown effect. 503, no markFailed,
     // no resend; a claimed intent stays `executing` for reconciliation.
