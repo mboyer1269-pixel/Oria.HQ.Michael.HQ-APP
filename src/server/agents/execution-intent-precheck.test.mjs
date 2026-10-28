@@ -20,6 +20,8 @@ const { buildAgentExecutionIntent } = await jiti.import("@/features/agents/execu
 const gtd = await jiti.import("@/server/runtime/governed-tool-dispatch");
 
 const WS = "lot2-ws";
+const { hashExecutionIntentPayload: hashOfPayload } = await jiti.import("@/server/agents/execution-intent-payload-hash");
+const decisions = (await import(path.join(projectRoot, "proofs/approval-decision-test-support.mjs"))).createDecisionStore();
 let seq = 0;
 async function seed(toolName = "n8n_webhook_trigger") {
   seq += 1;
@@ -36,6 +38,8 @@ async function seed(toolName = "n8n_webhook_trigger") {
 function wire(intent, { effects, recordAttempt, policyTool } = {}) {
   const t = (patch) => repo.transitionAgentExecutionIntent(WS, intent.intentId, { updatedAt: new Date().toISOString(), ...patch });
   const TOKEN = `attempt:${intent.intentId}`;
+  // G1b: a valid decision bound to this intent + stored payload (SIMULATED store, public consumeDecision seam).
+  const decisionId = decisions.issue(WS, intent.intentId, hashOfPayload(intent.payload));
   return {
     precheck: () => gtd.precheckGovernedTool({ intentId: intent.intentId, toolName: intent.toolName, payload: intent.payload }),
     evaluate: () => ({ outcome: "ALLOW", reason: "ok" }),
@@ -43,9 +47,9 @@ function wire(intent, { effects, recordAttempt, policyTool } = {}) {
     markExecuting: () => t({ toStatus: "executing", expectedFromStatus: "pending", expectedPayload: intent.payload, actionRef: TOKEN }),
     recordAttempt: recordAttempt ?? (async () => {}),
     dispatch: () => gtd.dispatchGovernedTool(
-      { workspaceId: WS, intentId: intent.intentId, toolName: policyTool ?? intent.toolName, agentId: intent.agentId, payload: intent.payload, attemptToken: TOKEN },
+      { workspaceId: WS, intentId: intent.intentId, toolName: policyTool ?? intent.toolName, agentId: intent.agentId, payload: intent.payload, attemptToken: TOKEN, decisionId },
       async () => { effects.n += 1; return { ok: true, actionRef: "ref" }; },
-      policyTool ? { loadIntent: async () => ({ ...(await repo.getAgentExecutionIntent(WS, intent.intentId)), toolName: policyTool }) } : {}),
+      { consumeDecision: decisions.consume, ...(policyTool ? { loadIntent: async () => ({ ...(await repo.getAgentExecutionIntent(WS, intent.intentId)), toolName: policyTool }) } : {}) }),
     recordResult: async () => {},
     markExecuted: (actionRef) => t({ toStatus: "executed", expectedFromStatus: "executing", ...(actionRef ? { actionRef } : {}) }),
     markFailed: (failureCode) => t({ toStatus: "failed", expectedFromStatus: "executing", failureCode }),
