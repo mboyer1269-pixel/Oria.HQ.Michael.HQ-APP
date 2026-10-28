@@ -38,15 +38,15 @@ if [ -n "${CI_PG_URL:-}" ] && [ -n "${POSTGREST_DIRECT_URL:-}" ]; then
   PSQL="psql $CI_PG_URL -X -q -v ON_ERROR_STOP=1"
   apply_schema
   echo "✔ Real schema applied (schema.sql, 0002, 0020, 0022, 0023, 0024)."
-  # PostgREST started on an empty DB: reload its schema cache, then wait for the table.
+  # PostgREST started on an empty DB: its schema cache has 0 relations. Always
+  # request a reload, and wait until the OpenAPI root really lists the table
+  # (a plain GET can answer 200 from a stale cache).
   i=0
-  until [ "$(curl -s -m 3 -o /dev/null -w "%{http_code}" "$POSTGREST_DIRECT_URL/agent_execution_intents?limit=0" || echo 000)" = "200" ]; do
+  until curl -s -m 3 "$POSTGREST_DIRECT_URL/" | grep -q '"/agent_execution_intents"'; do
     echo "notify pgrst, 'reload schema';" | $PSQL >/dev/null 2>&1 || true
-    i=$((i+1)); [ "$i" -lt 120 ] || { echo "NON EXECUTE: PostgREST service not ready" >&2; exit 127; }; sleep 0.5
+    i=$((i+1)); [ "$i" -lt 120 ] || { echo "NON EXECUTE: PostgREST schema cache not loaded" >&2; exit 127; }; sleep 0.5
   done
-  # Diagnostics only (no data written): what PostgREST exposes after the reload.
-  echo "PostgREST paths: $(curl -s -m 5 "$POSTGREST_DIRECT_URL/" | grep -o '"/[a-z_]*"' | tr '\n' ' ')"
-  echo "PostgREST probe insert {}: $(curl -s -m 5 -X POST -H 'Content-Type: application/json' -d '{}' "$POSTGREST_DIRECT_URL/agent_execution_intents")"
+  echo "✔ PostgREST schema cache reloaded."
   HQ_ROOT="$ROOT" PSQL_CMD="$PSQL" node "$ROOT/proofs/prove-approval-real-db.mjs"
   exit $?
 fi
