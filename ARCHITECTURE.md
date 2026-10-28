@@ -1,4 +1,6 @@
-# Architecture — Oria HQ
+# Architecture
+
+## 01 System Overview
 
 > Single canonical overview of how this system is built. Read this first.
 > For the operating rules agents must follow, see `AGENTS.md`. For the live
@@ -12,7 +14,35 @@ local Docker dependencies. External services (Supabase, AI providers, n8n,
 Resend, Upstash) are all **optional in development** thanks to a local
 in-memory fallback.
 
-## Layering (dependency direction)
+## 02 Tech Stack
+
+<!-- Source : package.json, next.config.ts, postcss.config.mjs, vitest.config.ts, .github/workflows/ci.yml, db/migrations -->
+
+| Area | Tool |
+|---|---|
+| Framework | Next.js ^16.4.3 (App Router + Turbopack) |
+| UI | React 19.2.6, react-dom 19.2.6 |
+| Langage | TypeScript 6.0.3 |
+| Styles | Tailwind CSS 4.3.0 (@tailwindcss/postcss), variables CSS dans `src/app/globals.css` |
+| Icônes | lucide-react 1.14.0 |
+| Palette de commandes | cmdk ^1.1.1 |
+| Glisser-déposer | @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities |
+| Base de données et auth | Supabase (@supabase/supabase-js 2.105.4, @supabase/ssr ^0.10.3), Postgres, migrations dans `db/migrations` |
+| Validation | zod 4.6.7 |
+| Jobs en arrière-plan | inngest ^3.54.2 |
+| Limitation de débit | @upstash/ratelimit, @upstash/redis |
+| Courriel | resend ^6.12.4 |
+| Paiement | stripe ^18.5.0 |
+| Outils agents | @modelcontextprotocol/sdk 1.32.2, n8n (webhook, chokepoint d'exécution) |
+| Documents | mammoth, pdf-parse |
+| Tests | node --test + jiti, vitest ^4.1.12 |
+| Lint | ESLint 9.39.4 + eslint-config-next |
+| CI | GitHub Actions (`.github/workflows/ci.yml`, `ledger-audit-nightly.yml`) |
+| Runtime | Node.js >=22 <23, npm (package-lock.json), Dockerfile disponible |
+
+## 03 Project Structure
+
+### Layering (dependency direction)
 
 ```
   src/app        Next.js surface: routes, pages, layouts, proxy (the only runtime entrypoints)
@@ -29,7 +59,7 @@ in-memory fallback.
 **The rule:** dependencies point **downward only**. `app → features → server →
 core/lib`. A lower layer must never import an upper layer.
 
-### Structural debt #1 — RESOLVED (2026-06-18)
+#### Structural debt #1 — RESOLVED (2026-06-18)
 
 `server/` used to import type-only definitions from the UI layer
 (`features/hq/types`, `features/skills/types`, `features/contact/types`,
@@ -44,7 +74,7 @@ view-models, `BoardFigure`, `HqModule`) stayed in the feature layer. Verified
 green: typecheck 0, lint 0, 3091 tests pass. A `npm run map` confirms no
 reachability change (pure relocation).
 
-### Structural debt #2 — tracked, not yet paid
+#### Structural debt #2 — tracked, not yet paid
 
 The server layer still imports **non-type** things from features: seed data
 (`@/features/hq/seed`, `@/features/skills/seed`, `@/features/agents/seed`,
@@ -58,7 +88,7 @@ done deliberately, not opportunistically.
 then promote its rule from TRACKED to ENFORCED in
 `scripts/architecture/check-layering.mjs`.
 
-### Guards that keep this honest (run in CI)
+#### Guards that keep this honest (run in CI)
 
 - `npm run check:layering` — fails CI if a *fixed* rule regresses (e.g. a new
   `server → @/features/*/types` import). Enforces only currently-clean rules.
@@ -68,7 +98,18 @@ then promote its rule from TRACKED to ENFORCED in
 Both run on every PR via `.github/workflows/ci.yml`, alongside typecheck, lint,
 build, tests, smoke, and the ledger/mission guards.
 
-## The live surface
+### Runtime surfaces (`src/app`)
+
+- **Pages** under `src/app/hq/*` — the operator cockpit (ventures, agents,
+  missions, memory, outbound, workflows, skills, runtime, cockpit).
+- **API routes** under `src/app/api/*` — 25 routes. 21 are auth-guarded
+  (Supabase session / permission check / cron secret). The 4 public ones are
+  intentional and hardened: `contact` (rate-limit + zod), `inngest`
+  (signature-verified), `health` and `health/staging-runtime` (no secrets,
+  fail-closed in prod).
+- **Proxy** `src/proxy.ts` — Next 16 middleware (auth/session edge).
+
+### The live surface
 
 Run `npm run map` to regenerate the truth. As of the last run:
 
@@ -83,18 +124,20 @@ are not dead weight, but nothing in the running product depends on them. To
 graduate one to LIVE, wire it to a route or page. `docs/SYSTEM_MAP.md` lists
 every incubation file so the gap between "built" and "shipped" stays honest.
 
-## Runtime surfaces (`src/app`)
+### Where to extend
 
-- **Pages** under `src/app/hq/*` — the operator cockpit (ventures, agents,
-  missions, memory, outbound, workflows, skills, runtime, cockpit).
-- **API routes** under `src/app/api/*` — 25 routes. 21 are auth-guarded
-  (Supabase session / permission check / cron secret). The 4 public ones are
-  intentional and hardened: `contact` (rate-limit + zod), `inngest`
-  (signature-verified), `health` and `health/staging-runtime` (no secrets,
-  fail-closed in prod).
-- **Proxy** `src/proxy.ts` — Next 16 middleware (auth/session edge).
+- **New venture capability** → add a `feature` module + the `server` domain
+  logic it needs, wire it to an `app/hq/*` page or `app/api/*` route. Run
+  `npm run map` to confirm it graduated to LIVE.
+- **New real-world action** → add an MCP tool under `src/server/agents/tools`,
+  register an approved binding, and route it through the n8n chokepoint. Never
+  add a second outbound path.
+- **New persisted entity** → add a numbered migration (with `_revert` +
+  `_verify`), keep the live-apply gated behind a mandate.
 
-## The execution rail — how HQ turns intent into real action
+## 04 Data Flow
+
+### The execution rail — how HQ turns intent into real action
 
 This is the spine that lets HQ actually *operate* ventures. The design keeps
 **Oria as the brain** (decides, governs, records) and **n8n as the hands**
@@ -130,7 +173,7 @@ This is the spine that lets HQ actually *operate* ventures. The design keeps
 - Fully **dependency-injected** (`fetchImpl`, `now`, `isAllowed`) for testing
   without network or secrets.
 
-### Current state of the rail
+#### Current state of the rail
 
 The intent → approve → reject loop and the n8n tool are **implemented and
 verified against real n8n 2.26.6 in dry-run**. Migration `0024`
@@ -148,7 +191,7 @@ live. What remains is execution config only: the n8n workflow import + the
 making the rail live end-to-end (apply 0024 → real dispatch → ledger) turns the
 governance scaffolding into a working operating system for ventures.
 
-## Governance & audit model
+### Governance & audit model
 
 - **Action ledger** (`src/server/ledger`, `src/server/actions`) — append-only
   record of every governed action. A **hash-chain** integrity layer
@@ -159,7 +202,7 @@ governance scaffolding into a working operating system for ventures.
 - **Work-order governance** (`src/server/agents/work-order-*`) — the contract
   layer that turns an agent mandate into a reviewable, approvable plan.
 
-## Persistence
+### Persistence
 
 - **Supabase (Postgres)** is the production store. Migrations live in
   `db/migrations` (numbered, each with `_revert` and `_verify` siblings).
@@ -168,7 +211,7 @@ governance scaffolding into a working operating system for ventures.
   ledger, and intents all work in-memory. In production, missing persistence
   **fails loud** — it never silently fakes a write.
 
-## AI / model routing
+### AI / model routing
 
 - `src/server/ai/model-router.ts` chooses a model per task class via the
   **cost ladder** (`cost-ladder.ts`). The ladder is currently **display_only**
@@ -177,26 +220,9 @@ governance scaffolding into a working operating system for ventures.
 - Joris (the assistant persona) invokes the model through
   `joris-reply-generator.ts`, which injects `fetchFn` so tests run without keys.
 
-## Testing
+## 05 Scalability
 
-- **3091 tests** across 21 suites, all passing, run via `node --test` +
-  `jiti` (TS executed without a build step). `npm test` aggregates every
-  `src/**/*.test.mjs`.
-- **Smoke tests** (`npm run smoke:*`) exercise real end-to-end slices (Joris
-  booking, n8n execution slice, revenue readiness) without API keys.
-
-## Validation gates (run before declaring work done)
-
-```
-npm run typecheck   # tsc --noEmit          → currently 0 errors
-npm run lint        # eslint                 → currently 0 errors
-npm run build       # next build (Turbopack)
-npm run test        # 3091 tests             → currently 0 failures
-npm run map:check   # system map is current
-npm run smoke:joris # end-to-end booking slice
-```
-
-## Venture model — generic, market-driven (no hard-coded ventures)
+### Venture model — generic, market-driven (no hard-coded ventures)
 
 A venture is **data, not code**. `src/core/ventures/venture-market-profile.ts`
 defines a generic `VentureMarketProfile`: market (country/region/language),
@@ -213,13 +239,23 @@ Quebec venture lists Loi 25/96, a French one would list the RGPD — **no code
 change**. Core stays free of proper nouns (enforced trajectory; see debt #2 for
 the remaining `suivia`/`mcl` leaks in `server/contact`).
 
-## Where to extend
+## Annexes
 
-- **New venture capability** → add a `feature` module + the `server` domain
-  logic it needs, wire it to an `app/hq/*` page or `app/api/*` route. Run
-  `npm run map` to confirm it graduated to LIVE.
-- **New real-world action** → add an MCP tool under `src/server/agents/tools`,
-  register an approved binding, and route it through the n8n chokepoint. Never
-  add a second outbound path.
-- **New persisted entity** → add a numbered migration (with `_revert` +
-  `_verify`), keep the live-apply gated behind a mandate.
+### Testing
+
+- **3091 tests** across 21 suites, all passing, run via `node --test` +
+  `jiti` (TS executed without a build step). `npm test` aggregates every
+  `src/**/*.test.mjs`.
+- **Smoke tests** (`npm run smoke:*`) exercise real end-to-end slices (Joris
+  booking, n8n execution slice, revenue readiness) without API keys.
+
+### Validation gates (run before declaring work done)
+
+```
+npm run typecheck   # tsc --noEmit          → currently 0 errors
+npm run lint        # eslint                 → currently 0 errors
+npm run build       # next build (Turbopack)
+npm run test        # 3091 tests             → currently 0 failures
+npm run map:check   # system map is current
+npm run smoke:joris # end-to-end booking slice
+```

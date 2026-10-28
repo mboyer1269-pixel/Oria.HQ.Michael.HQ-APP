@@ -1,16 +1,33 @@
 # AGENTS.md
 
-## Project Mission
+## 01 Purpose
+
+Ce fichier est le guide opérationnel canonique pour tout agent (Claude Code, Cursor, Codex, autres) qui travaille dans ce dépôt. Oria est le poste de commandement de Michael pour transformer des idées en résultats avec une équipe d'agents IA. Michael dirige les intentions et les décisions; Oria prend en charge l'organisation et l'exécution autorisée.
+
+### Project Mission
 
 Oria is a workspace-first operator platform. The product should evolve from the current single-owner foundation toward configurable workspaces, assistant profiles, permissioned actions, and runtime adapters without baking any one person, assistant, or venture into core application contracts.
 
-## Critical Rules
+## 02 Before You Start
+
+Lire, dans cet ordre, avant toute modification :
+
+1. `docs/PRD.md` : quoi construire et pour qui.
+2. `docs/DESIGN_SYSTEM.md` : couleurs, typographie, composants (valeurs tirées du code).
+3. `ARCHITECTURE.md` : stack, structure, flux de données, garde-fous.
+4. `SOUL.md` : posture et valeurs des agents.
+
+Puis vérifier `git branch --show-current`, `git status --short` et le mandat en cours.
+
+## 03 General Rules
+
+### Critical Rules
 
 1. Never modify secrets, `.env`, API keys, or credentials.
 2. Never start a new phase, feature, or refactor without an explicit mandate.
 3. Always validate with typecheck, lint, build, and smoke checks before declaring work complete.
 
-## Agent Operating Model
+### Agent Operating Model
 
 - Treat this file as the canonical operating guide for agents working in this repository.
 - Identity layer: read `SOUL.md` for agent posture and values. `AGENTS.md` remains the operational source of truth.
@@ -19,22 +36,33 @@ Oria is a workspace-first operator platform. The product should evolve from the 
 - Prefer existing project patterns over new abstractions unless the user explicitly asks for a design change.
 - When a task is a finalization or PR-prep task, do not begin implementation of the next product phase.
 
-## Skill Routing
+### Skill Routing
 
 - Use implementation-focused skills only when the user explicitly asks to build or change behavior.
 - Use review/debug skills for review findings, failing checks, regressions, or unexpected behavior.
 - Use planning skills for ambiguous, multi-step, or architectural work before editing code.
 - Do not let a skill expand scope beyond the user's current mandate.
 
-## Safety & Git Guardrails
+### Never Do
 
-- Never modify secrets, `.env`, API keys, credentials, or generated secret material.
-- Never run destructive Git commands such as hard resets, force pushes, or checkout-based reverts unless Michael explicitly approves them.
-- Do not revert user changes unless explicitly instructed.
-- Before committing, inspect status and diff so only relevant files are included.
-- Push only when the user has requested it and validation has passed.
+- Never modify secrets, `.env`, API keys, credentials, or credential references outside the requested scope.
+- Never start Phase 1 or any later phase without explicit instruction.
+- Never change application code during documentation-only or finalization tasks.
+- Never mark work complete without validation evidence.
+- Never hide abnormal Git state, failing checks, or uncommitted changes.
 
-## Coding Standards
+### Anti-Dispersion / Worktree Safety
+
+- This repository is the only source of truth for Oria product architecture, core contracts, auth, permissions, action ledger, and workspace boundaries.
+- No external repo, cockpit, or worktree is merged without completing the audit gate in `docs/REPO_CONSOLIDATION.md`.
+- The worktree at `C:\Users\micha\Projects\michael-hq-oria-review` must not be used as a source of changes for this repository.
+- The branch `claude/oria-refactor-foundation` was based on an older state and must not be merged.
+- Before opening a PR from any agent-generated branch, confirm: branch base is `origin/main`, no stashed or untracked changes are included, and all 4 validation checks pass.
+- When working across multiple branches or worktrees, always verify `git branch --show-current` and `git status --short` before making changes.
+
+## 04 Code Guidelines
+
+### Coding Standards
 
 - Keep domain types and core contracts generic and workspace-first.
 - Avoid workspace-specific proper nouns in reusable core code.
@@ -42,7 +70,7 @@ Oria is a workspace-first operator platform. The product should evolve from the 
 - Prefer simple, typed interfaces over premature framework or runtime abstractions.
 - Do not introduce dependencies unless they are necessary and approved by the task scope.
 
-## Validation Before Completion
+### Validation Before Completion
 
 Before declaring work complete, run and report:
 
@@ -53,7 +81,48 @@ Before declaring work complete, run and report:
 
 If any check fails, stop, report the failure clearly, and do not claim readiness.
 
-## Handoff Format
+## 05 Security
+
+### Safety & Git Guardrails
+
+- Never modify secrets, `.env`, API keys, credentials, or generated secret material.
+- Never run destructive Git commands such as hard resets, force pushes, or checkout-based reverts unless Michael explicitly approves them.
+- Do not revert user changes unless explicitly instructed.
+- Before committing, inspect status and diff so only relevant files are included.
+- Push only when the user has requested it and validation has passed.
+
+### Rappels sécurité (tirés des règles ci-dessus et de `ARCHITECTURE.md`)
+
+- Ne jamais modifier les secrets, `.env`, clés API ou identifiants.
+- Le seul chemin d'action sortante est le chokepoint n8n (`src/server/agents/tools/n8n-webhook-trigger.ts`); ne jamais ajouter un deuxième chemin sortant.
+- Les actions risquées restent soumises à l'approbation du CEO; un agent ne s'accorde jamais lui-même de nouveaux pouvoirs.
+
+## 06 Useful Commands
+
+<!-- Source : package.json (scripts) -->
+
+```
+npm run dev            # next dev, http://localhost:3000
+npm run build          # next build
+npm run start          # next start
+npm run typecheck      # tsc --noEmit
+npm run lint           # eslint src + fichiers de config
+npm run test           # node run-tests.mjs (tous les src/**/*.test.mjs)
+npm run test:gaps      # node run-tests.mjs --gaps
+npm run smoke:joris    # smoke Joris booking, sans clé API
+npm run map            # régénère docs/SYSTEM_MAP.md
+npm run map:check      # vérifie que la carte système est à jour
+npm run check:layering # vérifie le sens des dépendances
+npm run doctor         # diagnostic HQ
+npm run audit:deps     # audit des dépendances directes
+npm run ledger:audit   # audit hash-chain du ledger
+```
+
+Autres scripts (`smoke:*`, `test:*`, `ledger:*`, `mission:*`, `check:supabase`) : voir `package.json`.
+
+## 07 Handoff
+
+### Handoff Format
 
 Final handoffs should include:
 
@@ -64,24 +133,9 @@ Final handoffs should include:
 - Whether the branch was pushed.
 - Recommendation to create the PR or block.
 
-## Never Do
+## 08 Roadmap
 
-- Never modify secrets, `.env`, API keys, credentials, or credential references outside the requested scope.
-- Never start Phase 1 or any later phase without explicit instruction.
-- Never change application code during documentation-only or finalization tasks.
-- Never mark work complete without validation evidence.
-- Never hide abnormal Git state, failing checks, or uncommitted changes.
-
-## Anti-Dispersion / Worktree Safety
-
-- This repository is the only source of truth for Oria product architecture, core contracts, auth, permissions, action ledger, and workspace boundaries.
-- No external repo, cockpit, or worktree is merged without completing the audit gate in `docs/REPO_CONSOLIDATION.md`.
-- The worktree at `C:\Users\micha\Projects\michael-hq-oria-review` must not be used as a source of changes for this repository.
-- The branch `claude/oria-refactor-foundation` was based on an older state and must not be merged.
-- Before opening a PR from any agent-generated branch, confirm: branch base is `origin/main`, no stashed or untracked changes are included, and all 4 validation checks pass.
-- When working across multiple branches or worktrees, always verify `git branch --show-current` and `git status --short` before making changes.
-
-## What Remains To Build
+### What Remains To Build
 
 - Phase 1 must not start until Michael explicitly mandates it.
 - Workspace-specific runtime adapters remain future work.
@@ -89,19 +143,21 @@ Final handoffs should include:
 - Workspace configuration and seed-file expansion remain future work.
 - Any additional assistant runtime integration remains future work until explicitly scoped.
 
-## Cursor Cloud specific instructions
+## 09 Environment Notes
 
-### Service overview
+### Cursor Cloud specific instructions
+
+#### Service overview
 
 This is a monolithic Next.js 16 app (App Router + Turbopack). There are no Docker services or databases to run locally — all external services (Supabase, AI providers) are optional in dev thanks to local-persistence fallback.
 
-### Starting the dev server
+#### Starting the dev server
 
 ```
 npm run dev          # http://localhost:3000
 ```
 
-### Validation commands (see "Validation Before Completion" above)
+#### Validation commands (see "Validation Before Completion" above)
 
 ```
 npm run typecheck    # tsc --noEmit
@@ -110,7 +166,7 @@ npm run build        # next build (Turbopack)
 npm run smoke:joris  # Joris booking smoke test (runs locally, no API keys needed)
 ```
 
-### Key gotchas
+#### Key gotchas
 
 - The app runs fully without Supabase or AI API keys in development. `isLocalPersistenceFallbackAllowed()` activates when `NODE_ENV !== "production"`, so calendar events, contacts, and the action ledger all work locally in-memory.
 - `npm run smoke:joris` exercises the Joris booking intent parser, calendar writer, and action ledger in local mode — it does **not** require any API keys or a running dev server.
