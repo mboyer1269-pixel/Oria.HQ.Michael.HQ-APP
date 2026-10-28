@@ -96,7 +96,7 @@ export function AgendaPanel() {
         <button
           type="button"
           onClick={() => void loadEvents()}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-800 text-neutral-400 transition hover:border-amber-500/40 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-800 text-neutral-400 transition hover:border-amber-500/40 hover:text-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:cursor-not-allowed disabled:opacity-60"
           aria-label="Rafraîchir l'agenda"
           disabled={loading}
         >
@@ -178,7 +178,7 @@ export function AgendaPanel() {
                 <button
                   type="button"
                   onClick={() => void loadEvents()}
-                  className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-red-400/20 px-3 text-xs font-semibold text-red-100 transition hover:bg-red-500/10"
+                  className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-red-400/20 px-3 text-xs font-semibold text-red-100 transition hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                   Réessayer
