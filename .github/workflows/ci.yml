@@ -158,3 +158,25 @@ jobs:
 
       - name: Execution-intent approval proof (real PostgreSQL)
         run: sh proofs/run-approval-real-db.sh "$GITHUB_WORKSPACE"
+
+  # Cross-platform guard for the rules/vendored-hash CI scripts (Windows paths, CRLF checkout).
+  rules-ci-windows:
+    name: rules-ci-windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rules CI script tests
+        run: node --test src/scripts/ci/*.test.mjs
