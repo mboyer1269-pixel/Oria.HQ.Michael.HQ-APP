@@ -17,6 +17,8 @@
  *      409 changed, row stays pending, no dispatch.
  *  3. Ledger insert refused by Postgres (INSERT privilege revoked) -> 500,
  *     conditional revert leaves the row 'pending', no dispatch.
+ *  4. markExecuted with a stale lease token (action_ref of another attempt)
+ *     -> the CAS UPDATE matches 0 rows; the row keeps status and token.
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -225,6 +227,32 @@ await step("3. ledger insert refused by Postgres -> 500, conditional revert to p
     sql(`select count(*) from public.action_ledger where event_type='action' and metadata->>'intentId'='${q(id)}'`),
     "0",
   );
+});
+
+await step("4. markExecuted with a stale lease token -> UPDATE matches 0 rows (CAS on action_ref), row unchanged", async () => {
+  const repo = await jiti.import("@/server/agents/execution-intent-repository");
+  const id = await createIntent("stale-lease");
+  const lease = () => JSON.parse(sql(`select row_to_json(t) from (select workspace_id, status, action_ref from public.agent_execution_intents where intent_id='${q(id)}') t`));
+  const ws = lease().workspace_id;
+  // Put the row in the claimed state held by ANOTHER attempt, directly in Postgres.
+  sql(`update public.agent_execution_intents set status='executing', action_ref='attempt:holder' where intent_id='${q(id)}'`);
+  await assert.rejects(
+    repo.transitionAgentExecutionIntent(ws, id, {
+      toStatus: "executed",
+      expectedFromStatus: "executing",
+      expectedActionRef: "attempt:stale",
+      updatedAt: new Date().toISOString(),
+    }),
+    repo.AgentExecutionIntentConcurrencyError,
+    "a stale lease token must match 0 rows",
+  );
+  assert.deepEqual([lease().status, lease().action_ref], ["executing", "attempt:holder"]);
+  // Control: the holder's own token settles it (same query, right token).
+  await repo.transitionAgentExecutionIntent(ws, id, {
+    toStatus: "executed", expectedFromStatus: "executing", expectedActionRef: "attempt:holder",
+    updatedAt: new Date().toISOString(),
+  });
+  assert.equal(row(id).status, "executed");
 });
 
 gateway.close();
