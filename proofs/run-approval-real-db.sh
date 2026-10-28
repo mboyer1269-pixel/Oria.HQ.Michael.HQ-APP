@@ -6,6 +6,48 @@
 set -eu
 ROOT="${1:-$(pwd)}"
 
+apply_schema() {
+{
+    # Minimal Supabase platform stubs the real schema files depend on.
+    echo "create role anon nologin; create role authenticated nologin;"
+    echo "create role qualification_service nologin bypassrls;"
+    echo "create schema auth; create table auth.users (id uuid primary key);"
+    echo "create function auth.uid() returns uuid language sql stable as 'select null::uuid';"
+    echo "insert into auth.users(id) values ('00000000-0000-4000-8000-0000000000a1');"
+    # Real repository schema.
+    cat "$ROOT/db/schema.sql"
+    cat "$ROOT/db/migrations/0002_typed_ledger_events.sql"
+    cat "$ROOT/db/migrations/0020_action_ledger_workspace_scope.sql"
+    cat "$ROOT/db/migrations/0022_action_ledger_hash_chain_phase1.sql"
+    cat "$ROOT/db/migrations/0023_action_ledger_hash_chain_phase2.sql"
+    cat "$ROOT/db/migrations/0024_agent_execution_intents.sql"
+    echo "grant usage on schema public to qualification_service;"
+    echo "grant all on all tables in schema public to qualification_service;"
+  } | $PSQL
+}
+
+# CI path: GitHub Actions `services:` (postgres + postgrest) — no Docker CLI
+# needed. Set CI_PG_URL (psql URL) and POSTGREST_DIRECT_URL. Local runs keep
+# the Docker path below.
+if [ -n "${CI_PG_URL:-}" ] && [ -n "${POSTGREST_DIRECT_URL:-}" ]; then
+  command -v psql >/dev/null 2>&1 || { echo "NON EXECUTE: psql absent. Aucune assertion PostgreSQL exécutée." >&2; exit 127; }
+  i=0
+  until pg_isready -d "$CI_PG_URL" >/dev/null 2>&1; do
+    i=$((i+1)); [ "$i" -lt 240 ] || { echo "NON EXECUTE: PostgreSQL service not ready" >&2; exit 127; }; sleep 0.25
+  done
+  PSQL="psql $CI_PG_URL -X -q -v ON_ERROR_STOP=1"
+  apply_schema
+  echo "✔ Real schema applied (schema.sql, 0002, 0020, 0022, 0023, 0024)."
+  # PostgREST started on an empty DB: reload its schema cache, then wait for the table.
+  i=0
+  until [ "$(curl -s -m 3 -o /dev/null -w "%{http_code}" "$POSTGREST_DIRECT_URL/agent_execution_intents?limit=0" || echo 000)" = "200" ]; do
+    echo "notify pgrst, 'reload schema';" | $PSQL >/dev/null 2>&1 || true
+    i=$((i+1)); [ "$i" -lt 120 ] || { echo "NON EXECUTE: PostgREST service not ready" >&2; exit 127; }; sleep 0.5
+  done
+  HQ_ROOT="$ROOT" PSQL_CMD="$PSQL" node "$ROOT/proofs/prove-approval-real-db.mjs"
+  exit $?
+fi
+
 if ! command -v docker >/dev/null 2>&1 || ! timeout -k 2 5 docker info >/dev/null 2>&1 < /dev/null; then
   echo "NON EXECUTE: Docker est absent. Aucune migration appliquée, aucune assertion PostgreSQL exécutée." >&2
   exit 127
@@ -29,23 +71,7 @@ until docker exec "$PG_NAME" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1
 done
 
 PSQL="docker exec -i $PG_NAME psql -h 127.0.0.1 -U postgres -X -q -v ON_ERROR_STOP=1"
-{
-  # Minimal Supabase platform stubs the real schema files depend on.
-  echo "create role anon nologin; create role authenticated nologin;"
-  echo "create role qualification_service nologin bypassrls;"
-  echo "create schema auth; create table auth.users (id uuid primary key);"
-  echo "create function auth.uid() returns uuid language sql stable as 'select null::uuid';"
-  echo "insert into auth.users(id) values ('00000000-0000-4000-8000-0000000000a1');"
-  # Real repository schema.
-  cat "$ROOT/db/schema.sql"
-  cat "$ROOT/db/migrations/0002_typed_ledger_events.sql"
-  cat "$ROOT/db/migrations/0020_action_ledger_workspace_scope.sql"
-  cat "$ROOT/db/migrations/0022_action_ledger_hash_chain_phase1.sql"
-  cat "$ROOT/db/migrations/0023_action_ledger_hash_chain_phase2.sql"
-  cat "$ROOT/db/migrations/0024_agent_execution_intents.sql"
-  echo "grant usage on schema public to qualification_service;"
-  echo "grant all on all tables in schema public to qualification_service;"
-} | $PSQL
+apply_schema
 echo "✔ Real schema applied (schema.sql, 0002, 0020, 0022, 0023, 0024)."
 
 docker run -d --name "$REST_NAME" --network "$NET" -p 127.0.0.1:0:3000 \
