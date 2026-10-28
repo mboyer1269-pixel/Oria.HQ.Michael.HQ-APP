@@ -395,7 +395,19 @@ function createUnavailableActionLedgerRepository(): ActionLedgerRepository {
   };
 }
 
+// Test-only: an explicitly injected repository (e.g. one whose writes fail).
+// Ignored in production builds; no env toggle is needed to use it.
+let repositoryOverrideForTests: ((user: ServerUserContext) => ActionLedgerRepository) | null = null;
+export function __setActionLedgerRepositoryForTests(
+  factory: ((user: ServerUserContext) => ActionLedgerRepository) | null,
+): void {
+  repositoryOverrideForTests = factory;
+}
+
 export function createActionLedgerRepository(user: ServerUserContext): ActionLedgerRepository {
+  if (repositoryOverrideForTests && process.env.NODE_ENV !== "production") {
+    return repositoryOverrideForTests(user);
+  }
   if (user.storagePreference === "supabase" && hasSupabaseAdminConfig()) {
     return createSupabaseActionLedgerRepository(user);
   }

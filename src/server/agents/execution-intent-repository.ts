@@ -388,6 +388,21 @@ export function __mutateAgentExecutionIntentPayloadForTests(
   ) as unknown as AgentExecutionIntentRow["payload"];
 }
 
+/**
+ * Test-only: simulate an out-of-band writer (e.g. a concurrent attempt) by
+ * overwriting status and/or action_ref of a local-fallback row directly.
+ */
+export function __forceAgentExecutionIntentRowForTests(
+  workspaceId: string,
+  intentId: string,
+  patch: { status?: AgentExecutionIntentStatus; actionRef?: string | null },
+): void {
+  const row = localIntents.find((r) => r.workspace_id === workspaceId && r.intent_id === intentId);
+  if (!row) throw new AgentExecutionIntentNotFoundError(intentId);
+  if (patch.status !== undefined) row.status = patch.status;
+  if (patch.actionRef !== undefined) row.action_ref = patch.actionRef;
+}
+
 let beforeLocalTransitionForTests:
   | ((workspaceId: string, intentId: string, patch: ExecutionIntentTransitionPatch) => void)
   | undefined;
