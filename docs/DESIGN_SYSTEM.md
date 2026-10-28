@@ -96,5 +96,6 @@ lucide-react 1.14.0 (utilisé dans une centaine de fichiers de `src`).
 - Utiliser les variables CSS de `src/app/globals.css`; ne pas coder de nouvelle couleur en dur.
 - Ne jamais inventer une valeur : si elle manque, l'ajouter d'abord au code, puis à ce document.
 - Chaque ajout visuel doit aider à comprendre ou à agir.
+- Les animations en boucle (`oria-pulse`, `oria-breathe`, `oria-spin`) ne s'affichent que si elles sont liées à un état réel (exemple existant : `oria-pulse` seulement quand `connected` est vrai dans `cockpit-interactive.tsx`). Un agent en attente, bloqué ou en pause reste statique avec un libellé explicite.
 - Aucune animation ne doit faire croire qu'un agent travaille quand il attend; la progression reflète les actions réelles.
 - Rester sur le thème sombre existant et l'icônerie lucide-react.

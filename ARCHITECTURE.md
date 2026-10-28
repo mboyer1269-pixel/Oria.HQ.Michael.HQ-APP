@@ -107,6 +107,8 @@ build, tests, smoke, and the ledger/mission guards.
   intentional and hardened: `contact` (rate-limit + zod), `inngest`
   (signature-verified), `health` and `health/staging-runtime` (no secrets,
   fail-closed in prod).
+> Note (2026-10-27) : le décompte « 25 routes » ci-dessus date d'un audit antérieur. `find src/app/api -name route.ts` en compte maintenant 68. Relancer `npm run map` pour la valeur à jour.
+
 - **Proxy** `src/proxy.ts` — Next 16 middleware (auth/session edge).
 
 ### The live surface

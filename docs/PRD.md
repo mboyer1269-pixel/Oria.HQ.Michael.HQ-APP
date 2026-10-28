@@ -32,6 +32,8 @@ L'autonomie varie selon l'action :
 
 ## 05 Core Features (Version 1)
 
+> Statut : cible de la v1, pas un état livré. Des briques existent déjà (missions et approbations dans `src/features/missions`, mémoire dans `src/server/memory`, ledger d'actions), mais le parcours complet décrit ici reste à terminer et à prouver selon la section 07.
+
 1. **Salle des missions.** Objectif, équipe, progression réelle, blocages, budget et livrables au même endroit. Les avatars ont un rôle utile : comprendre qui travaille sur quoi.
 2. **Boîte de décisions.** Oria présente ce qui demande le jugement de l'utilisateur, avec les options et leurs conséquences, plutôt que d'interrompre pour chaque détail.
 3. **Mémoire de projet.** Objectifs, décisions, sources et résultats réutilisables. L'utilisateur peut corriger cette mémoire; Oria ne traite pas une ancienne information comme une vérité éternelle.

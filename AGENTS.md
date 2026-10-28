@@ -91,6 +91,15 @@ If any check fails, stop, report the failure clearly, and do not claim readiness
 - Before committing, inspect status and diff so only relevant files are included.
 - Push only when the user has requested it and validation has passed.
 
+### Règles du propriétaire (connexions, coûts, approbations)
+
+- Abonnements seulement : Claude, Codex, Gemini et Cursor via leurs CLI officiels, sous le compte du propriétaire.
+- Jamais d'API payante, de clé `*_API_KEY`, de recharge de crédits ni de bascule automatique vers une autre connexion.
+- Un code 429 (limite atteinte) met la tâche en file d'attente; on ne contourne pas la limite.
+- Approbation écrite et explicite de Michael requise avant : merge, déploiement en production, migration de base de données distante, dépense, suppression, force-push.
+- L'approbation d'un agent ou une réaction emoji ne vaut pas approbation.
+- Un agent ne s'accorde jamais de nouveaux pouvoirs.
+
 ### Rappels sécurité (tirés des règles ci-dessus et de `ARCHITECTURE.md`)
 
 - Ne jamais modifier les secrets, `.env`, clés API ou identifiants.
