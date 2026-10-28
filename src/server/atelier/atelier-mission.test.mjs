@@ -185,3 +185,16 @@ test('SENT-412-39: diff / commit artifacts are owner-only too (member → 403 at
     assert.equal(H.getAtelierArtifact({ ...C, role: 'owner' }, m.id, art.id, { root: store }).status, 200);
   }
 });
+
+test('SENT-412-41: secret scan — no false positives, real secrets still detected', () => {
+  const d = (l) => `+++ b/x\n+${l}`;
+  for (const ok of ['<li className="task-list-item-container-wrapper">', 'const access_token = response.data.access_token;', '{ "tokens": [] }', 'risk-assessment-abcdefghijklmnopqrstuv'])
+    assert.deepEqual(A.secretFindings(d(ok)), [], ok);
+  const fakeOpenai = 'sk-' + 'proj-' + 'A'.repeat(24), fakeAnt = 'sk-' + 'ant-' + 'B'.repeat(24);
+  assert.ok(A.secretFindings(d(`KEY=${fakeOpenai}`)).includes('openai_token'));
+  assert.ok(A.secretFindings(d(`"${fakeAnt}"`)).includes('anthropic_token'));
+  assert.ok(A.secretFindings(d('"access_token": "abcDEF123456789"')).includes('oauth_token_field'));
+  assert.ok(A.secretFindings(d("refresh_token = 'xyz.ABC-12345678'")).includes('oauth_token_field'));
+  assert.ok(A.secretFindings(d('{"OPENAI_API_KEY": null}')).includes('auth_json'));
+  assert.ok(A.secretFindings(d('"claudeAiOauth": {')).includes('auth_json'));
+});

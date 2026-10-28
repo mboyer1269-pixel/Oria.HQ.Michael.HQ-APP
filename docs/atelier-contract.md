@@ -113,3 +113,9 @@ Artifact = { id: string; kind: "spec" | "diff" | "test_log" | "preview" | "trans
 `/api/marketplace/**`, `/api/arena/**`, `/api/cron/**`, `/api/orchestration/**` (liste : `grep -rl requireOwnerApiSession src/app`). Elle renvoie
 encore `{ error }` sans `code` en 401/403. Ce fichier vient de #410 et n'est pas utilisé par l'Atelier : non modifié ici.
 Correctif proposé pour #410 : `{ error, code: "AUTH_REQUIRED" }` (401) et `{ error, code: "OWNER_ONLY" }` (403).
+
+## Scan de secrets avant commit (SENT-412-39 / 40 / 41)
+
+Avant chaque commit d'étape, les lignes ajoutées du diff sont scannées (jetons `\bsk-…`, JWT, champs `refresh_token`/`access_token`/`id_token` avec une valeur littérale entre guillemets, clés auth.json `OPENAI_API_KEY`/`last_refresh`/`claudeAiOauth`). S'il y a un résultat : pas de commit, quarantaine, `secret_detected`.
+
+**Ce scan est best-effort et contournable** : il ne détecte pas les secrets encodés (base64, hex), découpés sur plusieurs lignes ou fichiers, placés dans des fichiers binaires, ou mis dans des noms de fichiers. Un secret non détecté reste dans la branche locale de la mission, puisque l'Atelier ne pousse jamais. **L'owner doit relire le diff avant tout push.** Ce scan n'est pas une garantie de sécurité.
