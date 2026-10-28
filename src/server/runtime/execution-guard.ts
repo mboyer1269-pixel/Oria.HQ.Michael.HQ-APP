@@ -623,6 +623,122 @@ export const GOVERNED_ACTION_RULES = {
   external_contact: "R-NO-EXTERNAL-CONTACT",
 } as const;
 
+/**
+ * Registry of rule ids declared in .agents/rules/core.md (`**R-…**`), rules-version 1.
+ * Mirrored here because the guard must not read the repo at runtime. Drift is
+ * caught by governed-rules-registry-bidirectional-gap.test.mjs (core.md ↔ guard).
+ */
+export const CORE_RULE_REGISTRY_IDS: readonly string[] = [
+  "R-ANTI-DISPERSION",
+  "R-ASK-BEFORE-SENSITIVE",
+  "R-ASK-WHEN-UNSURE",
+  "R-BRANCH-HYGIENE",
+  "R-BUILDER-MINIMAL-DIFF",
+  "R-COMMIT-HYGIENE",
+  "R-COMMIT-MESSAGE-STYLE",
+  "R-COMMUNICATION",
+  "R-ESCALATE-RED",
+  "R-ESCALATE-YELLOW",
+  "R-ESCALATION-ROUTE",
+  "R-GOVERNANCE-NOT-BYPASSABLE",
+  "R-GREEN-NEEDS-RUN-LINK",
+  "R-HANDOFF",
+  "R-IDENTITY-RECOVERY",
+  "R-LEDGER-APPEND-ONLY",
+  "R-MICHAEL-DECIDES",
+  "R-NAMING",
+  "R-NO-AGENT-ESCALATION",
+  "R-NO-DEPLOY",
+  "R-NO-EXTERNAL-CONTACT",
+  "R-NO-FORCE-PUSH",
+  "R-NO-HIDDEN-STATE",
+  "R-NO-MERGE",
+  "R-NO-PAID-API",
+  "R-NO-PROD-ACCESS",
+  "R-NO-SECRETS",
+  "R-NO-SOLO-ACTION",
+  "R-NO-STRAY-CHANGES",
+  "R-NO-UNAPPROVED-COMMITMENT",
+  "R-PR-REVIEW",
+  "R-PR-TEMPLATE",
+  "R-PRESENT-THEN-WAIT",
+  "R-PROTECTED-FILES",
+  "R-PROVEN-VS-ASSUMED",
+  "R-RISK-ROUND-UP",
+  "R-RULES-OVER-MEMORY",
+  "R-SCOPE-DISCIPLINE",
+  "R-SCOUT-READ-ONLY",
+  "R-SEPARATE-EVAL-EXEC",
+  "R-SKILL-ROUTING",
+  "R-VALIDATION-GATES",
+  "R-ZONE-GREEN",
+  "R-ZONE-RED",
+  "R-ZONE-YELLOW",
+];
+
+/**
+ * Registry ids deliberately NOT bound to a governed action: they govern agent
+ * process (git hygiene, communication, escalation, scope, review, zones as
+ * policy) and are enforced by review/CI/charters, not by this runtime guard.
+ * Explicit list — never silently skipped. R-RISK-ROUND-UP is the guard's own
+ * fail-closed default and is therefore not listed here.
+ */
+export const NON_ACTION_RULE_IDS: readonly string[] = [
+  "R-ANTI-DISPERSION",
+  "R-ASK-BEFORE-SENSITIVE",
+  "R-ASK-WHEN-UNSURE",
+  "R-BRANCH-HYGIENE",
+  "R-BUILDER-MINIMAL-DIFF",
+  "R-COMMIT-HYGIENE",
+  "R-COMMIT-MESSAGE-STYLE",
+  "R-COMMUNICATION",
+  "R-ESCALATE-RED",
+  "R-ESCALATE-YELLOW",
+  "R-ESCALATION-ROUTE",
+  "R-GOVERNANCE-NOT-BYPASSABLE",
+  "R-GREEN-NEEDS-RUN-LINK",
+  "R-HANDOFF",
+  "R-IDENTITY-RECOVERY",
+  "R-LEDGER-APPEND-ONLY",
+  "R-MICHAEL-DECIDES",
+  "R-NAMING",
+  "R-NO-AGENT-ESCALATION",
+  "R-NO-FORCE-PUSH",
+  "R-NO-HIDDEN-STATE",
+  "R-NO-SOLO-ACTION",
+  "R-NO-STRAY-CHANGES",
+  "R-NO-UNAPPROVED-COMMITMENT",
+  "R-PR-REVIEW",
+  "R-PR-TEMPLATE",
+  "R-PRESENT-THEN-WAIT",
+  "R-PROTECTED-FILES",
+  "R-PROVEN-VS-ASSUMED",
+  "R-RULES-OVER-MEMORY",
+  "R-SCOPE-DISCIPLINE",
+  "R-SCOUT-READ-ONLY",
+  "R-SEPARATE-EVAL-EXEC",
+  "R-SKILL-ROUTING",
+  "R-VALIDATION-GATES",
+  "R-ZONE-GREEN",
+  "R-ZONE-YELLOW",
+];
+
+const CORE_RULE_REGISTRY = new Set(CORE_RULE_REGISTRY_IDS);
+function isRegisteredRuleId(id: string): boolean {
+  return CORE_RULE_REGISTRY.has(id);
+}
+
+// Fail closed at load: a guard entry naming an id absent from the registry is a
+// configuration error, not something to evaluate around.
+for (const [governedAction, ruleId] of Object.entries(GOVERNED_ACTION_RULES)) {
+  if (!isRegisteredRuleId(ruleId)) {
+    throw new Error(`execution-guard: action "${governedAction}" maps to unregistered rule id "${ruleId}"`);
+  }
+}
+if (!isRegisteredRuleId("R-RISK-ROUND-UP")) {
+  throw new Error('execution-guard: fail-closed rule id "R-RISK-ROUND-UP" is not registered');
+}
+
 export type GovernedAction = keyof typeof GOVERNED_ACTION_RULES;
 export type GovernedRuleId = (typeof GOVERNED_ACTION_RULES)[GovernedAction] | "R-RISK-ROUND-UP";
 
@@ -674,6 +790,10 @@ export function guardGovernedAction<T>(
     return deny("BLOCK", "R-RISK-ROUND-UP", `Unknown action "${action}" — refused (fail-closed).`);
   }
   const ruleId = GOVERNED_ACTION_RULES[action];
+  // Fail closed at evaluation too (map mutated at runtime, partial load…).
+  if (!isRegisteredRuleId(ruleId)) {
+    return deny("BLOCK", "R-RISK-ROUND-UP", `Action "${action}" maps to unregistered rule id — refused (fail-closed).`);
+  }
   const decision = request.approvedDecision;
   if (!decision || decision.status !== "approved") {
     return deny("REQUIRE_APPROVAL", ruleId, `${action} requires an approved decision (${ruleId}).`);
