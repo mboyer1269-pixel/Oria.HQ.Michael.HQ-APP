@@ -8,7 +8,7 @@ const memorySchema = z.object({ contractVersion: z.literal(1), sourceTool: z.lit
   workspaceId: id, projectId: id, namespace: z.string().min(1).max(256), centerEntityId: id,
   retrievedAtIso: date, content: z.string().min(1).max(4000), contentChars: z.number().int().min(1).max(4000),
   redactionsApplied: z.number().int().nonnegative(), snapshotHash: hash }).strict();
-const dossierSchema = z.object({ contractVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]), executor: z.literal("openhands"), executorVersion: z.string().max(64), foundationModelId: z.string().min(1).max(200).optional(),
+const dossierSchema = z.object({ contractVersion: z.union([z.literal(1), z.literal(2)]), executor: z.literal("openhands"), executorVersion: z.string().max(64),
   mission: z.object({ id: z.uuid(), workspaceId: id, modeId: id, version: date, title: z.string().min(1).max(200), objective: z.string().min(1).max(4000), scope: z.string().min(1).max(1000), acceptanceCriteria: z.string().min(1).max(2000), expectedOutput: z.string().min(1).max(4000), createdBy: id }).strict(),
   source: z.object({ commitSha: z.string(), commitVerification: z.literal("not_verified") }).strict(), budget,
   approvalRequired: z.literal(true), executionRequested: z.literal(false), idempotencyKey: key, payloadHash: hash,
@@ -27,6 +27,7 @@ export function parseOpenHandsPending(raw: string | null, workspaceId: string, m
 export type OpenHandsUiResult = { kind: "prepared"; dossier: OpenHandsSubmissionDossier } | { kind: "reserved"; reference: string }
   | { kind: "blocked" | "uncertain"; message: string; canPrepareAgain?: boolean };
 const messages: Record<string, string> = {
+  unsupported_execution_contract: "Le modèle demandé nécessite un contrat que cet exécuteur ne prend pas encore en charge. Confirmation bloquée ; aucun modèle de remplacement ne sera choisi.",
   disabled: "La préparation OpenHands est désactivée sur le serveur.",
   stale_version: "La mission a changé. Actualisez le dossier avant une nouvelle préparation.",
   dossier_changed: "Le contenu a changé : cette confirmation n’a pas été appliquée. Préparez et relisez le dossier à nouveau.",
@@ -51,6 +52,9 @@ export async function requestOpenHands(action: "prepare" | "confirm", pending: O
     const bytes = new Uint8Array(size); let offset = 0; for (const part of chunks) { bytes.set(part, offset); offset += part.length; }
     const raw = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (action === "prepare" && response.ok && raw.status === "prepared" && raw.externalEffectAllowed === false) {
+      // Also fail closed when talking to a server that still previews v3.
+      if (raw.dossier?.contractVersion === 3)
+        return { kind: "blocked", message: messages.unsupported_execution_contract };
       const parsed = dossierSchema.safeParse(raw.dossier); if (!parsed.success) return unknown();
       const d = parsed.data, r = pending.request;
       if (d.mission.id !== r.missionId || d.mission.workspaceId !== pending.workspaceId || d.mission.version !== r.expectedUpdatedAt || d.source.commitSha !== r.commitSha || d.executorVersion !== r.executorVersion
