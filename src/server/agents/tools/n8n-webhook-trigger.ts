@@ -83,6 +83,9 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   const fetchImpl = deps.fetchImpl ?? fetch;
   const isAllowedImpl = deps.isAllowed ?? isAllowed;
   const now = deps.now ?? (() => Date.now());
+  // Env snapshot injected once by the caller (approve route defaultDeps);
+  // falls back to process.env for other callers.
+  const env = (deps.env ?? process.env) as NodeJS.ProcessEnv;
 
   // 1. Authorization -- agent+skill must be an approved binding.
   const binding = findApprovedWebhookBinding(input.agentId, input.skillId);
@@ -92,13 +95,13 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
 
   // 2. Destination and secrets. The registry is the single validator for URL,
   // hostname, protocol, production loopback, and required credentials.
-  const configuration = resolveWebhookConfigurationState(binding);
+  const configuration = resolveWebhookConfigurationState(binding, env);
   if (configuration !== "configured") {
     return { ok: false, error: CONFIGURATION_ERRORS[configuration] };
   }
-  const resolvedWebhook = resolveApprovedWebhook(input.agentId, input.skillId);
+  const resolvedWebhook = resolveApprovedWebhook(input.agentId, input.skillId, env);
   if (!resolvedWebhook) return { ok: false, error: "Approved webhook configuration changed." };
-  const staticSecret = process.env[N8N_STATIC_SECRET_ENV_KEY] as string;
+  const staticSecret = env[N8N_STATIC_SECRET_ENV_KEY] as string;
 
   // 3. Internal rate limit -- prevents a bug from bombing n8n.
   const rlKey = rateLimitKey(N8N_POLICY, `${ctx.workspaceId}:${input.agentId}`);
@@ -135,7 +138,7 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   };
 
   if (binding.requiresSignature) {
-    const signingSecret = process.env[AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY] as string;
+    const signingSecret = env[AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY] as string;
     const timestamp = String(now());
     const signature = crypto
       .createHmac("sha256", signingSecret)

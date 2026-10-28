@@ -275,16 +275,32 @@ export type ExecutionIntentTransitionPatch = {
  * if the intent is absent and AgentExecutionIntentTransitionError if the jump is
  * not in the legal-transition table.
  */
+export type BeforeLocalTransitionHook = (
+  workspaceId: string,
+  intentId: string,
+  patch: ExecutionIntentTransitionPatch,
+) => void;
+
+export type ExecutionIntentTransitionDeps = {
+  /** Called at the start of each local-fallback transition. Default: none. */
+  beforeLocalTransition?: BeforeLocalTransitionHook;
+};
+
+// Default dependencies used when a caller passes none. Real implementation:
+// no hook. Only the legacy shim below writes it.
+let defaultTransitionDeps: ExecutionIntentTransitionDeps = {};
+
 export async function transitionAgentExecutionIntent(
   workspaceId: string,
   intentId: string,
   patch: ExecutionIntentTransitionPatch,
+  deps: ExecutionIntentTransitionDeps = defaultTransitionDeps,
 ): Promise<AgentExecutionIntent> {
   const db = getSupabaseClient();
 
   if (!db) {
     assertLocalFallbackAvailable();
-    beforeLocalTransitionForTests?.(workspaceId, intentId, patch);
+    deps.beforeLocalTransition?.(workspaceId, intentId, patch);
     const row = localIntents.find(
       (r) => r.workspace_id === workspaceId && r.intent_id === intentId,
     );
@@ -415,13 +431,15 @@ export function __forceAgentExecutionIntentRowForTests(
   if (patch.actionRef !== undefined) row.action_ref = patch.actionRef;
 }
 
-let beforeLocalTransitionForTests:
-  | ((workspaceId: string, intentId: string, patch: ExecutionIntentTransitionPatch) => void)
-  | undefined;
-
-/** Test-only: run a callback at the start of each local-fallback transition. */
+/**
+ * Legacy shim kept so existing callers keep working: sets the DEFAULT
+ * `beforeLocalTransition` dependency of transitionAgentExecutionIntent. New
+ * code should pass `deps` explicitly. Only ever affects the local in-memory
+ * fallback (no-op when Postgres is configured).
+ * @deprecated pass `{ beforeLocalTransition }` as the 4th argument instead.
+ */
 export function __setBeforeLocalTransitionHookForTests(
-  hook: typeof beforeLocalTransitionForTests,
+  hook: BeforeLocalTransitionHook | null | undefined,
 ): void {
-  beforeLocalTransitionForTests = hook;
+  defaultTransitionDeps = hook ? { beforeLocalTransition: hook } : {};
 }

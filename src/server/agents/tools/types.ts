@@ -17,6 +17,8 @@ export type McpToolDeps = {
   fetchImpl?: typeof fetch;
   isAllowed?: (key: string, limit: number, windowMs: number) => Promise<boolean>;
   now?: () => number;
+  /** Webhook env snapshot captured once by the route (default: process.env). */
+  env?: Readonly<Record<string, string | undefined>>;
 };
 
 /** Per-call context: the workspace scope plus optional injected deps. */
