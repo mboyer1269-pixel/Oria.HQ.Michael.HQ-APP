@@ -44,12 +44,6 @@ export type GovernedToolDispatchInput = {
   decisionId?: string;
 };
 
-/**
- * G1b rollout switch. "when_provided": a supplied decision id must be consumed
- * (fail closed); no id ⇒ legacy G2 owner approval. "required": no id ⇒ refused.
- */
-export const APPROVAL_DECISION_MODE: "when_provided" | "required" = "when_provided";
-
 /** Stable provider-facing key: same intent + same approved payload ⇒ same key. */
 export function buildIdempotencyKey(workspaceId: string, intentId: string, payloadHash: string): string {
   return `oria1:${workspaceId}:${intentId}:${payloadHash}`;
@@ -94,14 +88,8 @@ export async function dispatchGovernedTool(
       // G1b: the approval must exist in Postgres, be bound to this intent and
       // this payload hash, and be consumed atomically right now. Zero rows (or
       // no decision id, or any error) ⇒ no approval ⇒ refused (fail closed).
-      //
-      // TRANSITION (APPROVAL_DECISION_MODE = "when_provided"): when the request
-      // names a decision it MUST be consumed (expired / replayed / mismatched /
-      // other workspace / DB error ⇒ refused, never downgraded to the legacy
-      // path). Without a decision id, the legacy G2 owner approval (owner
-      // session + CAS claim on this exact payload) still applies, so existing
-      // callers and proofs that predate G1b keep working. Switching to
-      // "required" is one constant once callers always send a decision id.
+      // STRICT G1b: no decision id ⇒ no approval ⇒ refused. There is no
+      // legacy owner-approval fallback.
       const hasDecisionId = typeof decisionId === "string" && decisionId.length > 0;
       if (hasDecisionId) {
         const consumed = await (deps.consumeDecision ?? consumeApprovalDecision)(
@@ -120,13 +108,6 @@ export async function dispatchGovernedTool(
           };
           idempotencyKey = buildIdempotencyKey(workspaceId, intentId, storedHash);
         }
-      } else if (APPROVAL_DECISION_MODE === "when_provided") {
-        approvedDecision = {
-          status: "approved",
-          action: action as GovernedAction,
-          payloadHash: storedHash,
-        };
-        idempotencyKey = buildIdempotencyKey(workspaceId, intentId, storedHash);
       }
     }
   } catch {
