@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 678,
-    "live": 627,
+    "sourceFiles": 679,
+    "live": 628,
     "testOnly": 7,
     "incubation": 44
   },
@@ -382,6 +382,7 @@
     "src/server/agents/agent-council-run-contract.ts",
     "src/server/agents/agent-execution-license.ts",
     "src/server/agents/agent-profile-contract.ts",
+    "src/server/agents/approval-decision-repository.ts",
     "src/server/agents/autonomy-tier.ts",
     "src/server/agents/booster-contract.ts",
     "src/server/agents/context/verified-lessons-context.ts",
