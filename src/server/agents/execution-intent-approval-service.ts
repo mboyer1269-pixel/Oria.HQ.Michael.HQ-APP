@@ -16,6 +16,11 @@ import type { SentinelleDecision } from "@/server/runtime/execution-guard";
 import type { GovernedRefusal, McpToolResult } from "@/server/agents/tools/types";
 
 export type ExecutionIntentApprovalDeps = {
+  /**
+   * Advisory guard precheck BEFORE the claim (pure, no effect). A refusal here
+   * leaves the intent pending. Not binding: dispatch re-checks after the claim.
+   */
+  precheck?: () => GovernedRefusal | null;
   /** Re-evaluate the Sentinelle policy at approval time (defense in depth). */
   evaluate: () => SentinelleDecision;
   /** pending -> executing. */
@@ -33,7 +38,7 @@ export type ExecutionIntentApprovalDeps = {
   /** executing -> executed (carries the dispatch reference). */
   markExecuted: (actionRef?: string) => Promise<unknown>;
   /** executing -> failed (carries a coarse failure code). */
-  markFailed: (failureCode: string) => Promise<unknown>;
+  markFailed: (failureCode: string, fromStatus?: "pending" | "executing") => Promise<unknown>;
   /** executing -> pending (retryable after a transient rate-limit). */
   revertToPending: () => Promise<unknown>;
   /**
@@ -53,7 +58,15 @@ export type ExecutionIntentApprovalDeps = {
 export type ExecutionResultPhase = "success" | "failed" | "blocked" | "rate_limited" | "refused" | "uncertain";
 
 export type ExecutionIntentApprovalResult =
-  | { ok: false; status: "refused"; error: string; httpStatus: 403; refusal: GovernedRefusal }
+  | {
+      ok: false;
+      status: "refused";
+      /** precheck: before the claim, intent still pending. dispatch: after the claim, intent failed. */
+      stage: "precheck" | "dispatch";
+      error: string;
+      httpStatus: 403;
+      refusal: GovernedRefusal;
+    }
   | { ok: false; status: "executing"; outcome: "uncertain"; error: string; httpStatus: 502 }
   | { ok: true; status: "executed"; actionRef?: string; output?: Record<string, unknown> }
   | { ok: false; status: "blocked" | "failed" | "pending"; error: string; httpStatus: number }
@@ -75,10 +88,19 @@ export async function approveAndDispatchExecutionIntent(
   const sentinelle = deps.evaluate();
   if (sentinelle.outcome === "BLOCK") {
     await deps.recordResult(false, "blocked").catch(() => void 0);
-    await deps.markFailed("SENTINELLE_BLOCK").catch(() => void 0);
+    await deps.markFailed("SENTINELLE_BLOCK", "pending").catch(() => void 0);
     return { ok: false, status: "blocked", error: sentinelle.reason, httpStatus: 403 };
   }
 
+  const pre = deps.precheck?.() ?? null;
+  if (pre) {
+    // Nothing claimed, nothing dispatched: the intent stays pending.
+    await deps.recordResult(false, "refused", { refusal: pre }).catch(() => void 0);
+    return { ok: false, status: "refused", stage: "precheck", error: pre.reason, httpStatus: 403, refusal: pre };
+  }
+
+  // Executable point: this conditional pending->executing claim (bound to the
+  // verified payload). Before it, reject/edit revokes. After it, no revocation.
   await deps.markExecuting();
   // No dispatch may start without a recorded attempt. If the Ledger write
   // fails, undo the claim conditionally and stop.
@@ -128,7 +150,7 @@ export async function approveAndDispatchExecutionIntent(
     const refusal = result.refusal;
     await deps.recordResult(false, "refused", { refusal }).catch(() => void 0);
     await deps.markFailed(`GUARD_REFUSED:${refusal.ruleId}`);
-    return { ok: false, status: "refused", error: refusal.reason, httpStatus: 403, refusal };
+    return { ok: false, status: "refused", stage: "dispatch", error: refusal.reason, httpStatus: 403, refusal };
   }
 
   if (!result.ok && result.outcomeUncertain) {

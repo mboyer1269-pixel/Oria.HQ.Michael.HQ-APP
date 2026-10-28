@@ -10,7 +10,7 @@ import "server-only";
 import { getAgentExecutionIntent } from "@/server/agents/execution-intent-repository";
 import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
 import type { AgentExecutionIntentPayload } from "@/features/agents/execution-intent";
-import type { McpToolResult } from "@/server/agents/tools/types";
+import type { GovernedRefusal, McpToolResult } from "@/server/agents/tools/types";
 import {
   guardGovernedAction,
   type ApprovedDecision,
@@ -95,4 +95,50 @@ export async function dispatchGovernedTool(
     };
   }
   return await verdict.result;
+}
+
+/**
+ * Lot 2 — ADVISORY precheck, run before the claim. Pure: no I/O, no effect,
+ * grants nothing. Evaluates the same guard as dispatch under the assumption
+ * that the approval being given right now matches this exact payload; so it
+ * only catches refusals that no approval could lift (unknown/unmapped tool,
+ * unhashable payload). Returns null when the action may proceed to the claim.
+ *
+ * dispatchGovernedTool remains the BINDING check after the claim: it re-reads
+ * the real intent row, recomputes the payload hash and re-applies the policy
+ * current at that moment.
+ */
+export function precheckGovernedTool(input: {
+  intentId: string;
+  toolName: string;
+  payload: AgentExecutionIntentPayload;
+}): GovernedRefusal | null {
+  const { intentId, toolName, payload } = input;
+  const action: string = Object.prototype.hasOwnProperty.call(TOOL_GOVERNED_ACTIONS, toolName)
+    ? TOOL_GOVERNED_ACTIONS[toolName]
+    : toolName;
+  let payloadHash = "";
+  try {
+    payloadHash = hashExecutionIntentPayload(payload);
+  } catch {
+    payloadHash = "";
+  }
+  const verdict = guardGovernedAction(
+    {
+      agentId: payload.agentId,
+      action,
+      payloadHash,
+      approvedDecision: { status: "approved", action, payloadHash: payloadHash || "unhashable" },
+    },
+    () => undefined,
+  );
+  if (verdict.allowed) return null;
+  return {
+    verdict: verdict.verdict,
+    ruleId: verdict.ruleId,
+    ruleVersion: verdict.ruleVersion,
+    reason: verdict.reason,
+    action: verdict.action,
+    intentId,
+  };
 }

@@ -12,7 +12,7 @@ import {
 import { approveAndDispatchExecutionIntent } from "@/server/agents/execution-intent-approval-service";
 import { billApprovedIntentUsage } from "@/server/michael-hq/billing-on-approve";
 import { logger } from "@/lib/logger";
-import { dispatchGovernedTool } from "@/server/runtime/governed-tool-dispatch";
+import { dispatchGovernedTool, precheckGovernedTool } from "@/server/runtime/governed-tool-dispatch";
 import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
 
 type ApprovalConflictReason = "changed" | "already_decided";
@@ -107,6 +107,8 @@ export async function POST(
 
   try {
     const result = await approveAndDispatchExecutionIntent({
+      // Advisory only (pure, before the claim). dispatchGovernedTool below is the binding re-check.
+      precheck: () => precheckGovernedTool({ intentId, toolName: intent.toolName, payload: intent.payload }),
       evaluate: () => evaluateLiveExecution(sentinelleInput),
       markExecuting: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
@@ -191,12 +193,16 @@ export async function POST(
       markExecuted: (actionRef) =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "executed",
+          expectedFromStatus: "executing",
           updatedAt: new Date().toISOString(),
           ...(actionRef ? { actionRef } : {}),
         }),
-      markFailed: (failureCode) =>
+      // Conditional on the status the caller left it in: "pending" only for the
+      // pre-claim Sentinelle BLOCK, otherwise the claim ("executing").
+      markFailed: (failureCode, fromStatus = "executing") =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "failed",
+          expectedFromStatus: fromStatus,
           updatedAt: new Date().toISOString(),
           failureCode,
         }),
@@ -253,6 +259,7 @@ export async function POST(
         intentId,
         requestId,
         workspaceId: ctx.workspace.id,
+        stage: result.stage,
         verdict: result.refusal.verdict,
         ruleId: result.refusal.ruleId,
         ruleVersion: result.refusal.ruleVersion,
@@ -263,6 +270,8 @@ export async function POST(
           intentId,
           requestId,
           status: "refused",
+          stage: result.stage,
+          intentStatus: result.stage === "precheck" ? "pending" : "failed",
           verdict: result.refusal.verdict,
           ruleId: result.refusal.ruleId,
           ruleVersion: result.refusal.ruleVersion,

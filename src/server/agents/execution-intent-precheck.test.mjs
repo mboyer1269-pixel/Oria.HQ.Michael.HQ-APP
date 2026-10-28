@@ -122,6 +122,7 @@ test("terminal transitions are conditional on executing (no double settle)", asy
   await assert.rejects(deps.markFailed("LATE"), (e) => e instanceof repo.AgentExecutionIntentConcurrencyError);
   const src = await readFile(path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"), "utf8");
   assert.match(src, /toStatus: "executed",\s*expectedFromStatus: "executing"/);
-  assert.match(src, /toStatus: "failed",\s*expectedFromStatus: "executing"/);
+  assert.match(src, /toStatus: "failed",\s*expectedFromStatus: fromStatus/);
+  assert.match(src, /fromStatus = "executing"/);
   assert.match(src, /precheck: \(\) =>/);
 });
