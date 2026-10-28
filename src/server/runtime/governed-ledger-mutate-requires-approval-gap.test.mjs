@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // GAP (red on purpose, npm run test:gaps): at 867d4f2 this action is not governed (falls to BLOCK R-RISK-ROUND-UP) and its rule sits in NON_ACTION_RULE_IDS, i.e. misclassified as process.
-// R-LEDGER-APPEND-ONLY: "ledger_mutate" without an approved decision must be refused (REQUIRE_APPROVAL
-// with ruleId R-LEDGER-APPEND-ONLY), the executor never called, and R-LEDGER-APPEND-ONLY must not be
-// exempted in NON_ACTION_RULE_IDS. SIMULATED: in-memory spy executor.
+// R-LEDGER-APPEND-ONLY: "ledger_mutate" is never approvable: BLOCK with ruleId R-LEDGER-APPEND-ONLY (not
+// REQUIRE_APPROVAL), with or without a decision — even an approved one; the
+// executor is never called and R-LEDGER-APPEND-ONLY is not exempted in NON_ACTION_RULE_IDS. SIMULATED: in-memory spy executor.
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
@@ -19,20 +19,14 @@ const guard = await jiti.import("@/server/runtime/execution-guard");
 
 const spy = () => { const s = { n: 0, fn: () => { s.n += 1; return "ran"; } }; return s; };
 
-test("R-LEDGER-APPEND-ONLY: ledger_mutate without any decision -> REQUIRE_APPROVAL R-LEDGER-APPEND-ONLY, not executed", () => {
-  const s = spy();
-  const v = guard.guardGovernedAction({ agentId: "a", action: "ledger_mutate", payloadHash: "h" }, s.fn);
-  assert.deepEqual([v.allowed, v.verdict, v.ruleId, v.executed], [false, "REQUIRE_APPROVAL", "R-LEDGER-APPEND-ONLY", false]);
-  assert.equal(s.n, 0);
-});
 
-for (const status of ["pending", "rejected", "expired", undefined]) {
-  test(`R-LEDGER-APPEND-ONLY: decision with status ${status} does not unlock ledger_mutate`, () => {
+for (const [label, approvedDecision] of [["no decision", undefined], ["pending", { status: "pending" }],
+  ["rejected", { status: "rejected" }], ["approved", { status: "approved" }]]) {
+  test(`R-LEDGER-APPEND-ONLY: ledger_mutate with ${label} decision -> BLOCK R-LEDGER-APPEND-ONLY, not executed`, () => {
     const s = spy();
     const v = guard.guardGovernedAction({ agentId: "a", action: "ledger_mutate", payloadHash: "h",
-      approvedDecision: { status, action: "ledger_mutate", payloadHash: "h" } }, s.fn);
-    assert.equal(v.allowed, false);
-    assert.equal(v.ruleId, "R-LEDGER-APPEND-ONLY");
+      ...(approvedDecision ? { approvedDecision: { ...approvedDecision, action: "ledger_mutate", payloadHash: "h" } } : {}) }, s.fn);
+    assert.deepEqual([v.allowed, v.verdict, v.ruleId, v.executed], [false, "BLOCK", "R-LEDGER-APPEND-ONLY", false]);
     assert.equal(s.n, 0);
   });
 }
