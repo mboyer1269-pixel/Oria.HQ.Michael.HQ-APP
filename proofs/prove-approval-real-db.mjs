@@ -19,6 +19,16 @@
  *     conditional revert leaves the row 'pending', no dispatch.
  *  4. markExecuted with a stale lease token (action_ref of another attempt)
  *     -> the CAS UPDATE matches 0 rows; the row keeps status and token.
+ *  6. consume_approval_decision (G1b, migration 0033 — not on this branch yet, so
+ *     red until it lands): EXECUTE for service_role only (anon/authenticated
+ *     refused); (a) expired decision refused, (b) expires_at == now()
+ *     boundary refused, (c) other intent_id / payload_hash / workspace_id refused,
+ *     (d) second consumption refused.
+ *  7. two concurrent consumptions of one valid decision -> exactly one wins.
+ *  8. classify/create/consume_approval_decision (0033-0035): service_role only,
+ *     anon/authenticated -> permission denied.
+ *  9. two concurrent create_approval_decision on one intent -> one live decision.
+ *  Contract from Atelier (0033 l.46-56), kept in CONSUME_CONTRACT.
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -31,6 +41,27 @@ const REST = process.env.POSTGREST_DIRECT_URL;
 const PSQL = process.env.PSQL_CMD; // e.g. "docker exec -i <pg> psql -U postgres -X -q -v ON_ERROR_STOP=1"
 assert.ok(REST, "POSTGREST_DIRECT_URL is required");
 assert.ok(PSQL, "PSQL_CMD is required");
+
+// G1b contract (Atelier, migration 0033 l.46-56, prep/g1-fixes — not yet on
+// this branch, so proofs 6-7 are red until it lands). Single place to align.
+const CONSUME_CONTRACT = {
+  signature: "public.consume_approval_decision(p_workspace_id text, p_decision_id uuid, p_intent_id text, p_payload_hash text) returns setof public.agent_review_approval_events",
+  regproc: "public.consume_approval_decision(text,uuid,text,text)",
+  table: "public.agent_review_approval_events",
+  // 1 row (status 'consumed') on success, 0 rows otherwise.
+  count: (ws, id, intent, hash) =>
+    `select count(*) from public.consume_approval_decision('${ws}', '${id}'::uuid, '${intent}', '${hash}')`,
+  roles: ["anon", "authenticated"], // must NOT have EXECUTE (service_role only)
+};
+
+// 0034/0035 (Atelier, not pushed): ASSUMED call shape — align once published.
+const DECISION_FNS = ["consume_approval_decision", "classify_approval_decision", "create_approval_decision"];
+const CREATE_CONTRACT = {
+  call: (ws, intent, hash, user) =>
+    `select count(*) from public.create_approval_decision('${ws}', '${intent}', '${hash}', '${user}'::uuid)`,
+  live: (intent) =>
+    `select count(*) from public.agent_review_approval_events where intent_id='${intent}' and status='approved' and consumed_at is null and revoked_at is null and expires_at > now()`,
+};
 
 function sql(statement) {
   const [cmd, ...args] = PSQL.split(" ");
@@ -253,6 +284,99 @@ await step("4. markExecuted with a stale lease token -> UPDATE matches 0 rows (C
     updatedAt: new Date().toISOString(),
   });
   assert.equal(row(id).status, "executed");
+});
+
+// Local proof helper (not production code): seeds one approved, unrevoked,
+// unexpired decision bound to (workspace, intent, payload hash). pg = psql runner
+// on CI_PG_URL (PSQL_CMD). Returns the decision id.
+function insertApprovedDecision(pg, { workspaceId, intentId, payloadHash, userId, ttlMs }) {
+  const expires = `now() + (${Number(ttlMs)} * interval '1 millisecond')`;
+  return pg(`insert into ${CONSUME_CONTRACT.table}
+    (user_id, source_packet_id, source_queue_item_id, agent_id, outcome_id, reviewer_id, reviewer_role,
+     decision, decision_rationale, human_approved, status, expires_at, revoked_at,
+     workspace_id, intent_id, payload_hash)
+    values ('${userId}', 'pkt-g1b', 'q-g1b', 'agent-g1b', 'out-g1b', 'human-g1b', 'owner',
+     'approved', 'real-db proof', true, 'approved', ${expires}, null,
+     '${workspaceId}', '${intentId}', '${payloadHash}') returning id`);
+}
+let seq = 0;
+const USER = "00000000-0000-4000-8000-0000000000b1";
+const seedDecision = (over = {}) => {
+  const d = { workspaceId: "ws-g1b", intentId: `intent-g1b-${++seq}`, payloadHash: `hash-g1b-${seq}`, userId: USER, ttlMs: 3_600_000, ...over };
+  return { ...d, id: insertApprovedDecision(sql, d) };
+};
+const consume = (d, over = {}) => {
+  const a = { ...d, ...over };
+  return Number(sql(CONSUME_CONTRACT.count(a.workspaceId, a.id, a.intentId, a.payloadHash)));
+};
+
+await step("6. consume_approval_decision: service_role only; refuses expired / boundary / mismatched / replayed", async () => {
+  assert.equal(sql(`select to_regprocedure('${CONSUME_CONTRACT.regproc}') is not null`), "t",
+    `${CONSUME_CONTRACT.signature} missing (migration 0033 not applied)`);
+  for (const role of CONSUME_CONTRACT.roles) {
+    assert.equal(sql(`select has_function_privilege('${role}', '${CONSUME_CONTRACT.regproc}', 'EXECUTE')`), "f", `${role} can EXECUTE`);
+  }
+  assert.equal(sql(`select has_function_privilege('service_role', '${CONSUME_CONTRACT.regproc}', 'EXECUTE')`), "t");
+  // (a) expired
+  assert.equal(consume(seedDecision({ ttlMs: -1000 })), 0, "(a) expired decision consumed");
+  // (b) boundary: expires_at == now() of the consuming statement -> refused (expires_at > now()).
+  const bnd = seedDecision();
+  assert.equal(Number(sql(`begin; update ${CONSUME_CONTRACT.table} set expires_at = now() where id='${bnd.id}';
+    ${CONSUME_CONTRACT.count(bnd.workspaceId, bnd.id, bnd.intentId, bnd.payloadHash)}; commit;`).split(/\s+/).filter(Boolean).pop()), 0,
+    "(b) expires_at boundary consumed");
+  // (c) bindings
+  const c = seedDecision();
+  assert.equal(consume(c, { intentId: "intent-other" }), 0, "(c) other intent_id consumed");
+  assert.equal(consume(c, { payloadHash: "hash-other" }), 0, "(c) other payload_hash consumed");
+  assert.equal(consume(c, { workspaceId: "ws-other" }), 0, "(c) other workspace_id consumed");
+  // control, then (d) replay
+  assert.equal(consume(c), 1, "control: valid decision must be consumed exactly once");
+  assert.equal(sql(`select status from ${CONSUME_CONTRACT.table} where id='${c.id}'`), "consumed");
+  assert.equal(consume(c), 0, "(d) second consumption succeeded");
+});
+
+await step("7. two concurrent consume_approval_decision calls -> exactly one wins", async () => {
+  const d = seedDecision();
+  const [cmd, ...args] = PSQL.split(" ");
+  const { spawn } = await import("node:child_process");
+  const run = () => new Promise((resolve, reject) => {
+    const p = spawn(cmd, [...args, "-A", "-t", "-c", CONSUME_CONTRACT.count(d.workspaceId, d.id, d.intentId, d.payloadHash)]);
+    let out = "", err = "";
+    p.stdout.on("data", (b) => (out += b)); p.stderr.on("data", (b) => (err += b));
+    p.on("close", (code) => (code === 0 ? resolve(Number(out.trim())) : reject(new Error(err))));
+  });
+  const wins = (await Promise.all([run(), run()])).reduce((x, y) => x + y, 0);
+  assert.equal(wins, 1, `expected exactly one winner, got ${wins}`);
+});
+
+await step("8. classify/create/consume_approval_decision: EXECUTE for service_role only (anon/authenticated denied)", async () => {
+  for (const fn of DECISION_FNS) {
+    const procs = sql(`select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='${fn}'`)
+      .split("\n").filter(Boolean);
+    assert.ok(procs.length > 0, `public.${fn} missing (0033/0034/0035 not applied)`);
+    for (const proc of procs) {
+      for (const role of ["anon", "authenticated"]) {
+        assert.equal(sql(`select has_function_privilege('${role}', '${proc}', 'EXECUTE')`), "f", `${role} can EXECUTE ${proc}`);
+      }
+      assert.equal(sql(`select has_function_privilege('service_role', '${proc}', 'EXECUTE')`), "t", `service_role cannot EXECUTE ${proc}`);
+      // Actually calling it as anon must raise permission denied (not just a catalog flag).
+      const [cmd, ...args] = PSQL.split(" ");
+      const r = spawnSync(cmd, [...args, "-A", "-t", "-c", `set role anon; select ${proc.replace(/\(.*$/, "")}(${"null,".repeat((proc.match(/,/g) || []).length)}null)`], { encoding: "utf8" });
+      assert.match(r.stderr, /permission denied/i, `anon call of ${proc} not denied`);
+    }
+  }
+});
+
+await step("9. two concurrent create_approval_decision for one intent -> exactly one live decision", async () => {
+  const intent = `intent-g1b-create-${Date.now()}`;
+  const [cmd, ...args] = PSQL.split(" ");
+  const { spawn } = await import("node:child_process");
+  const run = () => new Promise((resolve) => {
+    const p = spawn(cmd, [...args, "-A", "-t", "-c", CREATE_CONTRACT.call("ws-g1b", intent, "hash-create", USER)]);
+    p.on("close", resolve);
+  });
+  await Promise.all([run(), run()]);
+  assert.equal(sql(CREATE_CONTRACT.live(intent)), "1", "expected exactly one live decision");
 });
 
 gateway.close();
