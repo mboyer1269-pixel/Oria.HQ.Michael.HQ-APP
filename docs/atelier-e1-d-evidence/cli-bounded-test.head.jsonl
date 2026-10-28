@@ -1,5 +1,0 @@
-{"type":"thread.started","thread_id":"01a1724b-dff1-7eb3-be73-de6647a41ffd"}
-{"type":"turn.started"}
-{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll create `hello.txt` with the requested contents."}}
-{"type":"item.started","item":{"id":"item_1","type":"file_change","changes":[{"path":"/tmp/cli-probe/hello.txt","kind":"add"}],"status":"in_progress"}}
-{"type":"it

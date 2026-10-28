@@ -1,1 +1,0 @@
-    if (!explicitResume) throw new Error("stale_lock_requires_explicit_resume");

@@ -1,5 +1,0 @@
-== GET mission after restart
-status running lock {'runnerPid': 632355, 'runnerStart': '5141899', 'childPid': 633958, 'childStart': '5153023', 'token': '0d2b594b-2518-49be-8d82-117e45eb1d32', 'stepId': '8b5b6b58-3cb3-4eb4-8c3e-9d168df9f10f', 'since': '2026-10-25T09:38:20.993Z'}
-orphan child 633958 alive after boot reap? no
-{"seq":11,"at":"2026-10-25T09:38:39.497Z","type":"orphan_child_reaped","stepId":"8b5b6b58-3cb3-4eb4-8c3e-9d168df9f10f","data":{"childPid":633958,"deadRunnerPid":632355,"result":"killed"}}
-lock file still present? yes
