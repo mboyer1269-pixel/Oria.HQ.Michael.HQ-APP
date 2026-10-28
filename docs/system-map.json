@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 677,
-    "live": 626,
+    "sourceFiles": 678,
+    "live": 627,
     "testOnly": 7,
     "incubation": 44
   },
@@ -618,6 +618,7 @@
     "src/server/runtime/execution-corridor-contract.ts",
     "src/server/runtime/execution-corridors.ts",
     "src/server/runtime/execution-guard.ts",
+    "src/server/runtime/governed-tool-dispatch.ts",
     "src/server/runtime/green-lane-execution-service.ts",
     "src/server/runtime/green-lane-ledger.ts",
     "src/server/runtime/local-runtime.ts",

@@ -26,6 +26,7 @@ export type LedgerEffectOperation =
   | "delete"
   | "send"
   | "execute"
+  | "refuse"
   | "plan";
 
 export type LedgerEventPayload = {

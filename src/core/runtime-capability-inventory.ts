@@ -331,7 +331,7 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
       "Envoi HMAC signé vers n8n. Déclenché uniquement par la route d'approbation CEO, jamais par l'évaluation automatique.",
     evidence: {
       path: "src/app/api/agents/execution-intents/[intentId]/approve/route.ts",
-      mustContain: "tool.handler(intent.payload",
+      mustContain: "dispatchGovernedTool(",
       because:
         "The approve route is the only caller of the dispatch tool. Another caller would mean this gate is no longer ceo_approval.",
     },

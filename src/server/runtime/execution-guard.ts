@@ -601,3 +601,91 @@ export function buildDryRunExecutionPlan(input: ExecutionGuardInput): DryRunExec
     requiredLedgerEventsIfLive,
   };
 }
+
+// ---------------------------------------------------------------------------
+// G1: governed actions bound to core.md rule ids
+// ---------------------------------------------------------------------------
+//
+// The guard judges the ACTION an agent is about to run, not the wording of a
+// rule. Each governed action maps to the core.md id (.agents/rules/core.md)
+// that forbids it without an approved decision. Unknown actions are refused
+// (fail-closed, R-RISK-ROUND-UP). An approved decision only unlocks the exact
+// action and payload hash it was granted for.
+
+export const GOVERNED_ACTION_RULES = {
+  merge: "R-NO-MERGE",
+  deploy: "R-NO-DEPLOY",
+  remote_migration: "R-NO-PROD-ACCESS",
+  spend: "R-NO-PAID-API",
+  pay: "R-NO-PAID-API",
+  delete: "R-ZONE-RED",
+  secret_access: "R-NO-SECRETS",
+  external_contact: "R-NO-EXTERNAL-CONTACT",
+} as const;
+
+export type GovernedAction = keyof typeof GOVERNED_ACTION_RULES;
+export type GovernedRuleId = (typeof GOVERNED_ACTION_RULES)[GovernedAction] | "R-RISK-ROUND-UP";
+
+export type ApprovedDecision = {
+  status: "approved";
+  action: string;
+  payloadHash: string;
+};
+
+export type GovernedActionRequest = {
+  agentId: string;
+  action: string;
+  payloadHash: string;
+  approvedDecision?: ApprovedDecision | null;
+};
+
+/** Mirrors `rules-version:` in .agents/rules/core.md (asserted by governed-refusal.test.mjs). */
+export const GOVERNED_RULES_VERSION = 1;
+
+type VerdictBase = { ruleId: GovernedRuleId; ruleVersion: number; reason: string; action: string };
+
+/**
+ * Reuses the Sentinelle outcomes. REQUIRE_APPROVAL = no valid approval yet
+ * (approvable). BLOCK = unknown action or an approval that does not match this
+ * action/payload: never turned into something approvable by this guard.
+ */
+export type GovernedActionVerdict<T> =
+  | (VerdictBase & { allowed: true; verdict: "ALLOW"; executed: true; result: T })
+  | (VerdictBase & { allowed: false; verdict: "REQUIRE_APPROVAL" | "BLOCK"; executed: false });
+
+function isGovernedAction(action: string): action is GovernedAction {
+  return Object.prototype.hasOwnProperty.call(GOVERNED_ACTION_RULES, action);
+}
+
+/**
+ * Run `execute` only if the governed action carries an approved decision for
+ * this exact action and payload hash. Otherwise refuse with the rule id and
+ * never call `execute`.
+ */
+export function guardGovernedAction<T>(
+  request: GovernedActionRequest,
+  execute: () => T,
+): GovernedActionVerdict<T> {
+  const action = request.action;
+  const deny = (verdict: "REQUIRE_APPROVAL" | "BLOCK", ruleId: GovernedRuleId, reason: string): GovernedActionVerdict<T> => ({
+    allowed: false, verdict, ruleId, ruleVersion: GOVERNED_RULES_VERSION, reason, action, executed: false,
+  });
+  if (!isGovernedAction(action)) {
+    return deny("BLOCK", "R-RISK-ROUND-UP", `Unknown action "${action}" — refused (fail-closed).`);
+  }
+  const ruleId = GOVERNED_ACTION_RULES[action];
+  const decision = request.approvedDecision;
+  if (!decision || decision.status !== "approved") {
+    return deny("REQUIRE_APPROVAL", ruleId, `${action} requires an approved decision (${ruleId}).`);
+  }
+  if (decision.action !== action) {
+    return deny("BLOCK", ruleId, `Approved decision covers "${decision.action}", not "${action}" (${ruleId}).`);
+  }
+  if (!request.payloadHash || decision.payloadHash !== request.payloadHash) {
+    return deny("BLOCK", ruleId, `Approved decision payload hash does not match the request (${ruleId}).`);
+  }
+  return {
+    allowed: true, verdict: "ALLOW", ruleId, ruleVersion: GOVERNED_RULES_VERSION,
+    reason: `Approved decision matches ${action} payload (${ruleId}).`, action, executed: true, result: execute(),
+  };
+}

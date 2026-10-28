@@ -12,6 +12,7 @@ import {
 import { approveAndDispatchExecutionIntent } from "@/server/agents/execution-intent-approval-service";
 import { billApprovedIntentUsage } from "@/server/michael-hq/billing-on-approve";
 import { logger } from "@/lib/logger";
+import { dispatchGovernedTool, precheckGovernedTool } from "@/server/runtime/governed-tool-dispatch";
 import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
 
 type ApprovalConflictReason = "changed" | "already_decided";
@@ -99,9 +100,15 @@ export async function POST(
   // than the session that passed the owner gate. Falls back to ctx.userId only
   // where no session exists (local/dev), which is the honest identity there.
   const actorId = (await getAuthenticatedActorId()) ?? ctx.userId;
+  // Correlates the attempt/result ledger rows and logs of this one request.
+  // Never derived from secrets; client value is length-capped and charset-limited.
+  const clientRequestId = request.headers.get("x-request-id") ?? "";
+  const requestId = /^[A-Za-z0-9._:-]{1,128}$/.test(clientRequestId) ? clientRequestId : crypto.randomUUID();
 
   try {
     const result = await approveAndDispatchExecutionIntent({
+      // Advisory only (pure, before the claim). dispatchGovernedTool below is the binding re-check.
+      precheck: () => precheckGovernedTool({ intentId, toolName: intent.toolName, payload: intent.payload }),
       evaluate: () => evaluateLiveExecution(sentinelleInput),
       markExecuting: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
@@ -134,11 +141,23 @@ export async function POST(
             toolName: intent.toolName,
             actionType: intent.payload.actionType,
             approvedDigest: payloadHash,
+            requestId,
           },
         }),
+      // G1: guardGovernedAction re-reads the G2 approval (the claimed row) and
+      // recomputes the payload hash server-side before the tool may run.
       dispatch: () =>
-        tool.handler(intent.payload, { workspaceId: ctx.workspace.id, agentId: intent.agentId }),
-      recordResult: (ok, phase) =>
+        dispatchGovernedTool(
+          {
+            workspaceId: ctx.workspace.id,
+            intentId,
+            toolName: intent.toolName,
+            agentId: intent.agentId,
+            payload: intent.payload,
+          },
+          (payload) => tool.handler(payload, { workspaceId: ctx.workspace.id, agentId: intent.agentId }),
+        ),
+      recordResult: (ok, phase, details) =>
         recordLedgerEvent(ctx, {
           eventType: "result",
           actionType: intent.skillId,
@@ -151,18 +170,43 @@ export async function POST(
           ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
           actorId,
           approverId: actorId,
-          effect: { kind: "runtime_result", operation: "execute", target: "n8n_webhook" },
-          metadata: { phase, intentId },
+          effect: {
+            kind: "runtime_result",
+            operation: phase === "refused" ? "refuse" : "execute",
+            target: "n8n_webhook",
+          },
+          // Rule id/version, reason and action of a refusal: no payload, no secrets.
+          metadata: {
+            phase,
+            intentId,
+            requestId,
+            // Key avoids "payload" (ledger sensitive-key filter); value is the hash only.
+            approvedDigest: payloadHash,
+            toolName: intent.toolName,
+            ...(details?.refusal
+              ? {
+                  verdict: details.refusal.verdict,
+                  ruleId: details.refusal.ruleId,
+                  ruleVersion: details.refusal.ruleVersion,
+                  reason: details.refusal.reason,
+                  action: details.refusal.action,
+                }
+              : {}),
+          },
         }),
       markExecuted: (actionRef) =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "executed",
+          expectedFromStatus: "executing",
           updatedAt: new Date().toISOString(),
           ...(actionRef ? { actionRef } : {}),
         }),
-      markFailed: (failureCode) =>
+      // Conditional on the status the caller left it in: "pending" only for the
+      // pre-claim Sentinelle BLOCK, otherwise the claim ("executing").
+      markFailed: (failureCode, fromStatus = "executing") =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "failed",
+          expectedFromStatus: fromStatus,
           updatedAt: new Date().toISOString(),
           failureCode,
         }),
@@ -173,9 +217,13 @@ export async function POST(
           expectedPayload: intent.payload,
           updatedAt: new Date().toISOString(),
         }),
+      readStatus: async () =>
+        (await getAgentExecutionIntent(ctx.workspace.id, intentId))?.status,
       revertToPending: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "pending",
+          expectedFromStatus: "executing",
+          expectedPayload: intent.payload,
           updatedAt: new Date().toISOString(),
         }),
     });
@@ -214,6 +262,66 @@ export async function POST(
       });
     }
 
+    if (result.status === "refused") {
+      logger.warn("agent.execution-intent.approve.refused", {
+        intentId,
+        requestId,
+        workspaceId: ctx.workspace.id,
+        stage: result.stage,
+        verdict: result.refusal.verdict,
+        ruleId: result.refusal.ruleId,
+        ruleVersion: result.refusal.ruleVersion,
+        action: result.refusal.action,
+      });
+      return NextResponse.json(
+        {
+          intentId,
+          requestId,
+          status: "refused",
+          stage: result.stage,
+          intentStatus: result.stage === "precheck" ? "pending" : "failed",
+          verdict: result.refusal.verdict,
+          ruleId: result.refusal.ruleId,
+          ruleVersion: result.refusal.ruleVersion,
+          reason: result.refusal.reason,
+          action: result.refusal.action,
+        },
+        { status: 403 },
+      );
+    }
+
+    if (result.status === "executing" && "outcome" in result) {
+      logger.error("agent.execution-intent.approve.outcome_uncertain", {
+        intentId,
+        requestId,
+        workspaceId: ctx.workspace.id,
+        outcome: result.outcome,
+        alert: true,
+      });
+      return NextResponse.json(
+        {
+          intentId,
+          requestId,
+          status: "executing",
+          outcome: result.outcome,
+          error: result.error,
+          ...("actionRef" in result && result.actionRef ? { actionRef: result.actionRef } : {}),
+        },
+        { status: result.httpStatus },
+      );
+    }
+
+    if ("reason" in result && result.reason === "revert_conflict") {
+      logger.error("agent.execution-intent.approve.revert_conflict", {
+        intentId,
+        workspaceId: ctx.workspace.id,
+        alert: true,
+      });
+      return NextResponse.json(
+        { intentId, status: result.status, error: result.error, reason: result.reason },
+        { status: 409 },
+      );
+    }
     if ("reason" in result) {
       logger.error(
         result.claimReverted
@@ -222,7 +330,13 @@ export async function POST(
         { intentId, workspaceId: ctx.workspace.id, alert: !result.claimReverted },
       );
       return NextResponse.json(
-        { intentId, status: result.status, error: result.error, reason: result.reason },
+        {
+          intentId,
+          status: result.status,
+          error: result.error,
+          reason: result.reason,
+          revert: result.revert,
+        },
         { status: 500 },
       );
     }
@@ -243,10 +357,13 @@ export async function POST(
       intentId,
       reason: err instanceof Error ? err.message : "unknown",
       workspaceId: ctx.workspace.id,
+      alert: true,
     });
+    // Not a state conflict: transient or of unknown effect. 503, no markFailed,
+    // no resend; a claimed intent stays `executing` for reconciliation.
     return NextResponse.json(
-      { error: "Execution intent approval failed.", intentId },
-      { status: 500 },
+      { error: "Execution intent approval unavailable; state unconfirmed.", intentId },
+      { status: 503 },
     );
   }
 }
