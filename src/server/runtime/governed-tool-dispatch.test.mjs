@@ -34,6 +34,12 @@ function dispatcher() {
 }
 
 const WS = "michael-hq";
+// G1b: approvals carry a valid decision, consumed through the public
+// consumeDecision seam (in-memory store, same contract as 0033). SIMULATED.
+const decisions = (await import(path.join(projectRoot, "proofs/approval-decision-test-support.mjs"))).createDecisionStore();
+const { hashExecutionIntentPayload: hashForDecision } = await jiti.import("@/server/agents/execution-intent-payload-hash");
+const decided = (intent) => decisions.issue(WS, intent.intentId, hashForDecision(intent.payload));
+const withDecisions = { consumeDecision: decisions.consume };
 // Claim token written at the pending→executing claim (deterministic per intent here).
 const tokenFor = (intentId) => `attempt:${intentId}`;
 let seq = 0;
@@ -97,8 +103,8 @@ test("(b) an intent claimed by the CEO approval (status executing in G2) dispatc
   const intent = await seedIntent("executing");
   let calls = 0;
   const r = await run({ workspaceId: WS, intentId: intent.intentId, toolName: intent.toolName, agentId: intent.agentId, payload: intent.payload,
-    attemptToken: tokenFor(intent.intentId) },
-    async () => { calls += 1; return { ok: true, actionRef: "ref-1" }; });
+    attemptToken: tokenFor(intent.intentId), decisionId: decided(intent) },
+    async () => { calls += 1; return { ok: true, actionRef: "ref-1" }; }, withDecisions);
   assert.deepEqual([r.ok, r.actionRef, calls], [true, "ref-1", 1]);
 });
 
@@ -148,10 +154,10 @@ test("B: the idempotency key is oria1:<ws>:<intentId>:<payloadHash> and identica
   const intent = await seedIntent("executing");
   const keys = [];
   const exec = async (_p, opts) => { keys.push(opts?.idempotencyKey); return { ok: true }; };
-  assert.equal((await run(inputFor(intent), exec)).ok, true);
+  assert.equal((await run(inputFor(intent, { decisionId: decided(intent) }), exec, withDecisions)).ok, true);
   // A second attempt: the row is re-claimed under a new token B.
   repo.__forceAgentExecutionIntentRowForTests(WS, intent.intentId, { actionRef: "attempt:second" });
-  assert.equal((await run(inputFor(intent, { attemptToken: "attempt:second" }), exec)).ok, true);
+  assert.equal((await run(inputFor(intent, { attemptToken: "attempt:second", decisionId: decided(intent) }), exec, withDecisions)).ok, true);
   const expected = `oria1:${WS}:${intent.intentId}:${hashExecutionIntentPayload(intent.payload)}`;
   assert.deepEqual(keys, [expected, expected]);
   assert.equal(mod.buildIdempotencyKey(WS, intent.intentId, hashExecutionIntentPayload(intent.payload)), expected);
