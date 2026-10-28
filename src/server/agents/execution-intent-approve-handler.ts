@@ -107,16 +107,34 @@ export function createApproveHandler(deps: ApproveHandlerDeps) {
         | null;
       const expectedPayloadHash = body?.expectedPayloadHash;
       // G1b: only the id of the human approval decision travels in the body. The
-      // decision is read and consumed from Postgres at dispatch; a missing/invalid
-      // id simply yields no approval there (refused, fail closed).
+      // decision is read and consumed from Postgres at dispatch.
       // Body field `decisionId` (PR #459 test contract); `approvalDecisionId`
       // accepted as an alias for the review UI.
       const rawDecisionId = body?.decisionId ?? body?.approvalDecisionId;
-      const approvalDecisionId =
-        typeof rawDecisionId === "string" &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawDecisionId)
-          ? rawDecisionId
-          : undefined;
+      // G1b (room contract): both refusals happen BEFORE any read of the intent,
+      // the claim, or the ledger. Absent/null/"" -> REQUIRE_APPROVAL, the intent
+      // stays waiting for approval. Present but not a UUID string -> 400.
+      if (rawDecisionId === undefined || rawDecisionId === null || rawDecisionId === "") {
+        return NextResponse.json(
+          {
+            error: "An approval decision is required.",
+            code: "approval_required",
+            policy: "REQUIRE_APPROVAL",
+            intentId,
+          },
+          { status: 409 },
+        );
+      }
+      if (
+        typeof rawDecisionId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawDecisionId)
+      ) {
+        return NextResponse.json(
+          { error: "decisionId must be a UUID.", code: "invalid_decision_id", intentId },
+          { status: 400 },
+        );
+      }
+      const approvalDecisionId: string = rawDecisionId;
       if (typeof expectedPayloadHash !== "string" || !/^[0-9a-f]{64}$/.test(expectedPayloadHash)) {
         return NextResponse.json(
           { error: "expectedPayloadHash is required.", intentId },
