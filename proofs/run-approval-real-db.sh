@@ -11,6 +11,7 @@ apply_schema() {
     # Minimal Supabase platform stubs the real schema files depend on.
     echo "create role anon nologin; create role authenticated nologin;"
     echo "create role qualification_service nologin bypassrls;"
+    echo "create role service_role nologin bypassrls;"
     echo "create schema auth; create table auth.users (id uuid primary key);"
     echo "create function auth.uid() returns uuid language sql stable as 'select null::uuid';"
     echo "insert into auth.users(id) values ('00000000-0000-4000-8000-0000000000a1');"
@@ -21,8 +22,15 @@ apply_schema() {
     cat "$ROOT/db/migrations/0022_action_ledger_hash_chain_phase1.sql"
     cat "$ROOT/db/migrations/0023_action_ledger_hash_chain_phase2.sql"
     cat "$ROOT/db/migrations/0024_agent_execution_intents.sql"
+    # G1b: approval decisions + atomic consume (0033). 0034/0035 not approved yet.
+    cat "$ROOT/db/migrations/0010_agent_review_approval_events.sql"
+    cat "$ROOT/db/migrations/0033_approval_decision_consume.sql"
     echo "grant usage on schema public to qualification_service;"
     echo "grant all on all tables in schema public to qualification_service;"
+    # PostgREST runs as qualification_service here (stands in for the app's
+    # service-role client): inherit service_role so it may EXECUTE the
+    # service_role-only decision functions; anon/authenticated stay denied.
+    echo "grant service_role to qualification_service;"
   } | $PSQL
 }
 
@@ -37,7 +45,7 @@ if [ -n "${CI_PG_URL:-}" ] && [ -n "${POSTGREST_DIRECT_URL:-}" ]; then
   done
   PSQL="psql $CI_PG_URL -X -q -v ON_ERROR_STOP=1"
   apply_schema
-  echo "✔ Real schema applied (schema.sql, 0002, 0020, 0022, 0023, 0024)."
+  echo "✔ Real schema applied (schema.sql, 0002, 0020, 0022, 0023, 0024, 0010, 0033)."
   # PostgREST started on an empty DB: its schema cache has 0 relations. Always
   # request a reload, and wait until the OpenAPI root really lists the table
   # (a plain GET can answer 200 from a stale cache).
@@ -75,7 +83,7 @@ done
 
 PSQL="docker exec -i $PG_NAME psql -h 127.0.0.1 -U postgres -X -q -v ON_ERROR_STOP=1"
 apply_schema
-echo "✔ Real schema applied (schema.sql, 0002, 0020, 0022, 0023, 0024)."
+echo "✔ Real schema applied (schema.sql, 0002, 0020, 0022, 0023, 0024, 0010, 0033)."
 
 docker run -d --name "$REST_NAME" --network "$NET" -p 127.0.0.1:0:3000 \
   -e "PGRST_DB_URI=postgres://postgres@$PG_NAME:5432/postgres" \

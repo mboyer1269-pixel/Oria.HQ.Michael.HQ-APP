@@ -742,10 +742,18 @@ if (!isRegisteredRuleId("R-RISK-ROUND-UP")) {
 export type GovernedAction = keyof typeof GOVERNED_ACTION_RULES;
 export type GovernedRuleId = (typeof GOVERNED_ACTION_RULES)[GovernedAction] | "R-RISK-ROUND-UP";
 
+/**
+ * An approval as seen by the guard. On the dispatch path (G1b) it is ONLY built
+ * from a row consumed atomically in Postgres (approval-decision-repository):
+ * `decisionId`/`intentId` then name that consumed row. Callers never supply it.
+ * The advisory precheck builds a hypothetical one without ids; it grants nothing.
+ */
 export type ApprovedDecision = {
   status: "approved";
   action: string;
   payloadHash: string;
+  decisionId?: string;
+  intentId?: string;
 };
 
 export type GovernedActionRequest = {

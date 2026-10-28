@@ -55,8 +55,21 @@ export async function POST(
   // G2: the body carries ONLY the hash of the payload the CEO reviewed. Any
   // other field (approvedBy, actorId, workspaceId, ...) is ignored: actor and
   // workspace come from the session/server context below.
-  const body = (await request.json().catch(() => null)) as { expectedPayloadHash?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as
+    | { expectedPayloadHash?: unknown; decisionId?: unknown; approvalDecisionId?: unknown }
+    | null;
   const expectedPayloadHash = body?.expectedPayloadHash;
+  // G1b: only the id of the human approval decision travels in the body. The
+  // decision is read and consumed from Postgres at dispatch; a missing/invalid
+  // id simply yields no approval there (refused, fail closed).
+  // Body field is `decisionId` (test contract, PR #459); `approvalDecisionId`
+  // is accepted as an alias for the review UI.
+  const rawDecisionId = body?.decisionId ?? body?.approvalDecisionId;
+  const approvalDecisionId =
+    typeof rawDecisionId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawDecisionId)
+      ? rawDecisionId
+      : undefined;
   if (typeof expectedPayloadHash !== "string" || !/^[0-9a-f]{64}$/.test(expectedPayloadHash)) {
     return NextResponse.json(
       { error: "expectedPayloadHash is required.", intentId },
@@ -167,6 +180,7 @@ export async function POST(
             agentId: intent.agentId,
             payload: intent.payload,
             attemptToken: attemptId,
+            decisionId: approvalDecisionId,
           },
           (payload, { idempotencyKey }) =>
             tool.handler(payload, { workspaceId: ctx.workspace.id, agentId: intent.agentId, idempotencyKey }),

@@ -184,7 +184,7 @@ jobs:
         run: |
           set -o pipefail
           sh proofs/run-approval-real-db.sh "$GITHUB_WORKSPACE" 2>&1 | tee /tmp/real-db.log
-          grep -E '^ALL 4 REAL-DB PROOFS PASSED$' /tmp/real-db.log
+          grep -E '^ALL 9 REAL-DB PROOFS PASSED$' /tmp/real-db.log
 
   # Cross-platform guard for the rules/vendored-hash CI scripts (Windows paths, CRLF checkout).
   rules-ci-windows:
