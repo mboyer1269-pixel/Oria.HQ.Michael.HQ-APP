@@ -45,9 +45,16 @@ const jiti = createJiti(import.meta.url, {
 const createRoute = await jiti.import(
   path.join(projectRoot, "src/app/api/agents/[agentId]/execution-intents/route.ts"),
 );
-const approveRoute = await jiti.import(
+// G1b: approvals carry a valid decision (in-memory store injected through the
+// public createApproveHandler/consumeDecision seams). SIMULATED (no database).
+const support = await import(path.join(projectRoot, "proofs/approval-decision-test-support.mjs"));
+const decisions = support.createDecisionStore();
+const decisionIds = new Map();
+const __routeModule = await jiti.import(
   path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"),
 );
+void __routeModule;
+const approveRoute = { POST: await support.buildApproveHandler(jiti, projectRoot, { store: decisions }) };
 const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 const repo = await jiti.import("@/server/agents/execution-intent-repository");
 const { stableStringify } = await jiti.import("@/server/ledger/hash-chain-canonicalizer");
@@ -104,6 +111,13 @@ async function storedHash(workspaceId, intentId) {
 }
 
 async function approve(intentId, body) {
+  if (body && typeof body === "object" && body.decisionId === undefined) {
+    const stored = await repo.getAgentExecutionIntent("michael-hq", intentId);
+    if (stored) {
+      if (!decisionIds.has(intentId)) decisionIds.set(intentId, decisions.issue("michael-hq", intentId, hashOf(stored.payload)));
+      body = { ...body, decisionId: decisionIds.get(intentId) };
+    }
+  }
   const response = await approveRoute.POST(
     new Request(`http://localhost/api/agents/execution-intents/${intentId}/approve`, {
       method: "POST",

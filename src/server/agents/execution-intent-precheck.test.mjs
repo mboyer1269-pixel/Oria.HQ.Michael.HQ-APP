@@ -20,6 +20,8 @@ const { buildAgentExecutionIntent } = await jiti.import("@/features/agents/execu
 const gtd = await jiti.import("@/server/runtime/governed-tool-dispatch");
 
 const WS = "lot2-ws";
+const { hashExecutionIntentPayload: hashOfPayload } = await jiti.import("@/server/agents/execution-intent-payload-hash");
+const decisions = (await import(path.join(projectRoot, "proofs/approval-decision-test-support.mjs"))).createDecisionStore();
 let seq = 0;
 async function seed(toolName = "n8n_webhook_trigger") {
   seq += 1;
@@ -35,15 +37,19 @@ async function seed(toolName = "n8n_webhook_trigger") {
 // Wires the service exactly like the approve route (claim, dispatchGovernedTool, conditional transitions).
 function wire(intent, { effects, recordAttempt, policyTool } = {}) {
   const t = (patch) => repo.transitionAgentExecutionIntent(WS, intent.intentId, { updatedAt: new Date().toISOString(), ...patch });
+  const TOKEN = `attempt:${intent.intentId}`;
+  // G1b: a valid decision bound to this intent + stored payload (SIMULATED store, public consumeDecision seam).
+  const decisionId = decisions.issue(WS, intent.intentId, hashOfPayload(intent.payload));
   return {
     precheck: () => gtd.precheckGovernedTool({ intentId: intent.intentId, toolName: intent.toolName, payload: intent.payload }),
     evaluate: () => ({ outcome: "ALLOW", reason: "ok" }),
-    markExecuting: () => t({ toStatus: "executing", expectedFromStatus: "pending", expectedPayload: intent.payload }),
+    // G1: the claim writes this attempt's token; dispatch is bound to it.
+    markExecuting: () => t({ toStatus: "executing", expectedFromStatus: "pending", expectedPayload: intent.payload, actionRef: TOKEN }),
     recordAttempt: recordAttempt ?? (async () => {}),
     dispatch: () => gtd.dispatchGovernedTool(
-      { workspaceId: WS, intentId: intent.intentId, toolName: policyTool ?? intent.toolName, agentId: intent.agentId, payload: intent.payload },
+      { workspaceId: WS, intentId: intent.intentId, toolName: policyTool ?? intent.toolName, agentId: intent.agentId, payload: intent.payload, attemptToken: TOKEN, decisionId },
       async () => { effects.n += 1; return { ok: true, actionRef: "ref" }; },
-      policyTool ? { loadIntent: async () => ({ ...(await repo.getAgentExecutionIntent(WS, intent.intentId)), toolName: policyTool }) } : {}),
+      { consumeDecision: decisions.consume, ...(policyTool ? { loadIntent: async () => ({ ...(await repo.getAgentExecutionIntent(WS, intent.intentId)), toolName: policyTool }) } : {}) }),
     recordResult: async () => {},
     markExecuted: (actionRef) => t({ toStatus: "executed", expectedFromStatus: "executing", ...(actionRef ? { actionRef } : {}) }),
     markFailed: (failureCode) => t({ toStatus: "failed", expectedFromStatus: "executing", failureCode }),
@@ -120,7 +126,10 @@ test("terminal transitions are conditional on executing (no double settle)", asy
   await deps.markExecuting();
   await deps.markExecuted("r1");
   await assert.rejects(deps.markFailed("LATE"), (e) => e instanceof repo.AgentExecutionIntentConcurrencyError);
-  const src = await readFile(path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"), "utf8");
+  // The route binds deps; the sequence lives in createApproveHandler (5c1871c).
+  const src =
+    (await readFile(path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"), "utf8")) +
+    (await readFile(path.join(projectRoot, "src/server/agents/execution-intent-approve-handler.ts"), "utf8"));
   assert.match(src, /toStatus: "executed",\s*expectedFromStatus: "executing"/);
   assert.match(src, /toStatus: "failed",\s*expectedFromStatus: fromStatus/);
   assert.match(src, /fromStatus = "executing"/);

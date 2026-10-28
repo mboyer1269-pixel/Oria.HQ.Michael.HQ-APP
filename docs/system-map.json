@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 678,
-    "live": 627,
+    "sourceFiles": 680,
+    "live": 629,
     "testOnly": 7,
     "incubation": 44
   },
@@ -382,6 +382,7 @@
     "src/server/agents/agent-council-run-contract.ts",
     "src/server/agents/agent-execution-license.ts",
     "src/server/agents/agent-profile-contract.ts",
+    "src/server/agents/approval-decision-repository.ts",
     "src/server/agents/autonomy-tier.ts",
     "src/server/agents/booster-contract.ts",
     "src/server/agents/context/verified-lessons-context.ts",
@@ -389,6 +390,7 @@
     "src/server/agents/engineering-package-store.ts",
     "src/server/agents/evidence/memory-evidence-pack.ts",
     "src/server/agents/execution-intent-approval-service.ts",
+    "src/server/agents/execution-intent-approve-handler.ts",
     "src/server/agents/execution-intent-payload-hash.ts",
     "src/server/agents/execution-intent-repository.ts",
     "src/server/agents/models/account-identity-repository.ts",
