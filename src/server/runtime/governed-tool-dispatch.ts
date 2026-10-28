@@ -31,7 +31,16 @@ export type GovernedToolDispatchInput = {
   toolName: string;
   agentId: string;
   payload: AgentExecutionIntentPayload;
+  /** The `attempt:<uuid>` token this request wrote at the pending→executing claim. */
+  attemptToken?: string;
 };
+
+/** Stable provider-facing key: same intent + same approved payload ⇒ same key. */
+export function buildIdempotencyKey(workspaceId: string, intentId: string, payloadHash: string): string {
+  return `oria1:${workspaceId}:${intentId}:${payloadHash}`;
+}
+
+export type GovernedToolExecuteOptions = { idempotencyKey: string };
 
 export type GovernedToolDispatchDeps = {
   loadIntent?: typeof getAgentExecutionIntent;
@@ -39,30 +48,38 @@ export type GovernedToolDispatchDeps = {
 
 export async function dispatchGovernedTool(
   input: GovernedToolDispatchInput,
-  execute: (payload: AgentExecutionIntentPayload) => Promise<McpToolResult>,
+  execute: (payload: AgentExecutionIntentPayload, options: GovernedToolExecuteOptions) => Promise<McpToolResult>,
   deps: GovernedToolDispatchDeps = {},
 ): Promise<McpToolResult> {
   // Only these fields are read; anything else a caller passes (e.g. an
   // approvedDecision) is ignored by construction.
-  const { workspaceId, intentId, toolName, agentId, payload } = input;
+  const { workspaceId, intentId, toolName, agentId, payload, attemptToken } = input;
   const action: string = Object.prototype.hasOwnProperty.call(TOOL_GOVERNED_ACTIONS, toolName)
     ? TOOL_GOVERNED_ACTIONS[toolName]
     : toolName;
 
   let approvedDecision: ApprovedDecision | undefined;
+  let idempotencyKey = "";
   try {
     const stored = await (deps.loadIntent ?? getAgentExecutionIntent)(workspaceId, intentId);
     if (
       stored &&
       stored.status === "executing" &&
       stored.toolName === toolName &&
-      stored.agentId === agentId
+      stored.agentId === agentId &&
+      // Single use: only the attempt that holds the claim may dispatch. A token
+      // from another attempt, or another intent's claim, is no approval here.
+      typeof attemptToken === "string" &&
+      attemptToken.startsWith("attempt:") &&
+      stored.actionRef === attemptToken
     ) {
+      const storedHash = hashExecutionIntentPayload(stored.payload);
       approvedDecision = {
         status: "approved",
         action: action as GovernedAction,
-        payloadHash: hashExecutionIntentPayload(stored.payload),
+        payloadHash: storedHash,
       };
+      idempotencyKey = buildIdempotencyKey(workspaceId, intentId, storedHash);
     }
   } catch {
     approvedDecision = undefined; // repository failure → no approval → refused
@@ -77,7 +94,7 @@ export async function dispatchGovernedTool(
 
   const verdict = guardGovernedAction(
     { agentId, action, payloadHash, approvedDecision },
-    () => execute(payload),
+    () => execute(payload, { idempotencyKey }),
   );
   if (!verdict.allowed) {
     return {

@@ -249,7 +249,8 @@ export async function listPendingAgentExecutionIntents(
 export type ExecutionIntentTransitionPatch = {
   toStatus: AgentExecutionIntentStatus;
   updatedAt: string;
-  actionRef?: string;
+  // `null` clears the column (e.g. the attempt token on a revert to pending).
+  actionRef?: string | null;
   failureCode?: string;
   // The status the CALLER validated its decision against. When set, the
   // transition only applies while the row is STILL in that exact status; a
@@ -263,6 +264,10 @@ export type ExecutionIntentTransitionPatch = {
   // STILL equal to this snapshot (jsonb equality in Postgres; canonical JSON
   // equality in the local fallback). A mismatch raises a concurrency error.
   expectedPayload?: AgentExecutionIntentPayload;
+  // G1 attemptId: when set, the transition only applies while action_ref is
+  // STILL this attempt token (compare-and-set). A late tail from a previous
+  // attempt matches 0 rows and raises a concurrency error.
+  expectedActionRef?: string;
 };
 
 /**
@@ -296,6 +301,9 @@ export async function transitionAgentExecutionIntent(
       stableStringify(row.payload as CanonicalJson) !==
         stableStringify(patch.expectedPayload as unknown as CanonicalJson)
     ) {
+      throw new AgentExecutionIntentConcurrencyError(from, patch.toStatus);
+    }
+    if (patch.expectedActionRef !== undefined && (row.action_ref ?? null) !== patch.expectedActionRef) {
       throw new AgentExecutionIntentConcurrencyError(from, patch.toStatus);
     }
     if (!canTransitionExecutionIntent(from, patch.toStatus)) {
@@ -342,6 +350,10 @@ export async function transitionAgentExecutionIntent(
     // caller verified (key order is irrelevant to jsonb equality).
     query = query.eq("payload", JSON.stringify(patch.expectedPayload));
   }
+  if (patch.expectedActionRef !== undefined) {
+    // Same atomic UPDATE: only the attempt that holds the claim token may settle it.
+    query = query.eq("action_ref", patch.expectedActionRef);
+  }
   const { data, error } = await query.select();
   if (error) {
     throw new AgentExecutionIntentRepositoryError("transition");
@@ -354,7 +366,7 @@ export async function transitionAgentExecutionIntent(
     ...current,
     status: patch.toStatus,
     updatedAt: patch.updatedAt,
-    ...(patch.actionRef !== undefined ? { actionRef: patch.actionRef } : {}),
+    ...(patch.actionRef !== undefined ? { actionRef: patch.actionRef ?? undefined } : {}),
     ...(patch.failureCode !== undefined ? { failureCode: patch.failureCode } : {}),
   };
 }

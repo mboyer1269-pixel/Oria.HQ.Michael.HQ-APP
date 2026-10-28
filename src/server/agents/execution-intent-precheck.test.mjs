@@ -35,13 +35,15 @@ async function seed(toolName = "n8n_webhook_trigger") {
 // Wires the service exactly like the approve route (claim, dispatchGovernedTool, conditional transitions).
 function wire(intent, { effects, recordAttempt, policyTool } = {}) {
   const t = (patch) => repo.transitionAgentExecutionIntent(WS, intent.intentId, { updatedAt: new Date().toISOString(), ...patch });
+  const TOKEN = `attempt:${intent.intentId}`;
   return {
     precheck: () => gtd.precheckGovernedTool({ intentId: intent.intentId, toolName: intent.toolName, payload: intent.payload }),
     evaluate: () => ({ outcome: "ALLOW", reason: "ok" }),
-    markExecuting: () => t({ toStatus: "executing", expectedFromStatus: "pending", expectedPayload: intent.payload }),
+    // G1: the claim writes this attempt's token; dispatch is bound to it.
+    markExecuting: () => t({ toStatus: "executing", expectedFromStatus: "pending", expectedPayload: intent.payload, actionRef: TOKEN }),
     recordAttempt: recordAttempt ?? (async () => {}),
     dispatch: () => gtd.dispatchGovernedTool(
-      { workspaceId: WS, intentId: intent.intentId, toolName: policyTool ?? intent.toolName, agentId: intent.agentId, payload: intent.payload },
+      { workspaceId: WS, intentId: intent.intentId, toolName: policyTool ?? intent.toolName, agentId: intent.agentId, payload: intent.payload, attemptToken: TOKEN },
       async () => { effects.n += 1; return { ok: true, actionRef: "ref" }; },
       policyTool ? { loadIntent: async () => ({ ...(await repo.getAgentExecutionIntent(WS, intent.intentId)), toolName: policyTool }) } : {}),
     recordResult: async () => {},

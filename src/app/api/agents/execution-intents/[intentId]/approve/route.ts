@@ -12,7 +12,11 @@ import {
 import { approveAndDispatchExecutionIntent } from "@/server/agents/execution-intent-approval-service";
 import { billApprovedIntentUsage } from "@/server/michael-hq/billing-on-approve";
 import { logger } from "@/lib/logger";
-import { dispatchGovernedTool, precheckGovernedTool } from "@/server/runtime/governed-tool-dispatch";
+import {
+  buildIdempotencyKey,
+  dispatchGovernedTool,
+  precheckGovernedTool,
+} from "@/server/runtime/governed-tool-dispatch";
 import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
 
 type ApprovalConflictReason = "changed" | "already_decided";
@@ -104,6 +108,11 @@ export async function POST(
   // Never derived from secrets; client value is length-capped and charset-limited.
   const clientRequestId = request.headers.get("x-request-id") ?? "";
   const requestId = /^[A-Za-z0-9._:-]{1,128}$/.test(clientRequestId) ? clientRequestId : crypto.randomUUID();
+  // G1 attemptId: single-use token written at the claim; every later transition
+  // is a compare-and-set on it. The idempotency key is stable across attempts
+  // (same intent + same approved payload) and never contains the token.
+  const attemptId = `attempt:${crypto.randomUUID()}`;
+  const idemKey = buildIdempotencyKey(ctx.workspace.id, intentId, payloadHash);
 
   try {
     const result = await approveAndDispatchExecutionIntent({
@@ -118,6 +127,7 @@ export async function POST(
           expectedFromStatus: "pending",
           // G2: claim only the exact payload whose hash was just verified.
           expectedPayload: intent.payload,
+          actionRef: attemptId,
           updatedAt: new Date().toISOString(),
         }),
       recordAttempt: () =>
@@ -142,6 +152,8 @@ export async function POST(
             actionType: intent.payload.actionType,
             approvedDigest: payloadHash,
             requestId,
+            attemptId,
+            idemKey,
           },
         }),
       // G1: guardGovernedAction re-reads the G2 approval (the claimed row) and
@@ -154,8 +166,10 @@ export async function POST(
             toolName: intent.toolName,
             agentId: intent.agentId,
             payload: intent.payload,
+            attemptToken: attemptId,
           },
-          (payload) => tool.handler(payload, { workspaceId: ctx.workspace.id, agentId: intent.agentId }),
+          (payload, { idempotencyKey }) =>
+            tool.handler(payload, { workspaceId: ctx.workspace.id, agentId: intent.agentId, idempotencyKey }),
         ),
       recordResult: (ok, phase, details) =>
         recordLedgerEvent(ctx, {
@@ -182,6 +196,8 @@ export async function POST(
             requestId,
             // Key avoids "payload" (ledger sensitive-key filter); value is the hash only.
             approvedDigest: payloadHash,
+            attemptId,
+            idemKey,
             toolName: intent.toolName,
             ...(details?.refusal
               ? {
@@ -194,12 +210,13 @@ export async function POST(
               : {}),
           },
         }),
-      markExecuted: (actionRef) =>
+      // action_ref keeps the attempt token (the provider ref is the derivable idemKey).
+      markExecuted: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "executed",
           expectedFromStatus: "executing",
+          expectedActionRef: attemptId,
           updatedAt: new Date().toISOString(),
-          ...(actionRef ? { actionRef } : {}),
         }),
       // Conditional on the status the caller left it in: "pending" only for the
       // pre-claim Sentinelle BLOCK, otherwise the claim ("executing").
@@ -207,6 +224,9 @@ export async function POST(
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "failed",
           expectedFromStatus: fromStatus,
+          // Post-claim failures are CAS on this attempt's token; the pre-claim
+          // BLOCK (from pending) has no token yet.
+          ...(fromStatus === "executing" ? { expectedActionRef: attemptId } : {}),
           updatedAt: new Date().toISOString(),
           failureCode,
         }),
@@ -215,6 +235,8 @@ export async function POST(
           toStatus: "pending",
           expectedFromStatus: "executing",
           expectedPayload: intent.payload,
+          expectedActionRef: attemptId,
+          actionRef: null,
           updatedAt: new Date().toISOString(),
         }),
       readStatus: async () =>
@@ -224,6 +246,8 @@ export async function POST(
           toStatus: "pending",
           expectedFromStatus: "executing",
           expectedPayload: intent.payload,
+          expectedActionRef: attemptId,
+          actionRef: null,
           updatedAt: new Date().toISOString(),
         }),
     });

@@ -72,6 +72,12 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
     return { ok: false, error: "Invalid n8n_webhook_trigger payload." };
   }
   const input = parsed.data;
+  // G1: the dedup key comes from the governed dispatch (stable per intent +
+  // approved payload). Never invent one: a random ref defeats n8n's dedup.
+  const actionRef = ctx.idempotencyKey;
+  if (typeof actionRef !== "string" || !/^oria1:[^\s]{1,400}$/.test(actionRef)) {
+    return { ok: false, error: "Missing idempotency key: n8n dispatch refused." };
+  }
 
   const deps = ctx.deps ?? {};
   const fetchImpl = deps.fetchImpl ?? fetch;
@@ -106,7 +112,8 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   }
 
   // 4. Build payload + headers.
-  const actionRef = `n8n_${now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // `actionRef` is the only field the workflow dedups on; dispatchedAt and the
+  // signature headers vary per call by design and are not part of the dedup.
   const body = JSON.stringify({
     actionRef,
     agentId: input.agentId,
@@ -124,6 +131,7 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "x-webhook-secret": staticSecret,
+    "Idempotency-Key": actionRef,
   };
 
   if (binding.requiresSignature) {

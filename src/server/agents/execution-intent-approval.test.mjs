@@ -192,6 +192,8 @@ describe("approval wired to the real repo + real n8n tool (fetch mocked)", () =>
       dispatch: () =>
         n8nWebhookTriggerTool.handler(intent.payload, {
           workspaceId: "ws1",
+          // G1: the governed dispatch supplies the stable idempotency key.
+          idempotencyKey: "oria1:ws1:intent-1:test",
           deps: { fetchImpl, isAllowed: async () => true, now: () => 1 },
         }),
       recordResult: async (_ok, phase) => void ledger.push(`result:${phase}`),
@@ -246,6 +248,8 @@ describe("approval wired to the real repo + real n8n tool (fetch mocked)", () =>
       dispatch: () =>
         n8nWebhookTriggerTool.handler(intent.payload, {
           workspaceId: "ws1",
+          // G1: the governed dispatch supplies the stable idempotency key.
+          idempotencyKey: "oria1:ws1:intent-1:test",
           deps: { fetchImpl, isAllowed: async () => true },
         }),
       recordResult: async (_ok, phase) => void ledger.push(`result:${phase}`),
