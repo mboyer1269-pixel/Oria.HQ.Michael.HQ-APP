@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// (force_push is a known, governed action — R-NO-FORCE-PUSH gap test — so a
+// truly unknown name is used here.)
 // G1: default deny — an action or rule id the guard does not know
 // (incl. a rule id passed as action, prototype keys, empty string) is BLOCK
 // R-RISK-ROUND-UP even with a matching "approved" decision; execute() never
@@ -19,7 +21,7 @@ const guard = await jiti.import("@/server/runtime/execution-guard");
 
 const spy = () => { const s = { n: 0, fn: () => { s.n += 1; return "ran"; } }; return s; };
 
-for (const action of ["R-NO-MERGE", "force_push", "unknown", "toString", "__proto__", ""]) {
+for (const action of ["R-NO-MERGE", "zz_g1_never_an_action", "unknown", "toString", "__proto__", ""]) {
   test(`default deny: unknown action/rule id "${action}" -> BLOCK R-RISK-ROUND-UP even with a matching approval`, () => {
     const s = spy();
     const v = guard.guardGovernedAction({ agentId: "a", action, payloadHash: "h",
