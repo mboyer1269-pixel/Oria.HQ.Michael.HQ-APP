@@ -53,11 +53,19 @@ test("fix2: a transient (non-conflict) error in the route maps to 503, not a gen
     if (intentId === id && patch.toStatus === "executing") throw new Error("db connection reset");
   });
   const n8n = installN8n();
+  // logger.error(event, meta): capture meta to read the alert field.
+  const original = logger.error;
+  const calls = [];
+  logger.error = (event, meta) => { calls.push({ event, meta }); return original.call(logger, event, meta); };
   try {
     const r = await approve(id);
     assert.equal(r.status, 503);
     assert.equal(n8n.calls.length, 0);
-  } finally { clearHook(); n8n.restore(); }
+    const failed = calls.find((c) => c.event === "agent.execution-intent.approve.failed");
+    assert.ok(failed, JSON.stringify(calls.map((c) => c.event)));
+    assert.equal(failed.meta?.alert, true, "the 503 catch must raise an operator alert");
+    assert.equal(failed.meta?.intentId, id);
+  } finally { logger.error = original; clearHook(); n8n.restore(); }
 });
 
 test("fix3: markExecuted fails after dispatch → uncertain/dispatched response, stays executing, alert, no resend", async () => {

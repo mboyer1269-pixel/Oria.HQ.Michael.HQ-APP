@@ -1,15 +1,18 @@
 #!/usr/bin/env node
-// GAP (red on purpose at f6de985). Architecte À CORRIGER + Sentinelle P2 #2.
-// (k) 429 path: revert_conflict response hardcodes status "executing"
-//     (service:175-181) while the row may already be terminal. Expect the
-//     status re-read from the store, or "unknown" if the read fails.
+// Formerly a -gap tripwire (red at f6de985), green since c1c6af0 (#452).
+// Architecte À CORRIGER + Sentinelle P2 #2.
+// (k) 429 path: when the conditional revert hits a row that became terminal,
+//     the 409 revert_conflict response must carry the status RE-READ from the
+//     store. Here the re-read succeeds, so the answer MUST be exactly
+//     "executed" ("unknown" is only for a failed re-read, covered separately
+//     in execution-intent-reread-status-failure.test.mjs).
 // SIMULATED: local-fallback repo, real route handler, fetch replaced.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WS, repo, rateLimit, createIntent, getIntent, approve, installN8n, clearHook }
   from "../../../proofs/approval-route-harness.mjs";
 
-test("(k) 429 revert_conflict on a row that became executed reports the real status, never 'executing'", async () => {
+test("(k) 429 revert_conflict on a row that became executed reports exactly 'executed' (re-read succeeded)", async () => {
   const id = await createIntent("k-terminal");
   const row = await getIntent(id);
   rateLimit.__resetRateLimitersForTests();
@@ -28,8 +31,8 @@ test("(k) 429 revert_conflict on a row that became executed reports the real sta
     assert.equal(stored, "executed");
     assert.equal(r.status, 409, JSON.stringify(r.body));
     assert.equal(r.body.reason, "revert_conflict");
-    assert.ok(r.body.status === stored || r.body.status === "unknown",
-      `response says ${r.body.status} while the row is ${stored}`);
+    assert.equal(r.body.status, "executed",
+      `response says ${r.body.status} while the row is ${stored} and the re-read succeeded`);
     assert.equal(n8n.calls.length, 0);
   } finally { clearHook(); n8n.restore(); rateLimit.__resetRateLimitersForTests(); }
 });
