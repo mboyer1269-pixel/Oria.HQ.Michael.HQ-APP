@@ -9,3 +9,5 @@ Critical rules:
 1. Never modify secrets, `.env`, API keys, or credentials.
 2. Never start a new phase, feature, or refactor without an explicit mandate.
 3. Always validate with typecheck, lint, build, and smoke checks before declaring work complete.
+
+@AGENTS.md
