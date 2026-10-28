@@ -36,7 +36,7 @@ export function createDecisionStore() {
  *  - transitionAgentExecutionIntent forwards an optional beforeLocalTransition
  *    hook through the repository's public 4th-argument seam.
  */
-export async function buildApproveHandler(jiti, projectRoot, { store, getBeforeLocalTransition = () => null } = {}) {
+export async function buildApproveHandler(jiti, projectRoot, { store, getBeforeLocalTransition = () => null, webhookEnv } = {}) {
   const { createApproveHandler } = await jiti.import("@/server/agents/execution-intent-approve-handler");
   const owner = await jiti.import("@/server/auth/owner");
   const { getActiveWorkspaceContext } = await jiti.import("@/core/workspace-context");
@@ -67,7 +67,7 @@ export async function buildApproveHandler(jiti, projectRoot, { store, getBeforeL
       gtd.dispatchGovernedTool(input, execute, { ...(deps ?? {}), ...(store ? { consumeDecision: store.consume } : {}) }),
     precheckGovernedTool: gtd.precheckGovernedTool,
     randomUUID: () => randomUUID(),
-    webhookEnv: Object.freeze({
+    webhookEnv: webhookEnv ? Object.freeze({ ...webhookEnv }) : Object.freeze({
       N8N_WEBHOOK_URL: process.env.N8N_WEBHOOK_URL,
       N8N_SECRET: process.env.N8N_SECRET,
       AGENT_WEBHOOK_SIGNING_SECRET: process.env.AGENT_WEBHOOK_SIGNING_SECRET,
