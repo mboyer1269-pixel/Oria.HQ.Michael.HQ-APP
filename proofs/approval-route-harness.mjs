@@ -30,10 +30,10 @@ const createRoute = await jiti.import(path.join(projectRoot, "src/app/api/agents
 const approveRoute = await jiti.import(path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"));
 const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 export const repo = await jiti.import("@/server/agents/execution-intent-repository");
-const { hashExecutionIntentPayload } = await jiti.import("@/server/agents/execution-intent-payload-hash");
+export const { hashExecutionIntentPayload } = await jiti.import("@/server/agents/execution-intent-payload-hash");
 export const rateLimit = await jiti.import("@/lib/rate-limit");
 // Path form: ledger-events reaches its repository through a relative specifier.
-const { listLocalActionLedgerEntries } = await jiti.import(
+const { listLocalActionLedgerEntries, __setActionLedgerRepositoryForTests } = await jiti.import(
   path.join(projectRoot, "src/server/actions/action-ledger-repository.ts"),
 );
 export const service = await jiti.import("@/server/agents/execution-intent-approval-service");
@@ -114,3 +114,11 @@ export const clearHook = () => repo.__setBeforeLocalTransitionHookForTests(null)
 export const ledgerFor = (id) =>
   listLocalActionLedgerEntries().filter((e) => e.metadata?.intentId === id);
 export const { logger } = await jiti.import("@/lib/logger");
+
+/**
+ * Explicitly inject a ledger repository whose record() calls `record(input)`.
+ * Throwing from `record` simulates a ledger outage. `null` restores the default.
+ */
+export function injectLedgerRepository(record) {
+  __setActionLedgerRepositoryForTests(record ? () => ({ mode: "local", record: async (input) => record(input) }) : null);
+}
