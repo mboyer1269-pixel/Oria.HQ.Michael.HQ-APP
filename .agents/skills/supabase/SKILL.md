@@ -6,6 +6,8 @@ metadata:
   version: "0.1.2"
 ---
 
+> **Rules:** R-NO-SECRETS, R-NO-PROD-ACCESS, R-ZONE-YELLOW — full text in [core.md](../../rules/core.md) (single source; do not restate here).
+
 # Supabase
 
 ## Core Principles

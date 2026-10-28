@@ -3,14 +3,16 @@ name: Orya UI Verification
 description: >
   UI testing and verification skill for the UI Verification Agent. Covers
   localhost visual inspection, responsive testing, accessibility checks,
-  screenshot capture, and visual regression reporting. Green zone only.
+  screenshot capture, and visual regression reporting. Green zone only. (R-ZONE-GREEN)
 ---
+
+> **Rules:** R-ZONE-GREEN, R-NO-PROD-ACCESS, R-NO-DEPLOY, R-PROVEN-VS-ASSUMED — full text in [core.md](../../rules/core.md) (single source; do not restate here).
 
 # Orya UI Verification
 
 ## Purpose
 
-This skill provides a structured workflow for verifying UI changes in the Orya HQ application. All verification happens on `localhost:3000` — no production access, no external deployments. The goal is to catch visual regressions, layout issues, responsive breakpoints, and accessibility problems before a PR is created.
+This skill provides a structured workflow for verifying UI changes in the Orya HQ application. All verification happens on `localhost:3000` — no production access, no external deployments. The goal is to catch visual regressions, layout issues, responsive breakpoints, and accessibility problems before a PR is created. <!-- R-NO-PROD-ACCESS -->
 
 ## When to Use
 
@@ -166,17 +168,23 @@ For the verification report:
 - [ ] BLOCKED — [critical visual regression or accessibility failure]
 ```
 
-## Boundary Constraints
+## Boundaries
+
+rules: ["R-ZONE-GREEN", "R-NO-PROD-ACCESS", "R-NO-DEPLOY"]
+
+## Action Zones
+
+Per-action zone reference (each restricted row cites its rule id).
 
 | Action | Zone | Rule |
 |--------|------|------|
 | Browse localhost:3000 | Green | Always permitted |
-| Capture screenshots | Green | Localhost only |
-| Capture recordings | Green | Localhost only |
+| Capture screenshots | Green | Localhost only | <!-- R-NO-PROD-ACCESS -->
+| Capture recordings | Green | Localhost only | <!-- R-NO-PROD-ACCESS -->
 | Run dev server (`npm run dev`) | Green | Local development |
 | Modify UI code to fix issues | Green (small) / Yellow (significant) | Scope-dependent |
-| Access production URLs | **Red** | Never |
-| Deploy UI changes | **Red** | Never |
+| Access production URLs | **Red** | Never | <!-- R-NO-PROD-ACCESS -->
+| Deploy UI changes | **Red** | Never | <!-- R-NO-DEPLOY -->
 
 ## Checklist
 

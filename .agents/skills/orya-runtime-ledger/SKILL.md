@@ -4,14 +4,16 @@ description: >
   Skill for inspecting and validating the Orya action ledger. Covers
   read-only ledger analysis, state machine compliance, mission traceability,
   and idempotency verification. Ledger writes are Yellow zone and require
-  human approval.
+  human approval. (R-ZONE-YELLOW)
 ---
+
+> **Rules:** R-ZONE-YELLOW, R-NO-PROD-ACCESS, R-PROVEN-VS-ASSUMED — full text in [core.md](../../rules/core.md) (single source; do not restate here).
 
 # Orya Runtime Ledger
 
 ## Purpose
 
-This skill provides a structured workflow for inspecting, validating, and reasoning about the Orya action ledger. The ledger records all binding decisions and mission-related actions. This skill focuses on **read-only analysis** — ledger writes are Yellow zone and require explicit human approval.
+This skill provides a structured workflow for inspecting, validating, and reasoning about the Orya action ledger. The ledger records all binding decisions and mission-related actions. This skill focuses on **read-only analysis** — ledger writes are Yellow zone and require explicit human approval. <!-- R-LEDGER-APPEND-ONLY -->
 
 ## When to Use
 
@@ -24,7 +26,7 @@ This skill provides a structured workflow for inspecting, validating, and reason
 
 ## When NOT to Use
 
-- When the task requires writing new ledger entries (Yellow zone — request approval first).
+- When the task requires writing new ledger entries (Yellow zone — request approval first). <!-- R-ZONE-YELLOW -->
 - When debugging production ledger data (Red zone — no production access).
 - For general code debugging unrelated to the ledger.
 
@@ -55,11 +57,11 @@ pending → running → completed
 
 ### Idempotency
 
-Per [MISSION_IDEMPOTENCY_CONTRACT.md](../../docs/MISSION_IDEMPOTENCY_CONTRACT.md), mission operations must be idempotent. The reserve-before-build pattern ensures an idempotency key is reserved BEFORE plan generation.
+Per [MISSION_IDEMPOTENCY_CONTRACT.md](../../docs/MISSION_IDEMPOTENCY_CONTRACT.md), mission operations must be idempotent. The reserve-before-build pattern ensures an idempotency key is reserved BEFORE plan generation. <!-- rule:local(idempotency contract from MISSION_IDEMPOTENCY_CONTRACT.md) -->
 
 ### Agent-Skill Coherence
 
-Per [ORIA_AGENT_OPERATING_MANUAL.md](../../docs/ORIA_AGENT_OPERATING_MANUAL.md), `agentRegistry` and `skillsCatalog` must stay in sync, validated by `validateAgentSkillMapping()`.
+Per [ORIA_AGENT_OPERATING_MANUAL.md](../../docs/ORIA_AGENT_OPERATING_MANUAL.md), `agentRegistry` and `skillsCatalog` must stay in sync, validated by `validateAgentSkillMapping()`. <!-- rule:local(registry/catalog sync invariant) -->
 
 ## Inspection Workflow
 
@@ -109,7 +111,7 @@ Per [ACTION_LEDGER_MISSION_TRACEABILITY.md](../../docs/ACTION_LEDGER_MISSION_TRA
 
 1. Load `agentRegistry` and `skillsCatalog` (from seed files or runtime config).
 2. Run `validateAgentSkillMapping()` logic:
-   - Every agent references only skills that exist in the catalog.
+   - Every agent references only skills that exist in the catalog. <!-- rule:local(registry/catalog sync invariant) -->
    - Every active skill is referenced by at least one agent.
    - No agent references a locked skill without proper unlock status.
 3. Flag any mismatches.
@@ -149,16 +151,22 @@ Per [ACTION_LEDGER_MISSION_TRACEABILITY.md](../../docs/ACTION_LEDGER_MISSION_TRA
 - [ ] CRITICAL — [immediate action required]
 ```
 
-## Boundary Constraints
+## Boundaries
+
+rules: ["R-LEDGER-APPEND-ONLY", "R-ZONE-GREEN", "R-ZONE-YELLOW", "R-NO-PROD-ACCESS"]
+
+## Action Zones
+
+Per-action zone reference (each restricted row cites its rule id).
 
 | Action | Zone | Rule |
 |--------|------|------|
 | Read ledger entries | Green | Always permitted in dev mode |
 | Analyze state transitions | Green | Read-only analysis |
 | Validate idempotency | Green | Read-only checks |
-| Write new ledger entries | **Yellow** | Requires Michael's approval |
-| Modify existing entries | **Yellow** | Requires Michael's approval |
-| Delete ledger entries | **Red** | Destructive — forbidden |
+| Write new ledger entries | **Yellow** | Requires Michael's approval | <!-- R-ZONE-YELLOW -->
+| Modify existing entries | **Yellow** | Requires Michael's approval | <!-- R-LEDGER-APPEND-ONLY -->
+| Delete ledger entries | **Red** | Destructive — forbidden | <!-- R-LEDGER-APPEND-ONLY -->
 | Access production ledger | **Red** | No production access |
 
 ## Checklist
