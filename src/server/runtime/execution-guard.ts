@@ -12,7 +12,8 @@
  *
  * Backward compatibility:
  *   canPrepareExecution() with requestedMode "dry-run" or "read-only" retains
- *   the existing planning-mode behavior unchanged. All pre-PR3 call sites and
+ *   the existing planning-mode behavior, except that an unknown risk class is
+ *   now BLOCKED (fail-closed) instead of being allowed. All pre-PR3 call sites and
  *   tests continue to work without modification.
  *
  * Safety invariants (never relaxed):
@@ -207,7 +208,8 @@ function ledgerEventsForRisk(risk: ExecutionRiskClass): LedgerEventType[] {
       return ["decision", "action", "result"];
     case "unknown":
     default:
-      return ["decision"];
+      // Fail closed: an unclassifiable skill is treated as the riskiest class.
+      return ["decision", "action", "result"];
   }
 }
 
@@ -335,6 +337,16 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
     }
 
     const risk = classifyExecutionRisk(skill);
+    // Fail closed (R-RISK-ROUND-UP): an unknown risk class is BLOCKED, dry-run
+    // included. It used to fall through to the read-only "allowed" branch.
+    if (risk === "unknown") {
+      return buildBlockedDecision(
+        "UNSUPPORTED_SKILL",
+        "unknown_action_policy",
+        "red",
+        `Skill ${skill.id} has an unknown risk class and is blocked (fail-closed), including in ${input.requestedMode} mode.`,
+      );
+    }
     if (risk === "effectful" || risk === "external") {
       return buildBlockedDecision(
         "EFFECTFUL_SKILL_REQUIRES_APPROVAL",
