@@ -109,7 +109,18 @@ test("service: uncertain external result is not marked failed nor reverted; stay
   assert.equal(order.find((o) => typeof o === "object").phase, "uncertain");
 });
 
-test("n8n tool: a thrown fetch (timeout/network) is outcomeUncertain; an HTTP 500 is not", async () => {
+test("service: a throw from dispatch is uncertain (stays executing, no markFailed/revert/resend)", async () => {
+  const order = [];
+  const d = deps(order, null);
+  let calls = 0;
+  d.dispatch = async () => { calls += 1; throw new Error("socket hang up"); };
+  const res = await approveAndDispatchExecutionIntent(d);
+  assert.deepEqual([res.ok, res.status, res.outcome, calls], [false, "executing", "uncertain", 1]);
+  assert.equal(order.some((o) => typeof o === "string" && (o.startsWith("markFailed") || o === "revertToPending" || o === "markExecuted")), false);
+  assert.equal(order.find((o) => typeof o === "object").phase, "uncertain");
+});
+
+test("n8n tool: a thrown fetch or an HTTP 5xx is outcomeUncertain; an HTTP 4xx is not", async () => {
   const ORIGINAL = process.env;
   process.env = { ...ORIGINAL, AGENT_WEBHOOK_SIGNING_SECRET: "k", N8N_SECRET: "s", N8N_WEBHOOK_URL: "https://hooks.n8n.cloud/webhook/x" };
   delete process.env.NODE_ENV;
@@ -123,8 +134,11 @@ test("n8n tool: a thrown fetch (timeout/network) is outcomeUncertain; an HTTP 50
     assert.deepEqual([thrown.ok, thrown.outcomeUncertain], [false, true]);
     const http500 = await n8nWebhookTriggerTool.handler(payload, { workspaceId: "ws1",
       deps: { ...base, fetchImpl: async () => ({ ok: false, status: 500, json: async () => ({}) }) } });
-    assert.equal(http500.ok, false);
-    assert.notEqual(http500.outcomeUncertain, true);
+    assert.deepEqual([http500.ok, http500.outcomeUncertain], [false, true]);
+    const http400 = await n8nWebhookTriggerTool.handler(payload, { workspaceId: "ws1",
+      deps: { ...base, fetchImpl: async () => ({ ok: false, status: 400, json: async () => ({}) }) } });
+    assert.equal(http400.ok, false);
+    assert.notEqual(http400.outcomeUncertain, true);
   } finally { process.env = ORIGINAL; }
 });
 
