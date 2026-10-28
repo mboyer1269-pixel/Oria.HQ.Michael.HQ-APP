@@ -1,8 +1,0 @@
-awaiting_review {'requested': 'gpt-5.6-luna', 'observed': 'gpt-5.6-luna', 'matches': True}
-spec succeeded codex_cli None gpt-5.6-luna 26b670b None
-code succeeded codex_cli None gpt-5.6-luna 9822659 None
-test succeeded runner None None 9822659 None
-preview succeeded runner None None 9822659 None
-revision interrupted codex_cli None gpt-5.6-luna - runner_died
-revision succeeded codex_cli 01a1725c-6238-7c50-9cc8-fa462550f372 gpt-5.6-luna c5abe3c None
-test succeeded runner None None c5abe3c None
