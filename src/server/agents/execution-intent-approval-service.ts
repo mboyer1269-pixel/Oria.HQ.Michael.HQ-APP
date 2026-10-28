@@ -99,7 +99,19 @@ export async function approveAndDispatchExecutionIntent(
     };
   }
 
-  const result = await deps.dispatch();
+  let result: McpToolResult;
+  try {
+    result = await deps.dispatch();
+  } catch (err) {
+    // A throw after the attempt was recorded: the effect may or may not have
+    // happened. Same handling as an uncertain result: no markFailed, no
+    // revert, no resend.
+    result = {
+      ok: false,
+      outcomeUncertain: true,
+      error: err instanceof Error ? err.message : "Dispatch threw; external result unknown.",
+    };
+  }
 
   if (result.rateLimited) {
     await deps.recordResult(false, "rate_limited").catch(() => void 0);

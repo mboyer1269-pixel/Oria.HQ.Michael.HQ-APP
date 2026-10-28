@@ -149,7 +149,14 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
       signal: controller.signal,
     });
     if (!response.ok) {
-      return { ok: false, actionRef, error: `Webhook returned ${response.status}.` };
+      // 5xx: n8n (or a proxy) may have run the workflow before failing.
+      // Not a proven failure -> uncertain. 4xx is a definite rejection.
+      return {
+        ok: false,
+        actionRef,
+        error: `Webhook returned ${response.status}.`,
+        ...(response.status >= 500 ? { outcomeUncertain: true } : {}),
+      };
     }
     const output = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     logger.info("mcp.n8n_webhook_trigger.success", {
