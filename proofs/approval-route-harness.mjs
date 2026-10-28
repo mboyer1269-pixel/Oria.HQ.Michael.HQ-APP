@@ -27,7 +27,19 @@ const jiti = createJiti(import.meta.url, {
 });
 
 const createRoute = await jiti.import(path.join(projectRoot, "src/app/api/agents/[agentId]/execution-intents/route.ts"));
-const approveRoute = await jiti.import(path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"));
+// The production route (route.ts) binds defaultDeps privately. The harness
+// builds the SAME handler through the public factory createApproveHandler with
+// the same real deps (approval-decision-test-support.mjs), plus:
+//  - an in-memory G1b decision store injected as dispatchGovernedTool's
+//    consumeDecision (every approve carries a valid, single-use decision);
+//  - the tamper hook via transitionAgentExecutionIntent(..., { beforeLocalTransition })
+//    instead of the deprecated __setBeforeLocalTransitionHookForTests.
+const support = await import(path.join(projectRoot, "proofs/approval-decision-test-support.mjs"));
+export const decisions = support.createDecisionStore();
+let beforeLocalTransition = null;
+const approveRoute = {
+  POST: await support.buildApproveHandler(jiti, projectRoot, { store: decisions, getBeforeLocalTransition: () => beforeLocalTransition }),
+};
 const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 export const repo = await jiti.import("@/server/agents/execution-intent-repository");
 export const { hashExecutionIntentPayload } = await jiti.import("@/server/agents/execution-intent-payload-hash");
@@ -70,16 +82,24 @@ export async function createIntent(tag) {
   return body.intentId;
 }
 
+const decisionIds = new Map();
+/** The intent's single live decision (issued once, reused by concurrent approvals). */
+export function decisionFor(intentId, payloadHash) {
+  if (!decisionIds.has(intentId)) decisionIds.set(intentId, decisions.issue(WS, intentId, payloadHash));
+  return decisionIds.get(intentId);
+}
 export const getIntent = (id) => repo.getAgentExecutionIntent(WS, id);
 
 export async function approve(id, hash) {
   const stored = await getIntent(id);
   const expectedPayloadHash = hash ?? hashExecutionIntentPayload(stored.payload);
+  // One live decision per intent, bound to the stored payload (0033 semantics).
+  const decisionId = decisionFor(id, hashExecutionIntentPayload(stored.payload));
   const res = await approveRoute.POST(
     new Request(`http://localhost/api/agents/execution-intents/${id}/approve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ expectedPayloadHash }),
+      body: JSON.stringify({ expectedPayloadHash, decisionId }),
     }),
     { params: Promise.resolve({ intentId: id }) },
   );
@@ -102,14 +122,14 @@ export function installN8n(respond) {
 
 /** Rewrite the stored payload right AFTER the pending->executing claim lands. */
 export function tamperAfterClaim(id) {
-  repo.__setBeforeLocalTransitionHookForTests((ws, intentId, patch) => {
+  beforeLocalTransition = (ws, intentId, patch) => {
     if (intentId !== id || patch.toStatus !== "executing") return;
     queueMicrotask(() =>
       repo.__mutateAgentExecutionIntentPayloadForTests(ws, intentId, (p) => ({ ...p, client: "Tampered Inc" })),
     );
-  });
+  };
 }
-export const clearHook = () => repo.__setBeforeLocalTransitionHookForTests(null);
+export const clearHook = () => { beforeLocalTransition = null; };
 
 export const ledgerFor = (id) =>
   listLocalActionLedgerEntries().filter((e) => e.metadata?.intentId === id);
