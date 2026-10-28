@@ -147,6 +147,11 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
   },
   {
     reason:
+      "Réservation CAS Atelier en incubation, sans appelant applicatif ni script hors des trois modules atelier-development et de leurs tests. Cette persistance ne lance aucun agent et n'accorde aucune autorité d'exécution. Au premier branchement, retirer cette exclusion et déclarer la capacité réelle avec ses gardes d'identité, d'espace et d'autorisation ; un test des imports littéraux protège cette absence de branchement.",
+    paths: ["src/server/missions/atelier-development-store.ts"],
+  },
+  {
+    reason:
       "Écriture d'évidence de connexion déclenchée uniquement par un script opérateur hors application (runner-connection-evidence-record.mjs) ; aucune route ni page applicative n'importe recordRunnerConnectionEvidence. La même garde d'environnement opérateur/non-cloud que la sonde SSH (resolveRunnerProbeEnvironment) s'applique avant toute écriture. La lecture correspondante ne mute rien et reste consultée seulement par confirm_launch quand le transport persisté est explicitement choisi.",
     paths: ["src/server/agents/models/runner-connection-evidence.ts"],
   },
