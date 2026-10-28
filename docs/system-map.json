@@ -1,9 +1,9 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 678,
-    "live": 627,
-    "testOnly": 7,
+    "sourceFiles": 682,
+    "live": 628,
+    "testOnly": 10,
     "incubation": 44
   },
   "incubationByArea": {
@@ -169,6 +169,7 @@
     "src/features/agents/skill-mapping.ts",
     "src/features/agents/types.ts",
     "src/features/atelier/components/atelier-local-missions.tsx",
+    "src/features/atelier/components/atelier-mission-list.tsx",
     "src/features/cockpit/actions/cockpit-layout.ts",
     "src/features/cockpit/components/activity-rail.tsx",
     "src/features/cockpit/components/cockpit-interactive.tsx",
@@ -656,6 +657,9 @@
   "testOnly": [
     "src/server/ai/claude-json-launcher.ts",
     "src/server/ledger/hash-chain-test-fixtures.ts",
+    "src/server/missions/atelier-development-contract.ts",
+    "src/server/missions/atelier-development-service.ts",
+    "src/server/missions/atelier-development-store.ts",
     "src/server/missions/openhands-lifecycle.ts",
     "src/server/missions/openhands-pending-launches.ts",
     "src/server/outbound/outbound-executor-dry-run.ts",
