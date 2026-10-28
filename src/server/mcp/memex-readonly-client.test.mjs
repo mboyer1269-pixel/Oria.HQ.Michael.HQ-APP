@@ -49,7 +49,7 @@ test("Memex Read-Only Client v1", async (t) => {
 
   const fakeTransport = (overrides = {}) => ({
     listTools: async () => [...MEMEX_V1_READ_ALLOWLIST],
-    callTool: async (_name, _args) => "Brief SOP du matin — docs/MASTER_BRIEF.md",
+    callTool: async () => "Brief SOP du matin — docs/MASTER_BRIEF.md",
     close: async () => {},
     ...overrides,
   });

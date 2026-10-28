@@ -43,6 +43,7 @@ export type MemexToolName =
   | "agentmemory_write_vault_file"
   | "agentmemory_search_vault";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ALL_MEMEX_TOOLS = Object.keys({
   agentmemory_graph_query: true,
   agentmemory_context_pack: true,
@@ -354,6 +355,7 @@ export function mergeMemexContext(
  */
 export function applyMemexRoutingHint(
   decision: OriaModelDecision,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _hint: MemexRoutingHint | null,
 ): OriaModelDecision {
   return { modelId: decision.modelId, decidedBy: "oria_model_policy" };

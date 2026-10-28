@@ -83,6 +83,7 @@ test("no profile can satisfy a provider other than the one it declares", () => {
 test("unknown or missing fields are refused under either variant", () => {
   assert.throws(() => providerProfileSchema.parse({ ...claudeProfile, extra: "nope" }));
   assert.throws(() => providerProfileSchema.parse({ ...codexProfile, extra: "nope" }));
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { authentication: _drop, ...incomplete } = claudeProfile;
   assert.throws(() => providerProfileSchema.parse(incomplete));
 });
