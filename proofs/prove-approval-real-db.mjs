@@ -178,12 +178,12 @@ async function createIntent(tag) {
 }
 const row = (id) =>
   JSON.parse(sql(`select row_to_json(t) from (select status, payload from public.agent_execution_intents where intent_id='${q(id)}') t`));
-async function approve(id, expectedPayloadHash) {
+async function approve(id, expectedPayloadHash, decisionId) {
   const res = await approveRoute.POST(
     new Request(`http://localhost/api/agents/execution-intents/${id}/approve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ expectedPayloadHash, approvedBy: "forged", workspaceId: "forged" }),
+      body: JSON.stringify({ expectedPayloadHash, decisionId, approvedBy: "forged", workspaceId: "forged" }),
     }),
     { params: Promise.resolve({ intentId: id }) },
   );
@@ -196,11 +196,23 @@ const step = async (name, fn) => {
   console.log(`PROVEN (real DB): ${name}`);
 };
 
+const USER = "00000000-0000-4000-8000-0000000000b1";
+// Seed the decision owner in auth.users (FK from agent_review_approval_events.user_id).
+sql(`insert into auth.users(id) values ('${USER}') on conflict (id) do nothing`);
+// G1b: proofs 1-3 approve with a valid human decision, seeded by direct SQL
+// (bound to workspace + intent + reviewed payload hash) and consumed for real
+// by consume_approval_decision at dispatch.
+const decisionFor = (intentId, payloadHash) =>
+  insertApprovedDecision(sql, { workspaceId: "michael-hq", intentId, payloadHash, userId: USER, ttlMs: 3_600_000 });
+const decisionRow = (decisionId) =>
+  sql(`select status || '|' || (consumed_at is not null) from public.agent_review_approval_events where id='${q(decisionId)}'`);
+
 await step("1. concurrent double approve -> one 200, one 409, one dispatch, one ledger attempt", async () => {
   const id = await createIntent("double");
   const h = hashOf(row(id).payload);
+  const d = decisionFor(id, h);
   dispatches = 0;
-  const [a, b] = await Promise.all([approve(id, h), approve(id, h)]);
+  const [a, b] = await Promise.all([approve(id, h, d), approve(id, h, d)]);
   assert.deepEqual([a.status, b.status].sort(), [200, 409], JSON.stringify([a.body, b.body]));
   assert.equal(dispatches, 1);
   const attempts = sql(
@@ -208,44 +220,50 @@ await step("1. concurrent double approve -> one 200, one 409, one dispatch, one 
   );
   assert.equal(attempts, "1");
   assert.equal(row(id).status, "executed");
+  assert.equal(decisionRow(d), "consumed|true", "the winning approval consumed the decision exactly once");
 });
 
 await step("2a. payload rewritten in DB before approve, old hash -> 409 changed", async () => {
   const id = await createIntent("rewrite-before");
   const h = hashOf(row(id).payload);
+  const d = decisionFor(id, h);
   sql(`update public.agent_execution_intents set payload = jsonb_set(payload,'{data,amount}','999999') where intent_id='${q(id)}'`);
   dispatches = 0;
-  const r = await approve(id, h);
+  const r = await approve(id, h, d);
   assert.equal(r.status, 409, JSON.stringify(r.body));
   assert.equal(r.body.reason, "changed");
   assert.equal(dispatches, 0);
   assert.equal(row(id).status, "pending");
+  assert.equal(decisionRow(d), "approved|false", "a refused approval must not consume the decision");
 });
 
 await step("2b. payload rewritten between read and claim -> jsonb-guarded claim 0 rows -> 409 changed", async () => {
   const id = await createIntent("rewrite-race");
   const h = hashOf(row(id).payload);
+  const d = decisionFor(id, h);
   beforeClaim = async () =>
     sql(`update public.agent_execution_intents set payload = jsonb_set(payload,'{data,amount}','1') where intent_id='${q(id)}'`);
   dispatches = 0;
-  const r = await approve(id, h);
+  const r = await approve(id, h, d);
   assert.equal(beforeClaim, null, "the claim PATCH never reached the gateway hook");
   assert.equal(r.status, 409, JSON.stringify(r.body));
   assert.equal(r.body.reason, "changed");
   assert.equal(dispatches, 0);
   assert.equal(row(id).status, "pending");
+  assert.equal(decisionRow(d), "approved|false", "a refused approval must not consume the decision");
 });
 
 await step("3. ledger insert refused by Postgres -> 500, conditional revert to pending, no dispatch", async () => {
   const id = await createIntent("ledger-down");
   const h = hashOf(row(id).payload);
+  const d = decisionFor(id, h);
   const ledgerRows = () =>
     sql(`select count(*) from public.action_ledger where metadata->>'intentId'='${q(id)}'`);
   const before = ledgerRows();
   sql("revoke insert on public.action_ledger from qualification_service");
   dispatches = 0;
   try {
-    const r = await approve(id, h);
+    const r = await approve(id, h, d);
     assert.equal(r.status, 500, JSON.stringify(r.body));
     assert.equal(r.body.reason, "ledger_unavailable");
   } finally {
@@ -258,6 +276,7 @@ await step("3. ledger insert refused by Postgres -> 500, conditional revert to p
     sql(`select count(*) from public.action_ledger where event_type='action' and metadata->>'intentId'='${q(id)}'`),
     "0",
   );
+  assert.equal(decisionRow(d), "approved|false", "a refused approval must not consume the decision");
 });
 
 await step("4. markExecuted with a stale lease token -> UPDATE matches 0 rows (CAS on action_ref), row unchanged", async () => {
@@ -302,9 +321,6 @@ function insertApprovedDecision(pg, { workspaceId, intentId, payloadHash, userId
 // 0033 requires payload_hash = 64-char lowercase hex.
 const hex64 = (tag) => createHash("sha256").update(String(tag)).digest("hex");
 let seq = 0;
-const USER = "00000000-0000-4000-8000-0000000000b1";
-// Seed the decision owner in auth.users (FK from agent_review_approval_events.user_id).
-sql(`insert into auth.users(id) values ('${USER}') on conflict (id) do nothing`);
 const seedDecision = (over = {}) => {
   const d = { workspaceId: "ws-g1b", intentId: `intent-g1b-${++seq}`, payloadHash: hex64(`g1b-${seq}`), userId: USER, ttlMs: 3_600_000, ...over };
   return { ...d, id: insertApprovedDecision(sql, d) };
