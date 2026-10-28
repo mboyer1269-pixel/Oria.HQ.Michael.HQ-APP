@@ -31,7 +31,7 @@
  *  Contract from Atelier (0033 l.46-56), kept in CONSUME_CONTRACT.
  */
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -140,12 +140,18 @@ globalThis.__ownerApiSessionTestResult = null;
 // n8n spy: pass everything else (PostgREST) through untouched.
 const realFetch = globalThis.fetch;
 let dispatches = 0;
+const rpcConsumes = [];
 globalThis.fetch = async (url, init) => {
   if (String(url).startsWith(process.env.N8N_WEBHOOK_URL)) {
     dispatches += 1;
     return new Response(JSON.stringify({ ok: true, status: "ok" }), { status: 200 });
   }
-  return realFetch(url, init);
+  const res = await realFetch(url, init);
+  // Record what the real 0033 RPC returned to the dispatch (proof 5).
+  if (String(url).startsWith(REST) && String(url).includes("/rpc/consume_approval_decision")) {
+    rpcConsumes.push({ status: res.status, body: await res.clone().text() });
+  }
+  return res;
 };
 
 const corridor = listExecutionCorridors(process.env).find(
@@ -329,6 +335,37 @@ const consume = (d, over = {}) => {
   const a = { ...d, ...over };
   return Number(sql(CONSUME_CONTRACT.count(a.workspaceId, a.id, a.intentId, a.payloadHash)));
 };
+
+// Kills mutant M3 (dispatch treating a zero-row consume as an approval) against
+// the REAL 0033 RPC, through the real approve route + dispatch. Independent of
+// 0034/0035.
+await step("5. approve with (a) an already-consumed decision and (b) a nonexistent decision -> RPC returns 0 rows, no dispatch, intent not approved", async () => {
+  const cases = [
+    ["(a) already consumed", (id, h) => {
+      const d = decisionFor(id, h);
+      assert.equal(Number(sql(CONSUME_CONTRACT.count("michael-hq", d, id, h))), 1, "setup: first consumption must win");
+      return d;
+    }],
+    ["(b) nonexistent", () => randomUUID()],
+  ];
+  for (const [label, makeDecision] of cases) {
+    const id = await createIntent(`m3-${label.slice(1, 2)}`);
+    const h = hashOf(row(id).payload);
+    const decisionId = makeDecision(id, h);
+    const consumedBefore = sql(`select count(*) from public.agent_review_approval_events where id='${q(decisionId)}' and status='consumed'`);
+    rpcConsumes.length = 0;
+    dispatches = 0;
+    const r = await approve(id, h, decisionId);
+    assert.notEqual(r.status, 200, `${label}: approved: ${JSON.stringify(r.body)}`);
+    assert.equal(rpcConsumes.length, 1, `${label}: dispatch must call consume_approval_decision exactly once (${r.status} ${JSON.stringify(r.body)}, rpc=${JSON.stringify(rpcConsumes)})`);
+    assert.deepEqual(JSON.parse(rpcConsumes[0].body), [], `${label}: RPC must return zero rows, got ${rpcConsumes[0].body}`);
+    assert.equal(dispatches, 0, `${label}: the tool ran`);
+    assert.notEqual(row(id).status, "executed", `${label}: intent executed`);
+    assert.equal(r.body.verdict, "REQUIRE_APPROVAL", `${label}: ${JSON.stringify(r.body)}`);
+    assert.equal(sql(`select count(*) from public.agent_review_approval_events where id='${q(decisionId)}' and status='consumed'`),
+      consumedBefore, `${label}: decision state changed`);
+  }
+});
 
 await step("6. consume_approval_decision: service_role only; refuses expired / boundary / mismatched / replayed", async () => {
   assert.equal(sql(`select to_regprocedure('${CONSUME_CONTRACT.regproc}') is not null`), "t",
