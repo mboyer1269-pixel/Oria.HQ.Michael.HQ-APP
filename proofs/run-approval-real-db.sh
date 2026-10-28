@@ -44,6 +44,9 @@ if [ -n "${CI_PG_URL:-}" ] && [ -n "${POSTGREST_DIRECT_URL:-}" ]; then
     echo "notify pgrst, 'reload schema';" | $PSQL >/dev/null 2>&1 || true
     i=$((i+1)); [ "$i" -lt 120 ] || { echo "NON EXECUTE: PostgREST service not ready" >&2; exit 127; }; sleep 0.5
   done
+  # Diagnostics only (no data written): what PostgREST exposes after the reload.
+  echo "PostgREST paths: $(curl -s -m 5 "$POSTGREST_DIRECT_URL/" | grep -o '"/[a-z_]*"' | tr '\n' ' ')"
+  echo "PostgREST probe insert {}: $(curl -s -m 5 -X POST -H 'Content-Type: application/json' -d '{}' "$POSTGREST_DIRECT_URL/agent_execution_intents")"
   HQ_ROOT="$ROOT" PSQL_CMD="$PSQL" node "$ROOT/proofs/prove-approval-real-db.mjs"
   exit $?
 fi
