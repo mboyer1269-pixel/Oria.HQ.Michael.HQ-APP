@@ -113,3 +113,4 @@ export const clearHook = () => repo.__setBeforeLocalTransitionHookForTests(null)
 
 export const ledgerFor = (id) =>
   listLocalActionLedgerEntries().filter((e) => e.metadata?.intentId === id);
+export const { logger } = await jiti.import("@/lib/logger");
