@@ -5,7 +5,7 @@
 // identical responses: same status (404, never 403 workspace_forbidden), same
 // headers except x-request-id, byte-identical body. Refusal bodies carry no
 // requestId; it travels in the x-request-id header. ASSUMED: workspace switch through
-// body.workspaceId, identity header x-hq-actor-kind. SIMULATED: local fallback.
+// body.workspaceId; human identity from a verified session (AUTH_SEAM), never a header. SIMULATED: local fallback.
 import assert from "node:assert/strict";
 import test from "node:test";
 import path from "node:path";
@@ -18,6 +18,13 @@ const { createJiti } = await import("jiti");
 const jiti = createJiti(import.meta.url, {
   alias: { "@": path.join(projectRoot, "src"), "server-only": path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs") },
 });
+const AUTH_SEAM = { module: "@/server/auth/session-tokens", mint: "mintSessionToken" }; // ({ kind, ownerId, workspaceId }) -> bearer token
+async function authHeaders(kind) {
+  if (!kind) return {}; // no session
+  const auth = await jiti.import(AUTH_SEAM.module);
+  if (typeof auth[AUTH_SEAM.mint] !== "function") throw new Error(`missing auth seam ${AUTH_SEAM.module}.${AUTH_SEAM.mint}`);
+  return { Authorization: `Bearer ${await auth[AUTH_SEAM.mint]({ kind, ownerId: "owner-1", workspaceId: h.WS })}` };
+}
 const ROUTE = path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/decision/route.ts");
 
 async function raw(id, body) {
@@ -25,7 +32,7 @@ async function raw(id, body) {
   const route = await jiti.import(ROUTE);
   const res = await route.POST(
     new Request(`http://localhost/api/agents/execution-intents/${id}/decision`, {
-      method: "POST", headers: { "Content-Type": "application/json", "x-hq-actor-kind": "human" },
+      method: "POST", headers: { "Content-Type": "application/json", ...(await authHeaders("human")) },
       body: JSON.stringify(body),
     }),
     { params: Promise.resolve({ intentId: id }) },

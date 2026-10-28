@@ -11,7 +11,8 @@
 //   - second decision on the same intent -> 409 live_decision_exists;
 //   - recording the decision (approve click) does NOT consume it: the decision
 //     stays unconsumed; consumption happens server-side at execution.
-// Identity is passed through the ASSUMED header x-hq-actor-kind; the decision
+// Identity comes from a verified session minted through the ASSUMED auth seam
+// (AUTH_SEAM) — never from a header; the decision
 // store is read through the ASSUMED seam approval-decision-repository
 // .getApprovalDecisionForIntent(ws, intentId). SIMULATED: local fallback repo.
 import assert from "node:assert/strict";
@@ -26,6 +27,13 @@ const { createJiti } = await import("jiti");
 const jiti = createJiti(import.meta.url, {
   alias: { "@": path.join(projectRoot, "src"), "server-only": path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs") },
 });
+const AUTH_SEAM = { module: "@/server/auth/session-tokens", mint: "mintSessionToken" }; // ({ kind, ownerId, workspaceId }) -> bearer token
+async function authHeaders(kind) {
+  if (!kind) return {}; // no session
+  const auth = await jiti.import(AUTH_SEAM.module);
+  if (typeof auth[AUTH_SEAM.mint] !== "function") throw new Error(`missing auth seam ${AUTH_SEAM.module}.${AUTH_SEAM.mint}`);
+  return { Authorization: `Bearer ${await auth[AUTH_SEAM.mint]({ kind, ownerId: "owner-1", workspaceId: h.WS })}` };
+}
 const ROUTE = path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/decision/route.ts");
 const loadRoute = async () => { await access(ROUTE); return jiti.import(ROUTE); };
 
@@ -35,7 +43,7 @@ async function decide(id, { actor = "human", workspaceId, decision = "approved" 
   const res = await route.POST(
     new Request(`http://localhost/api/agents/execution-intents/${id}/decision`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(actor ? { "x-hq-actor-kind": actor } : {}) },
+      headers: { "Content-Type": "application/json", ...(await authHeaders(actor)) },
       body: JSON.stringify({ decision, expectedPayloadHash: stored ? h.hashExecutionIntentPayload(stored.payload) : "x",
         ...(workspaceId ? { workspaceId } : {}) }),
     }),
