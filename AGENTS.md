@@ -1,5 +1,52 @@
 # AGENTS.md
 
+## 00 Ancrage (lire en premier)
+
+État réel et preuves : voir le tableau en tête du [README](README.md). Règles : [.agents/rules/core.md](.agents/rules/core.md), citées par id ; ce fichier ne les recopie pas.
+
+### Direction et non-objectifs
+
+- Cap v1 : « lancer une mission depuis mon téléphone et recevoir un livrable contrôlé » (mission room, inbox de décisions, mémoire projet corrigeable).
+- Hors v1, ne pas commencer : facturation SaaS, marketplace publique, simulation FONDRIA.
+
+### Règles de sécurité (par référence, vérifiées sur main `8aec6ea`)
+
+- `R-NO-AGENT-ESCALATION` — `core.md:33` (non prouvé : seulement repéré par le scan textuel heuristique `src/scripts/ci/rules-scan.mjs` ; aucune application à l'exécution ni test de comportement).
+- `R-NO-MERGE` — `core.md:51` (action `merge` refusée par `src/server/runtime/execution-guard.ts` sans décision approuvée).
+- `R-NO-FORCE-PUSH` — `core.md:52` (non prouvé : seulement repéré par le scan textuel heuristique `src/scripts/ci/rules-scan.mjs` ; aucune application à l'exécution ni test de comportement).
+- `R-LEDGER-APPEND-ONLY` — `core.md:83` (audit hash-chain en CI sur des chaînes de test uniquement ; non prouvé en production).
+- Zones : `R-ZONE-GREEN` `core.md:37`, `R-ZONE-YELLOW` `core.md:38`, `R-ZONE-RED` `core.md:39`.
+- Aussi : `R-NO-PAID-API` `core.md:31`, `R-NO-SECRETS` `core.md:45`, `R-NO-PROD-ACCESS` `core.md:46`, `R-NO-DEPLOY` `core.md:47`, `R-PROVEN-VS-ASSUMED` `core.md:66`.
+
+### Zones interdites sans le oui écrit de Michael
+
+Merge, déploiement, migration distante, dépense ou API payante, suppression, secrets, contact externe, force-push ou réécriture d'historique.
+
+### Façon de travailler
+
+- Postgres est la seule autorité d'état.
+- Rôles séparés : implémenteur, propriétaire des tests, vérificateur. Personne ne valide seul sa propre livraison.
+- Rouge avant le fix : le test qui prouve le défaut échoue en CI avant que le correctif n'arrive.
+- Un commit à la fois ; push normal seulement, jamais `--force` ni `--force-with-lease`.
+- Aucun merge sans le oui écrit de Michael.
+- Aucune API payante ; aucun secret lu, affiché ou commité.
+- Ne jamais présenter une hypothèse comme un fait ; une CI verte n'est pas une preuve de production.
+
+### Commandes exactes
+
+```sh
+npm ci
+npm run typecheck && npm run lint && npm test && npm run build && npm run smoke:joris
+npm run map:check
+```
+
+### Définition de « terminé »
+
+1. Les commandes ci-dessus passent localement.
+2. La CI de la PR est verte, avec le lien du run cité (`R-GREEN-NEEDS-RUN-LINK`).
+3. Le handoff donne le SHA, la branche, ce qui est prouvé et ce qui ne l'est pas (`R-HANDOFF`).
+4. La PR attend le oui écrit de Michael ; aucun agent ne la fusionne.
+
 ## 01 Purpose
 
 Ce fichier est le guide opérationnel canonique pour tout agent (Claude Code, Cursor, Codex, autres) qui travaille dans ce dépôt. Oria est le poste de commandement de Michael pour transformer des idées en résultats avec une équipe d'agents IA. Michael dirige les intentions et les décisions; Oria prend en charge l'organisation et l'exécution autorisée.
