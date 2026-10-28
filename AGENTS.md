@@ -11,10 +11,10 @@
 
 ### Règles de sécurité (par référence, vérifiées sur main `8aec6ea`)
 
-- `R-NO-AGENT-ESCALATION` — `core.md:33` (aucun test dédié à ce jour).
+- `R-NO-AGENT-ESCALATION` — `core.md:33` (non prouvé : seulement repéré par le scan textuel heuristique `src/scripts/ci/rules-scan.mjs` ; aucune application à l'exécution ni test de comportement).
 - `R-NO-MERGE` — `core.md:51` (action `merge` refusée par `src/server/runtime/execution-guard.ts` sans décision approuvée).
-- `R-NO-FORCE-PUSH` — `core.md:52` (règle de rôle, non imposée par le code).
-- `R-LEDGER-APPEND-ONLY` — `core.md:83` (audit hash-chain en CI).
+- `R-NO-FORCE-PUSH` — `core.md:52` (non prouvé : seulement repéré par le scan textuel heuristique `src/scripts/ci/rules-scan.mjs` ; aucune application à l'exécution ni test de comportement).
+- `R-LEDGER-APPEND-ONLY` — `core.md:83` (audit hash-chain en CI sur des chaînes de test uniquement ; non prouvé en production).
 - Zones : `R-ZONE-GREEN` `core.md:37`, `R-ZONE-YELLOW` `core.md:38`, `R-ZONE-RED` `core.md:39`.
 - Aussi : `R-NO-PAID-API` `core.md:31`, `R-NO-SECRETS` `core.md:45`, `R-NO-PROD-ACCESS` `core.md:46`, `R-NO-DEPLOY` `core.md:47`, `R-PROVEN-VS-ASSUMED` `core.md:66`.
 

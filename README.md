@@ -13,30 +13,31 @@ Run CI de référence : [https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-
 
 | Zone | État | Preuve | Code | Vérification |
 | --- | --- | --- | --- | --- |
-| Garde d'exécution G1 (ids R- de core.md) | ✅ | [`governed-refusal.test.mjs`](src/server/runtime/governed-refusal.test.mjs), [`execution-guard.test.mjs`](src/server/runtime/execution-guard.test.mjs), [run](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/actions/runs/40703151446) | `src/server/runtime/execution-guard.ts:615` | dernière vérification : `8aec6ea` 2026-10-28 |
+| Garde d'exécution G1 (ids R- de core.md) | ✅ | [`governed-refusal.test.mjs`](src/server/runtime/governed-refusal.test.mjs), [`execution-guard.test.mjs`](src/server/runtime/execution-guard.test.mjs), [run](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/actions/runs/40703151446) | `src/server/runtime/execution-guard.ts:615-624` (table des règles), `guardGovernedAction` l.665-691 | dernière vérification : `8aec6ea` 2026-10-28 |
 | Dispatch gouverné des outils (3 outils) | ✅ | [`governed-tool-dispatch.test.mjs`](src/server/runtime/governed-tool-dispatch.test.mjs), [run](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/actions/runs/40703151446) | `src/server/runtime/governed-tool-dispatch.ts` | dernière vérification : `8aec6ea` 2026-10-28 |
 | Licences d'agents / niveau d'autonomie | ✅ | [`autonomy-tier.test.mjs`](src/server/agents/autonomy-tier.test.mjs), [`execution-guard-autonomy-matrix.test.mjs`](src/server/runtime/execution-guard-autonomy-matrix.test.mjs), [run](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/actions/runs/40703151446) | `src/server/agents/agent-execution-license.ts`, `autonomy-tier.ts` | dernière vérification : `8aec6ea` 2026-10-28 |
 | Approbation liée au hash du payload (G2 partiel, #441) | ✅ | [`execution-intent-approval-binding.test.mjs`](src/server/agents/execution-intent-approval-binding.test.mjs), [run](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/actions/runs/40703151446) | `src/server/agents/execution-intent-payload-hash.ts` | dernière vérification : `8aec6ea` 2026-10-28 |
-| Ledger hash-chain, append-only | ✅ | [`hash-chain-audit.test.mjs`](src/server/ledger/hash-chain-audit.test.mjs), `npm run ledger:audit`, [run](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/actions/runs/40703151446) | `src/server/ledger/` | dernière vérification : `8aec6ea` 2026-10-28 |
+| Ledger hash-chain, append-only (chaînes de test uniquement ; non prouvé en production) | ✅ | [`hash-chain-audit.test.mjs`](src/server/ledger/hash-chain-audit.test.mjs), `npm run ledger:audit`, [run](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/actions/runs/40703151446) | `src/server/ledger/` | dernière vérification : `8aec6ea` 2026-10-28 |
 | Mémoire projet scopée au workspace | ✅ | [`memory-file-vault-scope.test.mjs`](src/server/memory/memory-file-vault-scope.test.mjs), [run](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/actions/runs/40703151446) | `src/server/memory/` | dernière vérification : `8aec6ea` 2026-10-28 |
 | Migrations Postgres 0001–0032 | 🟡 | Checks draft / not-live en CI ; application en production non prouvée ici | `db/migrations/` | dernière vérification : `8aec6ea` 2026-10-28 |
 | Webhook n8n réel | 🟡 | Outil enregistré ; `smoke:n8n-slice` hors CI | `src/server/agents/tools/n8n-webhook-trigger.ts` | dernière vérification : `8aec6ea` 2026-10-28 |
-| Mission room | 🟡 | Compile (build CI) ; aucun test e2e | `src/app/hq/missions/page.tsx` | dernière vérification : `8aec6ea` 2026-10-28 |
+| Mission room | 🟡 | Compile (build CI) ; aucun test e2e navigateur ou mobile | `src/app/hq/missions/page.tsx` | dernière vérification : `8aec6ea` 2026-10-28 |
 | Décisions à usage unique, migration 0033, route d'approbation durcie | 🚧 | [PR #457](https://github.com/mboyer1269-pixel/Oria.HQ.Michael.HQ-APP/pull/457) non fusionnée, checks en échec au 2026-10-28 | branche `feat/g1-attempt-id` | dernière vérification : `8aec6ea` 2026-10-28 |
 | Inbox de décisions | ⬜ | Aucun composant dédié trouvé | — | dernière vérification : `8aec6ea` 2026-10-28 |
 | Mémoire corrigeable par Michael | ⬜ | Aucun flux de correction prouvé | — | dernière vérification : `8aec6ea` 2026-10-28 |
-| Mission téléphone → livrable contrôlé | ⬜ | Aucun test de bout en bout | — | dernière vérification : `8aec6ea` 2026-10-28 |
+| Mission téléphone → livrable contrôlé | ⬜ | Aucun test e2e navigateur ou mobile ; `src/scripts/smoke/michael-hq-e2e.mjs` est un e2e Node local, non lancé en CI | — | dernière vérification : `8aec6ea` 2026-10-28 |
 
 ## Ce qui reste (écarts v1)
 
 Promesse v1 : « lancer une mission depuis mon téléphone et recevoir un livrable contrôlé », via mission room, inbox de décisions et mémoire projet corrigeable.
 
-- Aucun test de bout en bout téléphone → mission → livrable.
+- Aucun test e2e navigateur ou mobile téléphone → mission → livrable ; `src/scripts/smoke/michael-hq-e2e.mjs` est un e2e Node local, non lancé en CI.
+- L'audit du ledger hash-chain tourne sur des chaînes de test ; rien n'est prouvé en production.
 - Inbox de décisions absente ; décisions durcies bloquées sur la PR #457.
 - Correction de la mémoire par Michael non construite ou non prouvée.
-- Seuls 5 agents ont une licence (joris, hermes, marketing, inventor, sentinel) ; les autres sont bloqués par défaut.
-- `R-NO-FORCE-PUSH` (`.agents/rules/core.md:52`) n'est pas imposé par le code : c'est une règle de rôle.
-- `R-NO-AGENT-ESCALATION` (`.agents/rules/core.md:33`) n'a pas de test dédié.
+- Le code définit 14 agents (`src/features/agents/seed.ts`) ; seuls 5 ont une licence (joris, hermes, marketing, inventor, sentinel ; `maxSpendPerActionCents: 0`). Les 9 autres n'ont pas de licence et sont bloqués par défaut.
+- Atelier, Sentinelle, Le Mal-Aimé, Architecte Senior et Design sont des assistants Grok Bot qui travaillent sur le dépôt, pas des agents du code. Dans le code, `atelier` est un module, et l'agent `sentinel` est distinct de l'assistant Sentinelle.
+- `R-NO-FORCE-PUSH` (`.agents/rules/core.md:52`) et `R-NO-AGENT-ESCALATION` (`.agents/rules/core.md:33`) ne sont pas prouvés : seul le scan textuel heuristique `src/scripts/ci/rules-scan.mjs` les repère ; aucune application à l'exécution ni test de comportement.
 - Aucune preuve de comportement en production dans ce dépôt.
 
 Reporté après la v1 : facturation SaaS, marketplace publique, simulation FONDRIA.
