@@ -84,6 +84,14 @@ export async function dispatchGovernedTool(
       ok: false,
       error: `Refused by execution guard (${verdict.ruleId}): ${verdict.reason}`,
       output: { ruleId: verdict.ruleId, refused: true },
+      refusal: {
+        verdict: verdict.verdict,
+        ruleId: verdict.ruleId,
+        ruleVersion: verdict.ruleVersion,
+        reason: verdict.reason,
+        action: verdict.action,
+        intentId,
+      },
     };
   }
   return await verdict.result;

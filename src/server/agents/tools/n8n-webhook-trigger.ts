@@ -165,7 +165,14 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
       actionRef,
       reason: err instanceof Error ? err.message : "unknown",
     });
-    return { ok: false, actionRef, error: err instanceof Error ? err.message : "n8n dispatch failed." };
+    // Thrown after the request was handed to fetchImpl — abort/timeout/network:
+    // n8n may have accepted it. A timeout does not prove a failure.
+    return {
+      ok: false,
+      actionRef,
+      outcomeUncertain: true,
+      error: err instanceof Error ? err.message : "n8n dispatch failed.",
+    };
   } finally {
     clearTimeout(timer);
   }

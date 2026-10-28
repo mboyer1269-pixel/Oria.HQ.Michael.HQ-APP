@@ -639,9 +639,19 @@ export type GovernedActionRequest = {
   approvedDecision?: ApprovedDecision | null;
 };
 
+/** Mirrors `rules-version:` in .agents/rules/core.md (asserted by governed-refusal.test.mjs). */
+export const GOVERNED_RULES_VERSION = 1;
+
+type VerdictBase = { ruleId: GovernedRuleId; ruleVersion: number; reason: string; action: string };
+
+/**
+ * Reuses the Sentinelle outcomes. REQUIRE_APPROVAL = no valid approval yet
+ * (approvable). BLOCK = unknown action or an approval that does not match this
+ * action/payload: never turned into something approvable by this guard.
+ */
 export type GovernedActionVerdict<T> =
-  | { allowed: true; ruleId: GovernedRuleId; reason: string; executed: true; result: T }
-  | { allowed: false; ruleId: GovernedRuleId; reason: string; executed: false };
+  | (VerdictBase & { allowed: true; verdict: "ALLOW"; executed: true; result: T })
+  | (VerdictBase & { allowed: false; verdict: "REQUIRE_APPROVAL" | "BLOCK"; executed: false });
 
 function isGovernedAction(action: string): action is GovernedAction {
   return Object.prototype.hasOwnProperty.call(GOVERNED_ACTION_RULES, action);
@@ -656,24 +666,26 @@ export function guardGovernedAction<T>(
   request: GovernedActionRequest,
   execute: () => T,
 ): GovernedActionVerdict<T> {
-  if (!isGovernedAction(request.action)) {
-    return {
-      allowed: false,
-      ruleId: "R-RISK-ROUND-UP",
-      reason: `Unknown action "${request.action}" — refused (fail-closed).`,
-      executed: false,
-    };
+  const action = request.action;
+  const deny = (verdict: "REQUIRE_APPROVAL" | "BLOCK", ruleId: GovernedRuleId, reason: string): GovernedActionVerdict<T> => ({
+    allowed: false, verdict, ruleId, ruleVersion: GOVERNED_RULES_VERSION, reason, action, executed: false,
+  });
+  if (!isGovernedAction(action)) {
+    return deny("BLOCK", "R-RISK-ROUND-UP", `Unknown action "${action}" — refused (fail-closed).`);
   }
-  const ruleId = GOVERNED_ACTION_RULES[request.action];
+  const ruleId = GOVERNED_ACTION_RULES[action];
   const decision = request.approvedDecision;
   if (!decision || decision.status !== "approved") {
-    return { allowed: false, ruleId, reason: `${request.action} requires an approved decision (${ruleId}).`, executed: false };
+    return deny("REQUIRE_APPROVAL", ruleId, `${action} requires an approved decision (${ruleId}).`);
   }
-  if (decision.action !== request.action) {
-    return { allowed: false, ruleId, reason: `Approved decision covers "${decision.action}", not "${request.action}" (${ruleId}).`, executed: false };
+  if (decision.action !== action) {
+    return deny("BLOCK", ruleId, `Approved decision covers "${decision.action}", not "${action}" (${ruleId}).`);
   }
   if (!request.payloadHash || decision.payloadHash !== request.payloadHash) {
-    return { allowed: false, ruleId, reason: `Approved decision payload hash does not match the request (${ruleId}).`, executed: false };
+    return deny("BLOCK", ruleId, `Approved decision payload hash does not match the request (${ruleId}).`);
   }
-  return { allowed: true, ruleId, reason: `Approved decision matches ${request.action} payload (${ruleId}).`, executed: true, result: execute() };
+  return {
+    allowed: true, verdict: "ALLOW", ruleId, ruleVersion: GOVERNED_RULES_VERSION,
+    reason: `Approved decision matches ${action} payload (${ruleId}).`, action, executed: true, result: execute(),
+  };
 }

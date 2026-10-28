@@ -100,6 +100,10 @@ export async function POST(
   // than the session that passed the owner gate. Falls back to ctx.userId only
   // where no session exists (local/dev), which is the honest identity there.
   const actorId = (await getAuthenticatedActorId()) ?? ctx.userId;
+  // Correlates the attempt/result ledger rows and logs of this one request.
+  // Never derived from secrets; client value is length-capped and charset-limited.
+  const clientRequestId = request.headers.get("x-request-id") ?? "";
+  const requestId = /^[A-Za-z0-9._:-]{1,128}$/.test(clientRequestId) ? clientRequestId : crypto.randomUUID();
 
   try {
     const result = await approveAndDispatchExecutionIntent({
@@ -135,6 +139,7 @@ export async function POST(
             toolName: intent.toolName,
             actionType: intent.payload.actionType,
             approvedDigest: payloadHash,
+            requestId,
           },
         }),
       // G1: guardGovernedAction re-reads the G2 approval (the claimed row) and
@@ -150,7 +155,7 @@ export async function POST(
           },
           (payload) => tool.handler(payload, { workspaceId: ctx.workspace.id, agentId: intent.agentId }),
         ),
-      recordResult: (ok, phase) =>
+      recordResult: (ok, phase, details) =>
         recordLedgerEvent(ctx, {
           eventType: "result",
           actionType: intent.skillId,
@@ -164,7 +169,24 @@ export async function POST(
           actorId,
           approverId: actorId,
           effect: { kind: "runtime_result", operation: "execute", target: "n8n_webhook" },
-          metadata: { phase, intentId },
+          // Rule id/version, reason and action of a refusal: no payload, no secrets.
+          metadata: {
+            phase,
+            intentId,
+            requestId,
+            // Key avoids "payload" (ledger sensitive-key filter); value is the hash only.
+            approvedDigest: payloadHash,
+            toolName: intent.toolName,
+            ...(details?.refusal
+              ? {
+                  verdict: details.refusal.verdict,
+                  ruleId: details.refusal.ruleId,
+                  ruleVersion: details.refusal.ruleVersion,
+                  reason: details.refusal.reason,
+                  action: details.refusal.action,
+                }
+              : {}),
+          },
         }),
       markExecuted: (actionRef) =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
@@ -224,6 +246,44 @@ export async function POST(
             }
           : null,
       });
+    }
+
+    if (result.status === "refused") {
+      logger.warn("agent.execution-intent.approve.refused", {
+        intentId,
+        requestId,
+        workspaceId: ctx.workspace.id,
+        verdict: result.refusal.verdict,
+        ruleId: result.refusal.ruleId,
+        ruleVersion: result.refusal.ruleVersion,
+        action: result.refusal.action,
+      });
+      return NextResponse.json(
+        {
+          intentId,
+          requestId,
+          status: "refused",
+          verdict: result.refusal.verdict,
+          ruleId: result.refusal.ruleId,
+          ruleVersion: result.refusal.ruleVersion,
+          reason: result.refusal.reason,
+          action: result.refusal.action,
+        },
+        { status: 403 },
+      );
+    }
+
+    if (result.status === "executing" && "outcome" in result) {
+      logger.error("agent.execution-intent.approve.outcome_uncertain", {
+        intentId,
+        requestId,
+        workspaceId: ctx.workspace.id,
+        alert: true,
+      });
+      return NextResponse.json(
+        { intentId, requestId, status: "executing", outcome: "uncertain", error: result.error },
+        { status: 502 },
+      );
     }
 
     if ("reason" in result) {

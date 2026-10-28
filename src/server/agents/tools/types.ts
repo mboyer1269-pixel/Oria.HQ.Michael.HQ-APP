@@ -33,6 +33,23 @@ export type McpToolResult = {
   output?: Record<string, unknown>;
   error?: string;
   rateLimited?: boolean;
+  /**
+   * The request may have reached the provider (timeout / network error after
+   * send). Not a proven failure: callers must not mark failed nor resend.
+   */
+  outcomeUncertain?: boolean;
+  /** Set only by the governed dispatch when the guard refused. No effect happened. */
+  refusal?: GovernedRefusal;
+};
+
+/** Structured policy refusal (no secrets, no payload content). */
+export type GovernedRefusal = {
+  verdict: "REQUIRE_APPROVAL" | "BLOCK";
+  ruleId: string;
+  ruleVersion: number;
+  reason: string;
+  action: string;
+  intentId: string;
 };
 
 /** A registered MCP-compatible tool. The handler validates its own input. */

@@ -13,7 +13,7 @@
 // here.
 
 import type { SentinelleDecision } from "@/server/runtime/execution-guard";
-import type { McpToolResult } from "@/server/agents/tools";
+import type { GovernedRefusal, McpToolResult } from "@/server/agents/tools/types";
 
 export type ExecutionIntentApprovalDeps = {
   /** Re-evaluate the Sentinelle policy at approval time (defense in depth). */
@@ -25,7 +25,11 @@ export type ExecutionIntentApprovalDeps = {
   /** Invoke the MCP tool (the single n8n chokepoint). */
   dispatch: () => Promise<McpToolResult>;
   /** Ledger entry recorded AFTER the dispatch. */
-  recordResult: (ok: boolean, phase: "success" | "failed" | "blocked" | "rate_limited") => Promise<unknown>;
+  recordResult: (
+    ok: boolean,
+    phase: ExecutionResultPhase,
+    details?: { refusal?: GovernedRefusal },
+  ) => Promise<unknown>;
   /** executing -> executed (carries the dispatch reference). */
   markExecuted: (actionRef?: string) => Promise<unknown>;
   /** executing -> failed (carries a coarse failure code). */
@@ -40,7 +44,17 @@ export type ExecutionIntentApprovalDeps = {
   revertClaim: () => Promise<unknown>;
 };
 
+/**
+ * Three distinct outcome classes after the claim:
+ *  - refused   : policy refusal by the guard; no external effect (GUARD_REFUSED:<ruleId>)
+ *  - failed    : technical failure, provider answered or never reached
+ *  - uncertain : request may have reached the provider; NOT failed, NOT resent
+ */
+export type ExecutionResultPhase = "success" | "failed" | "blocked" | "rate_limited" | "refused" | "uncertain";
+
 export type ExecutionIntentApprovalResult =
+  | { ok: false; status: "refused"; error: string; httpStatus: 403; refusal: GovernedRefusal }
+  | { ok: false; status: "executing"; outcome: "uncertain"; error: string; httpStatus: 502 }
   | { ok: true; status: "executed"; actionRef?: string; output?: Record<string, unknown> }
   | { ok: false; status: "blocked" | "failed" | "pending"; error: string; httpStatus: number }
   | {
@@ -95,6 +109,26 @@ export async function approveAndDispatchExecutionIntent(
       status: "pending",
       error: result.error ?? "n8n dispatch rate limit exceeded.",
       httpStatus: 429,
+    };
+  }
+
+  if (result.refusal) {
+    const refusal = result.refusal;
+    await deps.recordResult(false, "refused", { refusal }).catch(() => void 0);
+    await deps.markFailed(`GUARD_REFUSED:${refusal.ruleId}`);
+    return { ok: false, status: "refused", error: refusal.reason, httpStatus: 403, refusal };
+  }
+
+  if (!result.ok && result.outcomeUncertain) {
+    // Leave the claim in `executing`: no markFailed, no revert, no resend.
+    // Reconciliation/recovery is lot 3.
+    await deps.recordResult(false, "uncertain").catch(() => void 0);
+    return {
+      ok: false,
+      status: "executing",
+      outcome: "uncertain",
+      error: result.error ?? "External result unknown.",
+      httpStatus: 502,
     };
   }
 
