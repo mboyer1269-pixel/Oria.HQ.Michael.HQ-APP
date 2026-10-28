@@ -170,7 +170,11 @@ export async function POST(
           ...(intent.payload.missionId ? { missionId: intent.payload.missionId } : {}),
           actorId,
           approverId: actorId,
-          effect: { kind: "runtime_result", operation: "execute", target: "n8n_webhook" },
+          effect: {
+            kind: "runtime_result",
+            operation: phase === "refused" ? "refuse" : "execute",
+            target: "n8n_webhook",
+          },
           // Rule id/version, reason and action of a refusal: no payload, no secrets.
           metadata: {
             phase,
@@ -289,11 +293,19 @@ export async function POST(
         intentId,
         requestId,
         workspaceId: ctx.workspace.id,
+        outcome: result.outcome,
         alert: true,
       });
       return NextResponse.json(
-        { intentId, requestId, status: "executing", outcome: "uncertain", error: result.error },
-        { status: 502 },
+        {
+          intentId,
+          requestId,
+          status: "executing",
+          outcome: result.outcome,
+          error: result.error,
+          ...("actionRef" in result && result.actionRef ? { actionRef: result.actionRef } : {}),
+        },
+        { status: result.httpStatus },
       );
     }
 
@@ -316,7 +328,13 @@ export async function POST(
         { intentId, workspaceId: ctx.workspace.id, alert: !result.claimReverted },
       );
       return NextResponse.json(
-        { intentId, status: result.status, error: result.error, reason: result.reason },
+        {
+          intentId,
+          status: result.status,
+          error: result.error,
+          reason: result.reason,
+          revert: result.revert,
+        },
         { status: 500 },
       );
     }
@@ -338,9 +356,11 @@ export async function POST(
       reason: err instanceof Error ? err.message : "unknown",
       workspaceId: ctx.workspace.id,
     });
+    // Not a state conflict: transient or of unknown effect. 503, no markFailed,
+    // no resend; a claimed intent stays `executing` for reconciliation.
     return NextResponse.json(
-      { error: "Execution intent approval failed.", intentId },
-      { status: 500 },
+      { error: "Execution intent approval unavailable; state unconfirmed.", intentId },
+      { status: 503 },
     );
   }
 }

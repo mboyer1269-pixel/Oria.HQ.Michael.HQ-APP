@@ -69,6 +69,23 @@ export type ExecutionIntentApprovalResult =
       refusal: GovernedRefusal;
     }
   | { ok: false; status: "executing"; outcome: "uncertain"; error: string; httpStatus: 502 }
+  | {
+      /** Dispatch reported success but the executed transition was not stored. Not retryable. */
+      ok: false;
+      status: "executing";
+      outcome: "dispatched_unconfirmed";
+      actionRef?: string;
+      error: string;
+      httpStatus: 202;
+    }
+  | {
+      /** Dispatch failed but the failed transition was not stored. State unconfirmed. */
+      ok: false;
+      status: "executing";
+      outcome: "failed_unrecorded";
+      error: string;
+      httpStatus: 503;
+    }
   | { ok: true; status: "executed"; actionRef?: string; output?: Record<string, unknown> }
   | { ok: false; status: "blocked" | "failed" | "pending"; error: string; httpStatus: number }
   | {
@@ -87,6 +104,7 @@ export type ExecutionIntentApprovalResult =
       reason: "ledger_unavailable";
       /** false = the conditional revert matched 0 rows; operator alert needed. */
       claimReverted: boolean;
+      revert: "reverted" | "revert_conflict";
     };
 
 export async function approveAndDispatchExecutionIntent(
@@ -127,6 +145,7 @@ export async function approveAndDispatchExecutionIntent(
       httpStatus: 500,
       reason: "ledger_unavailable",
       claimReverted,
+      revert: claimReverted ? "reverted" : "revert_conflict",
     };
   }
 
@@ -205,11 +224,42 @@ export async function approveAndDispatchExecutionIntent(
   });
 
   if (result.ok) {
-    await deps.markExecuted(result.actionRef);
+    try {
+      await deps.markExecuted(result.actionRef);
+    } catch (err) {
+      // The effect already happened: never report a retryable failure.
+      logger.error("agent.execution-intent.approve.mark_executed_failed", {
+        alert: true,
+        actionRef: result.actionRef,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return {
+        ok: false,
+        status: "executing",
+        outcome: "dispatched_unconfirmed",
+        ...(result.actionRef ? { actionRef: result.actionRef } : {}),
+        error: "Dispatched, but the executed state was not recorded. Do not retry; reconcile.",
+        httpStatus: 202,
+      };
+    }
     return { ok: true, status: "executed", actionRef: result.actionRef, output: result.output };
   }
 
-  await deps.markFailed("DISPATCH_FAILED");
+  try {
+    await deps.markFailed("DISPATCH_FAILED");
+  } catch (err) {
+    logger.error("agent.execution-intent.approve.mark_failed_after_dispatch.failed", {
+      alert: true,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      ok: false,
+      status: "executing",
+      outcome: "failed_unrecorded",
+      error: result.error ?? "n8n dispatch failed; failed state not recorded.",
+      httpStatus: 503,
+    };
+  }
   return {
     ok: false,
     status: "failed",
