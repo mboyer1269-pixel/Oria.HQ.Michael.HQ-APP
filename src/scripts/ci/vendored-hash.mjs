@@ -26,18 +26,28 @@ async function files(dir) {
   return out;
 }
 
+// Hash of one vendored pack from [{ rel, buf }] entries (rel = POSIX relative path).
+// Sorted by POSIX rel and CRLF -> LF normalized, so Windows checkouts hash the same.
+export function hashEntries(entries) {
+  const h = createHash("sha256");
+  let subjectLines = 0;
+  const sorted = [...entries].sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
+  for (const { rel, buf: raw } of sorted) {
+    const buf = Buffer.from(raw.toString("latin1").replace(/\r\n/g, "\n"), "latin1");
+    h.update(`${rel}\0`).update(buf).update("\0");
+    subjectLines += governanceSubjectLines(buf.toString("utf8"), rel).length;
+  }
+  return { sha256: h.digest("hex"), governanceSubjectLines: subjectLines };
+}
+
 export async function vendoredState() {
   const state = {};
   for (const dir of VENDORED) {
-    const h = createHash("sha256");
-    let subjectLines = 0;
-    for (const f of (await files(path.join(root, dir))).sort()) {
-      const rel = toPosixRel(root, f);
-      const buf = await readFile(f);
-      h.update(`${rel}\0`).update(buf).update("\0");
-      subjectLines += governanceSubjectLines(buf.toString("utf8"), rel).length;
+    const entries = [];
+    for (const f of await files(path.join(root, dir))) {
+      entries.push({ rel: toPosixRel(root, f), buf: await readFile(f) });
     }
-    state[dir] = { sha256: h.digest("hex"), governanceSubjectLines: subjectLines };
+    state[dir] = hashEntries(entries);
   }
   return state;
 }
