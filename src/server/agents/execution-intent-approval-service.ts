@@ -12,6 +12,7 @@
 // wires real deps and tests inject spies -- no Supabase, ledger, or network
 // here.
 
+import { logger } from "@/lib/logger";
 import type { SentinelleDecision } from "@/server/runtime/execution-guard";
 import type { GovernedRefusal, McpToolResult } from "@/server/agents/tools/types";
 
@@ -70,6 +71,14 @@ export type ExecutionIntentApprovalResult =
   | { ok: false; status: "executing"; outcome: "uncertain"; error: string; httpStatus: 502 }
   | { ok: true; status: "executed"; actionRef?: string; output?: Record<string, unknown> }
   | { ok: false; status: "blocked" | "failed" | "pending"; error: string; httpStatus: number }
+  | {
+      /** Rate-limited revert matched 0 rows (row no longer executing/same payload). */
+      ok: false;
+      status: "executing";
+      error: string;
+      httpStatus: 409;
+      reason: "revert_conflict";
+    }
   | {
       ok: false;
       status: "pending" | "executing";
@@ -137,7 +146,22 @@ export async function approveAndDispatchExecutionIntent(
 
   if (result.rateLimited) {
     await deps.recordResult(false, "rate_limited").catch(() => void 0);
-    await deps.revertToPending().catch(() => void 0);
+    // Conditional revert (executing + same payload only). Zero rows updated is
+    // an error that surfaces: a terminal row must never go back to pending.
+    try {
+      await deps.revertToPending();
+    } catch (err) {
+      logger.error("agent.execution-intent.revert_to_pending.failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return {
+        ok: false,
+        status: "executing",
+        error: "Rate-limited, but the intent could not be safely returned to pending; not re-dispatchable.",
+        httpStatus: 409,
+        reason: "revert_conflict",
+      };
+    }
     return {
       ok: false,
       status: "pending",
@@ -149,7 +173,13 @@ export async function approveAndDispatchExecutionIntent(
   if (result.refusal) {
     const refusal = result.refusal;
     await deps.recordResult(false, "refused", { refusal }).catch(() => void 0);
-    await deps.markFailed(`GUARD_REFUSED:${refusal.ruleId}`);
+    // The refusal (403 + ruleId) stands even if the terminal write fails.
+    await deps.markFailed(`GUARD_REFUSED:${refusal.ruleId}`).catch((err: unknown) => {
+      logger.error("agent.execution-intent.mark_failed_after_refusal.failed", {
+        ruleId: refusal.ruleId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
     return { ok: false, status: "refused", stage: "dispatch", error: refusal.reason, httpStatus: 403, refusal };
   }
 
@@ -166,7 +196,13 @@ export async function approveAndDispatchExecutionIntent(
     };
   }
 
-  await deps.recordResult(result.ok, result.ok ? "success" : "failed").catch(() => void 0);
+  await deps.recordResult(result.ok, result.ok ? "success" : "failed").catch((err: unknown) => {
+    // Outcome unchanged; the missing Ledger result needs an operator alert.
+    logger.error("agent.execution-intent.ledger_result.failed", {
+      phase: result.ok ? "success" : "failed",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
 
   if (result.ok) {
     await deps.markExecuted(result.actionRef);

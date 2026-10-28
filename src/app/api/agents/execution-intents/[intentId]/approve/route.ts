@@ -216,6 +216,8 @@ export async function POST(
       revertToPending: () =>
         transitionAgentExecutionIntent(ctx.workspace.id, intentId, {
           toStatus: "pending",
+          expectedFromStatus: "executing",
+          expectedPayload: intent.payload,
           updatedAt: new Date().toISOString(),
         }),
     });
@@ -295,6 +297,17 @@ export async function POST(
       );
     }
 
+    if ("reason" in result && result.reason === "revert_conflict") {
+      logger.error("agent.execution-intent.approve.revert_conflict", {
+        intentId,
+        workspaceId: ctx.workspace.id,
+        alert: true,
+      });
+      return NextResponse.json(
+        { intentId, status: result.status, error: result.error, reason: result.reason },
+        { status: 409 },
+      );
+    }
     if ("reason" in result) {
       logger.error(
         result.claimReverted
