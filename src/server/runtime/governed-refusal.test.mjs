@@ -143,8 +143,29 @@ test("n8n tool: a thrown fetch or an HTTP 5xx is outcomeUncertain; an HTTP 4xx i
 });
 
 test("route: refusal body is structured and ledger metadata carries rule/version/reason/action/requestId/payloadHash", async () => {
-  const src = await readFile(path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"), "utf8");
-  for (const k of ["ruleId", "ruleVersion", "requestId", "payloadHash", "verdict"]) assert.match(src, new RegExp(k), k);
-  assert.match(src, /result\.status === "refused"/);
+  // Behavioural: real approve route handler (harness loaded last, on its own jiti instance).
+  const h = await import("../../../proofs/approval-route-harness.mjs");
+  const id = await h.createIntent("governed-refusal-route");
+  const n8n = h.installN8n();
+  h.tamperAfterClaim(id);
+  let r;
+  try { r = await h.approve(id); } finally { h.clearHook(); n8n.restore(); }
+  assert.equal(r.status, 403, JSON.stringify(r.body));
+  assert.equal(r.body.status, "refused");
+  assert.ok(r.body.ruleVersion !== undefined && r.body.ruleVersion !== null && r.body.ruleVersion !== "", "body.ruleVersion");
+  assert.equal(r.body.ruleVersion, guard.GOVERNED_RULES_VERSION);
+  for (const k of ["verdict", "ruleId", "reason", "action"]) {
+    assert.equal(typeof r.body[k], "string", `body.${k}`);
+    assert.ok(r.body[k].length > 0, `body.${k} empty`);
+  }
+  assert.equal(n8n.calls.length, 0);
+  const refused = h.ledgerFor(id).filter((e) => e.metadata.phase === "refused");
+  assert.equal(refused.length, 1);
+  const m = refused[0].metadata;
+  for (const k of ["verdict", "ruleId", "ruleVersion", "reason", "action"]) assert.equal(m[k], r.body[k], `ledger.${k}`);
+  assert.equal(typeof m.requestId, "string");
+  assert.ok(m.requestId.length > 0);
+  assert.match(m.approvedDigest, /^[0-9a-f]{64}$/, "payload hash recorded as approvedDigest");
+  assert.equal((await h.getIntent(id)).failureCode, `GUARD_REFUSED:${r.body.ruleId}`);
 });
 void repo;

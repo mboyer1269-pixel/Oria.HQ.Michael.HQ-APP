@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// (h2) GAP TRIPWIRE — red on purpose at 445a0dd (run by `npm run test:gaps`).
+// (h2) Was a gap tripwire, red at 445a0dd; green since 743817d (conditional
+// revert + revert_conflict). Now a regular regression test.
 // When the n8n rate limit fires and the intent changed state concurrently, the
 // revert to pending fails, but the failure is swallowed (service:140
 // `.catch(() => void 0)`) and the route still answers 429 status "pending"
@@ -31,5 +32,7 @@ test("(h2) rate-limited revert fails closed when the state changed: no 429 'pend
     assert.notEqual(stored, "pending");
     assert.ok(!(r.status === 429 && r.body.status === "pending"),
       `route claims retryable pending (429) while the row is ${stored}: ${JSON.stringify(r.body)}`);
+    assert.equal(r.status, 409, JSON.stringify(r.body));
+    assert.equal(r.body.reason, "revert_conflict");
   } finally { clearHook(); n8n.restore(); rateLimit.__resetRateLimitersForTests(); }
 });
