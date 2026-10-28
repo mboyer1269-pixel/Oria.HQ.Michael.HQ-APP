@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // GAP (npm run test:gaps) — Room decision: N8N_WEBHOOK_URL is read ONCE, in the
 // approve route's defaultDeps (route.ts), and captured at construction. So:
-//  (a) static scan: no file under src/ other than the defaultDeps module reads
+//  (a) static scan: no file under src/ other than the allowed readers (route.ts
+//      defaultDeps, server-env.ts, the n8n smoke CLI; Architecte ruling) reads
 //      N8N_WEBHOOK_URL from process.env — directly (process.env.N8N_WEBHOOK_URL,
 //      process.env["N8N_WEBHOOK_URL"]) or indirectly (a module that resolves the
 //      N8N destination key and falls back to process.env, or parses process.env
@@ -18,6 +19,13 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const DEFAULT_DEPS_MODULE = "src/app/api/agents/execution-intents/[intentId]/approve/route.ts";
+// Architecte ruling: allowed readers. server-env.ts is the source of
+// defaultDeps' configuration; the n8n smoke script is a standalone CLI.
+const ALLOWED_READERS = new Set([
+  DEFAULT_DEPS_MODULE,
+  "src/lib/server-env.ts",
+  "src/scripts/smoke/n8n-execution-slice.mjs",
+]);
 
 async function walk(dir) {
   const out = [];
@@ -34,7 +42,7 @@ test("(a) only the defaultDeps module reads N8N_WEBHOOK_URL from process.env (st
   const offenders = [];
   for (const file of await walk(path.join(projectRoot, "src"))) {
     const rel = path.relative(projectRoot, file).split(path.sep).join("/");
-    if (rel === DEFAULT_DEPS_MODULE) continue;
+    if (ALLOWED_READERS.has(rel)) continue;
     const src = await readFile(file, "utf8");
     const mentionsN8nKey = /N8N_WEBHOOK_URL|N8N_DESTINATION_ENV_KEY|destinationEnvKey/.test(src);
     src.split("\n").forEach((raw, i) => {
@@ -44,7 +52,7 @@ test("(a) only the defaultDeps module reads N8N_WEBHOOK_URL from process.env (st
       if (direct || indirect) offenders.push(`${rel}:${i + 1}: ${raw.trim()}`);
     });
   }
-  assert.deepEqual(offenders, [], `N8N_WEBHOOK_URL read from process.env outside ${DEFAULT_DEPS_MODULE}:\n${offenders.join("\n")}`);
+  assert.deepEqual(offenders, [], `N8N_WEBHOOK_URL read from process.env outside the allowed readers (${[...ALLOWED_READERS].join(", ")}):\n${offenders.join("\n")}`);
 });
 
 test("(b) the URL is injected through deps: createApproveHandler({ webhookEnv }) dispatches to the injected URL, not process.env", async () => {
