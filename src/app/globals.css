@@ -71,6 +71,7 @@
 
 /* ─── Cockpit drag handles ───────────────────────────────────── */
 .cockpit-widget-wrapper:hover .cockpit-drag-handle { opacity: 1 !important; }
+.cockpit-widget-wrapper:focus-within .cockpit-drag-handle { opacity: 1 !important; }
 
 @media (max-width: 980px) {
   .cockpit-interactive-layout {

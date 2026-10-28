@@ -409,7 +409,7 @@ function SortableWidget({
       {/* Drag handle */}
       <button
         type="button"
-        className="cockpit-drag-handle"
+        className="cockpit-drag-handle focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-amber-300"
         aria-label="Déplacer le widget"
         style={{
           position: "absolute",

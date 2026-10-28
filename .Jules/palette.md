@@ -1,0 +1,3 @@
+## 2025-02-13 - Focus Accessibility for Visually Hidden Interactive Elements
+**Learning:** Interactive elements that are visually hidden by default (e.g., using `opacity: 0` for a hover-based visibility effect, such as drag handles) fail to meet keyboard accessibility standards because they remain invisible when users navigate via keyboard.
+**Action:** When implementing hover-to-reveal patterns, explicitly ensure that the element also becomes visible when focused (e.g., `.wrapper:focus-within .element`, `.element:focus-visible`). Additionally, add clear focus rings (e.g., `outline: none; box-shadow: ...`) for keyboard navigation context.
