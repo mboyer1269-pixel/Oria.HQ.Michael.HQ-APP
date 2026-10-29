@@ -1,4 +1,4 @@
-import { Crosshair, GitBranch, Target } from "lucide-react";
+import { ChevronDown, Crosshair, GitBranch, Target } from "lucide-react";
 import type {
   AgentCharter,
   CharterHealthReport,
@@ -15,7 +15,7 @@ const ROI_LABEL: Record<RoiLever, string> = {
 };
 
 const VERDICT_LABEL: Record<CharterHealthRow["verdict"], string> = {
-  operational: "opérationnel",
+  operational: "charte documentée",
   thin: "à renforcer",
   decorative: "décoratif",
 };
@@ -28,7 +28,15 @@ const VERDICT_STYLE: Record<CharterHealthRow["verdict"], string> = {
 
 function CharterCard({ charter, row }: { charter: AgentCharter; row: CharterHealthRow }) {
   return (
-    <article className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4">
+    <article className="min-w-0 rounded-xl border border-neutral-800 bg-neutral-950/60 p-4">
+      {row.verdict !== "operational" && <p className="mb-3 text-sm text-[var(--coral)]">{row.agentName} : {row.topGap || VERDICT_LABEL[row.verdict]}.</p>}
+      <details className="group">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--marigold)] [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0 flex-1"><strong className="block break-words text-[var(--fg)]">{row.agentName}</strong><span className="text-xs text-[var(--fg-muted)]">{charter.workflows.length} parcours documenté{charter.workflows.length === 1 ? "" : "s"} · {VERDICT_LABEL[row.verdict]}</span></span>
+          <span className="text-xs text-[var(--fg-muted)]"><span className="group-open:hidden">Voir la charte</span><span className="hidden group-open:inline">Réduire</span></span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--fg-muted)] group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="mt-4 border-t border-[var(--border)] pt-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -90,6 +98,8 @@ function CharterCard({ charter, row }: { charter: AgentCharter; row: CharterHeal
           </span>
         ))}
       </div>
+        </div>
+      </details>
     </article>
   );
 }
@@ -111,7 +121,7 @@ export function AgentCharterPanel({
           Santé moyenne des chartes :{" "}
           <span className="tabular-nums font-semibold text-white">{health.averageScore}/100</span>
         </span>
-        <span className="text-emerald-300">{health.operationalCount} opérationnels</span>
+        <span className="text-emerald-300">{health.operationalCount} chartes documentées</span>
         <span className="text-amber-300">{health.thinCount} à renforcer</span>
         <span className="text-red-300">{health.decorativeCount} décoratifs</span>
       </div>

@@ -33,7 +33,7 @@ function existing(mission: Mission, context: AtelierDevelopmentContext, expected
   return reserved(claim, source);
 }
 
-/** Preparation/reservation only. No routes import this tranche; no executor is a dependency.
+/** Preparation/reservation only. Protected HTTP callers may reserve; no executor is a dependency.
  * The authenticated caller must supply context. A reservation is NOT owner approval,
  * a G1 decision, a builder license, a budget debit, or permission to spawn a process.
  */

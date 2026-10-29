@@ -9,6 +9,7 @@ import { OpenHandsPreparation } from "./openhands-preparation";
 import { MissionTransfer } from "./mission-transfer";
 import { OpenHandsToolReview } from "./openhands-tool-review";
 import { OpenHandsLaunch } from "./openhands-launch";
+import { AtelierReservationPanel } from "./atelier-reservation-panel";
 
 type Props = { missions: Mission[]; source: "supabase" | "local" | "mock"; transferEnabled?: boolean; paginated?: boolean; openHandsEnabled?: boolean; toolReviewEnabled?:boolean; launchEnabled?:boolean };
 
@@ -57,6 +58,7 @@ export function MissionDossier({ missions, source, transferEnabled = false, pagi
           <h4 className="mt-6 text-sm font-semibold text-white">Résultat attendu</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{selected.expectedOutput}</p>
           <MissionResultPanel key={`result:${selected.id}`} output={missionReportedOutput(selected)} source={source} />
           <p className="mt-5 border-t border-neutral-800 pt-4 text-sm leading-6 text-amber-200">{dossier.nextStep}</p>
+          <AtelierReservationPanel mission={selected} source={source} />
           <OpenHandsPreparation key={`openhands:${selected.id}:${selected.updatedAt}`} mission={selected} source={source} enabled={openHandsEnabled} />
           {launchEnabled&&openHandsEnabled&&source==='supabase'&&selected.input._openhandsReservation!==undefined&&<OpenHandsLaunch key={`launch:${selected.id}:${selected.updatedAt}`} mission={selected} onRefresh={()=>router.refresh()} />}
           {toolReviewEnabled&&source==='supabase'&&launchId&&launch?.state==='running'&&<OpenHandsToolReview key={launchId} launchId={launchId} missionId={selected.id} />}
