@@ -72,6 +72,7 @@ function mutationKinds(source) {
   if (SUPABASE_MUTATION.test(source)) kinds.push("Supabase mutation");
   // Named SQL mutation boundary; lookup_atelier_execution is read-only.
   if (/\.rpc\(\s*["'`]claim_atelier_execution["'`]/.test(source)) kinds.push("Atelier transaction RPC");
+  if (/\brpc\(\s*["\'`](prepare_atelier_owner_spec_v2|admit_atelier_owner_spec_v2|record_atelier_owner_spec_result_v2)["\'`]/.test(source)) kinds.push("Owner spec v2 transaction RPC");
   if (SERVER_ACTION.test(source)) kinds.push("server action");
   return kinds;
 }
@@ -398,7 +399,21 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       "src/server/missions/atelier-development-contract.ts",
       "src/server/missions/atelier-execution-store.ts",
       "src/server/missions/atelier-execution-contract.ts",
+      "src/server/missions/atelier-owner-spec-contract.ts",
+      "src/server/missions/atelier-owner-spec-store.ts",
+      "src/server/missions/atelier-owner-spec-service.ts",
+      "src/server/missions/atelier-owner-spec-handler.ts",
+      "src/server/atelier/atelier-bound-spec.ts",
+      "src/server/atelier/atelier-bound-spec.test-fixture.mjs",
     ]);
+    const edges = {
+      "src/server/missions/atelier-owner-spec-contract.ts": ["atelier-development-contract.ts", "atelier-execution-contract.ts"],
+      "src/server/missions/atelier-owner-spec-store.ts": ["atelier-owner-spec-contract.ts"],
+      "src/server/missions/atelier-owner-spec-service.ts": ["atelier-owner-spec-contract.ts", "atelier-owner-spec-store.ts"],
+      "src/server/missions/atelier-owner-spec-handler.ts": ["atelier-owner-spec-contract.ts", "atelier-owner-spec-service.ts"],
+      "src/server/atelier/atelier-bound-spec.ts": ["atelier-owner-spec-contract.ts"],
+    };
+    const original = new Set(["src/server/missions/atelier-development-contract.ts", "src/server/missions/atelier-execution-contract.ts", "src/server/missions/atelier-execution-store.ts"]);
     const knownFiles = new Set(files.map((file) => toPosix(path.relative(projectRoot, file))));
     const checkImports = (rel, source) => {
       const specifiers = [];
@@ -417,16 +432,18 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       visit(ts.createSourceFile(rel, source, ts.ScriptTarget.Latest, true));
       for (const specifier of specifiers) {
         const target = resolveSourceSpecifier(rel, specifier, knownFiles);
-        assert.ok(!dormant.has(target), `${rel} imports ${target} — remove the dormant-store exclusion and declare the actual runtime capability and authorization gates before wiring`);
+        assert.ok(!dormant.has(target) || (original.has(rel) && original.has(target)) || (edges[rel] ?? []).some(name => target === `src/server/missions/${name}`), `${rel} imports ${target} — remove the dormant-store exclusion and declare the actual runtime capability and authorization gates before wiring`);
       }
     };
     for (const target of dormant) assert.ok(knownFiles.has(target), `missing dormant module: ${target}`);
     for (const file of files) {
       const rel = toPosix(path.relative(projectRoot, file));
-      if (!dormant.has(rel)) checkImports(rel, await read(rel));
+      checkImports(rel, await read(rel));
     }
     // Negative controls: static, type, re-export, dynamic, relative and CommonJS imports all trip the gate.
     for (const source of [
+      'import { createOwnerSpecHandler } from "@/server/missions/atelier-owner-spec-handler";',
+      'await import("@/server/atelier/atelier-bound-spec");',
       'import { reserve } from "@/server/missions/atelier-execution-contract";',
       'import type { Binding } from "@/server/missions/atelier-development-contract";',
       'export { Store } from "@/server/missions/atelier-execution-store";',

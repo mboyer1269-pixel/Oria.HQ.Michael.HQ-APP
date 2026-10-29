@@ -625,6 +625,8 @@ export function buildDryRunExecutionPlan(input: ExecutionGuardInput): DryRunExec
 // action and payload hash it was granted for.
 
 export const GOVERNED_ACTION_RULES = {
+  // Owner-operated spec candidate only: recognition never grants an agent license.
+  "atelier.spec.start": "R-ZONE-YELLOW",
   merge: "R-NO-MERGE",
   deploy: "R-NO-DEPLOY",
   remote_migration: "R-NO-PROD-ACCESS",
@@ -732,7 +734,6 @@ export const NON_ACTION_RULE_IDS: readonly string[] = [
   "R-SKILL-ROUTING",
   "R-VALIDATION-GATES",
   "R-ZONE-GREEN",
-  "R-ZONE-YELLOW",
 ];
 
 const CORE_RULE_REGISTRY = new Set(CORE_RULE_REGISTRY_IDS);
