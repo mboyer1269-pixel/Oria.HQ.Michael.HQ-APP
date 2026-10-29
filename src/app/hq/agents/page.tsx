@@ -135,33 +135,19 @@ export default async function AgentsPage() {
         </HqSummaryRail>
       </HqPageHeader>
 
-      <HqWidget title="Chartes opérationnelles" eyebrow="ADN & ROI" icon={Crosshair}>
-        <AgentCharterPanel charters={charterRegistry} health={charterHealth} />
-      </HqWidget>
-
-      <HqWidget title="Autonomie contrôlée" eyebrow="Policy" icon={ShieldCheck}>
-        <AgentAutonomyPolicyPanel model={autonomyCockpit} />
-      </HqWidget>
-
-      <HqWidget title="Knowledge packs" eyebrow="Context" icon={BrainCircuit}>
-        <AgentKnowledgePackPanel catalog={knowledgePackCatalog} />
-      </HqWidget>
-
-      <HqWidget title="Santé des runs" eyebrow="Runs réels — ledger" icon={Activity}>
-        <AgentRunHealthPanel report={runHealth} agentNames={agentNames} nowMs={nowMs} />
-      </HqWidget>
-
-      <HqWidget title="Qualité opérationnelle" eyebrow="Evaluation" icon={ShieldCheck}>
-        <AgentQualityEvaluationPanel model={qualityEvaluation} />
-      </HqWidget>
-
-      <HqWidget title="Review queue" eyebrow="Operator loop" icon={Users}>
-        <AgentReviewQueuePanel queue={reviewQueue} />
-      </HqWidget>
-
-      <HqWidget title="Intentions d'exécution" eyebrow="Rail gouverné — approbation CEO" icon={Send} tone="amber">
-        <ExecutionIntentReviewPanel agentId="hermes" />
-      </HqWidget>
+      <nav aria-label="Points de contrôle des agents" className="rounded-xl border border-[var(--border)] p-4">
+        <h2 className="text-sm font-semibold text-[var(--fg)]">À examiner</h2>
+        <div className="mt-2 flex flex-wrap gap-2 text-sm">
+          <a href="#agent-reviews" className="inline-flex min-h-11 items-center rounded-lg border border-[var(--fg-faint)] px-3 py-2 text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--marigold)]">
+            {reviewQueue.criticalItems + reviewQueue.highItems > 0 ? `${reviewQueue.criticalItems + reviewQueue.highItems} revues prioritaires calculées` : "Consulter les revues"}
+          </a>
+          <a href="#agent-intents" className="inline-flex min-h-11 items-center rounded-lg border border-[var(--fg-faint)] px-3 py-2 text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--marigold)]">Intentions d’exécution</a>
+          <a href="#agent-run-health" className="inline-flex min-h-11 items-center rounded-lg border border-[var(--fg-faint)] px-3 py-2 text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--marigold)]">
+            {runHealth.global.failed + runHealth.global.stuck > 0 ? `${runHealth.global.failed} échec(s), ${runHealth.global.stuck} run(s) bloqué(s) observés` : "Consulter les runs observés"}
+          </a>
+        </div>
+        <p className="mt-2 text-xs text-[var(--fg-muted)]">Lecture partielle : ces repères ne prouvent ni l’absence d’incident, ni une autorisation d’exécution.</p>
+      </nav>
 
       {[
         { label: "Profils activés", agents: active },
@@ -179,6 +165,41 @@ export default async function AgentsPage() {
             </div>
           </HqWidget>
         ))}
+
+      <HqWidget title="Chartes opérationnelles" eyebrow="ADN & ROI" icon={Crosshair}>
+        <AgentCharterPanel charters={charterRegistry} health={charterHealth} />
+      </HqWidget>
+
+      <HqWidget title="Autonomie contrôlée" eyebrow="Policy" icon={ShieldCheck}>
+        <AgentAutonomyPolicyPanel model={autonomyCockpit} />
+      </HqWidget>
+
+      <HqWidget title="Knowledge packs" eyebrow="Context" icon={BrainCircuit}>
+        <AgentKnowledgePackPanel catalog={knowledgePackCatalog} />
+      </HqWidget>
+
+      <div id="agent-run-health" tabIndex={-1} className="scroll-mt-6">
+      <HqWidget title="Santé des runs" eyebrow="Runs réels — ledger" icon={Activity}>
+        <AgentRunHealthPanel report={runHealth} agentNames={agentNames} nowMs={nowMs} />
+      </HqWidget>
+      </div>
+
+      <HqWidget title="Qualité opérationnelle" eyebrow="Evaluation" icon={ShieldCheck}>
+        <AgentQualityEvaluationPanel model={qualityEvaluation} />
+      </HqWidget>
+
+      <div id="agent-reviews" tabIndex={-1} className="scroll-mt-6">
+      <HqWidget title="Review queue" eyebrow="Operator loop" icon={Users}>
+        <AgentReviewQueuePanel queue={reviewQueue} />
+      </HqWidget>
+      </div>
+
+      <div id="agent-intents" tabIndex={-1} className="scroll-mt-6">
+      <HqWidget title="Intentions d'exécution" eyebrow="Rail gouverné — approbation CEO" icon={Send} tone="amber">
+        <ExecutionIntentReviewPanel agentId="hermes" />
+      </HqWidget>
+      </div>
+
       <HqWidget title="Mapping Agent → Skills" eyebrow="Control map" icon={Network}>
         <div className="mb-3 flex items-center justify-between gap-2">
           <span

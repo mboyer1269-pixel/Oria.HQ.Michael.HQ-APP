@@ -10,6 +10,9 @@ import { CalendarServiceError } from "@/server/calendar/calendar-service";
 import { runJorisCommand } from "@/server/joris/brain";
 import { logger } from "@/lib/logger";
 import { chatModelOptions, chatModelSelectionSchema, loadChatCapabilityCatalog, resolveChatModelBinding } from "@/server/joris/chat-model-binding";
+import { createAtelierChatHandler, readJorisJsonBody } from "./atelier-handlers";
+
+const handleAtelierAction = createAtelierChatHandler();
 
 const requestSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -30,7 +33,16 @@ export async function POST(request: Request) {
   const session = await requireWorkspaceApiSession(request);
   if (session instanceof NextResponse) return session;
 
-  const body = await request.json().catch(() => null);
+  const read = await readJorisJsonBody(request);
+  if (!read.ok) return NextResponse.json({ error: "Requête JSON invalide ou trop volumineuse.", code: "INVALID_REQUEST" },
+    { status: read.status, headers: { "Cache-Control": "no-store" } });
+  const body = read.body;
+  // An explicit typed action never falls through to conversational/model execution.
+  if (body && typeof body === "object" && !Array.isArray(body) && Object.prototype.hasOwnProperty.call(body, "action")) {
+    const workspaceContext = getActiveWorkspaceContext({ ...session.ctx, email: session.user.email, emailVerified: authzIdentity(session.user).emailVerified });
+    return handleAtelierAction(request, body, { actorId: session.ctx.userId, workspaceId: session.ctx.workspaceId,
+      modeId: workspaceContext.activeMode.id, role: session.ctx.role });
+  }
   const parsed = requestSchema.safeParse(body);
 
   if (!parsed.success) {
