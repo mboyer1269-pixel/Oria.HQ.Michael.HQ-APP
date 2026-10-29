@@ -1,7 +1,7 @@
 name: Cockpit layout persistence validation
 on:
   pull_request:
-    branches: ['ui/cockpit-reorder-accessibility-20261029', 'feat/cockpit-reorder-validation-base-20261029']
+    branches: ['main', 'ui/cockpit-reorder-accessibility-20261029', 'feat/cockpit-reorder-validation-base-20261029']
 permissions:
   contents: read
 concurrency:

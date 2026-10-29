@@ -8,7 +8,7 @@ import { request as httpRequest } from 'node:http';
 import { createJiti } from 'jiti';
 import { PostgrestClient } from '@supabase/postgrest-js';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const BASE='ed17316b1f21b6a3dd2a31c9a355c0077c84e2f9';
+const BASE='8aec6ea3efa707b53d3ea48417019a5e256eed1d';
 export function localConfig(pg,rest){
  assert.equal(pg,'postgres://postgres@127.0.0.1:5432/oria_test_cockpit_layout','disposable named loopback database only');
  assert.equal(rest,'http://127.0.0.1:3000','disposable loopback REST only');
