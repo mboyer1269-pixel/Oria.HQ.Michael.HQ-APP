@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 688,
-    "live": 636,
+    "sourceFiles": 691,
+    "live": 639,
     "testOnly": 8,
     "incubation": 44
   },
@@ -173,8 +173,10 @@
     "src/features/atelier/components/atelier-local-missions.tsx",
     "src/features/atelier/components/atelier-mission-list.tsx",
     "src/features/cockpit/actions/cockpit-layout.ts",
+    "src/features/cockpit/cockpit-layout-contract.ts",
     "src/features/cockpit/components/activity-rail.tsx",
     "src/features/cockpit/components/cockpit-interactive.tsx",
+    "src/features/cockpit/components/cockpit-layout-session.ts",
     "src/features/cockpit/components/cockpit-reorder.ts",
     "src/features/cockpit/components/cockpit-shell.tsx",
     "src/features/cockpit/components/cockpit-topbar.tsx",
@@ -467,6 +469,7 @@
     "src/server/calendar/calendar-service.ts",
     "src/server/calendar/intent-parser.ts",
     "src/server/calendar/upcoming-window.ts",
+    "src/server/cockpit/layout-persistence.ts",
     "src/server/contact/contact-lead-repository.ts",
     "src/server/contact/contact-lead-service.ts",
     "src/server/contact/contact-notification-service.ts",

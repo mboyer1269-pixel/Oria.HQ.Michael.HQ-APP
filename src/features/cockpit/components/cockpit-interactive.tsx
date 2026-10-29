@@ -43,10 +43,13 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import type { MichaelHqDatabase } from "@/server/db/types";
 import { IdeaIntakeForm } from "@/features/cockpit/components/idea-intake-form";
 import { DailyDirectionWidget } from "@/features/cockpit/components/daily-direction-widget";
-import { saveCockpitLayout } from "@/features/cockpit/actions/cockpit-layout";
+import { getCockpitLayout, saveCockpitLayout } from "@/features/cockpit/actions/cockpit-layout";
 import type { IdeaProjection } from "@/features/cockpit/events/idea-projection";
 import type { DailyDirectionProjection } from "@/features/cockpit/events/daily-direction-projection";
 import { cockpitReorderAnnouncements, getWidgetLabel, moveWidgetOrder } from "./cockpit-reorder";
+
+import type { CockpitLayoutRead } from "../cockpit-layout-contract";
+import { initialLayoutSession, canSaveCockpitLayout, beginLayoutSave, settleLayoutSave, settleLayoutReload, layoutStatusMessage } from "./cockpit-layout-session";
 
 // ─── Design tokens (mirrored from founder-zero-state) ────────────────────────
 
@@ -727,19 +730,19 @@ export function CockpitInteractive({
   ideas,
   loadError,
   todayDirection,
-  initialOrder,
+  initialLayout,
 }: {
   ideas: IdeaProjection[];
   loadError: boolean;
   todayDirection: DailyDirectionProjection | null;
-  initialOrder: string[];
+  initialLayout: CockpitLayoutRead;
 }) {
-  const [order, setOrder] = useState<string[]>(initialOrder);
+  const [layout, setLayout] = useState(() => initialLayoutSession(initialLayout));
+  const { order } = layout;
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [layoutSave, setLayoutSave] = useState<"idle" | "pending" | "unconfirmed" | "error">("idle");
   const savePending = useRef(false);
   const mounted = useRef(false);
-  const [dragStartOrder, setDragStartOrder] = useState(initialOrder);
+  const [dragStartOrder, setDragStartOrder] = useState(order);
 
   useEffect(() => {
     mounted.current = true;
@@ -777,20 +780,30 @@ export function CockpitInteractive({
       const { active, over } = event;
       const newOrder = moveWidgetOrder(order, String(active.id), over ? String(over.id) : null);
       if (!newOrder) return;
-      // Keep the local order, but never treat a void server result as DB confirmation.
+      const next = beginLayoutSave(layout, newOrder);
+      if (!next) return;
       savePending.current = true;
-      setOrder(newOrder);
-      setLayoutSave("pending");
+      setLayout(next.state);
       void Promise.resolve()
-        .then(() => saveCockpitLayout(newOrder))
+        .then(() => saveCockpitLayout(next.request))
         .then(
-          () => { if (mounted.current) setLayoutSave("unconfirmed"); },
-          () => { if (mounted.current) setLayoutSave("error"); },
+          (result) => { if (mounted.current) setLayout((current) => settleLayoutSave(current, result)); },
+          () => { if (mounted.current) setLayout((current) => settleLayoutSave(current, { status: "unconfirmed" })); },
         )
         .finally(() => { savePending.current = false; });
     },
-    [order],
+    [layout, order],
   );
+
+  function reloadLayout() {
+    if (savePending.current) return;
+    savePending.current = true;
+    setLayout((current) => ({ ...current, status: "reloading" }));
+    void getCockpitLayout().then(
+      (result) => { if (mounted.current) setLayout((current) => settleLayoutReload(current, result)); },
+      () => { if (mounted.current) setLayout((current) => settleLayoutReload(current, { status: "failed" })); },
+    ).finally(() => { savePending.current = false; });
+  }
 
   function renderWidget(id: string) {
     let content: ReactNode;
@@ -873,7 +886,7 @@ export function CockpitInteractive({
     }
 
     return (
-      <SortableWidget key={id} id={id} pending={layoutSave === "pending"}>
+      <SortableWidget key={id} id={id} pending={!canSaveCockpitLayout(layout)}>
         {content}
       </SortableWidget>
     );
@@ -941,14 +954,18 @@ export function CockpitInteractive({
               </div>
             </SortableContext>
           </DndContext>
-          {layoutSave !== "idle" && (
-            <p role={layoutSave === "error" ? "alert" : "status"} style={{ marginTop: 12, fontSize: 12, color: "var(--fg-muted)" }}>
-              {layoutSave === "pending"
-                ? "Ordre ajusté ici. Demande de sauvegarde en cours ; patientez avant un autre déplacement."
-                : layoutSave === "error"
-                  ? "Ordre ajusté ici. La demande de sauvegarde a échoué ; cet ordre pourrait être perdu au rechargement."
-                  : "Ordre ajusté ici ; sauvegarde non confirmée. Le rechargement pourrait rétablir l’ordre précédent."}
-            </p>
+          {layout.status !== "idle" && (
+            <div style={{ marginTop: 12, fontSize: 12, color: "var(--fg-muted)" }}>
+              <p role={["read_failed", "unconfirmed", "not_attempted", "conflict"].includes(layout.status) ? "alert" : "status"}>
+                {layoutStatusMessage(layout)}
+              </p>
+              {!["pending", "confirmed"].includes(layout.status) && (
+                <button type="button" className="cockpit-layout-reload" aria-disabled={layout.status === "reloading"} onClick={reloadLayout}
+                  style={{ minHeight: 44, marginTop: 8, padding: "10px 14px", border: "1px solid var(--fg-faint)", borderRadius: 8, background: "transparent", color: "var(--fg)", font: "inherit", cursor: layout.status === "reloading" ? "wait" : "pointer" }}>
+                  Recharger l’ordre enregistré
+                </button>
+              )}
+            </div>
           )}
         </div>
 

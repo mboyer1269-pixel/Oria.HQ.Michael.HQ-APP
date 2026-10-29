@@ -45,12 +45,12 @@ test("Cockpit layout owner gate (V7 Phase 0)", async (t) => {
     );
   });
 
-  await t.test("saveCockpitLayout takes only the order, never an identity", () => {
+  await t.test("saveCockpitLayout takes one preference request, never an identity", () => {
     assert.equal(typeof mod.saveCockpitLayout, "function");
     assert.equal(
       mod.saveCockpitLayout.length,
       1,
-      "saveCockpitLayout takes the widget order only",
+      "saveCockpitLayout takes one preference request only",
     );
   });
 

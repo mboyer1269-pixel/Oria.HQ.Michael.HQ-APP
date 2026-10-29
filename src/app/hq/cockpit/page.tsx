@@ -35,7 +35,7 @@ export default async function CockpitPage() {
   const nowMs = now.getTime();
   const storageMode = getEventPersistenceMode();
 
-  const initialOrder = await getCockpitLayout();
+  const initialLayout = await getCockpitLayout();
 
   let loadError = false;
   let ideas: IdeaProjection[] = [];
@@ -72,7 +72,7 @@ export default async function CockpitPage() {
         storageMode={storageMode}
         todayDirection={todayDirection}
         todayIso={todayIso}
-        initialOrder={initialOrder}
+        initialLayout={initialLayout}
       />
     </CockpitShell>
   );

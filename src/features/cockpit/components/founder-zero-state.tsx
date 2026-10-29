@@ -1,3 +1,4 @@
+import type { CockpitLayoutRead } from "../cockpit-layout-contract";
 // src/features/cockpit/components/founder-zero-state.tsx
 //
 // Cockpit principal — design ORIA v3.
@@ -217,14 +218,14 @@ export function FounderZeroStateCockpit({
   storageMode,
   todayDirection,
   todayIso,
-  initialOrder,
+  initialLayout,
 }: {
   ideas: IdeaProjection[];
   loadError: boolean;
   storageMode: EventPersistenceMode;
   todayDirection: DailyDirectionProjection | null;
   todayIso: string;
-  initialOrder: string[];
+  initialLayout: CockpitLayoutRead;
 }) {
   return (
     <div
@@ -246,7 +247,7 @@ export function FounderZeroStateCockpit({
         ideas={ideas}
         loadError={loadError}
         todayDirection={todayDirection}
-        initialOrder={initialOrder}
+        initialLayout={initialLayout}
       />
 
       {/* ── System footer ── */}

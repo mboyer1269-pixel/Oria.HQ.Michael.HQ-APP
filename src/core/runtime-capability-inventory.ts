@@ -112,6 +112,7 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
     paths: [
       "src/app/login/actions.ts",
       "src/features/cockpit/actions/cockpit-layout.ts",
+      "src/server/cockpit/layout-persistence.ts",
       "src/features/cockpit/events/event-client.ts",
       "src/features/cockpit/events/idea-capture-action.ts",
       "src/features/notes/note-action.ts",

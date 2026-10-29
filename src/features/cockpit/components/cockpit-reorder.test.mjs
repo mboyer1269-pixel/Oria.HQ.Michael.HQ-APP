@@ -64,16 +64,19 @@ test("pending requests block another drag without removing the handle's focus ta
   const callback = source.slice(source.indexOf("const handleDragEnd"), source.indexOf("function renderWidget"));
   assert.match(callback, /if \(savePending\.current\) return/);
   assert.match(callback, /if \(!newOrder\) return/);
-  assert.equal((callback.match(/saveCockpitLayout\(newOrder\)/g) ?? []).length, 1);
-  assert.ok(callback.indexOf('savePending.current = true') < callback.indexOf('saveCockpitLayout(newOrder)'));
+  assert.equal((callback.match(/saveCockpitLayout\(next.request\)/g) ?? []).length, 1);
+  assert.ok(callback.indexOf('savePending.current = true') < callback.indexOf('saveCockpitLayout(next.request)'));
   assert.match(callback, /\.finally\(\(\) => \{ savePending\.current = false/);
 });
-test("void persistence never becomes confirmed success and transport errors stay visible", () => {
-  assert.match(source, /setLayoutSave\("unconfirmed"\)/);
-  assert.match(source, /setLayoutSave\("error"\)/);
-  assert.match(source, /role=\{layoutSave === "error" \? "alert" : "status"\}/);
-  assert.match(source, /sauvegarde non confirmée/);
-  assert.doesNotMatch(source, /setLayoutSave\("saved"\)|Ordre sauvegardé/);
+test("typed persistence never treats a transport failure as known no-effect", () => {
+  assert.match(source, /settleLayoutSave\(current, result\)/);
+  assert.match(source, /settleLayoutSave\(current, \{ status: "unconfirmed" \}\)/);
+  assert.match(source, /pending=\{!canSaveCockpitLayout\(layout\)\}/);
+  assert.match(source, /settleLayoutReload\(current, \{ status: "failed" \}\)/);
+  assert.match(source, /onClick=\{reloadLayout\}/);
+  assert.match(source, /aria-disabled=\{layout.status === "reloading"\}/);
+  assert.match(source, /minHeight: 44, marginTop: 8, padding: "10px 14px"/);
+  assert.match(css, /\.cockpit-layout-reload:focus-visible \{ outline: 2px solid var\(--marigold\)/);
 });
 test("mobile target and keyboard visibility use existing tokens without obscuring headers", () => {
   assert.match(source, /width: 44,\s+height: 44/);
