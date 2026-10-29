@@ -1,9 +1,9 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 680,
+    "sourceFiles": 683,
     "live": 629,
-    "testOnly": 7,
+    "testOnly": 10,
     "incubation": 44
   },
   "incubationByArea": {
@@ -658,6 +658,9 @@
   "testOnly": [
     "src/server/ai/claude-json-launcher.ts",
     "src/server/ledger/hash-chain-test-fixtures.ts",
+    "src/server/missions/atelier-development-contract.ts",
+    "src/server/missions/atelier-execution-contract.ts",
+    "src/server/missions/atelier-execution-store.ts",
     "src/server/missions/openhands-lifecycle.ts",
     "src/server/missions/openhands-pending-launches.ts",
     "src/server/outbound/outbound-executor-dry-run.ts",

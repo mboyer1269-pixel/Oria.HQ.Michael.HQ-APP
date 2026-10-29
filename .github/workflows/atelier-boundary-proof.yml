@@ -1,0 +1,82 @@
+name: Atelier boundary validation candidate
+
+# Deliberately stacked on unmerged G1: its exact decision-consume schema is a
+# dependency, not permission to merge/deploy/activate this dormant boundary.
+on:
+  pull_request:
+    branches: ['feat/g1-attempt-id']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atelier-boundary-proof-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  atelier-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci --ignore-scripts
+      - name: Bounded contract and harness unit tests (no database or agent process)
+        run: >-
+          node --test proofs/atelier-boundary-proof.test.mjs
+          src/server/missions/atelier-development-contract.test.mjs
+          src/server/missions/atelier-execution-contract.test.mjs
+          src/server/missions/atelier-execution-store.test.mjs
+          src/server/missions/atelier-execution-boundary.test.mjs
+          src/core/runtime-capability-inventory.test.mjs
+      - run: node node_modules/typescript/bin/tsc --noEmit
+      - run: node node_modules/eslint/bin/eslint.js src eslint.config.mjs next.config.ts postcss.config.mjs
+      - run: node scripts/architecture/system-map.mjs --check
+      - run: node scripts/architecture/check-layering.mjs
+
+  atelier-real-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Exactly the PG/PostgREST versions already used by G1. No hosted DB,
+    # production credentials, provider keys, deployment or CLI agent invocation.
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: oria_test_atelier
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d oria_test_atelier"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+      postgrest:
+        image: postgrest/postgrest:v12.2.0
+        env:
+          PGRST_DB_URI: postgres://postgres@postgres:5432/oria_test_atelier
+          PGRST_DB_ANON_ROLE: qualification_service
+          PGRST_DB_SCHEMAS: public
+        ports: ['3000:3000']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci --ignore-scripts
+      - name: Exact G1 schema + canonical TS + 13 real transaction proofs
+        env:
+          CI_PG_URL: postgres://postgres@127.0.0.1:5432/oria_test_atelier
+          POSTGREST_DIRECT_URL: http://127.0.0.1:3000
+          HQ_ROOT: ${{ github.workspace }}
+        run: |
+          set -o pipefail
+          node proofs/prove-atelier-boundary-real-db.mjs --run 2>&1 | tee /tmp/atelier-db-proof.log
+          grep -Fx 'OBSERVED_CLAIM_LOCK_WAITERS=2' /tmp/atelier-db-proof.log
+          grep -Fx 'UNEXPECTED_NETWORK=0' /tmp/atelier-db-proof.log
+          grep -Fx 'ALL 13 ATELIER REAL-DB PROOFS PASSED' /tmp/atelier-db-proof.log

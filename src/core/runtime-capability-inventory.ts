@@ -103,6 +103,11 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
 }[] = [
   {
     reason:
+      "Frontière Atelier dormante : RPC transactionnel consume G1 + claim + ledger, sans route/import applicatif ni exécuteur. Dépend du SQL draft atelier_execution_boundary et de PR457 non fusionnée ; aucune activation ou permission autonome. Le tripwire AST interdit tout nouveau caller avant reclassification et preuve DB.",
+    paths: ["src/server/missions/atelier-execution-store.ts"],
+  },
+  {
+    reason:
       "Le journal d'audit lui-même. Chaque capacité écrit à travers lui ; le compter comme un exécuteur le ferait apparaître une fois par capacité.",
     paths: ["src/server/actions/action-ledger-repository.ts"],
   },
