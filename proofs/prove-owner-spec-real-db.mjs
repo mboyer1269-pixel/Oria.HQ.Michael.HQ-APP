@@ -11,8 +11,10 @@ import { request as httpRequest } from 'node:http';
 import { createRequire } from 'node:module';
 import { BASE, SCHEMA_FILES, SYNTHETIC_KEY, localConfig, quote, loadContracts, canonicalFixture } from './prove-atelier-boundary-real-db.mjs';
 import { createFakeBoundSpecProvider } from '../src/server/atelier/atelier-bound-spec.test-fixture.mjs';
+import { runAdmissionProofs } from './prove-execution-intent-admission-real-db.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RPC = new Set(['read_atelier_ledger_tail','prepare_atelier_owner_spec_v2','admit_atelier_owner_spec_v2','check_atelier_owner_spec_admission_v2','record_atelier_owner_spec_result_v2']);
+const RPC = new Set(['read_atelier_ledger_tail','prepare_atelier_owner_spec_v2','admit_atelier_owner_spec_v2','check_atelier_owner_spec_admission_v2','record_atelier_owner_spec_result_v2',
+ 'create_approval_decision','classify_approval_decision','admit_execution_intent_v1','check_execution_intent_admission_v1']);
 export function allowedRequest(input, init={}) {
  const u=new URL(typeof input==='string'||input instanceof URL?input:input.url),method=init.method??'GET';
  if(u.origin!=='http://127.0.0.1:3000'||u.username||u.password||u.hash)return false;
@@ -167,6 +169,9 @@ export async function main(root,rawConfig){
    failLedger(f.mission.id);try{assert.equal((await store.record(e,result)).status,'reconciliation_required');}finally{clearFailure();}
    assert.deepEqual(facts(f),{admitted:true,result:false,decisions:1,ledger:1});const before=spawned;const restarted=m.V.createOwnerSpecService({store,engine:{execute:async()=>{throw Error('no respawn');},recover:f.engine.recover}});assert.equal((await restarted.command(f.command('recover'),f.context)).status,'recovered');assert.equal(spawned,before);assert.equal((await store.record(e,result)).status,'existing');chain(f.context.workspaceId);
   });
+  // Extra mandatory qualification, before the shared sealed-writer revert.
+  // Its twelve groups do not replace or suppress any of the thirteen owner-spec proofs.
+  await runAdmissionProofs({root,sql,db:m.db,env,args});
   await step('actual anon/authenticated RPC denial and revert preserves recorded facts',async()=>{
    for(const role of ['anon','authenticated']){const r=spawnSync('psql',args,{input:`set role ${role};select public.prepare_atelier_owner_spec_v2('x',null,'x',now(),'{}','{}');`,encoding:'utf8',env});assert.notEqual(r.status,0);assert.match(r.stderr,/permission denied/);}
    const before=sql('select count(*) from action_ledger');sql(readFileSync(path.join(root,'db/migrations/drafts/atelier_owner_spec_v2_revert.sql'),'utf8'));assert.equal(sql('select count(*) from action_ledger'),before);assert.equal(sql("select to_regprocedure('public.admit_atelier_owner_spec_v2(text,uuid,text,text,uuid,uuid,jsonb)') is null"),'t');

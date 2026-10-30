@@ -57,36 +57,41 @@ describe("Webhook Registry — destination resolution", () => {
     process.env = ORIGINAL_ENV;
   });
 
+  test("missing configuration never falls back to ambient values", () => {
+    assert.equal(resolveApprovedWebhook("hermes", "task.create"), null);
+    assert.equal(resolveWebhookConfigurationState(findApprovedWebhookBinding("hermes", "task.create")), "destination_env_missing");
+  });
+
   test("returns null if agentId and skillId have no binding", () => {
-    assert.equal(resolveApprovedWebhook("unknown-agent", "unknown-skill"), null);
+    assert.equal(resolveApprovedWebhook("unknown-agent", "unknown-skill", { ...process.env }), null);
   });
 
   test("returns null if the destination variable is missing", () => {
     delete process.env[N8N_DESTINATION_ENV_KEY];
-    assert.equal(resolveApprovedWebhook("hermes", "task.create"), null);
+    assert.equal(resolveApprovedWebhook("hermes", "task.create", { ...process.env }), null);
   });
 
   test("returns null if the URL is invalid", () => {
     process.env[N8N_DESTINATION_ENV_KEY] = "not-a-valid-url";
-    assert.equal(resolveApprovedWebhook("hermes", "task.create"), null);
+    assert.equal(resolveApprovedWebhook("hermes", "task.create", { ...process.env }), null);
   });
 
   test("returns null if the hostname is not in the allowlist", () => {
     process.env[N8N_DESTINATION_ENV_KEY] = "https://evil-hacker.com/webhook";
-    assert.equal(resolveApprovedWebhook("hermes", "task.create"), null);
+    assert.equal(resolveApprovedWebhook("hermes", "task.create", { ...process.env }), null);
   });
 
   test("returns null if a required secret is missing", () => {
     delete process.env[N8N_STATIC_SECRET_ENV_KEY];
     assert.equal(
-      resolveApprovedWebhook("hermes", "task.create"),
+      resolveApprovedWebhook("hermes", "task.create", { ...process.env }),
       null,
       "a destination without the transfer secret cannot dispatch",
     );
   });
 
   test("returns the resolved webhook when the configuration is complete", () => {
-    const result = resolveApprovedWebhook("hermes", "task.create");
+    const result = resolveApprovedWebhook("hermes", "task.create", { ...process.env });
     assert.ok(result);
     assert.equal(result.url, CONFIGURED[N8N_DESTINATION_ENV_KEY]);
     assert.equal(result.binding.agentId, "hermes");

@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 703,
-    "live": 645,
+    "sourceFiles": 706,
+    "live": 648,
     "testOnly": 14,
     "incubation": 44
   },
@@ -398,6 +398,8 @@
     "src/server/agents/engineering-agent.ts",
     "src/server/agents/engineering-package-store.ts",
     "src/server/agents/evidence/memory-evidence-pack.ts",
+    "src/server/agents/execution-intent-admission-contract.ts",
+    "src/server/agents/execution-intent-admission-store.ts",
     "src/server/agents/execution-intent-approval-service.ts",
     "src/server/agents/execution-intent-approve-handler.ts",
     "src/server/agents/execution-intent-payload-hash.ts",
@@ -633,6 +635,7 @@
     "src/server/outbound/resend-email-adapter-env.ts",
     "src/server/outbound/resend-email-adapter.ts",
     "src/server/permissions/permissions.ts",
+    "src/server/runtime/admitted-tool-dispatch.ts",
     "src/server/runtime/execution-corridor-contract.ts",
     "src/server/runtime/execution-corridors.ts",
     "src/server/runtime/execution-guard.ts",

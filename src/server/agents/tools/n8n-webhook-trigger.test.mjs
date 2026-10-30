@@ -5,6 +5,7 @@
 // fetch is ALWAYS injected -- this test never makes a real network call.
 
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import path from "node:path";
 import test, { describe, beforeEach, afterEach } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -51,7 +52,7 @@ const okResponse = { ok: true, status: 200, json: async () => ({ received: true 
 
 const KEY = "oria1:ws1:intent-1:" + "a".repeat(64);
 function ctx(deps, idempotencyKey = KEY) {
-  return { workspaceId: "ws1", agentId: "hermes", deps, ...(idempotencyKey ? { idempotencyKey } : {}) };
+  return { workspaceId: "ws1", agentId: "hermes", deps: { env: Object.freeze({ ...process.env }), ...deps }, ...(idempotencyKey ? { idempotencyKey } : {}) };
 }
 
 describe("n8n_webhook_trigger tool", () => {
@@ -67,6 +68,31 @@ describe("n8n_webhook_trigger tool", () => {
 
   afterEach(() => {
     process.env = ORIGINAL_ENV;
+  });
+
+  test("missing injected configuration refuses despite valid ambient env, before rate limit or fetch", async () => {
+    const fetchImpl = makeFetch(okResponse); let checks = 0;
+    const result = await n8nWebhookTriggerTool.handler(PAYLOAD, {
+      workspaceId: "ws1", idempotencyKey: KEY,
+      deps: { fetchImpl, isAllowed: async () => { checks++; return true; } },
+    });
+    assert.equal(result.ok, false);
+    assert.match(result.error, /configuration.*required/i);
+    assert.equal(fetchImpl.calls.length, 0); assert.equal(checks, 0);
+  });
+
+  test("injected snapshot is the destination and signing source after ambient mutation", async () => {
+    const env = Object.freeze({ ...process.env });
+    process.env.N8N_WEBHOOK_URL = "https://hooks.n8n.cloud/webhook/changed";
+    process.env.N8N_SECRET = "changed"; process.env.AGENT_WEBHOOK_SIGNING_SECRET = "changed";
+    const fetchImpl = makeFetch(okResponse);
+    const result = await n8nWebhookTriggerTool.handler(PAYLOAD, ctx({ env, fetchImpl, isAllowed: async () => true }));
+    assert.equal(result.ok, true);
+    assert.equal(fetchImpl.calls[0].url, env.N8N_WEBHOOK_URL);
+    assert.equal(fetchImpl.calls[0].init.headers["x-webhook-secret"], env.N8N_SECRET);
+    const { headers, body } = fetchImpl.calls[0].init;
+    assert.equal(headers["x-orya-signature"], createHmac("sha256", env.AGENT_WEBHOOK_SIGNING_SECRET)
+      .update(`${headers["x-orya-timestamp"]}.${body}`).digest("hex"));
   });
 
   test("happy path: HMAC + static-secret headers, posts to N8N_WEBHOOK_URL", async () => {

@@ -27,6 +27,9 @@ jobs:
           src/server/atelier/atelier-bound-spec.test.mjs proofs/owner-spec-proof.test.mjs
           src/core/runtime-capability-inventory.test.mjs
           src/server/missions/atelier-execution-*.test.mjs
+          src/server/agents/execution-intent-admission.test.mjs
+          src/server/agents/execution-intent-atomic-handler.test.mjs
+          proofs/execution-intent-admission-sql.test.mjs proofs/execution-intent-admission-proof.test.mjs
       - run: node node_modules/typescript/bin/tsc --noEmit
       - run: node node_modules/eslint/bin/eslint.js src eslint.config.mjs next.config.ts postcss.config.mjs
       - run: node scripts/architecture/system-map.mjs --check
@@ -72,3 +75,5 @@ jobs:
           grep -Fx 'OBSERVED_OWNER_SPEC_WAITERS=2' /tmp/owner-spec-db-proof.log
           grep -Fx 'UNEXPECTED_NETWORK=0' /tmp/owner-spec-db-proof.log
           grep -Fx 'ALL 13 OWNER-SPEC REAL-DB FAKE-CLI PROOFS PASSED' /tmp/owner-spec-db-proof.log
+          grep -Fx 'ADMISSION_WAITERS=2' /tmp/owner-spec-db-proof.log
+          grep -Fx 'ALL 12 EXECUTION-INTENT ADMISSION REAL-DB PROOFS PASSED' /tmp/owner-spec-db-proof.log

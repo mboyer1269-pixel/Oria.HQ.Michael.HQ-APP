@@ -149,9 +149,9 @@ export function resolveWebhookConfigurationState(
     ApprovedWebhookBinding,
     "destinationEnvKey" | "allowedHostnames" | "requiresSignature"
   >,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Readonly<Record<string, string | undefined>>,
 ): WebhookConfigurationState {
-  const rawUrl = env[binding.destinationEnvKey];
+  const rawUrl = env?.[binding.destinationEnvKey];
   if (!rawUrl) return "destination_env_missing";
 
   let parsed: URL;
@@ -191,12 +191,12 @@ export function resolveWebhookConfigurationState(
 export function resolveApprovedWebhook(
   agentId: string,
   skillId: string,
-  env: NodeJS.ProcessEnv | Readonly<Record<string, string | undefined>> = process.env,
+  env: Readonly<Record<string, string | undefined>>,
 ): ResolvedWebhook | null {
   const binding = findApprovedWebhookBinding(agentId, skillId);
   if (!binding) return null;
 
-  if (resolveWebhookConfigurationState(binding, env as NodeJS.ProcessEnv) !== "configured") return null;
+  if (resolveWebhookConfigurationState(binding, env) !== "configured") return null;
 
   // Safe: "configured" implies the variable is present and parses.
   return { url: env[binding.destinationEnvKey] as string, binding };

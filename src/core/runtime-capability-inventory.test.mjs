@@ -74,6 +74,7 @@ function mutationKinds(source) {
   if (/\.rpc\(\s*["'`]claim_atelier_execution["'`]/.test(source)) kinds.push("Atelier transaction RPC");
   if (/\brpc\(\s*["\'`](prepare_atelier_owner_spec_v2|admit_atelier_owner_spec_v2|record_atelier_owner_spec_result_v2)["\'`]/.test(source)) kinds.push("Owner spec v2 transaction RPC");
   if (/\brpc\(\s*["'`]create_approval_decision["'`]/.test(source)) kinds.push("Approval decision creation RPC");
+  if (/\brpc\(\s*["'`]admit_execution_intent_v1["'`]/.test(source)) kinds.push("Execution intent atomic admission RPC");
   if (SERVER_ACTION.test(source)) kinds.push("server action");
   return kinds;
 }
@@ -428,6 +429,48 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     assert.throws(() => checkImports("src/server/agents/future.ts", 'import "./approval-decision-producer";'), /before wiring/);
   });
 
+  await t.test("existing approve route is atomic-only and admission cannot acquire another application caller", async () => {
+    const route = "src/app/api/agents/execution-intents/[intentId]/approve/route.ts";
+    const handler = "src/server/agents/execution-intent-approve-handler.ts";
+    const store = "src/server/agents/execution-intent-admission-store.ts";
+    const dispatch = "src/server/runtime/admitted-tool-dispatch.ts";
+    const service = "src/server/agents/execution-intent-approval-service.ts";
+    const guarded = new Set([handler, store, dispatch, service]);
+    const edges = { [route]: [handler, store, service], [handler]: [dispatch, service] };
+    const files = await sourceFiles(), known = new Set(files.map(file => toPosix(path.relative(projectRoot, file))));
+    const check = (rel, source) => {
+      const specifiers = [];
+      const add = e => { while (e && ts.isParenthesizedExpression(e)) e = e.expression;
+        if (e && ts.isStringLiteralLike(e)) specifiers.push(e.text); };
+      const visit = n => {
+        if (ts.isImportDeclaration(n) || ts.isExportDeclaration(n)) add(n.moduleSpecifier);
+        if (ts.isImportEqualsDeclaration(n) && ts.isExternalModuleReference(n.moduleReference)) add(n.moduleReference.expression);
+        if (ts.isImportTypeNode(n) && ts.isLiteralTypeNode(n.argument)) add(n.argument.literal);
+        if (ts.isCallExpression(n) && (n.expression.kind === ts.SyntaxKind.ImportKeyword
+          || (ts.isIdentifier(n.expression) && n.expression.text === "require"))) add(n.arguments[0]);
+        ts.forEachChild(n, visit);
+      };
+      visit(ts.createSourceFile(rel, source, ts.ScriptTarget.Latest, true));
+      for (const spec of specifiers) {
+      const target = resolveSourceSpecifier(rel, spec, known);
+      assert.ok(!guarded.has(target) || (edges[rel] ?? []).includes(target), `${rel} bypasses the atomic owner route`);
+    } };
+    for (const file of files) { const rel = toPosix(path.relative(projectRoot, file)); check(rel, await read(rel)); }
+    for (const target of guarded) for (const source of [
+      `import x from "@/${target.slice(4)}";`, `export * from "@/${target.slice(4)}";`,
+      `await import("@/${target.slice(4)}");`, `require("@/${target.slice(4)}");`,
+      `import type { T } from "@/${target.slice(4)}";`, `await import(\`@/${target.slice(4)}\`);`,
+      `type T = import("@/${target.slice(4)}").T;`, `import T = require("@/${target.slice(4)}");`,
+    ]) assert.throws(() => check("src/app/api/other/route.ts", source), /atomic owner route/);
+    assert.deepEqual(mutationKinds('db.rpc("admit_execution_intent_v1", params)'), ["Execution intent atomic admission RPC"]);
+    assert.deepEqual(mutationKinds('db.rpc("check_execution_intent_admission_v1", params)'), []);
+    assert.ok(capabilityFiles.has(store)); assert.ok(!outOfScopeFiles.has(store));
+    const source = await read(route);
+    assert.ok(source.includes("POST = createAtomicApproveHandler(defaultDeps)"));
+    assert.ok(source.includes("admission: createExecutionIntentAdmissionStore()"));
+    assert.ok(!/POST\s*=\s*createApproveHandler\(/.test(source));
+  });
+
   await t.test("Claude JSON launcher has no importer yet (SENT-418-2)", async () => {
     const files = await sourceFiles();
     const target = "src/server/ai/claude-json-launcher.ts";
@@ -584,6 +627,7 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       "src/server/missions/atelier-owner-spec-service.ts": ["atelier-owner-spec-contract.ts", "atelier-owner-spec-store.ts"],
       "src/server/missions/atelier-owner-spec-handler.ts": ["atelier-owner-spec-contract.ts", "atelier-owner-spec-service.ts"],
       "src/server/atelier/atelier-bound-spec.ts": ["atelier-owner-spec-contract.ts"],
+      "src/server/agents/execution-intent-admission-store.ts": ["atelier-owner-spec-contract.ts"],
     };
     edges["src/server/missions/atelier-execution-contract.ts"] = ["atelier-development-contract.ts"];
     edges["src/server/missions/atelier-execution-store.ts"] = ["atelier-execution-contract.ts"];

@@ -1,7 +1,10 @@
 // Execution-intent approval orchestration.
 //
 // The dependency-injected core of the CEO manual-approval path. It encodes the
-// exact, auditable sequence the mandate requires and nothing else:
+// Atomic route: policy -> atomic consume/claim/attempt -> current-bound dispatch
+// -> result/status. A consumed approval never returns to pending. The optional
+// legacy DI branch below remains regression-tested, but is not a public route
+// fallback. Its historical sequence was:
 //
 //   Sentinelle re-check (BLOCK => stop) -> mark executing -> Ledger (attempt,
 //   BEFORE the call) -> dispatch via MCP tool -> Ledger (result) -> update
@@ -18,8 +21,11 @@ import type { AgentExecutionIntentStatus } from "@/features/agents/execution-int
 export type RereadStatus = AgentExecutionIntentStatus | "unknown";
 import type { SentinelleDecision } from "@/server/runtime/execution-guard";
 import type { GovernedRefusal, McpToolResult } from "@/server/agents/tools/types";
+import type { AdmissionResult } from "./execution-intent-admission-contract";
 
 export type ExecutionIntentApprovalDeps = {
+  /** Atomic-only route: consume + claim + sealed attempt, or no effects. Legacy DI remains separately testable. */
+  admit?: () => Promise<AdmissionResult>;
   /**
    * Advisory guard precheck BEFORE the claim (pure, no effect). A refusal here
    * leaves the intent pending. Not binding: dispatch re-checks after the claim.
@@ -74,6 +80,8 @@ export type ExecutionIntentApprovalResult =
       refusal: GovernedRefusal;
     }
   | { ok: false; status: "executing"; outcome: "uncertain"; error: string; httpStatus: 502 }
+  | { ok: false; status: "unknown"; outcome: "admission_unconfirmed"; error: string; httpStatus: 503 }
+  | { ok: false; status: RereadStatus; outcome: "not_admitted"; error: string; httpStatus: 403 | 409 | 503 }
   | {
       /** Dispatch reported success but the executed transition was not stored. Not retryable. */
       ok: false;
@@ -121,20 +129,31 @@ export async function approveAndDispatchExecutionIntent(
   // CEO approval (yellow REQUIRE_APPROVAL is satisfied by the CEO acting now).
   const sentinelle = deps.evaluate();
   if (sentinelle.outcome === "BLOCK") {
-    await deps.recordResult(false, "blocked").catch(() => void 0);
-    await deps.markFailed("SENTINELLE_BLOCK", "pending").catch(() => void 0);
+    if (!deps.admit) {
+      await deps.recordResult(false, "blocked").catch(() => void 0);
+      await deps.markFailed("SENTINELLE_BLOCK", "pending").catch(() => void 0);
+    }
     return { ok: false, status: "blocked", error: sentinelle.reason, httpStatus: 403 };
   }
 
   const pre = deps.precheck?.() ?? null;
   if (pre) {
     // Nothing claimed, nothing dispatched: the intent stays pending.
-    await deps.recordResult(false, "refused", { refusal: pre }).catch(() => void 0);
+    if (!deps.admit) await deps.recordResult(false, "refused", { refusal: pre }).catch(() => void 0);
     return { ok: false, status: "refused", stage: "precheck", error: pre.reason, httpStatus: 403, refusal: pre };
   }
 
-  // Executable point: this conditional pending->executing claim (bound to the
-  // verified payload). Before it, reject/edit revokes. After it, no revocation.
+  // Atomic admission is the one-way claim boundary. A current DB recheck still
+  // observes revocation before dispatch; it is not a transaction with the network.
+  if (deps.admit) {
+    let admitted: AdmissionResult;
+    try { admitted = await deps.admit(); } catch { admitted = { status: "unconfirmed" }; }
+    if (admitted.status === "unconfirmed") return { ok: false, status: "unknown", outcome: "admission_unconfirmed",
+      error: "Admission acknowledgement unconfirmed. Do not resend; reconcile.", httpStatus: 503 };
+    if (admitted.status !== "admitted") return { ok: false, status: await rereadStatus(deps), outcome: "not_admitted",
+      error: `Atomic admission refused (${admitted.status}); no dispatch attempted.`,
+      httpStatus: admitted.status === "unavailable" ? 503 : admitted.status === "approval_required" ? 403 : 409 };
+  } else {
   await deps.markExecuting();
   // No dispatch may start without a recorded attempt. If the Ledger write
   // fails, undo the claim conditionally and stop.
@@ -155,6 +174,7 @@ export async function approveAndDispatchExecutionIntent(
       revert: claimReverted ? "reverted" : "revert_conflict",
     };
   }
+  }
 
   let result: McpToolResult;
   try {
@@ -172,6 +192,9 @@ export async function approveAndDispatchExecutionIntent(
 
   if (result.rateLimited) {
     await deps.recordResult(false, "rate_limited").catch(() => void 0);
+    // The approval is already consumed. Never rearm this intent or reuse it.
+    if (deps.admit) return { ok: false, status: "executing", outcome: "uncertain", httpStatus: 502,
+      error: "Admitted attempt was rate-limited. Approval consumed; reconcile, do not resend." };
     // Conditional revert (executing + same payload only). Zero rows updated is
     // an error that surfaces: a terminal row must never go back to pending.
     try {

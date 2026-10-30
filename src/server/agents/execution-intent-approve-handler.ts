@@ -18,6 +18,8 @@ import {
   type precheckGovernedTool,
 } from "@/server/runtime/governed-tool-dispatch";
 import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
+import { buildAdmissionInput, type AdmissionPort, type AdmissionReceipt } from "./execution-intent-admission-contract";
+import { dispatchAdmittedTool } from "@/server/runtime/admitted-tool-dispatch";
 
 /**
  * Everything the approve handler touches outside itself. Supplied ONCE, by the
@@ -26,6 +28,9 @@ import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-pay
  * mutated after construction: no setters, no module state.
  */
 export type ApproveHandlerDeps = {
+  /** Required by the production factory below; omitted only by legacy DI regression fixtures. */
+  atomicOnly?: true;
+  admission?: AdmissionPort;
   requireOwnerApiSession: typeof requireOwnerApiSession;
   getAuthenticatedActorId: typeof getAuthenticatedActorId;
   getActiveWorkspaceContext: typeof getActiveWorkspaceContext;
@@ -60,16 +65,20 @@ function conflict(intentId: string, reason: ApprovalConflictReason, status?: str
   );
 }
 
+/** Existing POST now uses this atomic-only factory. Missing port/RPC never selects the legacy rail. */
+export function createAtomicApproveHandler(deps: ApproveHandlerDeps & { admission: AdmissionPort }) {
+  return createApproveHandler({ ...deps, atomicOnly: true });
+}
+
 /**
  * POST /api/agents/execution-intents/:intentId/approve
  *
  * The CEO manual approval -- the SINGLE trigger that fires the n8n webhook.
  * This is the only route that invokes the n8n_webhook_trigger MCP tool.
  *
- * Sequence (enforced by approveAndDispatchExecutionIntent):
- *   Sentinelle re-check (BLOCK -> 403) -> mark executing -> Ledger (attempt,
- *   before the call) -> dispatch via MCP tool -> Ledger (result) -> update
- *   status (executed | failed). A rate-limited dispatch reverts to pending.
+ * The production factory is atomic-only: session -> policy -> atomic admission
+ * -> current receipt + policy recheck -> MCP tool -> result/status. Old DI
+ * orchestration remains testable, but the public route cannot select it.
  */
 export function createApproveHandler(deps: ApproveHandlerDeps) {
   // Snapshot + freeze: later mutation of the caller's object changes nothing.
@@ -95,8 +104,16 @@ export function createApproveHandler(deps: ApproveHandlerDeps) {
       { params }: { params: Promise<{ intentId: string }> },
       requestId: string,
     ): Promise<Response> {
-      const authResponse = await deps.requireOwnerApiSession();
+      const authResponse = await deps.requireOwnerApiSession().catch(error => {
+        if (!deps.atomicOnly) throw error;
+        return NextResponse.json({ error: "Owner session verification unavailable." }, { status: 503 });
+      });
       if (authResponse) return authResponse;
+      const authenticatedActor = deps.atomicOnly ? await deps.getAuthenticatedActorId().catch(() => null) : null;
+      if (deps.atomicOnly && (typeof authenticatedActor !== "string"
+        || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(authenticatedActor))) {
+        return NextResponse.json({ error: "An authenticated owner identity is required." }, { status: 401 });
+      }
 
       const { intentId } = await params;
       // G2: the body carries ONLY the hash of the payload the CEO reviewed. Any
@@ -179,9 +196,9 @@ export function createApproveHandler(deps: ApproveHandlerDeps) {
 
       // Attribution comes from the authenticated session, not the workspace context:
       // ctx.userId is derived from configuration and can name a different identity
-      // than the session that passed the owner gate. Falls back to ctx.userId only
-      // where no session exists (local/dev), which is the honest identity there.
-      const actorId = (await deps.getAuthenticatedActorId()) ?? ctx.userId;
+      // than the session that passed the owner gate. Atomic production requires
+      // that real UUID above; configured fallback belongs only to legacy DI.
+      const actorId = authenticatedActor ?? (await deps.getAuthenticatedActorId()) ?? ctx.userId;
       // G1 attemptId: single-use token written at the claim; every later transition
       // is a compare-and-set on it. The idempotency key is stable across attempts
       // (same intent + same approved payload) and never contains the token.
@@ -189,7 +206,15 @@ export function createApproveHandler(deps: ApproveHandlerDeps) {
       const idemKey = buildIdempotencyKey(ctx.workspace.id, intentId, payloadHash);
 
       try {
+        const admissionInput = deps.atomicOnly ? buildAdmissionInput(intent, actorId, approvalDecisionId, attemptId.slice(8)) : null;
+        let receipt: AdmissionReceipt | undefined;
         const result = await deps.approveAndDispatchExecutionIntent({
+          ...(deps.atomicOnly ? { admit: async () => {
+            if (!deps.admission || !admissionInput) return { status: "unavailable" as const };
+            const admitted = await deps.admission.admit(admissionInput);
+            if (admitted.status === "admitted") receipt = admitted.receipt;
+            return admitted;
+          } } : {}),
           // Advisory only (pure, before the claim). dispatchGovernedTool below is the binding re-check.
           precheck: () => deps.precheckGovernedTool({ intentId, toolName: intent.toolName, payload: intent.payload }),
           evaluate: () => deps.evaluateLiveExecution(sentinelleInput),
@@ -232,8 +257,13 @@ export function createApproveHandler(deps: ApproveHandlerDeps) {
             }),
           // G1: guardGovernedAction re-reads the G2 approval (the claimed row) and
           // recomputes the payload hash server-side before the tool may run.
-          dispatch: () =>
-            deps.dispatchGovernedTool(
+          dispatch: () => deps.atomicOnly
+            ? (admissionInput && receipt && deps.admission
+              ? dispatchAdmittedTool(admissionInput, receipt, deps.admission,
+                (payload, { idempotencyKey }) => tool.handler(payload, { workspaceId: ctx.workspace.id,
+                  agentId: intent.agentId, idempotencyKey, deps: { env: d.webhookEnv } }), deps.evaluateLiveExecution)
+              : Promise.resolve({ ok: false, outcomeUncertain: true, error: "Admission receipt unavailable; reconcile without resend." }))
+            : deps.dispatchGovernedTool(
               {
                 workspaceId: ctx.workspace.id,
                 intentId,
@@ -389,7 +419,7 @@ export function createApproveHandler(deps: ApproveHandlerDeps) {
           );
         }
 
-        if (result.status === "executing" && "outcome" in result) {
+        if ((result.status === "executing" || result.status === "unknown") && "outcome" in result) {
           logger.error("agent.execution-intent.approve.outcome_uncertain", {
             intentId,
             requestId,
@@ -401,7 +431,7 @@ export function createApproveHandler(deps: ApproveHandlerDeps) {
             {
               intentId,
               requestId,
-              status: "executing",
+              status: result.status,
               outcome: result.outcome,
               error: result.error,
               ...("actionRef" in result && result.actionRef ? { actionRef: result.actionRef } : {}),

@@ -83,9 +83,9 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   const fetchImpl = deps.fetchImpl ?? fetch;
   const isAllowedImpl = deps.isAllowed ?? isAllowed;
   const now = deps.now ?? (() => Date.now());
-  // Env snapshot injected once by the caller (approve route defaultDeps);
-  // falls back to process.env for other callers.
-  const env = (deps.env ?? process.env) as NodeJS.ProcessEnv;
+  // Execution requires the caller’s captured configuration; never consult ambient destinations.
+  const env = deps.env;
+  if (!env) return { ok: false, error: "Injected webhook configuration is required." };
 
   // 1. Authorization -- agent+skill must be an approved binding.
   const binding = findApprovedWebhookBinding(input.agentId, input.skillId);

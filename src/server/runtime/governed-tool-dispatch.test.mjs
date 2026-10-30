@@ -79,9 +79,10 @@ test("(a) real n8n executor: governed action without approval is refused and no 
   } finally { spy.restore(); }
 });
 
-test("(a) the approve route dispatches through dispatchGovernedTool, never tool.handler directly", async () => {
+test("(a) the approve route requires atomic admission, never tool.handler directly", async () => {
   const src = await readFile(path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"), "utf8");
-  assert.match(src, /dispatchGovernedTool\(/, "approve route must call dispatchGovernedTool");
+  assert.match(src, /POST = createAtomicApproveHandler\(defaultDeps\)/, "approve route must use the atomic-only factory");
+  assert.match(src, /admission: createExecutionIntentAdmissionStore\(\)/, "real store is mandatory, not a supplied approval object");
   assert.doesNotMatch(src, /dispatch:\s*\(\)\s*=>\s*\n?\s*tool\.handler\(/, "approve route must not call tool.handler directly");
 });
 

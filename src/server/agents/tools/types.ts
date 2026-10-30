@@ -17,7 +17,7 @@ export type McpToolDeps = {
   fetchImpl?: typeof fetch;
   isAllowed?: (key: string, limit: number, windowMs: number) => Promise<boolean>;
   now?: () => number;
-  /** Webhook env snapshot captured once by the route (default: process.env). */
+  /** Webhook env snapshot captured once by the caller; required for n8n dispatch. */
   env?: Readonly<Record<string, string | undefined>>;
 };
 

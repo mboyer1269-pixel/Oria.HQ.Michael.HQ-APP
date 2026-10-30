@@ -307,3 +307,17 @@ test("Webhook registry — the allowlist cannot be widened at runtime", async (t
     assert.equal(Object.isFrozen(N8N_RECEIVER_ACCEPTED_ROUTES), true);
   });
 });
+
+test("default corridor diagnostics use their loaded configuration snapshot, not later ambient values", () => {
+  const before = listExecutionCorridors().map(c => c.webhook.configuration);
+  const env = process.env;
+  try {
+    process.env = { ...env, ...CONFIGURED_ENV };
+    const configured = listExecutionCorridors().map(c => c.webhook.configuration);
+    process.env = { ...env, N8N_WEBHOOK_URL: "", N8N_SECRET: "", AGENT_WEBHOOK_SIGNING_SECRET: "" };
+    assert.deepEqual(listExecutionCorridors().map(c => c.webhook.configuration), before);
+    assert.deepEqual(configured, before);
+    assert.ok(listExecutionCorridors(CONFIGURED_ENV).every(c => c.webhook.configuration === "configured"));
+    assert.ok(listExecutionCorridors({}).every(c => c.webhook.configuration === "destination_env_missing"));
+  } finally { process.env = env; }
+});

@@ -346,14 +346,14 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
     effect: "external_call",
     gate: "ceo_approval",
     detail:
-      "Envoi HMAC signé vers n8n. Déclenché uniquement par la route d'approbation CEO, jamais par l'évaluation automatique.",
+      "Envoi HMAC signé vers n8n après session owner réelle, admission atomique décision+claim+audit et relecture du reçu frais. RPC/scellage absent ferme le POST ; SQL draft à qualifier avant déploiement. Aucun retry implicite après admission.",
     evidence: {
       path: "src/app/api/agents/execution-intents/[intentId]/approve/route.ts",
-      mustContain: "dispatchGovernedTool(",
+      mustContain: "POST = createAtomicApproveHandler(defaultDeps)",
       because:
         "The approve route is the only caller of the dispatch tool. Another caller would mean this gate is no longer ceo_approval.",
     },
-    covers: ["src/server/agents/execution-intent-repository.ts"],
+    covers: ["src/server/agents/execution-intent-repository.ts", "src/server/agents/execution-intent-admission-store.ts"],
   },
   {
     id: "joris_memex_context_lookup",

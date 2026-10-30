@@ -157,6 +157,7 @@ const result = await approveAndDispatchExecutionIntent({
   dispatch: () => n8nWebhookTriggerTool.handler(stored.payload, {
     workspaceId: WORKSPACE,
     agentId: "hermes",
+    deps: { env: Object.freeze({ N8N_WEBHOOK_URL, N8N_SECRET, AGENT_WEBHOOK_SIGNING_SECRET: SIGNING_SECRET }) },
     // G1: stable key (the approve route derives it from intent + payload hash).
     idempotencyKey: `oria1:${WORKSPACE}:${intentId}:smoke`,
   }),
