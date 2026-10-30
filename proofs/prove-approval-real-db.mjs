@@ -67,6 +67,29 @@ function sql(statement) {
   return r.stdout.trim();
 }
 
+// Diagnostics for disposable fixture transport only. Never log payloads, query
+// strings, headers, raw error details or unclassified messages (which may echo data).
+function transportDiagnostic(method, url, status, error = {}) {
+  const pathname = String(url ?? "").split("?")[0];
+  const code = typeof error?.code === "string" && /^[A-Z0-9_]{2,32}$/.test(error.code) ? error.code : null;
+  const messages = {
+    PGRST205: "Table absent from PostgREST schema cache",
+    PGRST204: "Column absent from PostgREST schema cache",
+    PGRST202: "Function absent from PostgREST schema cache",
+    PGRST000: "PostgREST database connection unavailable",
+    PGRST301: "PostgREST authentication rejected",
+    PGRST302: "PostgREST anonymous access rejected",
+    '42501': "Database permission denied", '22P02': "Database input syntax rejected",
+    '23502': "Database non-null constraint rejected", '23503': "Database foreign key rejected",
+    '23505': "Database unique constraint rejected", '23514': "Database check constraint rejected",
+    ECONNREFUSED: "Loopback connection refused", UND_ERR_INVALID_ARG: "Loopback request argument rejected",
+  };
+  return { method: /^(GET|POST|PATCH|HEAD|OPTIONS|DELETE)$/.test(method) ? method : "OTHER",
+    path: /^\/rest\/v1\/(?:rpc\/)?[a-z0-9_]+$/.test(pathname) ? pathname : "<unclassified-path>",
+    status: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+    code, message: status < 400 ? "OK" : (messages[code] ?? "Unclassified transport or database error") };
+}
+let gatewayDiagnostics = 0;
 let beforeClaim = null; // atomic admission RPC hook, before its SQL begins
 let gatewayRequests = 0;
 const gateway = createServer(async (req, res) => {
@@ -97,11 +120,17 @@ const gateway = createServer(async (req, res) => {
       signal: AbortSignal.timeout(10000),
     });
     const body = Buffer.from(await upstream.arrayBuffer());
+    let diagnosticError = {};
+    if (!upstream.ok && body.length <= 16384) {
+      try { diagnosticError = JSON.parse(body.toString("utf8")); } catch { /* Never log arbitrary response text. */ }
+    }
+    if (gatewayDiagnostics++ < 60) console.log("APPROVAL_PROOF_TRANSPORT " + JSON.stringify(transportDiagnostic(req.method, req.url, upstream.status, diagnosticError)));
     const out = Object.fromEntries(upstream.headers);
     delete out["content-encoding"];
     delete out["transfer-encoding"];
     res.writeHead(upstream.status, out).end(body);
   } catch (err) {
+    if (gatewayDiagnostics++ < 60) console.log("APPROVAL_PROOF_TRANSPORT " + JSON.stringify(transportDiagnostic(req.method, req.url, 502, { code: err?.cause?.code ?? err?.code })));
     res.writeHead(502).end(JSON.stringify({ error: String(err) }));
   }
 });

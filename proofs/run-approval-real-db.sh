@@ -66,14 +66,20 @@ if [ -n "${CI_PG_URL:-}" ] && [ -n "${POSTGREST_DIRECT_URL:-}" ]; then
   # PostgREST started on an empty DB: its schema cache has 0 relations. Always
   # request a reload, and wait until the OpenAPI root really lists the table
   # (a plain GET can answer 200 from a stale cache).
+  # PostgREST12: DDL requires explicit reload; RPC OpenAPI presence alone is insufficient.
+  # https://docs.postgrest.org/en/v12/references/schema_cache.html
+  echo "notify pgrst, 'reload schema';" | $PSQL >/dev/null
   i=0
   until schema=$(curl -s -m 3 "$POSTGREST_DIRECT_URL/") &&
+    printf '%s' "$schema" | grep -q '"/agent_execution_intents"' &&
     printf '%s' "$schema" | grep -q '"/rpc/admit_execution_intent_v1"' &&
     printf '%s' "$schema" | grep -q '"/rpc/check_execution_intent_admission_v1"'; do
+    echo "OPENAPI_READINESS table=$(printf '%s' "$schema" | grep -q '"/agent_execution_intents"' && echo true || echo false) admit=$(printf '%s' "$schema" | grep -q '"/rpc/admit_execution_intent_v1"' && echo true || echo false) check=$(printf '%s' "$schema" | grep -q '"/rpc/check_execution_intent_admission_v1"' && echo true || echo false)"
     echo "notify pgrst, 'reload schema';" | $PSQL >/dev/null 2>&1 || true
     i=$((i+1)); [ "$i" -lt 120 ] || { echo "NON EXECUTE: PostgREST schema cache not loaded" >&2; exit 127; }; sleep 0.5
   done
-  echo "✔ PostgREST schema cache reloaded."
+  echo "OPENAPI_READINESS table=true admit=true check=true"
+  echo "✔ PostgREST table and admission RPC metadata available after explicit reload."
   HQ_ROOT="$ROOT" PSQL_CMD="$PSQL" node "$ROOT/proofs/prove-approval-real-db.mjs"
   exit $?
 fi
@@ -111,6 +117,7 @@ docker run -d --name "$REST_NAME" --network "$NET" -p 127.0.0.1:0:3000 \
 port=$(docker port "$REST_NAME" 3000 | head -n 1 | awk -F: '{print $NF}')
 i=0
 until schema=$(curl -s -m 3 "http://127.0.0.1:$port/") &&
+  printf '%s' "$schema" | grep -q '"/agent_execution_intents"' &&
   printf '%s' "$schema" | grep -q '"/rpc/admit_execution_intent_v1"' &&
   printf '%s' "$schema" | grep -q '"/rpc/check_execution_intent_admission_v1"'; do
   i=$((i+1)); [ "$i" -lt 120 ] || { echo "PostgREST not ready" >&2; docker logs "$REST_NAME" >&2; exit 1; }; sleep 0.25
