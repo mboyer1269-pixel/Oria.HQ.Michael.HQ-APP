@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-// GAP (red on purpose at f6de985). Architecte À CORRIGER + Sentinelle P2 #2.
+// Was a GAP at f6de985 (fixed in c1c6af0). Architecte À CORRIGER + Sentinelle P2 #2.
+// G1 tightening: the status read succeeds here, so the answer must be the real
+// one ("executed"). The read-failure → "unknown" case is its own test
+// (execution-intent-approval.atelier-fixes.test.mjs).
 // (k) 429 path: revert_conflict response hardcodes status "executing"
 //     (service:175-181) while the row may already be terminal. Expect the
 //     status re-read from the store, or "unknown" if the read fails.
@@ -28,7 +31,7 @@ test("(k) 429 revert_conflict on a row that became executed reports the real sta
     assert.equal(stored, "executed");
     assert.equal(r.status, 409, JSON.stringify(r.body));
     assert.equal(r.body.reason, "revert_conflict");
-    assert.ok(r.body.status === stored || r.body.status === "unknown",
+    assert.equal(r.body.status, "executed",
       `response says ${r.body.status} while the row is ${stored}`);
     assert.equal(n8n.calls.length, 0);
   } finally { clearHook(); n8n.restore(); rateLimit.__resetRateLimitersForTests(); }

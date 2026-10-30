@@ -395,7 +395,24 @@ function createUnavailableActionLedgerRepository(): ActionLedgerRepository {
   };
 }
 
-export function createActionLedgerRepository(user: ServerUserContext): ActionLedgerRepository {
+export type ActionLedgerRepositoryFactory = (user: ServerUserContext) => ActionLedgerRepository;
+
+export type ActionLedgerRepositoryDeps = {
+  /**
+   * Inject a repository implementation (e.g. one whose writes fail). When
+   * omitted, the real selection below is used. Dependencies apply only to this
+   * instance; they cannot replace the writer used by other callers.
+   */
+  factory?: ActionLedgerRepositoryFactory;
+};
+
+export function createActionLedgerRepository(
+  user: ServerUserContext,
+  deps: ActionLedgerRepositoryDeps = {},
+): ActionLedgerRepository {
+  if (deps.factory) {
+    return deps.factory(user);
+  }
   if (user.storagePreference === "supabase" && hasSupabaseAdminConfig()) {
     return createSupabaseActionLedgerRepository(user);
   }

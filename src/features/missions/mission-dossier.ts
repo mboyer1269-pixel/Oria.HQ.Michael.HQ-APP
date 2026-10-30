@@ -1,4 +1,7 @@
 import type { Mission } from "@/core/types";
+import type { AtelierOwnerSpecEvidence } from "./atelier-owner-spec-result";
+import { evaluateMissionApproval } from "../../server/missions/approval-service";
+import { missionDossierHref } from "./development-mission-handoff";
 import { openHandsResultReceiptSchema, type OpenHandsResultReceipt } from "../../core/openhands-result-contract";
 import { getAgentDisplayName, resolveAgentId } from "../agents/naming";
 import { agentRegistry } from "../agents/seed";
@@ -19,10 +22,11 @@ export type MissionReportedOutput = {
   sourceField: "mission.result.summary";
   process: { exitCode: number; deadlineExceeded: boolean } | null;
   receipt: OpenHandsResultReceipt | null;
+  atelierSpec?: AtelierOwnerSpecEvidence;
 };
 /** Only project fields that already exist in the persisted mission contract.
  * A stopped process, including exit 0, is not validation of its deliverable. */
-export function missionReportedOutput(mission: Mission): MissionReportedOutput {
+export function missionReportedOutput(mission: Mission, atelierSpec?: AtelierOwnerSpecEvidence): MissionReportedOutput {
   const summary = mission.result?.summary;
   const text = typeof summary === "string" && summary.trim() ? summary : null;
   const raw = mission.input?._openhandsLaunch;
@@ -47,6 +51,7 @@ export function missionReportedOutput(mission: Mission): MissionReportedOutput {
     truncated: text !== null && text.length > MAX_REPORTED_TEXT,
     independentlyValidated: false,
     sourceField: "mission.result.summary",
+    atelierSpec,
     receipt: receiptBound ? receipt : null,
     process: bound && process?.containerStopped === true && Number.isSafeInteger(process.exitCode)
       && typeof process.deadlineExceeded === "boolean"
@@ -58,6 +63,11 @@ export function missionReportedOutput(mission: Mission): MissionReportedOutput {
 export function missionDossierSummary(mission: Mission) {
   const summary = mission.result?.summary;
   const budget = mission.costBudgetCents;
+  const needsReview = evaluateMissionApproval(mission).required;
+  // Presence only changes the safe advice; malformed data is never a confirmed receipt.
+  const hasReservationReference = ["_atelierRun", "_openhandsReservation"]
+    .some(key => Object.prototype.hasOwnProperty.call(mission.input ?? {}, key));
+  const approvalHref = needsReview ? missionDossierHref(mission.id)?.replace("#requested-mission", "#mission-approval") ?? null : null;
   return {
     owner: !mission.assignedAgentId?.trim() ? "Non attribué"
       : agentRegistry.some((agent) => agent.id === resolveAgentId(mission.assignedAgentId))
@@ -66,7 +76,11 @@ export function missionDossierSummary(mission: Mission) {
     reportedResult: typeof summary === "string" && summary.trim() ? summary : null,
     budget: typeof budget === "number" && Number.isFinite(budget) && budget >= 0
       ? `${(budget / 100).toFixed(2)} $` : "Non défini",
-    nextStep: mission.status === "needs_approval" ? "Consulter les approbations ci-dessous."
+    approvalHref,
+    nextStep: needsReview ? "Examiner la décision de cette mission ; le lancement reste distinct."
+      : mission.status === "draft" ? hasReservationReference
+        ? "Vérifier si un reçu confirme la réservation, sans renvoyer de confirmation. Une réservation ne prouve pas un lancement."
+        : "Relire l’objectif et le résultat attendu, puis préparer une réservation. Cette préparation ne lance aucun agent."
       : mission.status === "failed" ? "Examiner la trace avant toute nouvelle tentative."
       : mission.status === "completed" ? "Vérifier le livrable et ses preuves avant de le considérer validé."
       : mission.status === "cancelled" ? "Aucune reprise automatique."

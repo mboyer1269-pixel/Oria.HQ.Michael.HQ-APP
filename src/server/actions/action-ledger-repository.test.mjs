@@ -17,6 +17,7 @@
 
 import assert from "node:assert/strict";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -77,6 +78,65 @@ test.after(() => {
   } else {
     process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseServiceRoleKey;
   }
+});
+
+// Fresh child: no inherited credentials or module cache, no production resources.
+// Synthetic boot placeholders satisfy the real fail-fast config contract; the
+// local-storage request must still be refused under NODE_ENV=production.
+function productionLedgerFixture(body) {
+  const script = `
+    import assert from "node:assert/strict";
+    import { createJiti } from "jiti";
+    let networkCalls = 0;
+    globalThis.fetch = () => { networkCalls++; throw Error("unexpected network"); };
+    const jiti = createJiti(import.meta.url, { alias: {
+      "@": ${JSON.stringify(path.join(projectRoot, "src"))},
+      "server-only": ${JSON.stringify(path.join(projectRoot, "src/scripts/smoke/server-only-stub.mjs"))},
+    } });
+    const ledger = await jiti.import(${JSON.stringify(path.join(projectRoot, "src/server/actions/action-ledger-repository.ts"))});
+    const user = { userId: "isolated-owner", storagePreference: "local" };
+    const input = { actionType: "fixture.record", summary: "Synthetic fixture", autonomyLevel: 0, requiresConfirmation: true };
+    ${body}
+    assert.equal(networkCalls, 0);
+  `;
+  const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    cwd: projectRoot, encoding: "utf8", timeout: 10000,
+    env: {
+      NODE_ENV: "production", MICHAEL_HQ_OWNER_ID: "isolated-owner",
+      MICHAEL_HQ_OWNER_EMAIL: "fixture@example.invalid",
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:9",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "synthetic-not-a-credential",
+      SUPABASE_SERVICE_ROLE_KEY: "synthetic-not-a-credential",
+    },
+  });
+  assert.equal(child.status, 0, child.error?.message ?? child.stderr + child.stdout);
+}
+
+test("an obsolete test setter cannot replace the production default ledger", () => {
+  productionLedgerFixture(`
+    let fakeWrites = 0;
+    const factory = () => ({ mode: "local", record: async () => { fakeWrites++; return { id: "fake" }; } });
+    const before = ledger.listLocalActionLedgerEntries();
+    // Before the fix this setter replaces every later default, even production.
+    ledger.__setActionLedgerRepositoryForTests?.(factory);
+    await assert.rejects(ledger.createActionLedgerRepository(user).record(input), /Supabase configuration is required/);
+    assert.equal(fakeWrites, 0);
+    assert.deepEqual(ledger.listLocalActionLedgerEntries(), before);
+    assert.equal(Object.hasOwn(ledger, "__setActionLedgerRepositoryForTests"), false);
+  `);
+});
+
+test("an explicit ledger factory affects only its own instance, never the default writer", () => {
+  productionLedgerFixture(`
+    const calls = [];
+    const injected = ledger.createActionLedgerRepository(user, { factory: suppliedUser => ({ mode: "local",
+      record: async input => { calls.push({ user: suppliedUser, input }); throw Error("isolated write refusal"); } }) });
+    const ordinary = ledger.createActionLedgerRepository(user);
+    await assert.rejects(injected.record(input), /isolated write refusal/);
+    await assert.rejects(ordinary.record(input), /Supabase configuration is required/);
+    await assert.rejects(ledger.createActionLedgerRepository(user).record(input), /Supabase configuration is required/);
+    assert.deepEqual(calls, [{ user, input }]);
+  `);
 });
 
 // ---------------------------------------------------------------------------

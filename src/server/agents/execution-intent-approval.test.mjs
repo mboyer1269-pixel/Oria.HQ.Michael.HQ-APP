@@ -192,7 +192,10 @@ describe("approval wired to the real repo + real n8n tool (fetch mocked)", () =>
       dispatch: () =>
         n8nWebhookTriggerTool.handler(intent.payload, {
           workspaceId: "ws1",
-          deps: { fetchImpl, isAllowed: async () => true, now: () => 1 },
+          // G1: the governed dispatch supplies the stable idempotency key.
+          idempotencyKey: "oria1:ws1:intent-1:test",
+          deps: { fetchImpl, isAllowed: async () => true, now: () => 1,
+            env: Object.freeze({ N8N_WEBHOOK_URL: "https://hooks.n8n.cloud/webhook/x", N8N_SECRET: "s", AGENT_WEBHOOK_SIGNING_SECRET: "k" }) },
         }),
       recordResult: async (_ok, phase) => void ledger.push(`result:${phase}`),
       markExecuted: (ref) =>
@@ -246,7 +249,10 @@ describe("approval wired to the real repo + real n8n tool (fetch mocked)", () =>
       dispatch: () =>
         n8nWebhookTriggerTool.handler(intent.payload, {
           workspaceId: "ws1",
-          deps: { fetchImpl, isAllowed: async () => true },
+          // G1: the governed dispatch supplies the stable idempotency key.
+          idempotencyKey: "oria1:ws1:intent-1:test",
+          deps: { fetchImpl, isAllowed: async () => true,
+            env: Object.freeze({ N8N_WEBHOOK_URL: "https://hooks.n8n.cloud/webhook/x", N8N_SECRET: "s", AGENT_WEBHOOK_SIGNING_SECRET: "k" }) },
         }),
       recordResult: async (_ok, phase) => void ledger.push(`result:${phase}`),
       markExecuted: () => Promise.resolve(),

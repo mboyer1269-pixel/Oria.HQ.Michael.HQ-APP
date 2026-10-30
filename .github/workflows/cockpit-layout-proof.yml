@@ -1,0 +1,73 @@
+name: Cockpit layout persistence validation
+on:
+  pull_request:
+    branches: ['main', 'ui/cockpit-reorder-accessibility-20261029', 'feat/cockpit-reorder-validation-base-20261029']
+permissions:
+  contents: read
+concurrency:
+  group: cockpit-layout-proof-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  cockpit-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci --ignore-scripts
+      - run: >-
+          node --test src/server/cockpit/*.test.mjs
+          src/features/cockpit/actions/cockpit-layout-*.test.mjs
+          src/features/cockpit/components/cockpit-layout-session.test.mjs
+          src/features/cockpit/components/cockpit-reorder.test.mjs
+          src/core/runtime-capability-inventory.test.mjs
+          proofs/cockpit-layout-proof.test.mjs
+      - run: node node_modules/typescript/bin/tsc --noEmit
+      - run: node node_modules/eslint/bin/eslint.js src eslint.config.mjs next.config.ts postcss.config.mjs
+      - run: node scripts/architecture/system-map.mjs --check
+      - run: node scripts/architecture/check-layering.mjs
+      - run: node node_modules/next/dist/bin/next build
+      - run: node src/scripts/smoke/joris-booking.mjs
+  cockpit-real-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: oria_test_cockpit_layout
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d oria_test_cockpit_layout"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+      postgrest:
+        image: postgrest/postgrest:v12.2.0
+        env:
+          PGRST_DB_URI: postgres://postgres@postgres:5432/oria_test_cockpit_layout
+          PGRST_DB_ANON_ROLE: qualification_service
+          PGRST_DB_SCHEMAS: public
+        ports: ['3000:3000']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci --ignore-scripts
+      - name: Real disposable layout persistence (no provider or production credentials)
+        env:
+          CI_PG_URL: postgres://postgres@127.0.0.1:5432/oria_test_cockpit_layout
+          POSTGREST_DIRECT_URL: http://127.0.0.1:3000
+        run: |
+          set -o pipefail
+          node proofs/prove-cockpit-layout-real-db.mjs --run 2>&1 | tee /tmp/cockpit-layout-db-proof.log
+          grep -Fx 'OBSERVED_COCKPIT_UPDATE_WAITERS=2' /tmp/cockpit-layout-db-proof.log
+          grep -Fx 'UNEXPECTED_NETWORK=0' /tmp/cockpit-layout-db-proof.log
+          grep -Fx 'ALL 8 COCKPIT REAL-DB PROOFS PASSED' /tmp/cockpit-layout-db-proof.log

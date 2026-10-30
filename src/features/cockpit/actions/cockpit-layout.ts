@@ -1,90 +1,26 @@
 "use server";
 
-// src/features/cockpit/actions/cockpit-layout.ts
-//
-// Server actions for persisting the cockpit widget order to Supabase.
-// Layout is stored per-user in the cockpit_layout table (JSONB widget_order).
-
 import { createOptionalSupabaseAdminClient } from "@/server/supabase/admin";
 import { requireOwnerAccess } from "@/server/auth/owner";
+import { createCockpitLayoutPersistence } from "@/server/cockpit/layout-persistence";
+import type { CockpitLayoutRead, CockpitLayoutSave } from "@/features/cockpit/cockpit-layout-contract";
 
-const DEFAULT_ORDER: string[] = [
-  "daily-direction",
-  "idea-intake",
-  "decision-queue",
-  "joris-agent",
-  "treasury",
-  "ventures",
-  "modes",
-];
-
-function normalizeWidgetOrder(order: unknown): string[] {
-  if (!Array.isArray(order)) return [...DEFAULT_ORDER];
-
-  const known = new Set(DEFAULT_ORDER);
-  const seen = new Set<string>();
-  const validStoredOrder = order.filter((entry): entry is string => {
-    if (typeof entry !== "string") return false;
-    if (!known.has(entry)) return false;
-    if (seen.has(entry)) return false;
-    seen.add(entry);
-    return true;
-  });
-
-  return [
-    ...validStoredOrder,
-    ...DEFAULT_ORDER.filter((entry) => !seen.has(entry)),
-  ];
+/** Session/owner checks belong to EACH independently invocable server action. */
+export async function getCockpitLayout(): Promise<CockpitLayoutRead> {
+  const access = await requireOwnerAccess("/hq/cockpit");
+  if (access.status === "forbidden") return { status: "forbidden" };
+  let client;
+  try { client = createOptionalSupabaseAdminClient(); }
+  catch { return { status: "unavailable" }; }
+  return createCockpitLayoutPersistence(client, access.user.id).read();
 }
 
-/**
- * Reads the owner's cockpit widget order.
- *
- * The user id is derived server-side from the authenticated owner — it is never
- * accepted as a parameter. This is an exported server action, so it is
- * independently invocable; taking a caller-supplied id would let any caller read
- * another user's row through the service-role client (which bypasses RLS).
- * Mirrors the owner gate in saveCockpitLayout below.
- */
-export async function getCockpitLayout(): Promise<string[]> {
+/** One untrusted preference request; identity is NEVER a client parameter. */
+export async function saveCockpitLayout(request: unknown): Promise<CockpitLayoutSave> {
   const access = await requireOwnerAccess("/hq/cockpit");
-  if (access.status === "forbidden") return [...DEFAULT_ORDER];
-
-  try {
-    const db = createOptionalSupabaseAdminClient();
-    if (!db) return [...DEFAULT_ORDER];
-
-    const { data, error } = await db
-      .from("cockpit_layout")
-      .select("widget_order")
-      .eq("user_id", access.user.id)
-      .single();
-
-    if (error || !data?.widget_order) return [...DEFAULT_ORDER];
-
-    return normalizeWidgetOrder(data.widget_order);
-  } catch {
-    return [...DEFAULT_ORDER];
-  }
-}
-
-export async function saveCockpitLayout(order: string[]): Promise<void> {
-  const access = await requireOwnerAccess("/hq/cockpit");
-  if (access.status === "forbidden") return;
-
-  try {
-    const db = createOptionalSupabaseAdminClient();
-    if (!db) return;
-
-    await db.from("cockpit_layout").upsert(
-      {
-        user_id: access.user.id,
-        widget_order: normalizeWidgetOrder(order),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-  } catch {
-    // Non-fatal — layout falls back to default on next load
-  }
+  if (access.status === "forbidden") return { status: "not_attempted", reason: "forbidden" };
+  let client;
+  try { client = createOptionalSupabaseAdminClient(); }
+  catch { return { status: "not_attempted", reason: "unavailable" }; }
+  return createCockpitLayoutPersistence(client, access.user.id).save(request);
 }

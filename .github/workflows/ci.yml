@@ -46,6 +46,13 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           bwrap --ro-bind / / --unshare-net --die-with-parent true && echo "bwrap usable"
 
+      - name: Qualify owner-spec host boundaries (no model)
+        timeout-minutes: 2
+        run: |
+          set -o pipefail
+          node --test proofs/owner-spec-host-proof.test.mjs
+          node proofs/prove-owner-spec-host.mjs --run 2>&1 | tee /tmp/owner-spec-host-proof.log
+          grep -Fx 'OWNER_SPEC_HOST_BOUNDARIES_PASSED' /tmp/owner-spec-host-proof.log
 
       - name: Typecheck
         run: npm run typecheck
@@ -184,7 +191,7 @@ jobs:
         run: |
           set -o pipefail
           sh proofs/run-approval-real-db.sh "$GITHUB_WORKSPACE" 2>&1 | tee /tmp/real-db.log
-          grep -E '^ALL 4 REAL-DB PROOFS PASSED$' /tmp/real-db.log
+          grep -Fx 'ALL 10 REAL-DB PROOFS PASSED' /tmp/real-db.log
 
   # Cross-platform guard for the rules/vendored-hash CI scripts (Windows paths, CRLF checkout).
   rules-ci-windows:

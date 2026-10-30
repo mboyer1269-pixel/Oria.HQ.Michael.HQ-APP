@@ -67,8 +67,14 @@ export async function listMissionPage(input: ListMissionsInput, filter: MissionP
   if (page.error?.code === "PGRST103" && filter.page > 1) {
     return listMissionPage(input, { ...filter, page: 1 }, client);
   }
-  if ([page, ...counts, review].some((result) => result.error || result.count === null)) throw new Error("Mission listing unavailable.");
+  // A bodyless/malformed ACK is not proof of an empty collection. In particular,
+  // the SDK can return data:null without error for HTTP 204 (or an empty 404).
+  // HEAD counts legitimately have no body; the actual listing must be an array.
+  if ([page, ...counts, review].some((result) => result.error
+    || ![200, 206].includes(result.status)
+    || !Number.isSafeInteger(result.count) || result.count! < 0)
+    || !Array.isArray(page.data)) throw new Error("Mission listing unavailable.");
   const summary = summarizeMissions([]) as MissionSummary;
   statuses.forEach((status, index) => { summary[status] = counts[index].count!; summary.total += counts[index].count!; });
-  return { missions: (page.data ?? []).map(mapMissionRow), filteredTotal: page.count!, summary, reviewTotal: review.count!, source: "supabase" as const, pageNumber: filter.page };
+  return { missions: page.data.map(mapMissionRow), filteredTotal: page.count!, summary, reviewTotal: review.count!, source: "supabase" as const, pageNumber: filter.page };
 }

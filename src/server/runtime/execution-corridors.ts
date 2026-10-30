@@ -2,9 +2,11 @@
 //
 // Binds the corridor contract to the real registries: the approved webhook
 // bindings, the agent execution licences, the Sentinelle gate, the deployed
-// receiver's accepted routes, and the process environment.
+// receiver's accepted routes, and an explicit configuration snapshot.
 //
 // Every consumer reads corridors from here rather than restating a status.
+
+import { serverEnv } from "@/lib/server-env";
 
 import { evaluateLiveExecution } from "@/server/runtime/execution-guard";
 import { getAgentLicense } from "@/server/agents/agent-execution-license";
@@ -27,6 +29,12 @@ export type {
   ExecutionCorridor,
 } from "@/server/runtime/execution-corridor-contract";
 
+const webhookSnapshot = Object.freeze({
+  N8N_WEBHOOK_URL: serverEnv.n8nWebhookUrl,
+  N8N_SECRET: serverEnv.n8nSecret,
+  AGENT_WEBHOOK_SIGNING_SECRET: serverEnv.agentWebhookSigningSecret,
+});
+
 /**
  * Licence facts read for the ACTION, not the skill — which is why the binding
  * carries actionId separately. A licence zoning `spec.draft.create` says nothing
@@ -47,7 +55,7 @@ function licenceFacts(agentId: string, actionId: string): CorridorLicenceFacts |
   };
 }
 
-function depsFor(binding: CorridorBindingInput, env: NodeJS.ProcessEnv): ResolveCorridorDeps {
+function depsFor(binding: CorridorBindingInput, env: Readonly<Record<string, string | undefined>>): ResolveCorridorDeps {
   return {
     evaluate: (input) => {
       const decision = evaluateLiveExecution({
@@ -72,11 +80,11 @@ function depsFor(binding: CorridorBindingInput, env: NodeJS.ProcessEnv): Resolve
 /**
  * Every declared corridor with its current status.
  *
- * Reads the environment for dispatch configuration, so it is request-time data:
- * never cache the result across an environment change.
+ * Configuration defaults to the validated server snapshot. Explicit snapshots
+ * support diagnostics without silently following later ambient destination changes.
  */
 export function listExecutionCorridors(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Readonly<Record<string, string | undefined>> = webhookSnapshot,
 ): ExecutionCorridor[] {
   return listApprovedWebhookBindings().map((binding) =>
     resolveExecutionCorridor(binding, depsFor(binding, env)),
@@ -87,7 +95,7 @@ export function listExecutionCorridors(
 export function getExecutionCorridor(
   agentId: string,
   skillId: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Readonly<Record<string, string | undefined>> = webhookSnapshot,
 ): ExecutionCorridor | null {
   const binding = findApprovedWebhookBinding(agentId, skillId);
   if (!binding) return null;

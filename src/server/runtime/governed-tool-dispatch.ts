@@ -5,10 +5,13 @@ import "server-only";
 // is read server-side from the G2 execution-intent repository (the intent row
 // claimed pending→executing by the owner-approved route). The payload hash is
 // recomputed from the payload actually handed to the tool, and compared with
-// the hash of the stored row. Anything else fails closed.
+// the hash of the stored row. G1b: the approval itself is a row in
+// agent_review_approval_events consumed atomically (approval-decision-repository).
+// Anything else fails closed.
 
 import { getAgentExecutionIntent } from "@/server/agents/execution-intent-repository";
 import { hashExecutionIntentPayload } from "@/server/agents/execution-intent-payload-hash";
+import { consumeApprovalDecision } from "@/server/agents/approval-decision-repository";
 import type { AgentExecutionIntentPayload } from "@/features/agents/execution-intent";
 import type { GovernedRefusal, McpToolResult } from "@/server/agents/tools/types";
 import {
@@ -31,38 +34,94 @@ export type GovernedToolDispatchInput = {
   toolName: string;
   agentId: string;
   payload: AgentExecutionIntentPayload;
+  /** The `attempt:<uuid>` token this request wrote at the pending→executing claim. */
+  attemptToken?: string;
+  /**
+   * G1b: id of the human approval decision (agent_review_approval_events) to
+   * consume. Only an id — the decision itself is read and consumed server-side
+   * from Postgres; without a consumed row the dispatch is refused.
+   */
+  decisionId?: string;
 };
+
+/** Stable provider-facing key: same intent + same approved payload ⇒ same key. */
+export function buildIdempotencyKey(workspaceId: string, intentId: string, payloadHash: string): string {
+  return `oria1:${workspaceId}:${intentId}:${payloadHash}`;
+}
+
+export type GovernedToolExecuteOptions = { idempotencyKey: string };
 
 export type GovernedToolDispatchDeps = {
   loadIntent?: typeof getAgentExecutionIntent;
+  /** G1b: atomic read+consume of the approval in Postgres. Default: real repository. */
+  consumeDecision?: typeof consumeApprovalDecision;
 };
 
 export async function dispatchGovernedTool(
   input: GovernedToolDispatchInput,
-  execute: (payload: AgentExecutionIntentPayload) => Promise<McpToolResult>,
+  execute: (payload: AgentExecutionIntentPayload, options: GovernedToolExecuteOptions) => Promise<McpToolResult>,
   deps: GovernedToolDispatchDeps = {},
 ): Promise<McpToolResult> {
   // Only these fields are read; anything else a caller passes (e.g. an
   // approvedDecision) is ignored by construction.
-  const { workspaceId, intentId, toolName, agentId, payload } = input;
+  const { workspaceId, intentId, toolName, agentId, payload, attemptToken, decisionId } = input;
   const action: string = Object.prototype.hasOwnProperty.call(TOOL_GOVERNED_ACTIONS, toolName)
     ? TOOL_GOVERNED_ACTIONS[toolName]
     : toolName;
 
+  // The legacy rail must reject permanent/unknown actions before touching a
+  // one-use decision. Passing this pure precheck grants nothing: the atomic
+  // consume and binding payload/policy check below remain mandatory.
+  const pre = precheckGovernedTool({ intentId, toolName, payload });
+  if (pre) {
+    return {
+      ok: false,
+      error: `Refused by execution guard (${pre.ruleId}): ${pre.reason}`,
+      output: { ruleId: pre.ruleId, refused: true },
+      refusal: pre,
+    };
+  }
+
   let approvedDecision: ApprovedDecision | undefined;
+  let idempotencyKey = "";
   try {
     const stored = await (deps.loadIntent ?? getAgentExecutionIntent)(workspaceId, intentId);
     if (
       stored &&
       stored.status === "executing" &&
       stored.toolName === toolName &&
-      stored.agentId === agentId
+      stored.agentId === agentId &&
+      // Single use: only the attempt that holds the claim may dispatch. A token
+      // from another attempt, or another intent's claim, is no approval here.
+      typeof attemptToken === "string" &&
+      attemptToken.startsWith("attempt:") &&
+      stored.actionRef === attemptToken
     ) {
-      approvedDecision = {
-        status: "approved",
-        action: action as GovernedAction,
-        payloadHash: hashExecutionIntentPayload(stored.payload),
-      };
+      const storedHash = hashExecutionIntentPayload(stored.payload);
+      // G1b: the approval must exist in Postgres, be bound to this intent and
+      // this payload hash, and be consumed atomically right now. Zero rows (or
+      // no decision id, or any error) ⇒ no approval ⇒ refused (fail closed).
+      // STRICT G1b: no decision id ⇒ no approval ⇒ refused. There is no
+      // legacy owner-approval fallback.
+      const hasDecisionId = typeof decisionId === "string" && decisionId.length > 0;
+      if (hasDecisionId) {
+        const consumed = await (deps.consumeDecision ?? consumeApprovalDecision)(
+          workspaceId,
+          decisionId,
+          intentId,
+          storedHash,
+        );
+        if (consumed && consumed.workspaceId === workspaceId && consumed.intentId === intentId && consumed.payloadHash === storedHash) {
+          approvedDecision = {
+            status: "approved",
+            action: action as GovernedAction,
+            payloadHash: consumed.payloadHash,
+            decisionId: consumed.decisionId,
+            intentId: consumed.intentId,
+          };
+          idempotencyKey = buildIdempotencyKey(workspaceId, intentId, storedHash);
+        }
+      }
     }
   } catch {
     approvedDecision = undefined; // repository failure → no approval → refused
@@ -77,7 +136,7 @@ export async function dispatchGovernedTool(
 
   const verdict = guardGovernedAction(
     { agentId, action, payloadHash, approvedDecision },
-    () => execute(payload),
+    () => execute(payload, { idempotencyKey }),
   );
   if (!verdict.allowed) {
     return {

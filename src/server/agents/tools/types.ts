@@ -17,6 +17,8 @@ export type McpToolDeps = {
   fetchImpl?: typeof fetch;
   isAllowed?: (key: string, limit: number, windowMs: number) => Promise<boolean>;
   now?: () => number;
+  /** Webhook env snapshot captured once by the caller; required for n8n dispatch. */
+  env?: Readonly<Record<string, string | undefined>>;
 };
 
 /** Per-call context: the workspace scope plus optional injected deps. */
@@ -24,6 +26,13 @@ export type McpToolContext = {
   workspaceId: string;
   agentId?: string;
   deps?: McpToolDeps;
+  /**
+   * G1: stable provider-facing idempotency key for this intent + approved
+   * payload (`oria1:<workspaceId>:<intentId>:<payloadHash>`). Identical across
+   * retries; never contains the per-attempt token. Tools that contact an
+   * external system must send it and fail closed when it is absent.
+   */
+  idempotencyKey?: string;
 };
 
 /** Uniform tool result. `rateLimited` lets callers keep an intent retryable. */

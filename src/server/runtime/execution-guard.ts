@@ -12,7 +12,8 @@
  *
  * Backward compatibility:
  *   canPrepareExecution() with requestedMode "dry-run" or "read-only" retains
- *   the existing planning-mode behavior unchanged. All pre-PR3 call sites and
+ *   the existing planning-mode behavior, except that an unknown risk class is
+ *   now BLOCKED (fail-closed) instead of being allowed. All pre-PR3 call sites and
  *   tests continue to work without modification.
  *
  * Safety invariants (never relaxed):
@@ -207,7 +208,8 @@ function ledgerEventsForRisk(risk: ExecutionRiskClass): LedgerEventType[] {
       return ["decision", "action", "result"];
     case "unknown":
     default:
-      return ["decision"];
+      // Fail closed: an unclassifiable skill is treated as the riskiest class.
+      return ["decision", "action", "result"];
   }
 }
 
@@ -335,6 +337,16 @@ export function canPrepareExecution(input: ExecutionGuardInput): ExecutionDecisi
     }
 
     const risk = classifyExecutionRisk(skill);
+    // Fail closed (R-RISK-ROUND-UP): an unknown risk class is BLOCKED, dry-run
+    // included. It used to fall through to the read-only "allowed" branch.
+    if (risk === "unknown") {
+      return buildBlockedDecision(
+        "UNSUPPORTED_SKILL",
+        "unknown_action_policy",
+        "red",
+        `Skill ${skill.id} has an unknown risk class and is blocked (fail-closed), including in ${input.requestedMode} mode.`,
+      );
+    }
     if (risk === "effectful" || risk === "external") {
       return buildBlockedDecision(
         "EFFECTFUL_SKILL_REQUIRES_APPROVAL",
@@ -608,11 +620,13 @@ export function buildDryRunExecutionPlan(input: ExecutionGuardInput): DryRunExec
 //
 // The guard judges the ACTION an agent is about to run, not the wording of a
 // rule. Each governed action maps to the core.md id (.agents/rules/core.md)
-// that forbids it without an approved decision. Unknown actions are refused
+// that governs it. Permanently prohibited actions cannot be approved. Unknown actions are refused
 // (fail-closed, R-RISK-ROUND-UP). An approved decision only unlocks the exact
 // action and payload hash it was granted for.
 
 export const GOVERNED_ACTION_RULES = {
+  // Owner-operated spec candidate only: recognition never grants an agent license.
+  "atelier.spec.start": "R-ZONE-YELLOW",
   merge: "R-NO-MERGE",
   deploy: "R-NO-DEPLOY",
   remote_migration: "R-NO-PROD-ACCESS",
@@ -621,15 +635,138 @@ export const GOVERNED_ACTION_RULES = {
   delete: "R-ZONE-RED",
   secret_access: "R-NO-SECRETS",
   external_contact: "R-NO-EXTERNAL-CONTACT",
+  ledger_mutate: "R-LEDGER-APPEND-ONLY",
+  permission_grant: "R-NO-AGENT-ESCALATION",
 } as const;
+
+/**
+ * Registry of rule ids declared in .agents/rules/core.md (`**R-…**`), rules-version 1.
+ * Mirrored here because the guard must not read the repo at runtime. Drift is
+ * caught by governed-rules-registry-bidirectional-gap.test.mjs (core.md ↔ guard).
+ */
+export const CORE_RULE_REGISTRY_IDS: readonly string[] = [
+  "R-ANTI-DISPERSION",
+  "R-ASK-BEFORE-SENSITIVE",
+  "R-ASK-WHEN-UNSURE",
+  "R-BRANCH-HYGIENE",
+  "R-BUILDER-MINIMAL-DIFF",
+  "R-COMMIT-HYGIENE",
+  "R-COMMIT-MESSAGE-STYLE",
+  "R-COMMUNICATION",
+  "R-ESCALATE-RED",
+  "R-ESCALATE-YELLOW",
+  "R-ESCALATION-ROUTE",
+  "R-GOVERNANCE-NOT-BYPASSABLE",
+  "R-GREEN-NEEDS-RUN-LINK",
+  "R-HANDOFF",
+  "R-IDENTITY-RECOVERY",
+  "R-LEDGER-APPEND-ONLY",
+  "R-MICHAEL-DECIDES",
+  "R-NAMING",
+  "R-NO-AGENT-ESCALATION",
+  "R-NO-DEPLOY",
+  "R-NO-EXTERNAL-CONTACT",
+  "R-NO-FORCE-PUSH",
+  "R-NO-HIDDEN-STATE",
+  "R-NO-MERGE",
+  "R-NO-PAID-API",
+  "R-NO-PROD-ACCESS",
+  "R-NO-SECRETS",
+  "R-NO-SOLO-ACTION",
+  "R-NO-STRAY-CHANGES",
+  "R-NO-UNAPPROVED-COMMITMENT",
+  "R-PR-REVIEW",
+  "R-PR-TEMPLATE",
+  "R-PRESENT-THEN-WAIT",
+  "R-PROTECTED-FILES",
+  "R-PROVEN-VS-ASSUMED",
+  "R-RISK-ROUND-UP",
+  "R-RULES-OVER-MEMORY",
+  "R-SCOPE-DISCIPLINE",
+  "R-SCOUT-READ-ONLY",
+  "R-SEPARATE-EVAL-EXEC",
+  "R-SKILL-ROUTING",
+  "R-VALIDATION-GATES",
+  "R-ZONE-GREEN",
+  "R-ZONE-RED",
+  "R-ZONE-YELLOW",
+];
+
+/**
+ * Registry ids deliberately NOT bound to a governed action: they govern agent
+ * process (git hygiene, communication, escalation, scope, review, zones as
+ * policy) and are enforced by review/CI/charters, not by this runtime guard.
+ * Explicit list — never silently skipped. R-RISK-ROUND-UP is the guard's own
+ * fail-closed default and is therefore not listed here.
+ */
+export const NON_ACTION_RULE_IDS: readonly string[] = [
+  "R-ANTI-DISPERSION",
+  "R-ASK-BEFORE-SENSITIVE",
+  "R-ASK-WHEN-UNSURE",
+  "R-BRANCH-HYGIENE",
+  "R-BUILDER-MINIMAL-DIFF",
+  "R-COMMIT-HYGIENE",
+  "R-COMMIT-MESSAGE-STYLE",
+  "R-COMMUNICATION",
+  "R-ESCALATE-RED",
+  "R-ESCALATE-YELLOW",
+  "R-ESCALATION-ROUTE",
+  "R-GOVERNANCE-NOT-BYPASSABLE",
+  "R-GREEN-NEEDS-RUN-LINK",
+  "R-HANDOFF",
+  "R-IDENTITY-RECOVERY",
+  "R-MICHAEL-DECIDES",
+  "R-NAMING",
+  "R-NO-FORCE-PUSH",
+  "R-NO-HIDDEN-STATE",
+  "R-NO-SOLO-ACTION",
+  "R-NO-STRAY-CHANGES",
+  "R-NO-UNAPPROVED-COMMITMENT",
+  "R-PR-REVIEW",
+  "R-PR-TEMPLATE",
+  "R-PRESENT-THEN-WAIT",
+  "R-PROTECTED-FILES",
+  "R-PROVEN-VS-ASSUMED",
+  "R-RULES-OVER-MEMORY",
+  "R-SCOPE-DISCIPLINE",
+  "R-SCOUT-READ-ONLY",
+  "R-SEPARATE-EVAL-EXEC",
+  "R-SKILL-ROUTING",
+  "R-VALIDATION-GATES",
+  "R-ZONE-GREEN",
+];
+
+const CORE_RULE_REGISTRY = new Set(CORE_RULE_REGISTRY_IDS);
+function isRegisteredRuleId(id: string): boolean {
+  return CORE_RULE_REGISTRY.has(id);
+}
+
+// Fail closed at load: a guard entry naming an id absent from the registry is a
+// configuration error, not something to evaluate around.
+for (const [governedAction, ruleId] of Object.entries(GOVERNED_ACTION_RULES)) {
+  if (!isRegisteredRuleId(ruleId)) {
+    throw new Error(`execution-guard: action "${governedAction}" maps to unregistered rule id "${ruleId}"`);
+  }
+}
+if (!isRegisteredRuleId("R-RISK-ROUND-UP")) {
+  throw new Error('execution-guard: fail-closed rule id "R-RISK-ROUND-UP" is not registered');
+}
 
 export type GovernedAction = keyof typeof GOVERNED_ACTION_RULES;
 export type GovernedRuleId = (typeof GOVERNED_ACTION_RULES)[GovernedAction] | "R-RISK-ROUND-UP";
 
+/**
+ * An approval as seen by the guard. On the dispatch path (G1b) it is ONLY built
+ * from a row consumed atomically in Postgres (approval-decision-repository):
+ * `decisionId`/`intentId` then name that consumed row. Callers never supply it.
+ * The advisory precheck builds a hypothetical one without ids; it grants nothing.
+ */
 export type ApprovedDecision = {
   status: "approved";
   action: string;
   payloadHash: string;
+  decisionId?: string;
+  intentId?: string;
 };
 
 export type GovernedActionRequest = {
@@ -646,7 +783,7 @@ type VerdictBase = { ruleId: GovernedRuleId; ruleVersion: number; reason: string
 
 /**
  * Reuses the Sentinelle outcomes. REQUIRE_APPROVAL = no valid approval yet
- * (approvable). BLOCK = unknown action or an approval that does not match this
+ * (approvable). BLOCK = permanent prohibition, unknown action or an approval that does not match this
  * action/payload: never turned into something approvable by this guard.
  */
 export type GovernedActionVerdict<T> =
@@ -659,7 +796,7 @@ function isGovernedAction(action: string): action is GovernedAction {
 
 /**
  * Run `execute` only if the governed action carries an approved decision for
- * this exact action and payload hash. Otherwise refuse with the rule id and
+ * this exact action and payload hash, and is not permanently prohibited. Otherwise refuse with the rule id and
  * never call `execute`.
  */
 export function guardGovernedAction<T>(
@@ -674,6 +811,19 @@ export function guardGovernedAction<T>(
     return deny("BLOCK", "R-RISK-ROUND-UP", `Unknown action "${action}" — refused (fail-closed).`);
   }
   const ruleId = GOVERNED_ACTION_RULES[action];
+  // Fail closed at evaluation too (map mutated at runtime, partial load…).
+  if (!isRegisteredRuleId(ruleId)) {
+    return deny("BLOCK", "R-RISK-ROUND-UP", `Action "${action}" maps to unregistered rule id — refused (fail-closed).`);
+  }
+  // Existing-entry mutation is never an append. This guard also has no bounded
+  // delegation contract to prove that a grant preserves the parent's zone.
+  // Neither operation can be unlocked by a matching approval.
+  if (action === "ledger_mutate") {
+    return deny("BLOCK", ruleId, "Ledger entries are append-only; an approved decision cannot authorize rewriting or deleting them.");
+  }
+  if (action === "permission_grant") {
+    return deny("BLOCK", ruleId, "This guard does not authorize agent permission grants; an approved decision cannot authorize them.");
+  }
   const decision = request.approvedDecision;
   if (!decision || decision.status !== "approved") {
     return deny("REQUIRE_APPROVAL", ruleId, `${action} requires an approved decision (${ruleId}).`);

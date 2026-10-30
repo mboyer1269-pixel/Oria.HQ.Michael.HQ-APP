@@ -65,9 +65,16 @@ const jiti = createJiti(import.meta.url, {
 const createRoute = await jiti.import(
   path.join(projectRoot, "src/app/api/agents/[agentId]/execution-intents/route.ts"),
 );
-const approveRoute = await jiti.import(
+// G1b: approvals carry a valid decision (in-memory store injected through the
+// public createApproveHandler/consumeDecision seams). SIMULATED (no database).
+const support = await import(path.join(projectRoot, "proofs/approval-decision-test-support.mjs"));
+const decisions = support.createDecisionStore();
+const decisionIds = new Map();
+const __routeModule = await jiti.import(
   path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"),
 );
+void __routeModule;
+const approveRoute = { POST: await support.buildApproveHandler(jiti, projectRoot, { store: decisions }) };
 // Specifier form matters: jiti caches by resolved id, so importing a module by
 // absolute path yields a different instance from the one the routes reach via
 // "@/...". Any module holding state the routes mutate — the intent store, the
@@ -154,16 +161,18 @@ async function getIntents(agentId) {
   return { status: response.status, body: await response.json() };
 }
 
-async function approveIntent(intentId) {
+async function approveIntent(intentId, providedDecisionId) {
   // G2: approval carries the hash of the reviewed payload (or a well-formed
   // placeholder when the intent does not exist).
   const stored = await getAgentExecutionIntent("michael-hq", intentId);
   const expectedPayloadHash = stored ? hashExecutionIntentPayload(stored.payload) : "0".repeat(64);
+  if (stored && !decisionIds.has(intentId)) decisionIds.set(intentId, decisions.issue("michael-hq", intentId, expectedPayloadHash));
+  const decisionId = providedDecisionId ?? decisionIds.get(intentId);
   const response = await approveRoute.POST(
     new Request(`http://localhost/api/agents/execution-intents/${intentId}/approve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ expectedPayloadHash }),
+      body: JSON.stringify({ expectedPayloadHash, ...(decisionId ? { decisionId } : {}) }),
     }),
     { params: Promise.resolve({ intentId }) },
   );
@@ -375,10 +384,18 @@ test("Execution rail (API) — a blocked corridor is refused at creation", async
 
   await t.test("approving an intent that does not exist is a 404, not a dispatch", async () => {
     const fetchSpy = installFetchSpy();
+    const consumesBefore = decisions.calls.length;
+    const ledgerBefore = listLocalActionLedgerEntries().length;
     try {
-      const response = await approveIntent("intent-does-not-exist");
+      const missingDecision = await approveIntent("intent-does-not-exist");
+      assert.equal(missingDecision.status, 409);
+      assert.equal(missingDecision.body.code, "approval_required");
+      // Exercise scoped not-found AFTER syntactic decision validation; do not issue a decision.
+      const response = await approveIntent("intent-does-not-exist", "99999999-9999-4999-8999-999999999999");
       assert.equal(response.status, 404);
       assert.equal(fetchSpy.calls.length, 0);
+      assert.equal(decisions.calls.length, consumesBefore);
+      assert.equal(listLocalActionLedgerEntries().length, ledgerBefore);
     } finally {
       fetchSpy.restore();
     }

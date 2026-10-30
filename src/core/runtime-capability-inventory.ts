@@ -102,6 +102,19 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
   paths: readonly string[];
 }[] = [
   {
+    reason: "Producteur de décision candidat dormant : create_approval_decision persiste une décision humaine, sans consommation ni dispatch. Aucun import applicatif autorisé ; classement read-only distinct de création, SQL draft non activé. Le tripwire AST impose une reclassification et des preuves de gate avant tout branchement.",
+    paths: ["src/server/agents/approval-decision-producer.ts"],
+  },
+  {
+    reason: "Candidat owner-spec v2 non monté : handler vérifie session workspace owner + titulaire ; confirmation explicite hashée produit/consomme G1 et ledger atomiquement. Store/service candidat vérifié par DI ; preuves DB jetable à exécuter ; aucun caller public, aucune licence agent. Tripwire AST garde le graphe fermé.",
+    paths: ["src/server/missions/atelier-owner-spec-store.ts"],
+  },
+  {
+    reason:
+      "Frontière Atelier dormante : RPC transactionnel consume G1 + claim + ledger, sans route/import applicatif ni exécuteur. Dépend du SQL draft atelier_execution_boundary et de PR457 non fusionnée ; aucune activation ou permission autonome. Le tripwire AST interdit tout nouveau caller avant reclassification et preuve DB.",
+    paths: ["src/server/missions/atelier-execution-store.ts"],
+  },
+  {
     reason:
       "Le journal d'audit lui-même. Chaque capacité écrit à travers lui ; le compter comme un exécuteur le ferait apparaître une fois par capacité.",
     paths: ["src/server/actions/action-ledger-repository.ts"],
@@ -112,6 +125,7 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
     paths: [
       "src/app/login/actions.ts",
       "src/features/cockpit/actions/cockpit-layout.ts",
+      "src/server/cockpit/layout-persistence.ts",
       "src/features/cockpit/events/event-client.ts",
       "src/features/cockpit/events/idea-capture-action.ts",
       "src/features/notes/note-action.ts",
@@ -163,6 +177,10 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
   reason: string;
   paths: readonly string[];
 }[] = [
+  {
+    reason: "Engine owner-spec candidat non monté : provider null par défaut, port de processus fake explicite pour preuves isolées. Les commandes git locales sont bornées ; aucune connexion fournisseur réelle ni activation. Une future qualification live exige une revue distincte.",
+    paths: ["src/server/atelier/atelier-bound-spec.ts", "src/server/atelier/atelier-bound-spec.test-fixture.mjs"],
+  },
   {
     reason:
       "Générateur cash conservé comme utilitaire de smoke manuel revenue-readiness ; aucune page servie ne le déclenche au rendu.",
@@ -328,14 +346,14 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
     effect: "external_call",
     gate: "ceo_approval",
     detail:
-      "Envoi HMAC signé vers n8n. Déclenché uniquement par la route d'approbation CEO, jamais par l'évaluation automatique.",
+      "Envoi HMAC signé vers n8n après session owner réelle, admission atomique décision+claim+audit et relecture du reçu frais. RPC/scellage absent ferme le POST ; SQL draft à qualifier avant déploiement. Aucun retry implicite après admission.",
     evidence: {
       path: "src/app/api/agents/execution-intents/[intentId]/approve/route.ts",
-      mustContain: "dispatchGovernedTool(",
+      mustContain: "POST = createAtomicApproveHandler(defaultDeps)",
       because:
         "The approve route is the only caller of the dispatch tool. Another caller would mean this gate is no longer ceo_approval.",
     },
-    covers: ["src/server/agents/execution-intent-repository.ts"],
+    covers: ["src/server/agents/execution-intent-repository.ts", "src/server/agents/execution-intent-admission-store.ts"],
   },
   {
     id: "joris_memex_context_lookup",
@@ -615,6 +633,20 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
         "The owner review service persists a bound per-call decision; the host consumes it once through the lifecycle service. Neither record proves tool execution.",
     },
     covers: ["src/server/missions/openhands-tool-decision-store.ts"],
+  },
+  {
+    id: "joris_atelier_reservation",
+    label: "Joris · réserver une préparation Atelier",
+    executorKey: "/api/joris/chat:atelier.reserve",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail: "Action typée réservée au propriétaire de l’espace et titulaire de l’abonnement, même origine et hash exact. Persistance de mission désactivée par défaut. Réserve un lien CAS seulement : aucun agent lancé, aucune approbation d’exécution accordée.",
+    evidence: {
+      path: "src/app/api/joris/chat/atelier-handlers.ts",
+      mustContain: "service.reserve(context, input, { expectedBindingHash:",
+      because: "The authenticated workspace owner/subscription holder submits an explicit reservation action bound to the canonical mission. The service cannot launch a runtime or approve execution.",
+    },
+    covers: ["src/server/missions/atelier-development-store.ts"],
   },
   {
     id: "openhands_launch_claim",

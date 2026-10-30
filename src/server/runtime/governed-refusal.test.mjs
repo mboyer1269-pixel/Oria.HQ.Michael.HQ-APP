@@ -128,14 +128,15 @@ test("n8n tool: a thrown fetch or an HTTP 5xx is outcomeUncertain; an HTTP 4xx i
     const payload = buildAgentExecutionIntent({ intentId: "u1", workspaceId: "ws1", agentId: "hermes", skillId: "task.create",
       toolName: "n8n_webhook_trigger", autonomyLevel: 2, createdAt: "2026-06-10T00:00:00.000Z",
       payload: { agentId: "hermes", skillId: "task.create", client: "Acme", email: "a@b.com", actionType: "send_email", missionId: "m1", data: {} } }).payload;
-    const base = { isAllowed: async () => true, now: () => 1 };
-    const thrown = await n8nWebhookTriggerTool.handler(payload, { workspaceId: "ws1",
+    const base = { isAllowed: async () => true, now: () => 1,
+      env: Object.freeze({ N8N_WEBHOOK_URL: "https://hooks.n8n.cloud/webhook/x", N8N_SECRET: "s", AGENT_WEBHOOK_SIGNING_SECRET: "k" }) };
+    const thrown = await n8nWebhookTriggerTool.handler(payload, { workspaceId: "ws1", idempotencyKey: "oria1:ws1:u1:test",
       deps: { ...base, fetchImpl: async () => { const e = new Error("aborted"); e.name = "AbortError"; throw e; } } });
     assert.deepEqual([thrown.ok, thrown.outcomeUncertain], [false, true]);
-    const http500 = await n8nWebhookTriggerTool.handler(payload, { workspaceId: "ws1",
+    const http500 = await n8nWebhookTriggerTool.handler(payload, { workspaceId: "ws1", idempotencyKey: "oria1:ws1:u1:test",
       deps: { ...base, fetchImpl: async () => ({ ok: false, status: 500, json: async () => ({}) }) } });
     assert.deepEqual([http500.ok, http500.outcomeUncertain], [false, true]);
-    const http400 = await n8nWebhookTriggerTool.handler(payload, { workspaceId: "ws1",
+    const http400 = await n8nWebhookTriggerTool.handler(payload, { workspaceId: "ws1", idempotencyKey: "oria1:ws1:u1:test",
       deps: { ...base, fetchImpl: async () => ({ ok: false, status: 400, json: async () => ({}) }) } });
     assert.equal(http400.ok, false);
     assert.notEqual(http400.outcomeUncertain, true);
