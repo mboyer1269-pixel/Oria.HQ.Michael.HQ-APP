@@ -1,4 +1,6 @@
 import type { Mission } from "@/core/types";
+import { evaluateMissionApproval } from "../../server/missions/approval-service";
+import { missionDossierHref } from "./development-mission-handoff";
 import { openHandsResultReceiptSchema, type OpenHandsResultReceipt } from "../../core/openhands-result-contract";
 import { getAgentDisplayName, resolveAgentId } from "../agents/naming";
 import { agentRegistry } from "../agents/seed";
@@ -58,6 +60,8 @@ export function missionReportedOutput(mission: Mission): MissionReportedOutput {
 export function missionDossierSummary(mission: Mission) {
   const summary = mission.result?.summary;
   const budget = mission.costBudgetCents;
+  const needsReview = evaluateMissionApproval(mission).required;
+  const approvalHref = needsReview ? missionDossierHref(mission.id)?.replace("#requested-mission", "#mission-approval") ?? null : null;
   return {
     owner: !mission.assignedAgentId?.trim() ? "Non attribué"
       : agentRegistry.some((agent) => agent.id === resolveAgentId(mission.assignedAgentId))
@@ -66,7 +70,8 @@ export function missionDossierSummary(mission: Mission) {
     reportedResult: typeof summary === "string" && summary.trim() ? summary : null,
     budget: typeof budget === "number" && Number.isFinite(budget) && budget >= 0
       ? `${(budget / 100).toFixed(2)} $` : "Non défini",
-    nextStep: mission.status === "needs_approval" ? "Consulter les approbations ci-dessous."
+    approvalHref,
+    nextStep: needsReview ? "Examiner la décision de cette mission ; le lancement reste distinct."
       : mission.status === "failed" ? "Examiner la trace avant toute nouvelle tentative."
       : mission.status === "completed" ? "Vérifier le livrable et ses preuves avant de le considérer validé."
       : mission.status === "cancelled" ? "Aucune reprise automatique."

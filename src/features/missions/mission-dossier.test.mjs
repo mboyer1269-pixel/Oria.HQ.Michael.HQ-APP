@@ -51,3 +51,14 @@ test("an OpenHands exit-zero receipt is shown only for the same mission/workspac
   assert.deepEqual(output.process,{exitCode:0,deadlineExceeded:false});
   for(const patch of [{missionId:"other"},{workspaceId:"other"},{state:"running"},{process:{exitCode:0,containerStopped:false,deadlineExceeded:false}},{process:{exitCode:"0",containerStopped:true,deadlineExceeded:false}}])assert.equal(make({...launch,...patch}).process,null);
 });
+
+test("every existing approval reason links to the exact mission review, never a different page", () => {
+  for (const reason of [{status:"needs_approval"},{requiresApproval:true},{riskLevel:"high"},{autonomyLevel:4}]) {
+    const dossier=missionDossierSummary({...mission,id:"requested-42",riskLevel:"low",autonomyLevel:0,requiresApproval:false,...reason});
+    assert.equal(dossier.approvalHref,"/hq/missions?mission=requested-42#mission-approval");
+    assert.match(dossier.nextStep,/décision de cette mission/);
+    assert.doesNotMatch(dossier.nextStep,/ci-dessous/);
+  }
+  assert.equal(missionDossierSummary({...mission,id:"normal"}).approvalHref,null);
+  assert.equal(missionDossierSummary({...mission,id:"../other",status:"needs_approval"}).approvalHref,null);
+});

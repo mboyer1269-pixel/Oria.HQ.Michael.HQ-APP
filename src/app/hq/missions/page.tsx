@@ -2,6 +2,7 @@ import { DevelopmentMissionForm } from "@/features/missions/components/developme
 import { missionDossierId } from "@/features/missions/development-mission-handoff";
 import { createDevelopmentStore } from "@/server/missions/development-mission";
 import { listMissionsForWorkspace } from "@/server/missions";
+import { evaluateMissionApproval } from "@/server/missions/approval-service";
 import type { Mission } from "@/core/types";
 import type { Route } from "next";
 import Link from "next/link";
@@ -49,16 +50,24 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
   let requestedReadFailed = false;
   if (requestedId) {
     try {
+      const store = source === "supabase" ? createDevelopmentStore() : null;
+      if (source === "supabase" && !store) throw new Error("Mission storage unavailable.");
       const candidate = source === "supabase"
-        ? await createDevelopmentStore()?.load(activeWorkspace.id, requestedId)
+        ? await store!.load(activeWorkspace.id, requestedId)
         : (await listMissionsForWorkspace({ workspaceId: activeWorkspace.id, modeId: activeMode.id })).missions.find(mission => mission.id === requestedId);
-      if (candidate?.workspaceId === activeWorkspace.id && candidate.modeId === activeMode.id) requestedMission = candidate;
+      if (candidate?.id === requestedId && candidate.workspaceId === activeWorkspace.id && candidate.modeId === activeMode.id) requestedMission = candidate;
     } catch { requestedReadFailed = true; }
   }
 
   const pageRecovered = pageNumber !== filter.page;
   filter.page = pageNumber;
   const hasMissions = missions.length > 0;
+  // One interactive dossier: an explicit receipt supplements this page, never
+  // creates a second independent set of reservation/launch controls.
+  const dossierMissions = requestedMission
+    ? [requestedMission, ...missions.filter(mission => mission.id !== requestedMission.id)] : missions;
+  const reviewMissions = (filter.status === "review" ? dossierMissions : requestedMission ? [requestedMission] : [])
+    .filter(mission => evaluateMissionApproval(mission).required);
   const pages = Math.max(1, Math.ceil(filteredTotal / MISSION_PAGE_SIZE));
   const transferEnabled = source === "supabase" && resolvePaperclipBinding({ enabled: serverEnv.paperclipDispatchEnabled,
     baseUrl: serverEnv.paperclipBaseUrl, token: serverEnv.paperclipBoardToken, workspaceId: serverEnv.paperclipWorkspaceId,
@@ -95,10 +104,6 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
       </HqPageHeader>
 
       <DevelopmentMissionForm workspaceId={activeWorkspace.id} />
-      {params.mission !== undefined && <section id="requested-mission" aria-label="Mission demandée">
-        {requestedMission ? <MissionDossier key={requestedMission.id} missions={[requestedMission]} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
-          : <p role="status" className="rounded-xl border border-amber-500/30 p-4 text-sm text-amber-200">{requestedReadFailed ? "Lecture de cette mission indisponible. Actualise pour réessayer." : "Cette mission est introuvable dans le projet et le mode actifs."}</p>}
-      </section>}
       <section aria-label="Recherche dans toutes les missions" className="rounded-2xl border border-neutral-800 p-4">
         {pageRecovered && <p role="status" className="mb-3 text-sm text-amber-200">La page demandée n’existe plus. La première page est affichée.</p>}
         <form key={missionPageHref(filter)} action="/hq/missions" className="flex flex-wrap items-end gap-3">
@@ -122,16 +127,21 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
           {filter.page > pages && <Link href={missionPageHref(filter, 1) as Route}>Revenir à la première page</Link>}
         </nav>
       </section>
-      <MissionDossier key={missionPageHref(filter)} missions={missions} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
+      <section id="requested-mission" aria-label="Mission sélectionnée">
+        {params.mission !== undefined && !requestedMission && <p role="status" className="mb-4 rounded-xl border border-amber-500/30 p-4 text-sm text-amber-200">{requestedReadFailed ? "Lecture de cette mission indisponible. Actualise pour réessayer." : "Cette mission est introuvable dans le projet et le mode actifs."}</p>}
+        <MissionDossier key={`${missionPageHref(filter)}:${requestedId ?? ""}`} missions={dossierMissions} initialSelectedId={requestedMission?.id} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
+      </section>
       <OrchestrationProjection key={activeWorkspace.id} workspaceId={activeWorkspace.id} />
 
       {reviewTotal > 0 && <section className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-orange-100">
         <p>{summary.needs_approval} mission(s) au statut « Approbation » ; {reviewTotal} mission(s) nécessitent une revue selon la politique globale.</p>
         <Link href={missionPageHref({ page: 1, q: "", status: "review" }) as Route} className="mt-2 inline-block underline">Voir toutes les missions nécessitant une revue</Link>
       </section>}
-      {filter.status === "review" && <HqWidget title="Approbations — cette page" eyebrow="Human gate" icon={ShieldAlert}>
-        <MissionApprovalPanel missions={missions} />
-      </HqWidget>}
+      {reviewMissions.length > 0 && <section id="mission-approval" aria-label="Décisions des missions affichées">
+        <HqWidget title="Approbations — dossier et page affichés" eyebrow="Human gate" icon={ShieldAlert}>
+          <MissionApprovalPanel missions={reviewMissions} />
+        </HqWidget>
+      </section>}
 
       <HqWidget title="Kanban — résultats de cette page" eyebrow="Pipeline" icon={LayoutDashboard}>
         {hasMissions ? (
