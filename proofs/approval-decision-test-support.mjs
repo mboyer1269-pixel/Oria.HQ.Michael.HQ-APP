@@ -37,7 +37,7 @@ export function createDecisionStore({ now = () => Date.now() } = {}) {
  *  - transitionAgentExecutionIntent forwards an optional beforeLocalTransition
  *    hook through the repository's public 4th-argument seam.
  */
-export async function buildApproveHandler(jiti, projectRoot, { store, getBeforeLocalTransition = () => null, webhookEnv, atomicAdmission, authenticatedActorId } = {}) {
+export async function buildApproveHandler(jiti, projectRoot, { store, getBeforeLocalTransition = () => null, webhookEnv, atomicAdmission, authenticatedActorId, recordLedgerEvent: recordLedgerEventOverride } = {}) {
   const { createApproveHandler, createAtomicApproveHandler } = await jiti.import("@/server/agents/execution-intent-approve-handler");
   const owner = await jiti.import("@/server/auth/owner");
   const { getActiveWorkspaceContext } = await jiti.import("@/core/workspace-context");
@@ -54,7 +54,7 @@ export async function buildApproveHandler(jiti, projectRoot, { store, getBeforeL
     getAuthenticatedActorId: () => authenticatedActorId === undefined ? owner.getAuthenticatedActorId() : Promise.resolve(authenticatedActorId),
     getActiveWorkspaceContext,
     evaluateLiveExecution: (...a) => evaluateLiveExecution(...a),
-    recordLedgerEvent,
+    recordLedgerEvent: recordLedgerEventOverride ?? recordLedgerEvent,
     toolRegistry: mcpToolRegistry,
     getAgentExecutionIntent: repo.getAgentExecutionIntent,
     transitionAgentExecutionIntent: (ws, id, patch) => {

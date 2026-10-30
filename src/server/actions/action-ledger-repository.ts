@@ -400,29 +400,15 @@ export type ActionLedgerRepositoryFactory = (user: ServerUserContext) => ActionL
 export type ActionLedgerRepositoryDeps = {
   /**
    * Inject a repository implementation (e.g. one whose writes fail). When
-   * omitted, the real selection below is used. Explicit dependency injection:
-   * no NODE_ENV branch in production code (the legacy shim below only sets the default).
+   * omitted, the real selection below is used. Dependencies apply only to this
+   * instance; they cannot replace the writer used by other callers.
    */
   factory?: ActionLedgerRepositoryFactory;
 };
 
-// Default dependencies when a caller passes none (real implementation: no
-// factory). Only the legacy shim below writes it.
-let defaultActionLedgerDeps: ActionLedgerRepositoryDeps = {};
-
-/**
- * Legacy shim kept so existing callers (e.g. proofs/approval-route-harness.mjs,
- * which reaches this module indirectly through ledger-events) keep working:
- * sets the DEFAULT `factory` dependency. `null` restores the real selection.
- * @deprecated pass `{ factory }` to createActionLedgerRepository instead.
- */
-export function __setActionLedgerRepositoryForTests(factory: ActionLedgerRepositoryFactory | null): void {
-  defaultActionLedgerDeps = factory ? { factory } : {};
-}
-
 export function createActionLedgerRepository(
   user: ServerUserContext,
-  deps: ActionLedgerRepositoryDeps = defaultActionLedgerDeps,
+  deps: ActionLedgerRepositoryDeps = {},
 ): ActionLedgerRepository {
   if (deps.factory) {
     return deps.factory(user);

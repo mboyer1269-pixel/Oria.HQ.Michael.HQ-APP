@@ -37,15 +37,22 @@ const createRoute = await jiti.import(path.join(projectRoot, "src/app/api/agents
 const support = await import(path.join(projectRoot, "proofs/approval-decision-test-support.mjs"));
 export const decisions = support.createDecisionStore();
 let beforeLocalTransition = null;
+let ledgerRecordOverride = null;
+const { recordLedgerEvent } = await jiti.import(path.join(projectRoot, "src/server/actions/ledger-events.ts"));
 const approveRoute = {
-  POST: await support.buildApproveHandler(jiti, projectRoot, { store: decisions, getBeforeLocalTransition: () => beforeLocalTransition }),
+  POST: await support.buildApproveHandler(jiti, projectRoot, {
+    store: decisions, getBeforeLocalTransition: () => beforeLocalTransition,
+    recordLedgerEvent: (ctx, event, options) => ledgerRecordOverride
+      ? ledgerRecordOverride(event)
+      : recordLedgerEvent(ctx, event, options),
+  }),
 };
 const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 export const repo = await jiti.import("@/server/agents/execution-intent-repository");
 export const { hashExecutionIntentPayload } = await jiti.import("@/server/agents/execution-intent-payload-hash");
 export const rateLimit = await jiti.import("@/lib/rate-limit");
 // Path form: ledger-events reaches its repository through a relative specifier.
-const { listLocalActionLedgerEntries, __setActionLedgerRepositoryForTests } = await jiti.import(
+const { listLocalActionLedgerEntries } = await jiti.import(
   path.join(projectRoot, "src/server/actions/action-ledger-repository.ts"),
 );
 export const service = await jiti.import("@/server/agents/execution-intent-approval-service");
@@ -136,9 +143,10 @@ export const ledgerFor = (id) =>
 export const { logger } = await jiti.import("@/lib/logger");
 
 /**
- * Explicitly inject a ledger repository whose record() calls `record(input)`.
- * Throwing from `record` simulates a ledger outage. `null` restores the default.
+ * Inject a failed write only into this harness's approve handler. Other handlers
+ * and the production repository defaults are untouched. Existing call sites
+ * supply a throwing callback; `null` restores the real event writer here.
  */
 export function injectLedgerRepository(record) {
-  __setActionLedgerRepositoryForTests(record ? () => ({ mode: "local", record: async (input) => record(input) }) : null);
+  ledgerRecordOverride = record;
 }
