@@ -69,6 +69,19 @@ export async function dispatchGovernedTool(
     ? TOOL_GOVERNED_ACTIONS[toolName]
     : toolName;
 
+  // The legacy rail must reject permanent/unknown actions before touching a
+  // one-use decision. Passing this pure precheck grants nothing: the atomic
+  // consume and binding payload/policy check below remain mandatory.
+  const pre = precheckGovernedTool({ intentId, toolName, payload });
+  if (pre) {
+    return {
+      ok: false,
+      error: `Refused by execution guard (${pre.ruleId}): ${pre.reason}`,
+      output: { ruleId: pre.ruleId, refused: true },
+      refusal: pre,
+    };
+  }
+
   let approvedDecision: ApprovedDecision | undefined;
   let idempotencyKey = "";
   try {

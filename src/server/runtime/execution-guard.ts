@@ -620,7 +620,7 @@ export function buildDryRunExecutionPlan(input: ExecutionGuardInput): DryRunExec
 //
 // The guard judges the ACTION an agent is about to run, not the wording of a
 // rule. Each governed action maps to the core.md id (.agents/rules/core.md)
-// that forbids it without an approved decision. Unknown actions are refused
+// that governs it. Permanently prohibited actions cannot be approved. Unknown actions are refused
 // (fail-closed, R-RISK-ROUND-UP). An approved decision only unlocks the exact
 // action and payload hash it was granted for.
 
@@ -635,6 +635,8 @@ export const GOVERNED_ACTION_RULES = {
   delete: "R-ZONE-RED",
   secret_access: "R-NO-SECRETS",
   external_contact: "R-NO-EXTERNAL-CONTACT",
+  ledger_mutate: "R-LEDGER-APPEND-ONLY",
+  permission_grant: "R-NO-AGENT-ESCALATION",
 } as const;
 
 /**
@@ -713,10 +715,8 @@ export const NON_ACTION_RULE_IDS: readonly string[] = [
   "R-GREEN-NEEDS-RUN-LINK",
   "R-HANDOFF",
   "R-IDENTITY-RECOVERY",
-  "R-LEDGER-APPEND-ONLY",
   "R-MICHAEL-DECIDES",
   "R-NAMING",
-  "R-NO-AGENT-ESCALATION",
   "R-NO-FORCE-PUSH",
   "R-NO-HIDDEN-STATE",
   "R-NO-SOLO-ACTION",
@@ -783,7 +783,7 @@ type VerdictBase = { ruleId: GovernedRuleId; ruleVersion: number; reason: string
 
 /**
  * Reuses the Sentinelle outcomes. REQUIRE_APPROVAL = no valid approval yet
- * (approvable). BLOCK = unknown action or an approval that does not match this
+ * (approvable). BLOCK = permanent prohibition, unknown action or an approval that does not match this
  * action/payload: never turned into something approvable by this guard.
  */
 export type GovernedActionVerdict<T> =
@@ -796,7 +796,7 @@ function isGovernedAction(action: string): action is GovernedAction {
 
 /**
  * Run `execute` only if the governed action carries an approved decision for
- * this exact action and payload hash. Otherwise refuse with the rule id and
+ * this exact action and payload hash, and is not permanently prohibited. Otherwise refuse with the rule id and
  * never call `execute`.
  */
 export function guardGovernedAction<T>(
@@ -814,6 +814,15 @@ export function guardGovernedAction<T>(
   // Fail closed at evaluation too (map mutated at runtime, partial load…).
   if (!isRegisteredRuleId(ruleId)) {
     return deny("BLOCK", "R-RISK-ROUND-UP", `Action "${action}" maps to unregistered rule id — refused (fail-closed).`);
+  }
+  // Existing-entry mutation is never an append. This guard also has no bounded
+  // delegation contract to prove that a grant preserves the parent's zone.
+  // Neither operation can be unlocked by a matching approval.
+  if (action === "ledger_mutate") {
+    return deny("BLOCK", ruleId, "Ledger entries are append-only; an approved decision cannot authorize rewriting or deleting them.");
+  }
+  if (action === "permission_grant") {
+    return deny("BLOCK", ruleId, "This guard does not authorize agent permission grants; an approved decision cannot authorize them.");
   }
   const decision = request.approvedDecision;
   if (!decision || decision.status !== "approved") {
