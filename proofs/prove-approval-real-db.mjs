@@ -313,7 +313,7 @@ await step("2a. payload rewritten in DB before approve, old hash -> 409 changed"
   assert.equal(decisionRow(d), "approved|false", "a refused approval must not consume the decision");
 });
 
-await step("2b. payload rewritten before atomic admission SQL -> exact-source refusal, 409 not_admitted", async () => {
+await step("2b. payload rewritten before atomic admission SQL -> exact-source refusal, 409 pending HTTP response", async () => {
   const id = await createIntent("rewrite-race");
   const h = hashOf(row(id).payload);
   const d = await decisionFor(id, h);
@@ -322,11 +322,14 @@ await step("2b. payload rewritten before atomic admission SQL -> exact-source re
     sql(`update public.agent_execution_intents set payload = jsonb_set(payload,'{data,amount}','1') where intent_id='${q(id)}'`);
     before = facts(id);
   };
-  dispatches = 0;
+  rpcAdmissions.length = 0; dispatches = 0;
   const r = await approve(id, h, d);
   assert.equal(beforeClaim, null, "the admission RPC never reached the gateway hook");
   assert.equal(r.status, 409, JSON.stringify(r.body));
-  assert.equal(r.body.outcome, "not_admitted");
+  assert.deepEqual(r.body, { intentId: id, status: "pending",
+    error: "Atomic admission refused (conflict); no dispatch attempted." });
+  assert.equal(rpcAdmissions.length, 1); assert.equal(rpcAdmissions[0].status, 200);
+  assert.deepEqual(JSON.parse(rpcAdmissions[0].body), { status: "conflict" });
   assert.deepEqual(facts(id), before);
   assert.equal(dispatches, 0);
   assert.equal(row(id).status, "pending");
@@ -428,7 +431,8 @@ await step("5. consumed/nonexistent decision -> atomic approval_required, 403, f
     const decisionId = await makeDecision(id, h), before = facts(id);
     rpcAdmissions.length = 0; dispatches = 0;
     const r = await approve(id, h, decisionId);
-    assert.equal(r.status, 403, JSON.stringify(r.body)); assert.equal(r.body.outcome, "not_admitted");
+    assert.equal(r.status, 403, JSON.stringify(r.body)); assert.deepEqual(r.body, { intentId: id, status: "pending",
+      error: "Atomic admission refused (approval_required); no dispatch attempted." });
     assert.equal(rpcAdmissions.length, 1); assert.equal(rpcAdmissions[0].status, 200);
     assert.deepEqual(JSON.parse(rpcAdmissions[0].body), { status: "approval_required" });
     assert.equal(dispatches, 0); assert.equal(row(id).status, "pending"); assert.deepEqual(facts(id), before);
