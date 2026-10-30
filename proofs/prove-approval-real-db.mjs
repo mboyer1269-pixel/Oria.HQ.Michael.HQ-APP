@@ -5,21 +5,18 @@
  * Runs the REAL Next route handlers (create + approve) against a disposable
  * PostgreSQL/PostgREST started by proofs/run-approval-real-db.sh. The Supabase
  * client talks to PostgREST through a local /rest/v1 gateway (same pattern as
- * proofs/prove-cli-real-db.mjs). Only the outbound n8n webhook is replaced by
- * a counting spy; every DB call goes to the real database.
+ * proofs/prove-cli-real-db.mjs). Supabase getUser transport returns explicit
+ * synthetic identities while real owner/actor guards run. The outbound n8n
+ * webhook is a counting spy; every persistence call uses the real database.
  *
  * Proofs:
  *  1. Promise.all double approve -> exactly one 200 and one 409, one dispatch,
  *     exactly one ledger 'action' attempt row for the intent.
  *  2a. Payload rewritten in DB (service role) before approve, old hash -> 409 changed.
- *  2b. Payload rewritten in DB between the route's read and its claim UPDATE
- *      (injected at the gateway) -> claim matches 0 rows (jsonb equality) ->
- *      409 changed, row stays pending, no dispatch.
- *  3. Ledger insert refused by Postgres (INSERT privilege revoked) -> 500,
- *     conditional revert leaves the row 'pending', no dispatch.
- *  4. markExecuted with a stale lease token (action_ref of another attempt)
- *     -> the CAS UPDATE matches 0 rows; the row keeps status and token.
- *  5. consumed/nonexistent approval decisions return zero rows and never dispatch.
+ *  2b. Payload rewritten before atomic admission SQL -> exact source conflict.
+ *  3. Ledger INSERT revoked -> 503 admission_unconfirmed, full transaction rollback.
+ *  4. Stale lease token cannot settle another attempt (unchanged CAS contract).
+ *  5. Consumed/nonexistent decision -> atomic approval_required, zero effects.
  *  6. consume_approval_decision (G1b, migration 0033): EXECUTE for service_role only (anon/authenticated
  *     refused); (a) expired decision refused, (b) expires_at == now()
  *     boundary refused, (c) other intent_id / payload_hash / workspace_id refused,
@@ -70,22 +67,23 @@ function sql(statement) {
   return r.stdout.trim();
 }
 
-let beforeClaim = null; // async hook run when the claim PATCH passes the gateway
+let beforeClaim = null; // atomic admission RPC hook, before its SQL begins
+let gatewayRequests = 0;
 const gateway = createServer(async (req, res) => {
   try {
     if (!req.url.startsWith("/rest/v1/")) {
       res.writeHead(404).end("{}");
       return;
     }
+    gatewayRequests++;
     const chunks = [];
     for await (const c of req) chunks.push(c);
     const headers = { ...req.headers };
     for (const h of ["authorization", "apikey", "host", "content-length"]) delete headers[h];
     const target = REST + req.url.slice("/rest/v1".length);
     if (
-      req.method === "PATCH" &&
-      req.url.includes("agent_execution_intents") &&
-      req.url.includes("status=eq.pending") &&
+      req.method === "POST" &&
+      req.url === "/rest/v1/rpc/admit_execution_intent_v1" &&
       beforeClaim
     ) {
       const hook = beforeClaim;
@@ -115,6 +113,9 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = `http://127.0.0.1:${gateway.address().por
 process.env.SUPABASE_SERVICE_ROLE_KEY = "synthetic-disposable-qualification-key";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "synthetic-disposable-anon-key";
 process.env.MICHAEL_HQ_OWNER_ID = OWNER;
+process.env.ORIA_WORKSPACE_MEMBERS = "[]";
+process.env.LEDGER_HMAC_KEY = "oria-disposable-proof-only-not-a-production-secret";
+process.env.LEDGER_HASH_CHAIN_WRITE = "true";
 delete process.env.UPSTASH_REDIS_REST_URL;
 delete process.env.UPSTASH_REDIS_REST_TOKEN;
 process.env.N8N_WEBHOOK_URL = "http://127.0.0.1:9/webhook/approval-real-db";
@@ -124,32 +125,38 @@ process.env.AGENT_WEBHOOK_SIGNING_SECRET = "test-signing-secret";
 const { createJiti } = await import("jiti");
 const jiti = createJiti(path.join(ROOT, "proofs/prove-approval-real-db.mjs"), {
   alias: {
+    "@/lib/supabase/server": path.join(ROOT, "proofs/approval-auth-session-fixture.mjs"),
     "@": path.join(ROOT, "src"),
     "server-only": path.join(ROOT, "src/scripts/smoke/server-only-stub.mjs"),
     "next/headers": path.join(ROOT, "proofs/next-headers-stub.mjs"),
   },
 });
+const { setSyntheticAuthUser } = await jiti.import(path.join(ROOT, "proofs/approval-auth-session-fixture.mjs"));
+setSyntheticAuthUser({ id: OWNER });
+delete globalThis.__ownerApiSessionTestResult;
 const createRoute = await jiti.import(path.join(ROOT, "src/app/api/agents/[agentId]/execution-intents/route.ts"));
 const approveRoute = await jiti.import(path.join(ROOT, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"));
 const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 const { stableStringify } = await jiti.import("@/server/ledger/hash-chain-canonicalizer");
+const { verifyChain } = await jiti.import("@/server/ledger/hash-chain-verifier");
+const { toLedgerChainEntry } = await jiti.import("@/server/ledger/hash-chain-ledger-fields");
 const repoMode = (await jiti.import("@/server/agents/execution-intent-repository")).getAgentExecutionIntentPersistenceMode();
 assert.equal(repoMode, "supabase", "the proof must run on the real DB path, not the in-memory fallback");
-globalThis.__ownerApiSessionTestResult = null;
+
 
 // n8n spy: pass everything else (PostgREST) through untouched.
 const realFetch = globalThis.fetch;
 let dispatches = 0;
-const rpcConsumes = [];
+const rpcAdmissions = [];
 globalThis.fetch = async (url, init) => {
   if (String(url).startsWith(process.env.N8N_WEBHOOK_URL)) {
     dispatches += 1;
     return new Response(JSON.stringify({ ok: true, status: "ok" }), { status: 200 });
   }
   const res = await realFetch(url, init);
-  // Record what the real 0033 RPC returned to the dispatch (proof 5).
-  if (String(url).startsWith(REST) && String(url).includes("/rpc/consume_approval_decision")) {
-    rpcConsumes.push({ status: res.status, body: await res.clone().text() });
+  // Observe the real atomic admission response (proof 5), not a legacy consume call.
+  if (String(url).startsWith(REST) && String(url).includes("/rpc/admit_execution_intent_v1")) {
+    rpcAdmissions.push({ status: res.status, body: await res.clone().text() });
   }
   return res;
 };
@@ -161,6 +168,11 @@ assert.ok(corridor, "no dispatchable corridor");
 const hashOf = (p) => createHash("sha256").update(stableStringify(p)).digest("hex");
 const q = (s) => s.replace(/'/g, "''");
 
+function assertSealedChain() {
+  const rows = JSON.parse(sql("select coalesce(jsonb_agg(to_jsonb(l) order by created_at,id),'[]') from action_ledger l where workspace_id='michael-hq'"));
+  assert.ok(rows.length > 0, "the actual create route must persist a sealed ledger event");
+  assert.deepEqual(verifyChain(rows.map(toLedgerChainEntry), { hmacKey: process.env.LEDGER_HMAC_KEY }), { ok: true, count: rows.length });
+}
 async function createIntent(tag) {
   const res = await createRoute.POST(
     new Request(`http://localhost/api/agents/${corridor.agentId}/execution-intents`, {
@@ -180,6 +192,7 @@ async function createIntent(tag) {
   );
   const body = await res.json();
   assert.equal(res.status, 201, JSON.stringify(body));
+  assertSealedChain(); // createRoute and atomic admission must share the same synthetic key.
   return body.intentId;
 }
 const row = (id) =>
@@ -205,18 +218,40 @@ const step = async (name, fn) => {
 const USER = "00000000-0000-4000-8000-0000000000b1";
 // Seed the decision owner in auth.users (FK from agent_review_approval_events.user_id).
 sql(`insert into auth.users(id) values ('${USER}') on conflict (id) do nothing`);
-// G1b: proofs 1-3 approve with a valid human decision, seeded by direct SQL
-// (bound to workspace + intent + reviewed payload hash) and consumed for real
-// by consume_approval_decision at dispatch.
-const decisionFor = (intentId, payloadHash) =>
-  insertApprovedDecision(sql, { workspaceId: "michael-hq", intentId, payloadHash, userId: USER, ttlMs: 3_600_000 });
+// Route proofs use the real producer with the same synthetic Supabase session.
+// Forged rows below are reserved strictly for the independent raw 0033 tests.
+const { createApprovalDecisionProducer } = await jiti.import("@/server/agents/approval-decision-producer");
+const routeProducer = createApprovalDecisionProducer();
+const decisionFor = async (intentId, payloadHash) => {
+  const review = await routeProducer.command({ command: "review", intentId });
+  assert.equal(review.status, "reviewed", JSON.stringify(review));
+  assert.equal(review.review.expectedPayloadHash, payloadHash);
+  const requestId = randomUUID();
+  const result = await routeProducer.command({ command: "confirm", intentId, requestId,
+    expectedPayloadHash: payloadHash, expectedIntentHash: review.review.expectedIntentHash,
+    confirmed: true, rationale: "Explicit synthetic owner approval for disposable proof",
+    expiresAt: new Date(Date.now() + 300000).toISOString() });
+  assert.equal(result.status, "recorded", JSON.stringify(result));
+  assert.equal(result.decision.actorId, OWNER); assert.equal(result.decision.state, "approved");
+  return requestId;
+};
+const facts = id => JSON.parse(sql(`select jsonb_build_object(
+  'intent',(select to_jsonb(i) from agent_execution_intents i where intent_id='${q(id)}'),
+  'decisions',(select coalesce(jsonb_agg(to_jsonb(d) order by id),'[]') from agent_review_approval_events d where intent_id='${q(id)}'),
+  'ledger',(select coalesce(jsonb_agg(to_jsonb(l) order by id),'[]') from action_ledger l where workspace_id='michael-hq'))`));
 const decisionRow = (decisionId) =>
   sql(`select status || '|' || (consumed_at is not null) from public.agent_review_approval_events where id='${q(decisionId)}'`);
 
 await step("1. concurrent double approve -> one 200, one 409, one dispatch, one ledger attempt", async () => {
+  // Same real POST, no global owner bypass: anonymous session must stop before DB/tool IO.
+  const requestsBefore = gatewayRequests, effectsBefore = dispatches;
+  setSyntheticAuthUser(null);
+  try { assert.equal((await approve("anonymous-probe", "a".repeat(64), randomUUID())).status, 401); }
+  finally { setSyntheticAuthUser({ id: OWNER }); }
+  assert.equal(gatewayRequests, requestsBefore); assert.equal(dispatches, effectsBefore);
   const id = await createIntent("double");
   const h = hashOf(row(id).payload);
-  const d = decisionFor(id, h);
+  const d = await decisionFor(id, h);
   dispatches = 0;
   const [a, b] = await Promise.all([approve(id, h, d), approve(id, h, d)]);
   assert.deepEqual([a.status, b.status].sort(), [200, 409], JSON.stringify([a.body, b.body]));
@@ -225,6 +260,10 @@ await step("1. concurrent double approve -> one 200, one 409, one dispatch, one 
     `select count(*) from public.action_ledger where event_type='action' and metadata->>'intentId'='${q(id)}'`,
   );
   assert.equal(attempts, "1");
+  assertSealedChain();
+  const admission = JSON.parse(sql(`select to_jsonb(l) from action_ledger l where action_type='execution_intent.owner_admitted' and metadata->>'intentId'='${q(id)}'`));
+  assert.equal(admission.user_id, OWNER); assert.equal(admission.metadata.principal, "workspace_owner");
+  assert.equal(admission.metadata.decisionId, d); assert.equal(admission.autonomy_level, 0);
   assert.equal(row(id).status, "executed");
   assert.equal(decisionRow(d), "consumed|true", "the winning approval consumed the decision exactly once");
 });
@@ -232,52 +271,60 @@ await step("1. concurrent double approve -> one 200, one 409, one dispatch, one 
 await step("2a. payload rewritten in DB before approve, old hash -> 409 changed", async () => {
   const id = await createIntent("rewrite-before");
   const h = hashOf(row(id).payload);
-  const d = decisionFor(id, h);
+  const d = await decisionFor(id, h);
   sql(`update public.agent_execution_intents set payload = jsonb_set(payload,'{data,amount}','999999') where intent_id='${q(id)}'`);
+  const before = facts(id);
   dispatches = 0;
   const r = await approve(id, h, d);
   assert.equal(r.status, 409, JSON.stringify(r.body));
   assert.equal(r.body.reason, "changed");
+  assert.deepEqual(facts(id), before);
   assert.equal(dispatches, 0);
   assert.equal(row(id).status, "pending");
   assert.equal(decisionRow(d), "approved|false", "a refused approval must not consume the decision");
 });
 
-await step("2b. payload rewritten between read and claim -> jsonb-guarded claim 0 rows -> 409 changed", async () => {
+await step("2b. payload rewritten before atomic admission SQL -> exact-source refusal, 409 not_admitted", async () => {
   const id = await createIntent("rewrite-race");
   const h = hashOf(row(id).payload);
-  const d = decisionFor(id, h);
-  beforeClaim = async () =>
+  const d = await decisionFor(id, h);
+  let before;
+  beforeClaim = async () => {
     sql(`update public.agent_execution_intents set payload = jsonb_set(payload,'{data,amount}','1') where intent_id='${q(id)}'`);
+    before = facts(id);
+  };
   dispatches = 0;
   const r = await approve(id, h, d);
-  assert.equal(beforeClaim, null, "the claim PATCH never reached the gateway hook");
+  assert.equal(beforeClaim, null, "the admission RPC never reached the gateway hook");
   assert.equal(r.status, 409, JSON.stringify(r.body));
-  assert.equal(r.body.reason, "changed");
+  assert.equal(r.body.outcome, "not_admitted");
+  assert.deepEqual(facts(id), before);
   assert.equal(dispatches, 0);
   assert.equal(row(id).status, "pending");
   assert.equal(decisionRow(d), "approved|false", "a refused approval must not consume the decision");
 });
 
-await step("3. ledger insert refused by Postgres -> 500, conditional revert to pending, no dispatch", async () => {
+await step("3. ledger insert refused by Postgres -> 503 unconfirmed, atomic rollback, no dispatch", async () => {
   const id = await createIntent("ledger-down");
   const h = hashOf(row(id).payload);
-  const d = decisionFor(id, h);
+  const d = await decisionFor(id, h);
   const ledgerRows = () =>
     sql(`select count(*) from public.action_ledger where metadata->>'intentId'='${q(id)}'`);
-  const before = ledgerRows();
+  const before = facts(id);
+  const beforeLedgerRows = ledgerRows();
   sql("revoke insert on public.action_ledger from qualification_service");
   dispatches = 0;
   try {
     const r = await approve(id, h, d);
-    assert.equal(r.status, 500, JSON.stringify(r.body));
-    assert.equal(r.body.reason, "ledger_unavailable");
+    assert.equal(r.status, 503, JSON.stringify(r.body));
+    assert.equal(r.body.outcome, "admission_unconfirmed");
   } finally {
     sql("grant insert on public.action_ledger to qualification_service");
   }
   assert.equal(dispatches, 0);
   assert.equal(row(id).status, "pending");
-  assert.equal(ledgerRows(), before, "the refused approval must leave no ledger row for this intent");
+  assert.deepEqual(facts(id), before);
+  assert.equal(ledgerRows(), beforeLedgerRows, "the refused approval must leave no ledger row for this intent");
   assert.equal(
     sql(`select count(*) from public.action_ledger where event_type='action' and metadata->>'intentId'='${q(id)}'`),
     "0",
@@ -336,34 +383,26 @@ const consume = (d, over = {}) => {
   return Number(sql(CONSUME_CONTRACT.count(a.workspaceId, a.id, a.intentId, a.payloadHash)));
 };
 
-// Kills mutant M3 (dispatch treating a zero-row consume as an approval) against
-// the REAL 0033 RPC, through the real approve route + dispatch. Independent of
-// 0034/0035.
-await step("5. approve with (a) an already-consumed decision and (b) a nonexistent decision -> RPC returns 0 rows, no dispatch, intent not approved", async () => {
+// Real atomic admission must reject historical/missing decisions before effects.
+// The raw 0033 zero-row and concurrency contracts remain independently tested in6/7.
+await step("5. consumed/nonexistent decision -> atomic approval_required, 403, full facts unchanged", async () => {
   const cases = [
-    ["(a) already consumed", (id, h) => {
-      const d = decisionFor(id, h);
-      assert.equal(Number(sql(CONSUME_CONTRACT.count("michael-hq", d, id, h))), 1, "setup: first consumption must win");
+    ["consumed", async (id, h) => {
+      const d = await decisionFor(id, h);
+      assert.equal(Number(sql(CONSUME_CONTRACT.count("michael-hq", d, id, h))), 1);
       return d;
     }],
-    ["(b) nonexistent", () => randomUUID()],
+    ["nonexistent", async () => randomUUID()],
   ];
   for (const [label, makeDecision] of cases) {
-    const id = await createIntent(`m3-${label.slice(1, 2)}`);
-    const h = hashOf(row(id).payload);
-    const decisionId = makeDecision(id, h);
-    const consumedBefore = sql(`select count(*) from public.agent_review_approval_events where id='${q(decisionId)}' and status='consumed'`);
-    rpcConsumes.length = 0;
-    dispatches = 0;
+    const id = await createIntent(`atomic-refusal-${label}`), h = hashOf(row(id).payload);
+    const decisionId = await makeDecision(id, h), before = facts(id);
+    rpcAdmissions.length = 0; dispatches = 0;
     const r = await approve(id, h, decisionId);
-    assert.notEqual(r.status, 200, `${label}: approved: ${JSON.stringify(r.body)}`);
-    assert.equal(rpcConsumes.length, 1, `${label}: dispatch must call consume_approval_decision exactly once (${r.status} ${JSON.stringify(r.body)}, rpc=${JSON.stringify(rpcConsumes)})`);
-    assert.deepEqual(JSON.parse(rpcConsumes[0].body), [], `${label}: RPC must return zero rows, got ${rpcConsumes[0].body}`);
-    assert.equal(dispatches, 0, `${label}: the tool ran`);
-    assert.notEqual(row(id).status, "executed", `${label}: intent executed`);
-    assert.equal(r.body.verdict, "REQUIRE_APPROVAL", `${label}: ${JSON.stringify(r.body)}`);
-    assert.equal(sql(`select count(*) from public.agent_review_approval_events where id='${q(decisionId)}' and status='consumed'`),
-      consumedBefore, `${label}: decision state changed`);
+    assert.equal(r.status, 403, JSON.stringify(r.body)); assert.equal(r.body.outcome, "not_admitted");
+    assert.equal(rpcAdmissions.length, 1); assert.equal(rpcAdmissions[0].status, 200);
+    assert.deepEqual(JSON.parse(rpcAdmissions[0].body), { status: "approval_required" });
+    assert.equal(dispatches, 0); assert.equal(row(id).status, "pending"); assert.deepEqual(facts(id), before);
   }
 });
 
@@ -426,8 +465,7 @@ await step("8. classify/create/consume_approval_decision: EXECUTE for service_ro
 
 await step("9. two concurrent create_approval_decision for one intent -> exactly one live decision", async () => {
   const { proveApprovalProducer } = await import("./approval-producer-real-db-cases.mjs");
-  const {createApprovalDecisionProducer}=await jiti.import("@/server/agents/approval-decision-producer");
-  const producer=createApprovalDecisionProducer({authorize:async()=>({userId:OWNER,workspaceId:"michael-hq",role:"owner"})});
+  const producer = createApprovalDecisionProducer();
   const before=dispatches;
   await proveApprovalProducer({sql,PSQL,createIntent,stableStringify,hashOf,actorId:OWNER,producer,workspaceId:"michael-hq"});
   assert.equal(dispatches,before,"recording/observing approval must not dispatch");

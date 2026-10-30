@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { APPROVAL_PROOF_IDS, inspectApprovalProofReadiness, readApprovalProofReadiness, assertCompletedApprovalProofs } from './approval-proof-readiness.mjs';
 const fixture=()=>({runnerSource:APPROVAL_PROOF_IDS.map(id=>`await step("${id}. synthetic", async()=>{});`).join('\n'),
  workflowSource:"grep -Fx 'ALL 10 REAL-DB PROOFS PASSED' /tmp/test.log",
- schemaSql:['create function public.consume_approval_decision() returns void;','create or replace function public.classify_approval_decision() returns void;','create function public.create_approval_decision() returns void;']});
+ schemaSql:[...['read_atelier_ledger_tail','append_atelier_owner_spec_ledger_v2','admit_execution_intent_v1','check_execution_intent_admission_v1'].map(n=>`create function public.${n}() returns void;`),'create function public.consume_approval_decision() returns void;','create or replace function public.classify_approval_decision() returns void;','create function public.create_approval_decision() returns void;']});
 test('static readiness inventories every distinct proof including2a/2b, never DB evidence',()=>{
  const r=inspectApprovalProofReadiness(fixture());assert.equal(r.ready,true);assert.equal(r.expectedProofCount,10);
  assert.deepEqual(r.proofIds,['1','2a','2b','3','4','5','6','7','8','9']);assert.equal(r.dbExecuted,false);assert.deepEqual(r.blockers,[]);
@@ -14,8 +14,8 @@ test('draft producer is included only in disposable schema; declarations are not
  const r=readApprovalProofReadiness(process.cwd());assert.equal(r.ready,true);assert.equal(r.expectedProofCount,10);
  assert.deepEqual(r.missingFunctions,[]);assert.deepEqual(r.unavailableProofIds,[]);
  assert.deepEqual(r.schemaReadyProofIds,APPROVAL_PROOF_IDS);
- const missing=fixture();missing.schemaSql=missing.schemaSql.slice(0,1);const notReady=inspectApprovalProofReadiness(missing);
- assert.deepEqual(notReady.missingFunctions,['classify_approval_decision','create_approval_decision']);assert.deepEqual(notReady.unavailableProofIds,['8','9']);
+ const missing=fixture();missing.schemaSql=missing.schemaSql.filter(s=>!s.includes('classify_approval_decision')&&!s.includes('create_approval_decision'));const notReady=inspectApprovalProofReadiness(missing);
+ assert.deepEqual(notReady.missingFunctions,['classify_approval_decision','create_approval_decision']);assert.deepEqual(notReady.unavailableProofIds,['1','2a','2b','3','4','5','8','9']);
  assert.equal(r.dbExecuted,false);assert.equal(r.ciExpectedProofCount,10);
 });
 test('wrong count, dropped/duplicated proof and comment-only schema declarations fail closed',()=>{
@@ -49,4 +49,11 @@ test('both direct runner and shell gate preflight before gateway, psql or schema
  assert.ok(runner.includes('assertCompletedApprovalProofs(results)'));
  assert.ok(shell.indexOf('approval-proof-readiness.mjs')<shell.indexOf('apply_schema()'));
  assert.equal((runner.match(/await step\(/g)||[]).length,10);assert.doesNotMatch(runner,/\.skip\(|continue-on-error/);
+});
+test('atomic route proofs fail preflight if any admission or ledger prerequisite is absent',()=>{
+ const required=['read_atelier_ledger_tail','append_atelier_owner_spec_ledger_v2','admit_execution_intent_v1','check_execution_intent_admission_v1'];
+ for(const absent of required){const f=fixture();f.schemaSql=f.schemaSql.filter(s=>!s.includes(`public.${absent}(`));
+  const r=inspectApprovalProofReadiness(f);assert.equal(r.ready,false,absent);assert.ok(r.missingFunctions.includes(absent));
+  for(const id of ['1','2a','2b','3','4','5'])assert.ok(r.unavailableProofIds.includes(id),id);
+ }
 });

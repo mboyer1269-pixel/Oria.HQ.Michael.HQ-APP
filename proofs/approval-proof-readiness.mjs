@@ -8,9 +8,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const APPROVAL_PROOF_IDS=Object.freeze(['1','2a','2b','3','4','5','6','7','8','9']);
+const atomicRequirements=['consume_approval_decision','read_atelier_ledger_tail','append_atelier_owner_spec_ledger_v2',
+ 'admit_execution_intent_v1','check_execution_intent_admission_v1','classify_approval_decision','create_approval_decision'];
 const requirements={
- '1':['consume_approval_decision'],'2a':['consume_approval_decision'],'2b':['consume_approval_decision'],
- '3':['consume_approval_decision'],'4':[],'5':['consume_approval_decision'],
+ '1':atomicRequirements,'2a':atomicRequirements,'2b':atomicRequirements,
+ '3':atomicRequirements,'4':atomicRequirements,'5':atomicRequirements,
  '6':['consume_approval_decision'],'7':['consume_approval_decision'],
  '8':['consume_approval_decision','classify_approval_decision','create_approval_decision'],
  '9':['create_approval_decision'],
@@ -22,7 +24,7 @@ export function inspectApprovalProofReadiness({runnerSource,workflowSource,schem
  const declared=new Set();
  for(const source of schemaSql){
   const code=source.replace(/\/\*[\s\S]*?\*\//g,'').replace(/--[^\n]*/g,'');
-  for(const m of code.matchAll(/\bcreate\s+(?:or\s+replace\s+)?function\s+public\.([a-z_]+)\s*\(/gi))declared.add(m[1].toLowerCase());
+  for(const m of code.matchAll(/\bcreate\s+(?:or\s+replace\s+)?function\s+public\.([a-z_][a-z0-9_]*)\s*\(/gi))declared.add(m[1].toLowerCase());
  }
  const missingFunctions=[...new Set(Object.values(requirements).flat())].filter(name=>!declared.has(name));
  const unavailableProofIds=APPROVAL_PROOF_IDS.filter(id=>requirements[id].some(name=>!declared.has(name)));
