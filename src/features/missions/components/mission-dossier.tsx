@@ -28,7 +28,7 @@ export function MissionDossier({ missions, source, transferEnabled = false, pagi
   const launchId=typeof launch?.launchId==='string'&&/^[a-f0-9-]{36}$/.test(launch.launchId)?launch.launchId:null;
 
   return (
-    <section aria-label="Dossier de mission" className="min-w-0 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-4 sm:p-6">
+    <section aria-label="Dossier de mission" className="min-w-0 rounded-2xl border border-neutral-800 bg-neutral-950/60 p-3 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold text-white">Dossier de mission</h2>
@@ -55,20 +55,27 @@ export function MissionDossier({ missions, source, transferEnabled = false, pagi
           </ul>
           <p role="status" className="mt-3 text-xs text-neutral-400">{visible.length} mission{visible.length !== 1 ? "s" : ""} affichée{visible.length !== 1 ? "s" : ""}</p>
         </div>
-        {selected && dossier ? <article className="min-w-0 break-words rounded-xl border border-neutral-800 bg-neutral-900/40 p-4 sm:p-5" aria-label={`Dossier : ${selected.title}`}>
+        {selected && dossier ? <article className="min-w-0 break-words rounded-xl border border-neutral-800 bg-neutral-900/40 p-3 sm:p-5" aria-label={`Dossier : ${selected.title}`}>
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">{dossier.status}</p>
           <h3 className="mt-2 text-lg font-semibold text-white">{selected.title}</h3>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{selected.objective}</p>
+          <section aria-label="Prochaine étape" className="mt-4 rounded-xl border border-[var(--marigold)]/30 bg-[var(--ink-950)] p-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--marigold)]">Prochaine étape</h4>
+          <p className="mt-2 text-sm leading-6 text-neutral-200">{dossier.nextStep}</p>
+          {dossier.approvalHref && <Link href={dossier.approvalHref as Route} className="mt-2 inline-flex min-h-11 items-center rounded-lg border border-[var(--fg-faint)] px-3 text-sm text-amber-200 underline focus-visible:outline-2 focus-visible:outline-amber-300">Examiner la décision requise</Link>}
+          </section>
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{selected.objective}</p>
+
+          <h4 className="mt-6 text-sm font-semibold text-white">Résultat attendu</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{selected.expectedOutput}</p>
+          <MissionResultPanel key={`result:${selected.id}`} output={missionReportedOutput(selected)} source={source} />
+          <details className="mt-5 border-t border-neutral-800 pt-2">
+            <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-neutral-300 focus-visible:outline-2 focus-visible:outline-amber-300">Cadre de la mission</summary>
           <dl className="mt-5 grid gap-4 sm:grid-cols-2">
             <div><dt className="text-xs text-neutral-400">Responsable</dt><dd className="mt-1 text-sm text-white">{dossier.owner}</dd></div>
             <div><dt className="text-xs text-neutral-400">Budget autorisé</dt><dd className="mt-1 text-sm text-white">{dossier.budget}</dd></div>
             <div><dt className="text-xs text-neutral-400">Consommation observée</dt><dd className="mt-1 text-sm text-neutral-300">Inconnue</dd></div>
             <div><dt className="text-xs text-neutral-400">Validation indépendante</dt><dd className="mt-1 text-sm text-neutral-300">Non reliée à ce dossier</dd></div>
           </dl>
-          <h4 className="mt-6 text-sm font-semibold text-white">Résultat attendu</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{selected.expectedOutput}</p>
-          <MissionResultPanel key={`result:${selected.id}`} output={missionReportedOutput(selected)} source={source} />
-          <p className="mt-5 border-t border-neutral-800 pt-4 text-sm leading-6 text-amber-200">{dossier.nextStep}</p>
-          {dossier.approvalHref && <Link href={dossier.approvalHref as Route} className="mt-2 inline-flex min-h-11 items-center rounded-lg border border-[var(--fg-faint)] px-3 text-sm text-amber-200 underline focus-visible:outline-2 focus-visible:outline-amber-300">Examiner la décision requise</Link>}
+          </details>
           <AtelierReservationPanel mission={selected} source={source} />
           <OpenHandsPreparation key={`openhands:${selected.id}:${selected.updatedAt}`} mission={selected} source={source} enabled={openHandsEnabled} />
           {launchEnabled&&openHandsEnabled&&source==='supabase'&&selected.input._openhandsReservation!==undefined&&<OpenHandsLaunch key={`launch:${selected.id}:${selected.updatedAt}`} mission={selected} onRefresh={()=>router.refresh()} />}

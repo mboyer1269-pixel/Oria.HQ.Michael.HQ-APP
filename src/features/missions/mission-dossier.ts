@@ -61,6 +61,9 @@ export function missionDossierSummary(mission: Mission) {
   const summary = mission.result?.summary;
   const budget = mission.costBudgetCents;
   const needsReview = evaluateMissionApproval(mission).required;
+  // Presence only changes the safe advice; malformed data is never a confirmed receipt.
+  const hasReservationReference = ["_atelierRun", "_openhandsReservation"]
+    .some(key => Object.prototype.hasOwnProperty.call(mission.input ?? {}, key));
   const approvalHref = needsReview ? missionDossierHref(mission.id)?.replace("#requested-mission", "#mission-approval") ?? null : null;
   return {
     owner: !mission.assignedAgentId?.trim() ? "Non attribué"
@@ -72,6 +75,9 @@ export function missionDossierSummary(mission: Mission) {
       ? `${(budget / 100).toFixed(2)} $` : "Non défini",
     approvalHref,
     nextStep: needsReview ? "Examiner la décision de cette mission ; le lancement reste distinct."
+      : mission.status === "draft" ? hasReservationReference
+        ? "Vérifier si un reçu confirme la réservation, sans renvoyer de confirmation. Une réservation ne prouve pas un lancement."
+        : "Relire l’objectif et le résultat attendu, puis préparer une réservation. Cette préparation ne lance aucun agent."
       : mission.status === "failed" ? "Examiner la trace avant toute nouvelle tentative."
       : mission.status === "completed" ? "Vérifier le livrable et ses preuves avant de le considérer validé."
       : mission.status === "cancelled" ? "Aucune reprise automatique."

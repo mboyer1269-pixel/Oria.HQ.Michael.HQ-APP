@@ -20,9 +20,6 @@ import { CockpitShell } from "@/features/cockpit/components/cockpit-shell";
 import { serverEnv } from "@/lib/server-env";
 import { resolvePaperclipBinding } from "@/server/orchestration/workspace-binding";
 import {
-  HqMetric,
-  HqPageHeader,
-  HqSummaryRail,
   HqWidget,
 } from "@/features/hq/components/hq-widget-system";
 
@@ -38,14 +35,25 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
   const { activeWorkspace, activeMode } = getActiveWorkspaceContext();
   const params = await searchParams;
   const filter = parseMissionPageFilter(params);
-  const { missions, source, summary, filteredTotal, reviewTotal, pageNumber } = await listMissionPage({
-    workspaceId: activeWorkspace.id,
-    modeId: activeMode.id,
-  }, filter);
-
-  // An explicit receipt opens its exact mission, even outside the current page.
-  // Workspace and mode are derived from the owner session, never from the link.
   const requestedId = missionDossierId(params.mission);
+  let missionPage: Awaited<ReturnType<typeof listMissionPage>>;
+  try {
+    missionPage = await listMissionPage({ workspaceId: activeWorkspace.id, modeId: activeMode.id }, filter);
+  } catch {
+    const retryHref = `${missionPageHref(filter)}${requestedId ? `&mission=${encodeURIComponent(requestedId)}` : ""}`;
+    return <CockpitShell active="missions" crumb="Missions">
+      <section aria-labelledby="mission-read-error" className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--ink-900)] p-5 sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--marigold)]">Salle des missions</p>
+        <h1 id="mission-read-error" className="mt-3 text-2xl font-bold text-[var(--fg)]">Lecture des missions indisponible</h1>
+        <p role="status" className="mt-3 max-w-xl text-sm leading-6 text-[var(--fg-muted)]">Impossible de vérifier les dossiers pour le moment. Aucun statut ni total n’est confirmé. Vos filtres et la mission demandée sont conservés pour la relecture.</p>
+        <Link href={retryHref as Route} className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-[var(--fg-faint)] px-4 text-sm font-semibold text-[var(--marigold)] focus-visible:outline-2 focus-visible:outline-amber-300">Réessayer la lecture</Link>
+      </section>
+      <DevelopmentMissionForm key="development-form" workspaceId={activeWorkspace.id} />
+    </CockpitShell>;
+  }
+  const { missions, source, summary, filteredTotal, reviewTotal, pageNumber } = missionPage;
+
+  // The explicit receipt supplements the page in the owner-derived scope.
   let requestedMission: Mission | null = null;
   let requestedReadFailed = false;
   if (requestedId) {
@@ -75,43 +83,34 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
 
   return (
     <CockpitShell active="missions" crumb="Missions">
-      <HqPageHeader
-        backHref={"/hq" as Route}
-        eyebrow="Mission Control"
-        icon={LayoutDashboard}
-        tone="amber"
-        title="Pipeline des missions"
-        description={
-          <>
-            Retrouvez l’objectif, le responsable et les preuves de chaque mission. Pour préparer une demande, ouvrez{" "}
-            <Link href={"/hq#command-center" as Route} className="text-amber-300 underline-offset-2 hover:underline">l’assistant HQ</Link>.
-            Une proposition dans la conversation ne signifie pas qu’un agent a commencé son exécution.
-          </>
-        }
-      >
-        <HqSummaryRail>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Résumé global du mode actif</p>
-          <div className="mt-3 grid gap-2">
-            <HqMetric label="Total" value={summary.total} />
-            <HqMetric label="En cours" value={summary.running} tone="amber" />
-            <HqMetric label="Approbation" value={summary.needs_approval} tone="amber" />
-            <HqMetric label="Terminées" value={summary.completed} tone="emerald" />
-            {summary.failed > 0 && (
-              <HqMetric label="Échouées" value={summary.failed} tone="rose" />
-            )}
+      <header className="min-w-0 py-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--marigold)]">Salle des missions</p>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-3xl font-extrabold text-[var(--fg)] sm:text-4xl">Vos missions.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--fg-muted)]">Consultez le dossier, prenez les décisions nécessaires et retrouvez les résultats rapportés. Une demande préparée n’est pas une exécution.</p>
           </div>
-        </HqSummaryRail>
-      </HqPageHeader>
+          <a href="#development-mission" className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-[var(--fg-faint)] px-4 text-sm font-semibold text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-amber-300">Nouvelle mission</a>
+        </div>
+        <dl aria-label="Résumé du mode actif" className="mt-5 flex flex-wrap gap-x-6 gap-y-3 border-y border-[var(--border)] py-3 text-sm">
+          <div className="flex gap-2"><dt className="text-[var(--fg-muted)]">Total</dt><dd className="font-semibold text-[var(--fg)]">{summary.total}</dd></div>
+          <div className="flex gap-2"><dt className="text-[var(--fg-muted)]">En cours</dt><dd className="font-semibold text-[var(--fg)]">{summary.running}</dd></div>
+          <div className="flex gap-2"><dt className="text-[var(--fg-muted)]">Terminées déclarées</dt><dd className="font-semibold text-[var(--fg)]">{summary.completed}</dd></div>
+          {summary.failed > 0 && <div className="flex gap-2"><dt className="text-[var(--fg-muted)]">Échouées</dt><dd className="font-semibold text-[var(--fg)]">{summary.failed}</dd></div>}
+        </dl>
+        {reviewTotal > 0 && <Link href={missionPageHref({page:1,q:"",status:"review"}) as Route} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-[var(--marigold)]/30 px-3 text-sm text-[var(--marigold)] focus-visible:outline-2 focus-visible:outline-amber-300">{reviewTotal} mission(s) à examiner — ouvrir les décisions</Link>}
+      </header>
 
-      <DevelopmentMissionForm workspaceId={activeWorkspace.id} />
       <section aria-label="Recherche dans toutes les missions" className="rounded-2xl border border-neutral-800 p-4">
         {pageRecovered && <p role="status" className="mb-3 text-sm text-amber-200">La page demandée n’existe plus. La première page est affichée.</p>}
+        <details open={Boolean(filter.q || filter.status !== "all")}>
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-neutral-200 focus-visible:outline-2 focus-visible:outline-amber-300">Rechercher dans les missions</summary>
         <form key={missionPageHref(filter)} action="/hq/missions" className="flex flex-wrap items-end gap-3">
-          <label className="grid gap-2 text-sm text-neutral-300">Titre ou objectif, tout l’historique
-            <input name="q" type="search" maxLength={200} defaultValue={filter.q} className="min-h-11 rounded-lg border border-neutral-700 bg-neutral-900 px-3" />
+          <label className="grid min-w-0 w-full gap-2 text-sm text-neutral-300 sm:w-auto">Titre ou objectif, tout l’historique
+            <input name="q" type="search" maxLength={200} defaultValue={filter.q} className="min-h-11 w-full min-w-0 rounded-lg border border-[var(--fg-faint)] bg-neutral-900 px-3" />
           </label>
-          <label className="grid gap-2 text-sm text-neutral-300">Statut ou besoin de revue
-            <select name="status" defaultValue={filter.status} className="min-h-11 rounded-lg border border-neutral-700 bg-neutral-900 px-3">
+          <label className="grid min-w-0 w-full gap-2 text-sm text-neutral-300 sm:w-auto">Statut ou besoin de revue
+            <select name="status" defaultValue={filter.status} className="min-h-11 w-full min-w-0 rounded-lg border border-[var(--fg-faint)] bg-neutral-900 px-3">
               <option value="all">Tous les statuts</option><option value="review">Approbation requise (tous motifs)</option>
               {Object.entries(missionStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
@@ -119,6 +118,7 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
           <button className="min-h-11 rounded-lg bg-amber-400 px-4 text-sm font-semibold text-neutral-950">Rechercher</button>
           <Link href="/hq/missions" className="p-3 text-sm text-neutral-300 underline">Réinitialiser</Link>
         </form>
+        </details>
         <p role="status" className="mt-4 text-sm text-neutral-300">{filteredTotal} résultat(s) sur {summary.total} missions. {missions.length ? `${(filter.page - 1) * MISSION_PAGE_SIZE + 1}–${(filter.page - 1) * MISSION_PAGE_SIZE + missions.length}` : "0"} affiché(s), plus récentes en premier.</p>
         <nav aria-label="Pages des missions" className="mt-3 flex flex-wrap items-center gap-4 text-sm text-amber-200">
           {filter.page > 1 && <Link href={missionPageHref(filter, filter.page - 1) as Route}>Page précédente</Link>}
@@ -127,22 +127,20 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
           {filter.page > pages && <Link href={missionPageHref(filter, 1) as Route}>Revenir à la première page</Link>}
         </nav>
       </section>
-      <section id="requested-mission" aria-label="Mission sélectionnée">
+      {dossierMissions.length === 0 && <DevelopmentMissionForm key="development-form" workspaceId={activeWorkspace.id} />}
+      <section key="selected-dossier" id="requested-mission" aria-label="Mission sélectionnée">
         {params.mission !== undefined && !requestedMission && <p role="status" className="mb-4 rounded-xl border border-amber-500/30 p-4 text-sm text-amber-200">{requestedReadFailed ? "Lecture de cette mission indisponible. Actualise pour réessayer." : "Cette mission est introuvable dans le projet et le mode actifs."}</p>}
         <MissionDossier key={`${missionPageHref(filter)}:${requestedId ?? ""}`} missions={dossierMissions} initialSelectedId={requestedMission?.id} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
       </section>
-      <OrchestrationProjection key={activeWorkspace.id} workspaceId={activeWorkspace.id} />
+      {dossierMissions.length > 0 && <DevelopmentMissionForm key="development-form" workspaceId={activeWorkspace.id} />}
 
-      {reviewTotal > 0 && <section className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 text-sm text-orange-100">
-        <p>{summary.needs_approval} mission(s) au statut « Approbation » ; {reviewTotal} mission(s) nécessitent une revue selon la politique globale.</p>
-        <Link href={missionPageHref({ page: 1, q: "", status: "review" }) as Route} className="mt-2 inline-block underline">Voir toutes les missions nécessitant une revue</Link>
-      </section>}
       {reviewMissions.length > 0 && <section id="mission-approval" aria-label="Décisions des missions affichées">
         <HqWidget title="Approbations — dossier et page affichés" eyebrow="Human gate" icon={ShieldAlert}>
           <MissionApprovalPanel missions={reviewMissions} />
         </HqWidget>
       </section>}
 
+      <details className="rounded-2xl border border-[var(--border)] p-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-amber-300">Vue Kanban</summary>
       <HqWidget title="Kanban — résultats de cette page" eyebrow="Pipeline" icon={LayoutDashboard}>
         {hasMissions ? (
           <MissionKanbanBoard missions={missions} />
@@ -167,6 +165,8 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
           </div>
         )}
       </HqWidget>
+      </details>
+      <details className="rounded-2xl border border-[var(--border)] p-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-amber-300">Suivi technique</summary><OrchestrationProjection key={activeWorkspace.id} workspaceId={activeWorkspace.id} /></details>
 
       <footer className="rounded-2xl border border-white/[0.07] bg-neutral-950/60 px-4 py-3">
         <p className="text-xs leading-5 text-neutral-600">

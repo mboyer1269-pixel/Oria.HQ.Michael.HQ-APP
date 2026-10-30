@@ -28,7 +28,7 @@ test("mission receipt navigation keeps one scoped dossier and an exact review de
     export const state={calls:[],gate:null,page:null,load:null,local:[],unavailable:false};
     export async function requireOwnerAccess(route){state.calls.push(['owner',route]);return await state.gate();}
     export function getActiveWorkspaceContext(){state.calls.push(['scope']);return {activeWorkspace:{id:'fixture-workspace'},activeMode:{id:'fixture-mode'}};}
-    export async function listMissionPage(scope,filter){state.calls.push(['page',scope,filter]);return state.page;}
+    export async function listMissionPage(scope,filter){state.calls.push(['page',scope,filter]);if(state.page instanceof Error)throw state.page;return state.page;}
     export function createDevelopmentStore(){state.calls.push(['store']);return state.unavailable?null:{load:async(...args)=>{state.calls.push(['load',...args]);return await state.load();}};}
     export async function listMissionsForWorkspace(scope){state.calls.push(['local',scope]);return {missions:state.local};}
     export function evaluateMissionApproval(){throw Error('not part of the server-page projection');}
@@ -36,6 +36,8 @@ test("mission receipt navigation keeps one scoped dossier and an exact review de
     export function resolvePaperclipBinding(){return {status:'disabled'};}
     export function CockpitShell({children}){return children;}
     export function DevelopmentMissionForm(){return null;}
+    export function useRouter(){return {refresh(){state.calls.push(['refresh']);}};}
+    export default function Link({children}){return children;}
     export function OrchestrationProjection(){return null;}
     export async function signOutAction(){throw Error('unexpected write');}
   `);
@@ -125,6 +127,104 @@ test("mission receipt navigation keeps one scoped dossier and an exact review de
         assert.equal(state.calls.some(([kind])=>kind==='store'||kind==='load'||kind==='local'),false);
         assert.deepEqual(byName(tree,'MissionApprovalPanel')[0].props.missions.map(m=>m.id),['paged']);
         assert.equal(byName(tree,'MissionDossier').length,1);
+      }
+    });
+    await t.test("the selected dossier comes before creation and secondary views stay disclosed", async () => {
+      reset(); const tree=await call(); const nodes=allNodes(tree);
+      assert.ok(nodes.findIndex(n=>n.type?.name==='MissionDossier') < nodes.findIndex(n=>n.type?.name==='DevelopmentMissionForm'));
+      for (const label of ['Rechercher dans les missions','Vue Kanban','Suivi technique']) {
+        const details=nodes.find(n=>n.type==='details' && textOf(n.props.children).includes(label));
+        assert.ok(details, label); assert.notEqual(details.props.open,true);
+      }
+      const review=nodes.find(n=>n.props?.id==='mission-approval');
+      assert.ok(review);
+      assert.ok(!nodes.filter(n=>n.type==='details').some(n=>allNodes(n).includes(review)));
+    });
+    await t.test("active search filters are visible rather than silently applied", async () => {
+      reset(); const tree=await call({q:'fixture',status:'review'});
+      const details=allNodes(tree).find(n=>n.type==='details' && textOf(n.props.children).includes('Rechercher dans les missions'));
+      assert.equal(details?.props.open,true);
+    });
+    await t.test("listing failures expose a scoped read-only retry, not fabricated zero totals", async () => {
+      reset(); state.page=Error('private upstream detail');
+      const tree=await call({mission:requestedId,q:'audit & QA',status:'review',page:'2'});
+      assert.match(textOf(tree),/Lecture des missions indisponible/);
+      assert.doesNotMatch(textOf(tree),/Aucune mission|0 résultat|private upstream/);
+      for(const name of ['MissionDossier','MissionKanbanBoard','MissionApprovalPanel']) assert.equal(byName(tree,name).length,0);
+      assert.equal(state.calls.some(([kind])=>kind==='store'||kind==='load'),false);
+      assert.ok(allNodes(tree).some(n=>n.props?.href===`/hq/missions?page=2&q=audit+%26+QA&status=review&mission=${requestedId}`));
+    });
+    await t.test("empty data keeps one creation form first while existing data keeps it mounted after the dossier", async () => {
+      for(const empty of [true,false]) {
+        reset(); if(empty)state.page={...state.page,missions:[],filteredTotal:0};
+        const nodes=allNodes(await call({}));
+        assert.equal(nodes.filter(n=>n.type?.name==='DevelopmentMissionForm').length,1);
+        const creation=nodes.findIndex(n=>n.type?.name==='DevelopmentMissionForm');const dossier=nodes.findIndex(n=>n.type?.name==='MissionDossier');
+        assert.equal(creation<dossier,empty);
+        assert.equal(nodes[creation].key,'development-form');
+      }
+    });
+    await t.test("a frozen real development form survives success, unavailable, empty and restored page reads", async () => {
+      // Actual ReactDOM reconciliation and actual form hooks/handlers. The DOM is
+      // synthetic (@xmldom is already installed); this is not browser/layout QA.
+      const { DOMImplementation } = await import('@xmldom/xmldom');
+      const React = await import('react');
+      const document = new DOMImplementation().createDocument('http://www.w3.org/1999/xhtml','html');
+      const prototype = Object.getPrototypeOf(document.createElement('div'));
+      const previousListeners = {add:prototype.addEventListener,remove:prototype.removeEventListener,style:prototype.style};
+      prototype.addEventListener=prototype.removeEventListener=()=>{}; prototype.style={};
+      const body=document.createElement('body');document.documentElement.appendChild(body);
+      document.body=body;document.activeElement=body;document.addEventListener=document.removeEventListener=()=>{};
+      const window={document,addEventListener(){},removeEventListener(){},HTMLIFrameElement:function(){},HTMLElement:prototype.constructor};
+      document.defaultView=window;
+      const saved=Object.fromEntries(['window','document','sessionStorage','IS_REACT_ACT_ENVIRONMENT','fetch'].map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
+      const storage=new Map();const requests=[];
+      Object.assign(globalThis,{window,document,IS_REACT_ACT_ENVIRONMENT:true,
+        sessionStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
+        fetch:async(url,options)=>{requests.push({url,method:options.method,body:options.body});throw Error('simulated lost acknowledgement');}});
+      let root;
+      try {
+        const {createRoot}=await import('react-dom/client');
+        const formJiti=createJiti(import.meta.url,{jsx:{runtime:'automatic'},fsCache:false,alias:{'next/navigation':file,'next/link':file,'@':path.join(process.cwd(),'src')}});
+        const {DevelopmentMissionForm}=await formJiti.import(path.join(process.cwd(),'src/features/missions/components/development-mission-form.tsx'));
+        const container=document.createElement('main');body.appendChild(container);root=createRoot(container);
+        // Preserve the page's exact arrays, keys and ancestors. Only unrelated
+        // presentation components are host placeholders; the form stays real.
+        function skeleton(node){
+          if(Array.isArray(node))return node.map(skeleton);
+          if(!React.isValidElement(node))return node;
+          const key=node.key===null?{}:{key:node.key};
+          if(node.type?.name==='DevelopmentMissionForm')return React.createElement(DevelopmentMissionForm,{...node.props,...key});
+          const children=skeleton(node.props.children);
+          return React.createElement(node.type===React.Fragment?React.Fragment:'div',key,...(Array.isArray(children)?children:[children]));
+        }
+        async function show(kind){
+          reset();if(kind==='unavailable')state.page=Error('read unavailable');
+          if(kind==='empty')state.page={...state.page,missions:[],filteredTotal:0};
+          const tree=await call({});
+          await React.act(async()=>{root.render(skeleton(tree));await new Promise(resolve=>setTimeout(resolve,5));});
+        }
+        const textareas=()=>Array.from(container.getElementsByTagName('textarea'));
+        const handlers=node=>Object.entries(node).find(([key])=>key.startsWith('__reactProps$'))?.[1];
+        await show('success');
+        const values=['Frozen title','Frozen objective','Frozen scope','Frozen acceptance'];
+        for(let index=0;index<values.length;index++)await React.act(async()=>{handlers(textareas()[index]).onChange({target:{value:values[index]}});});
+        await React.act(async()=>{handlers(container.getElementsByTagName('form')[0]).onSubmit({preventDefault(){}});});
+        assert.equal(requests.length,1);assert.equal(requests[0].method,'POST');
+        const submitted=JSON.parse(requests[0].body);assert.equal(submitted.title,'Frozen title');
+        const frozenNodes=textareas();assert.ok(frozenNodes.every(node=>handlers(node).disabled===true));
+        for(const kind of ['unavailable','success','empty','success']){
+          await show(kind);
+          assert.ok(textareas().length===frozenNodes.length && textareas().every((node,index)=>node===frozenNodes[index]),kind+' must retain the mounted form DOM nodes');
+          assert.deepEqual(textareas().map(node=>handlers(node).value),values,kind+' preserves frozen values');
+          assert.ok(textareas().every(node=>handlers(node).disabled===true),kind+' preserves frozen submission state');
+          assert.equal(requests.length,1,kind+' must not resubmit or read automatically');
+          assert.match(container.textContent,new RegExp(submitted.requestId));
+        }
+      } finally {
+        if(root)await React.act(async()=>root.unmount());
+        for(const [key,descriptor] of Object.entries(saved))if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];
+        for(const [key,value] of [['addEventListener',previousListeners.add],['removeEventListener',previousListeners.remove],['style',previousListeners.style]])if(value===undefined)delete prototype[key];else prototype[key]=value;
       }
     });
     assert.equal(network,0);

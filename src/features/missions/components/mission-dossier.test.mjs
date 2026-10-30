@@ -43,3 +43,13 @@ test('required decision links to the exact dossier without granting approval', (
   assert.match(html, /href="\/hq\/missions\?mission=mission-0#mission-approval"/);
   assert.match(html, /Examiner la décision requise/);
 });
+test('the next safe action precedes long context and remains outside secondary disclosure', () => {
+  const html = render({ missions: [{ ...missions[0], status: 'needs_approval', requiresApproval: true }] });
+  const visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
+  assert.match(visible, /Prochaine étape/);
+  assert.match(visible, /Examiner la décision requise/);
+  assert.ok(html.indexOf('Prochaine étape') < html.indexOf('Objectif 0'));
+  assert.match(html, /Cadre de la mission/);
+  assert.doesNotMatch(visible, /Budget autorisé|Consommation observée/);
+  assert.match(visible, /ne prouvent aucune exécution réelle/);
+});

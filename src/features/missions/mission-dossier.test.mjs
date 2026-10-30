@@ -62,3 +62,22 @@ test("every existing approval reason links to the exact mission review, never a 
   assert.equal(missionDossierSummary({...mission,id:"normal"}).approvalHref,null);
   assert.equal(missionDossierSummary({...mission,id:"../other",status:"needs_approval"}).approvalHref,null);
 });
+
+test("a draft points to reviewing its objective before preparation, not to a nonexistent result", () => {
+  const draft=missionDossierSummary({ ...mission, id:"draft-1", status:"draft", result:undefined, input:{} });
+  assert.match(draft.nextStep,/Relire l’objectif et le résultat attendu/);
+  assert.match(draft.nextStep,/préparer une réservation/);
+  assert.doesNotMatch(draft.nextStep,/Suivre le résultat/);
+  assert.equal(draft.approvalHref,null);
+});
+test("any existing reservation reference keeps a draft on receipt verification without declaring it valid", () => {
+  for (const key of ["_atelierRun","_openhandsReservation"]) for (const value of [null,{}, {state:"reserved"}]) {
+    const draft=missionDossierSummary({ ...mission, id:"draft-1", status:"draft", result:undefined, input:{[key]:value} });
+    assert.match(draft.nextStep,/Vérifier si un reçu confirme la réservation/);
+    assert.match(draft.nextStep,/sans renvoyer de confirmation/);
+    assert.doesNotMatch(draft.nextStep,/réservation confirmée|autorisation accordée/);
+  }
+  const review=missionDossierSummary({ ...mission, id:"draft-1", status:"draft", requiresApproval:true, input:{_atelierRun:{}} });
+  assert.match(review.nextStep,/décision de cette mission/);
+  assert.equal(review.approvalHref,"/hq/missions?mission=draft-1#mission-approval");
+});

@@ -21,7 +21,7 @@ const text = tree => typeof tree === "string" ? tree : Array.isArray(tree) ? tre
 // Component-event simulation, not a browser/Next integration: actual component and
 // wire validator; only React scheduling, FormData, router, storage and fetch are DI.
 // Removing draft capture or a field's defaultValue must fail this regression.
-test("prepare → edit preserves every field, reprepare uses edits and requires fresh confirmation", async () => {
+test("prepare → edit preserves every field, reprepare uses edits and requires fresh confirmation", async (t) => {
   const slots = []; let cursor = 0; const effects = [];
   const useState = initial => { const index = cursor++; if (!(index in slots)) slots[index] = typeof initial === "function" ? initial() : initial;
     return [slots[index], value => { slots[index] = typeof value === "function" ? value(slots[index]) : value; }]; };
@@ -38,15 +38,23 @@ test("prepare → edit preserves every field, reprepare uses edits and requires 
     return require(name);
   }, compiledModule, compiledModule.exports);
   const original = { fetch: globalThis.fetch, FormData: globalThis.FormData, sessionStorage: globalThis.sessionStorage };
-  const calls = [];
+  const calls = []; let reply = "prepared";
   const stored = new Map();
-  globalThis.sessionStorage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
+  globalThis.sessionStorage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) };
   globalThis.FormData = class { constructor(form) { this.values = form; } get(key) { return this.values[key] ?? null; } };
   globalThis.fetch = async (_url, init) => {
     const request = JSON.parse(init.body); calls.push(request);
-    if (request.action === "confirm") throw Error("simulated lost confirmation response");
+    if (request.action === "confirm") {
+      if (reply === "pre-effect") return Response.json({ status: "stale_version" }, { status: 409 });
+      throw Error("simulated lost confirmation response");
+    }
     assert.equal(request.action, "prepare");
     const hash = "b".repeat(64);
+    if (reply === "receipt") return Response.json({ status: "reserved", externalEffectAllowed: false, receipt: {
+      version: 1, reservationId: mission.id, state: "audit_recorded", workspaceId: mission.workspaceId, missionId: mission.id,
+      missionVersion: mission.updatedAt, idempotencyKey: `hq-openhands-v1-${hash}`, payloadHash: hash,
+      authorizationId: mission.id, actorId: "simulation", reservedAt: mission.updatedAt,
+      authorizationExpiresAt: "2026-10-28T12:10:00Z", auditId: "simulation-audit" } });
     return Response.json({ status: "prepared", externalEffectAllowed: false, dossier: { contractVersion: 1, executor: "openhands", executorVersion: request.executorVersion,
       mission: { id: mission.id, workspaceId: mission.workspaceId, modeId: "development", version: mission.updatedAt, title: "Simulation", objective: "Simulation", scope: "Fixture", acceptanceCriteria: "Preserve inputs", expectedOutput: "Test", createdBy: "simulation" },
       source: { commitSha: request.commitSha, commitVerification: "not_verified" }, budget: request.budget, approvalRequired: true, executionRequested: false,
@@ -81,5 +89,44 @@ test("prepare → edit preserves every field, reprepare uses edits and requires 
     assert.ok(find(tree, "button", "Vérifier le reçu"));
     assert.equal(calls.filter(call => call.action === "confirm").length, 1);
     assert.equal(stored.size, 1, "uncertainty keeps the recovery packet");
+    await t.test("receipt reads remain read-only when no reservation is found, including after remount", async () => {
+      const recoveryPacket = [...stored.values()][0];
+      const beforeReads = calls.length;
+      const lookup = find(tree, "button", "Vérifier le reçu");
+      lookup.props.onClick(); lookup.props.onClick(); await flush(); tree = render();
+      assert.equal(calls.length, beforeReads + 1, "repeated clicks share one in-flight read");
+      assert.equal(find(tree, "button", "Réessayer la même confirmation"), undefined,
+        "a prepared response does not prove the initial confirmation had no effect");
+      assert.equal(nodes(tree).some(node => node.type === "input" && node.props.type === "checkbox"), false);
+      assert.ok(find(tree, "button", "Vérifier le reçu"));
+      assert.equal([...stored.values()][0], recoveryPacket);
+      assert.match(text(tree), /ne tranche pas|reste à vérifier/);
+      // Simulate leaving and returning to the keyed mission component. Only tab
+      // storage survives; no HTTP confirmation may be replayed on restore.
+      slots.length = 0; effects.length = 0;
+      render(); effects.forEach(effect => effect()); await new Promise(resolve => setTimeout(resolve, 5));
+      tree = render(); assert.equal(calls.length, beforeReads + 1);
+      find(tree, "button", "Vérifier le reçu").props.onClick(); await flush(); tree = render();
+      assert.equal(find(tree, "button", "Réessayer la même confirmation"), undefined);
+      assert.equal(find(tree, "form"), undefined);
+      assert.equal([...stored.values()][0], recoveryPacket);
+      assert.equal(calls.filter(call => call.action === "confirm").length, 1);
+      reply = "receipt";
+      find(tree, "button", "Vérifier le reçu").props.onClick(); await flush(); tree = render();
+      assert.match(text(tree), /Autorisation et réservation rapportées par le serveur/);
+      assert.equal(find(tree, "form"), undefined);
+      assert.equal(calls.filter(call => call.action === "confirm").length, 1);
+    });
+    await t.test("explicit pre-effect refusal still permits a fresh reviewed preparation", async () => {
+      reply = "pre-effect"; stored.clear(); slots.length = 0; effects.length = 0;
+      render(); effects.forEach(effect => effect()); await new Promise(resolve => setTimeout(resolve, 5));
+      tree = render();
+      await find(tree, "form").props.onSubmit({ preventDefault() {}, currentTarget: values, nativeEvent: {} }); await flush();
+      tree = render(); nodes(tree).find(node => node.type === "input" && node.props.type === "checkbox").props.onChange({ target: { checked: true } });
+      tree = render(); find(tree, "button", "Enregistrer l’autorisation").props.onClick(); await flush(); tree = render();
+      assert.equal(stored.size, 0);
+      assert.ok(find(tree, "form"));
+      assert.ok(find(tree, "button", "Actualiser le dossier"));
+    });
   } finally { Object.assign(globalThis, original); }
 });
