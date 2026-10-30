@@ -2,13 +2,13 @@
 // No provider account, real model, bwrap confinement claim, route mounting or production DB.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { spawn, spawnSync } from 'node:child_process';
+import childProcess, { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { request as httpRequest } from 'node:http';
-import { createRequire } from 'node:module';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { BASE, SCHEMA_FILES, SYNTHETIC_KEY, localConfig, quote, loadContracts, canonicalFixture } from './prove-atelier-boundary-real-db.mjs';
 import { createFakeBoundSpecProvider } from '../src/server/atelier/atelier-bound-spec.test-fixture.mjs';
 import { runAdmissionProofs } from './prove-execution-intent-admission-real-db.mjs';
@@ -167,7 +167,19 @@ export async function main(root,rawConfig){
    const bad=structuredClone(result);bad.evidence.manifest.headSha='b'.repeat(40);assert.equal((await store.record(e,bad)).status,'invalid_request');
    const raw=await m.db.rpc('record_atelier_owner_spec_result_v2',{p_workspace_id:f.context.workspaceId,p_actor_id:f.context.actorId,p_mission_id:f.mission.id,p_attempt_id:e.receipt.attemptId,p_review_hash:e.payloadHash,p_result:bad,p_result_id:randomUUID(),p_seal:null});assert.equal(raw.data?.status,'conflict');
    failLedger(f.mission.id);try{assert.equal((await store.record(e,result)).status,'reconciliation_required');}finally{clearFailure();}
-   assert.deepEqual(facts(f),{admitted:true,result:false,decisions:1,ledger:1});const before=spawned;const restarted=m.V.createOwnerSpecService({store,engine:{execute:async()=>{throw Error('no respawn');},recover:f.engine.recover}});assert.equal((await restarted.command(f.command('recover'),f.context)).status,'recovered');assert.equal(spawned,before);assert.equal((await store.record(e,result)).status,'existing');chain(f.context.workspaceId);
+   assert.deepEqual(facts(f),{admitted:true,result:false,decisions:1,ledger:1});const before=spawned;
+   // The new process receives only context and an on-disk evidence location, not the result or engine closure.
+   const ctx=JSON.stringify({mode:'publish-local',context:f.context,command:f.command('recover'),localRoot:path.join(scratch,'runs')});
+   const child=spawnSync(process.execPath,[fileURLToPath(import.meta.url),'--recover-proof'],{cwd:root,encoding:'utf8',timeout:15000,
+    env:{PATH:process.env.PATH,NODE_ENV:'test',ORIA_PROOF_RECOVER:ctx}});assert.equal(child.status,0,child.stderr);
+   const recovered=JSON.parse(child.stdout.trim().split('\n').at(-1));
+   assert.notEqual(recovered.pid,process.pid);assert.equal(recovered.pid,child.pid);
+   assert.equal(recovered.status,'recovered');assert.equal(recovered.spawnAttempts,0);assert.equal(recovered.executeAttempts,0);
+   assert.equal(recovered.publishedFromLocal,true);assert.equal(recovered.idempotent,true);
+   assert.deepEqual(recovered.result,result);assert.equal(recovered.readback.artifact.sha256,result.evidence.sha256);
+   assert.equal(spawned,before);assert.deepEqual(facts(f),{admitted:true,result:true,decisions:1,ledger:2});
+   assert.equal((await store.record(e,result)).status,'existing');assert.equal(chain(f.context.workspaceId).length,2);
+   console.log('OWNER_SPEC_LOCAL_RECOVERY_NEW_PROCESS=1');
   });
   // Extra mandatory qualification, before the shared sealed-writer revert.
   // Its twelve groups do not replace or suppress any of the thirteen owner-spec proofs.
@@ -182,9 +194,28 @@ export async function main(root,rawConfig){
 const isEntrypoint=process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url);
 if(isEntrypoint&&process.argv.includes('--recover-proof')){
  const counts={allowed:0,unexpected:0},fetch=localTransport(counts);globalThis.fetch=fetch;
- const m=await modules(ROOT,fetch),input=JSON.parse(process.env.ORIA_PROOF_RECOVER);
- const store=m.S.createOwnerSpecStore(m.db,{enabled:()=>false});
- const service=m.V.createOwnerSpecService({store});const result=await service.command(input.command,input.context);
+ const input=JSON.parse(process.env.ORIA_PROOF_RECOVER);
+ assert.ok(input.mode===undefined||input.mode==='publish-local');assert.equal(input.command.command,'recover');
+ const publishLocal=input.mode==='publish-local';
+ if(publishLocal)assert.ok(path.isAbsolute(input.localRoot)&&path.basename(path.dirname(input.localRoot)).startsWith('oria-owner-proof-')&&path.basename(input.localRoot)==='runs');
+ const m=await modules(ROOT,fetch);
+ // Fence the actual child after module loading. Any process/tool relaunch fails this proof, even if caught by a service.
+ let processAttempts=0,executeAttempts=0;
+ for(const name of ['spawn','spawnSync','exec','execSync','execFile','execFileSync','fork'])childProcess[name]=()=>{processAttempts++;throw Error('recovery_process_forbidden');};
+ syncBuiltinESMExports();
+ const store=m.S.createOwnerSpecStore(m.db,{enabled:()=>publishLocal,hmacKey:()=>SYNTHETIC_KEY});
+ let engine;
+ if(publishLocal){
+  const before=await store.load(input.context,input.command.missionId);
+  assert.ok(before.input._atelierOwnerSpecV2.admission);assert.equal(before.input._atelierOwnerSpecV2.result,undefined);
+  assert.equal(before.result?.atelierOwnerSpecV2,undefined);
+  const local=m.E.createBoundSpecEngine({root:input.localRoot,env:{},provider:null});
+  engine={recover:local.recover,execute:async()=>{executeAttempts++;throw Error('recovery_execute_forbidden');}};
+ }
+ const service=m.V.createOwnerSpecService({store,...(engine?{engine}:{})});const result=await service.command(input.command,input.context);
+ assert.equal(result.status,'recovered');
+ if(publishLocal){const again=await service.command(input.command,input.context);assert.deepEqual(again,result);}
+ assert.equal(processAttempts,0);assert.equal(executeAttempts,0);
  const mission=await store.load(input.context,input.command.missionId),readback=m.R.readOwnerSpecEvidence(mission,input.context);
  assert.equal(readback.state,'recorded');assert.equal(readback.status,'succeeded');
  const require=createRequire(path.join(ROOT,'package.json')),{createElement}=require('react'),{renderToStaticMarkup}=require('react-dom/server');
@@ -194,5 +225,5 @@ if(isEntrypoint&&process.argv.includes('--recover-proof')){
  const escapedSpec=renderToStaticMarkup(createElement('span',null,readback.artifact.text)).slice(6,-7);
  assert.ok(html.includes(escapedSpec),'the persisted SPEC bytes must be rendered as escaped text');
  assert.ok(html.includes(readback.artifact.sha256));assert.ok(!/Lancer|Enregistrer l’autorisation/.test(html));
- assert.equal(counts.unexpected,0);console.log(JSON.stringify({...result,readback,rendered:true}));
+ assert.equal(counts.unexpected,0);console.log(JSON.stringify({...result,readback,rendered:true,pid:process.pid,spawnAttempts:processAttempts,executeAttempts,publishedFromLocal:publishLocal,idempotent:publishLocal}));
 }else if(isEntrypoint&&process.argv.includes('--run'))await main(ROOT,{pg:process.env.CI_PG_URL,rest:process.env.POSTGREST_DIRECT_URL});
