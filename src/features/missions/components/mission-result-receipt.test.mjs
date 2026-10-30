@@ -50,3 +50,40 @@ test("subscription refusal is displayed as a connection diagnostic without a fab
  const html=renderToStaticMarkup(createElement(MissionResultPanel,{output,source:"supabase"}));
  assert.match(html,/Connexion à l’abonnement requise/);assert.doesNotMatch(html,/Télécharger cette différence|Ouvrir le rapport du fichier|L’agent a rendu la main/);
 });
+
+test("Atelier can reuse the result panel without a self-link and export the selected report bytes", async () => {
+ const m=fixture();m.result._openhandsResult.report.summary.text="Résumé intégral 😀\n<unsafe> reste du texte";
+ const output=missionReportedOutput(m);assert.ok(output.receipt);
+ const element=MissionResultPanel({output,source:"supabase",showAtelierLink:false});
+ const html=renderToStaticMarkup(element);assert.doesNotMatch(html,/Ouvrir le résultat dans Atelier/);
+ const buttons=[];
+ function visit(node){if(!node||typeof node!=="object")return;if(Array.isArray(node)){node.forEach(visit);return;}if(node.type==="button")buttons.push(node);visit(node.props?.children);}
+ visit(element);
+ const button=buttons.find(node=>node.props.children==="Télécharger le rapport sélectionné (.txt)");assert.ok(button);
+ const originalDocument=Object.getOwnPropertyDescriptor(globalThis,"document");
+ const originalCreate=URL.createObjectURL,originalRevoke=URL.revokeObjectURL,originalFetch=globalThis.fetch;
+ const calls=[];let blob;
+ const anchor={href:"",download:"",click(){calls.push(["click",this.href,this.download]);},remove(){calls.push(["remove"]);}};
+ try{
+  globalThis.fetch=async()=>{throw Error("export must not fetch");};
+  URL.createObjectURL=value=>{blob=value;calls.push(["blob"]);return "blob:fixture-selected-report";};
+  URL.revokeObjectURL=value=>calls.push(["revoke",value]);
+  Object.defineProperty(globalThis,"document",{configurable:true,value:{createElement(tag){assert.equal(tag,"a");return anchor;},body:{appendChild(value){assert.equal(value,anchor);calls.push(["append"]);}}}});
+  button.props.onClick();
+  assert.equal(blob.type,"text/plain;charset=utf-8");assert.equal(await blob.text(),output.receipt.report.summary.text);
+  assert.equal(blob.size,new TextEncoder().encode(output.receipt.report.summary.text).length);
+  assert.deepEqual(calls,[["blob"],["append"],["click","blob:fixture-selected-report","rapport-fichier-selectionne-non-valide.txt"],["remove"],["revoke","blob:fixture-selected-report"]]);
+ }finally{
+  URL.createObjectURL=originalCreate;URL.revokeObjectURL=originalRevoke;globalThis.fetch=originalFetch;
+  if(originalDocument)Object.defineProperty(globalThis,"document",originalDocument);else delete globalThis.document;
+ }
+});
+
+
+test("process metadata without a result receipt is not labeled a receipt", () => {
+ const m=fixture();m.result=null;const output=missionReportedOutput(m);
+ assert.ok(output.process);assert.equal(output.receipt,null);
+ const html=renderToStaticMarkup(createElement(MissionResultPanel,{output,source:"supabase"}));
+ assert.match(html,/selon les données enregistrées de cette mission/);
+ assert.doesNotMatch(html,/selon le reçu|Télécharger|Retour d’OpenHands/);
+});

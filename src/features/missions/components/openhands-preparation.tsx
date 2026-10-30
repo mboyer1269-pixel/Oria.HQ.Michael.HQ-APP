@@ -27,6 +27,7 @@ export function OpenHandsDossierReview({ dossier }: { dossier: OpenHandsSubmissi
 export function OpenHandsPreparation({ mission, source, enabled }: { mission: Mission; source: "supabase" | "local" | "mock"; enabled: boolean }) {
   const [loaded, setLoaded] = useState(false), [storageError, setStorageError] = useState(false);
   const [pending, setPending] = useState<OpenHandsPending | null>(null);
+  const [draft, setDraft] = useState<OpenHandsPending["request"] | null>(null);
   const [prepared, setPrepared] = useState<{ pending: OpenHandsPending; dossier: OpenHandsSubmissionDossier } | null>(null);
   const [result, setResult] = useState<OpenHandsUiResult | null>(null);
   const [busy, setBusy] = useState(false), [checked, setChecked] = useState(false);  const [projects,setProjects]=useState<OpenHandsMemoryProject[]>([]);  const [projectError,setProjectError]=useState(false);  const [attachmentPending,setAttachmentPending]=useState(false);
@@ -44,7 +45,7 @@ export function OpenHandsPreparation({ mission, source, enabled }: { mission: Mi
   const existingReceipt = Object.prototype.hasOwnProperty.call(mission.input, "_openhandsReservation");
   const available = enabled && source === "supabase";  useEffect(()=>{    if(!available)return;    let active=true;    void loadOpenHandsMemoryProjects().then(values=>{if(active)setProjects(values);}).catch(()=>{if(active)setProjectError(true);});    return()=>{active=false;};  },[available]);
   async function run(action: "prepare" | "confirm", packet: OpenHandsPending) {
-    if (inFlight.current || storageError || !available || !loaded || attachmentPending) return;
+    if (inFlight.current || storageError || !available || !loaded || attachmentPending || (action === "confirm" && pending)) return;
     inFlight.current = true; setBusy(true); setChecked(false);
     try {
       if (action === "confirm") {
@@ -57,8 +58,11 @@ export function OpenHandsPreparation({ mission, source, enabled }: { mission: Mi
         try { sessionStorage.removeItem(storageKey); setPending(null); } catch { setStorageError(true); }
       }
       if (response.kind === "prepared") {
-        if (pending && response.dossier.payloadHash !== pending.expectedPayloadHash) {
-          setPrepared(null); setResult({ kind: "uncertain", message: "Le dossier ne correspond plus à la confirmation en attente. Réconciliation nécessaire ; aucun nouvel envoi." });
+        if (pending) {
+          // A read without a receipt cannot settle an earlier confirmation. Never resend it.
+          setPrepared(null); setResult({ kind: "uncertain", message: response.dossier.payloadHash === pending.expectedPayloadHash
+            ? "Cette lecture ne retrouve pas de réservation confirmée, mais ne tranche pas l’envoi initial. Conservez ce dossier et vérifiez le même reçu ; aucune nouvelle confirmation."
+            : "Le dossier ne correspond plus à la confirmation en attente. Réconciliation nécessaire ; aucun nouvel envoi." });
         } else setPrepared({ pending: { ...packet, expectedPayloadHash: response.dossier.payloadHash }, dossier: response.dossier });
       } else setPrepared(null);
     } finally { inFlight.current = false; setBusy(false); }
@@ -70,6 +74,7 @@ export function OpenHandsPreparation({ mission, source, enabled }: { mission: Mi
       commitSha: String(form.get("commitSha") ?? "").trim(), executorVersion: String(form.get("executorVersion") ?? "").trim(),
       budget: { maxCostCents: Number(form.get("maxCostCents")), maxTokens: Number(form.get("maxTokens")), maxIterations: Number(form.get("maxIterations")), timeoutSeconds: Number(form.get("timeoutSeconds")) } });
     if (!parsed.success) { setResult({ kind: "blocked", message: "Renseignez un commit complet, une version précise et les limites valides." }); return; }    if((event.nativeEvent as SubmitEvent).submitter?.getAttribute("value")==="attach_memory") {      const projectId=String(form.get("projectId")??"");      if(!projects.some(p=>p.projectId===projectId))return;      inFlight.current=true;setBusy(true);setAttachmentPending(true);setPrepared(null);      try {        const ok=await attachOpenHandsMemory(parsed.data,projectId);        setResult({kind:ok?"blocked":"uncertain",message:ok?"Mémoire rattachée. Actualisez la mission, puis préparez le dossier avec sa nouvelle version.":"Résultat de l’attachement non confirmé. Actualisez la mission pour vérifier avant toute autre action."});        router.refresh();      } catch {setResult({kind:"uncertain",message:"Connexion interrompue. Actualisez la mission pour vérifier si la mémoire a été rattachée."});}      finally{inFlight.current=false;setBusy(false);}      return;    }
+    setDraft(parsed.data);
     void run("prepare", { version: 1, workspaceId: mission.workspaceId, request: parsed.data, expectedPayloadHash: "0".repeat(64) });
   }
   return <details className="mt-5 rounded-xl border border-neutral-700 p-4" aria-busy={busy}>
@@ -78,16 +83,16 @@ export function OpenHandsPreparation({ mission, source, enabled }: { mission: Mi
       <p className="mt-2 text-sm leading-6 text-neutral-300">Relisez le dossier exact avant d’enregistrer son autorisation. Cette étape n’exécute pas la mission et n’autorise aucun outil externe.</p>
       {storageError ? <p role="alert" className="mt-3 text-sm text-amber-200">Le reçu de session est indisponible ou illisible. Confirmation bloquée pour éviter un doublon ; une vérification manuelle est nécessaire.</p> : !loaded ? <p role="status">Lecture du reçu de session…</p> : <>
         {!pending && !existingReceipt && !prepared && <form onSubmit={prepare} className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm text-neutral-300 sm:col-span-2">Commit Git complet (40 ou 64 caractères hexadécimaux)<input required name="commitSha" maxLength={64} className={`${field} mt-1`} disabled={busy} /></label>
-          <label className="text-sm text-neutral-300 sm:col-span-2">Version OpenHands exacte<input required name="executorVersion" maxLength={64} placeholder="Ex. 1.2.3 — sans valeur présélectionnée" className={`${field} mt-1`} disabled={busy} /></label>
-          {[["maxCostCents", "Coût demandé (centimes)", 10000], ["maxTokens", "Tokens demandés", 200000], ["maxIterations", "Itérations demandées", 100], ["timeoutSeconds", "Durée demandée (secondes)", 1800]].map(([name, label, max]) => <label key={name} className="text-sm text-neutral-300">{label}<input required type="number" name={String(name)} min={1} max={Number(max)} step={1} className={`${field} mt-1`} disabled={busy} /></label>)}
+          <label className="text-sm text-neutral-300 sm:col-span-2">Commit Git complet (40 ou 64 caractères hexadécimaux)<input required name="commitSha" defaultValue={draft?.commitSha ?? ""} maxLength={64} className={`${field} mt-1`} disabled={busy} /></label>
+          <label className="text-sm text-neutral-300 sm:col-span-2">Version OpenHands exacte<input required name="executorVersion" defaultValue={draft?.executorVersion ?? ""} maxLength={64} placeholder="Ex. 1.2.3 — sans valeur présélectionnée" className={`${field} mt-1`} disabled={busy} /></label>
+          {[["maxCostCents", "Coût demandé (centimes)", 10000], ["maxTokens", "Tokens demandés", 200000], ["maxIterations", "Itérations demandées", 100], ["timeoutSeconds", "Durée demandée (secondes)", 1800]].map(([name, label, max]) => <label key={name} className="text-sm text-neutral-300">{label}<input required type="number" name={String(name)} defaultValue={draft?.budget[name as keyof OpenHandsPending["request"]["budget"]] ?? ""} min={1} max={Number(max)} step={1} className={`${field} mt-1`} disabled={busy} /></label>)}
           {!mission.input._openhandsMemory && projects.length>0 && <><label className="text-sm text-neutral-300 sm:col-span-2">Mémoire du projet<select name="projectId" className={`${field} mt-1`} disabled={busy||attachmentPending}>{projects.map(p=><option key={p.projectId} value={p.projectId}>{p.label}</option>)}</select></label><button name="action" value="attach_memory" className={`${button} sm:col-span-2`} disabled={busy||attachmentPending}>Rattacher la mémoire avant de préparer</button></>}          {!mission.input._openhandsMemory && projects.length===0 && <p className="text-xs text-neutral-400 sm:col-span-2">{projectError?"Le registre des projets mémoire n’est pas disponible.":"Aucun projet mémoire configuré pour cet espace."}</p>}          <button className={`${button} sm:col-span-2`} disabled={busy||attachmentPending}>Préparer le dossier à relire</button>          {attachmentPending&&<button type="button" className={`${button} sm:col-span-2`} onClick={()=>router.refresh()}>Actualiser et vérifier l’attachement</button>}
         </form>}
         {existingReceipt && !pending && <p className="mt-3 text-sm text-amber-200">Une réservation existe déjà. Cette session ne possède pas ses paramètres de reprise : utilisez la session d’origine ou faites réconcilier le reçu serveur. Aucun nouveau dossier ne sera envoyé.</p>}
         {pending && <p className="mt-3 text-xs leading-5 text-neutral-400">Paramètres de reprise conservés dans cet onglet uniquement, sans contenu de mission. Ne créez pas une nouvelle confirmation pour contourner un état inconnu.</p>}
-        {prepared && <><OpenHandsDossierReview dossier={prepared.dossier} />
+        {prepared && !pending && <><OpenHandsDossierReview dossier={prepared.dossier} />
           <label className="mt-4 flex items-start gap-3 text-sm text-neutral-200"><input type="checkbox" checked={checked} disabled={busy} onChange={(e) => setChecked(e.target.checked)} className="mt-1" />Je confirme ce dossier et ces limites demandées, pour enregistrer une autorisation et une réservation uniquement. Aucun lancement.</label>
-          <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={!checked || busy} className={button} onClick={() => { if (checked) void run("confirm", prepared.pending); }}>{pending ? "Réessayer la même confirmation" : "Enregistrer l’autorisation et réserver"}</button>
+          <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={!checked || busy} className={button} onClick={() => { if (checked) void run("confirm", prepared.pending); }}>Enregistrer l’autorisation et réserver</button>
           {!pending && <button type="button" disabled={busy} className={button} onClick={() => { setPrepared(null); setChecked(false); setResult(null); }}>Modifier la préparation</button>}</div>
         </>}
         {pending && !prepared && <button type="button" disabled={busy} className={`${button} mt-3`} onClick={() => void run("prepare", pending)}>Vérifier le reçu, sans renvoyer la confirmation</button>}

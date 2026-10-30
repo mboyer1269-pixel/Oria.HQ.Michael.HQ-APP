@@ -1,6 +1,7 @@
 import {
   Bot,
   ClipboardCheck,
+  ChevronDown,
   Eye,
   Hammer,
   Headset,
@@ -27,27 +28,15 @@ const ROLE_ICONS: Record<AgentRoleId, React.ComponentType<{ className?: string }
   quality: ClipboardCheck,
 };
 
-const STATUS_STYLES: Record<AgentStatus, { badge: string; dot: string; label: string }> = {
-  active: {
-    badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
-    dot: "bg-emerald-400",
-    label: "Actif",
-  },
-  standby: {
-    badge: "border-amber-500/20 bg-amber-500/10 text-amber-300",
-    dot: "bg-amber-400",
-    label: "Standby",
-  },
-  locked: {
-    badge: "border-red-500/20 bg-red-500/10 text-red-300",
-    dot: "bg-red-400",
-    label: "Verrouillé",
-  },
-  planned: {
-    badge: "border-neutral-700 bg-neutral-900 text-neutral-500",
-    dot: "bg-neutral-600",
-    label: "Planifié",
-  },
+const ROLE_LABELS: Record<AgentRoleId, string> = {
+  orchestrator: "Orchestration", scout: "Recherche", builder: "Construction", closer: "Vente",
+  operator: "Opérations", auditor: "Audit", memory: "Mémoire", money: "Finance", support: "Support", quality: "Qualité",
+};
+const STATUS_STYLES: Record<AgentStatus, { color: string; label: string }> = {
+  active: { color: "text-[var(--mint)]", label: "Profil activé" },
+  standby: { color: "text-[var(--fg-muted)]", label: "Profil en attente" },
+  locked: { color: "text-[var(--coral)]", label: "Profil verrouillé" },
+  planned: { color: "text-[var(--fg-muted)]", label: "Profil planifié" },
 };
 
 export function AgentCard({ agent }: { agent: AgentProfile }) {
@@ -55,56 +44,44 @@ export function AgentCard({ agent }: { agent: AgentProfile }) {
   const status = STATUS_STYLES[agent.status];
 
   return (
-    <article className="flex flex-col gap-4 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900">
-            <Icon className="h-4 w-4 text-neutral-400" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-white">
-              {agent.lore ? (
-                <span
-                  title={agent.lore}
-                  className="cursor-help underline decoration-amber-500/40 decoration-dotted underline-offset-4 transition-colors hover:decoration-amber-400"
-                >
-                  {agent.name}
-                </span>
-              ) : (
-                agent.name
-              )}
-            </h3>
-            <p className="text-xs text-neutral-500">{agent.tagline}</p>
-          </div>
-        </div>
-        <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${status.badge}`}
-        >
-          <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
-          {status.label}
-        </span>
-      </div>
-
-      <p className="text-sm leading-6 text-neutral-400">{agent.description}</p>
-
-      <div className="flex items-center justify-between gap-2 text-xs text-neutral-500">
+    <article aria-label={`Profil ${agent.name}`} className="min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--ink-950)] p-4">
+      <details className="group">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--marigold)] [&::-webkit-details-marker]:hidden">
+          <Icon className="h-5 w-5 shrink-0 text-[var(--fg-muted)]" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <strong className="block break-words text-[var(--fg)]">{agent.name}</strong>
+            <span className="block text-sm text-[var(--fg-muted)]">{ROLE_LABELS[agent.role]}</span>
+            <span className={`mt-1 block text-xs ${status.color}`}>{status.label}</span>
+          </span>
+          <span className="text-xs text-[var(--fg-muted)]"><span className="group-open:hidden">Voir le profil</span><span className="hidden group-open:inline">Réduire</span></span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--fg-muted)] group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
+          <p className="text-sm text-[var(--fg)]">{agent.tagline}</p>
+          <p className="break-words text-sm leading-6 text-[var(--fg-muted)]">{agent.description}</p>
+          <p className="text-xs text-[var(--fg-muted)]">Profil configuré uniquement : aucune connexion ni exécution en cours confirmée par cette fiche.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--fg-muted)]">
         <span className="flex items-center gap-1.5">
           <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-          {agent.skillIds.length} skill{agent.skillIds.length !== 1 ? "s" : ""}
+          {agent.skillIds.length} compétence{agent.skillIds.length !== 1 ? "s" : ""}
         </span>
         <span>Autonomie {agent.autonomyLevel}/5</span>
       </div>
 
       {agent.constraints.length > 0 && (
-        <ul className="space-y-1 border-t border-neutral-800/60 pt-3">
+        <ul aria-label="Limites du profil" className="space-y-2 border-t border-[var(--border)] pt-3">
           {agent.constraints.map((c) => (
-            <li key={c} className="flex items-start gap-1.5 text-xs text-neutral-600">
-              <Lock className="mt-0.5 h-3 w-3 shrink-0 text-neutral-700" aria-hidden="true" />
+            <li key={c} className="flex items-start gap-1.5 text-xs text-[var(--fg-muted)]">
+              <Lock className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
               {c}
             </li>
           ))}
         </ul>
       )}
+          {agent.lore && <p className="text-xs italic text-[var(--fg-muted)]">{agent.lore}</p>}
+        </div>
+      </details>
+      {agent.status === "locked" && <p className="mt-3 text-xs text-[var(--coral)]">Profil verrouillé : aucune exécution autorisée.</p>}
     </article>
   );
 }

@@ -70,7 +70,13 @@
 .oria-fadein { animation: oria-fadein .35s var(--ease) both; }
 
 /* ─── Cockpit drag handles ───────────────────────────────────── */
+/* Only the small handle is hidden on pointer devices, never its keyboard focus. */
+.cockpit-drag-handle { opacity: 0; transition: opacity .15s ease; }
 .cockpit-widget-wrapper:hover .cockpit-drag-handle { opacity: 1 !important; }
+.cockpit-drag-handle:focus-visible { opacity: 1; outline: 2px solid var(--marigold); outline-offset: 2px; }
+.cockpit-layout-reload:focus-visible { outline: 2px solid var(--marigold); outline-offset: 2px; }
+@media (hover: none) { .cockpit-drag-handle { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cockpit-drag-handle { transition: none; } }
 
 @media (max-width: 980px) {
   .cockpit-interactive-layout {

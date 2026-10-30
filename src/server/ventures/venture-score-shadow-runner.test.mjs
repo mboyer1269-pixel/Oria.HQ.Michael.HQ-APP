@@ -15,8 +15,19 @@
 
 import assert from "node:assert/strict";
 import path from "node:path";
-import test from "node:test";
+import test, { after, mock } from "node:test";
 import { fileURLToPath } from "node:url";
+
+// Hard stop before any import or test: a missing DI seam must never reach the
+// network. The final count also detects fetch errors swallowed by production code.
+const networkSpy = mock.method(globalThis, "fetch", () => {
+  throw new Error("Unexpected network attempt in shadow-runner unit tests");
+});
+after(() => {
+  const attempts = networkSpy.mock.callCount();
+  networkSpy.mock.restore();
+  assert.equal(attempts, 0, "unit tests must inject verifySources; no real fetch is permitted");
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..", "..");
@@ -85,6 +96,20 @@ function modelReply(overrides = {}) {
           : { kind: "internal", ref: `venture:${dimension}` },
       ...(overrides[dimension] ?? {}),
     })),
+  };
+}
+
+/** Synthetic verifier: preserves fixture evidence without asserting online reachability. */
+async function offlineSources(evidence) {
+  const external = evidence.filter((row) => row.source.kind === "external");
+  return {
+    evidence: structuredClone(evidence),
+    report: {
+      checked: 0,
+      reachable: 0,
+      demoted: [],
+      unverified: external.map((row) => ({ dimension: row.dimension, url: row.source.url, reason: "offline unit fixture" })),
+    },
   };
 }
 
@@ -212,6 +237,7 @@ test("Shadow runner — the log mirrors, never acts (V7 Phase 1 step 3)", async 
   await t.test("a proposal writes one decision event and nothing else", async () => {
     const events = [];
     const outcome = await runShadowProposalForVenture(ctx, venture(), {
+      verifySources: offlineSources,
       generateJson: generatorReturning(modelReply()),
       recordEvent: recorder(events),
       now: () => NOW,
@@ -265,6 +291,7 @@ test("Shadow runner — the log mirrors, never acts (V7 Phase 1 step 3)", async 
     // "plan" to something that mutates state.
     const events = [];
     await runShadowProposalForVenture(ctx, venture(), {
+      verifySources: offlineSources,
       generateJson: generatorReturning(modelReply()),
       recordEvent: recorder(events),
       now: () => NOW,
@@ -296,6 +323,7 @@ test("Shadow runner — the log mirrors, never acts (V7 Phase 1 step 3)", async 
   await t.test("the emitted event satisfies the ledger's own validation", () => {
     const events = [];
     return runShadowProposalForVenture(ctx, venture(), {
+      verifySources: offlineSources,
       generateJson: generatorReturning(modelReply()),
       recordEvent: recorder(events),
       now: () => NOW,
@@ -329,6 +357,7 @@ test("Shadow runner — failure isolation (V7 Phase 1 step 3)", async (t) => {
   await t.test("a failed generation skips that venture without throwing", async () => {
     const events = [];
     const outcome = await runShadowProposalForVenture(ctx, venture(), {
+      verifySources: offlineSources,
       generateJson: async () => ({ ok: false, errorCode: "all_providers_failed", fallbackReason: "no key" }),
       recordEvent: recorder(events),
     });
@@ -340,6 +369,7 @@ test("Shadow runner — failure isolation (V7 Phase 1 step 3)", async (t) => {
 
   await t.test("a throwing generator skips rather than escaping", async () => {
     const outcome = await runShadowProposalForVenture(ctx, venture(), {
+      verifySources: offlineSources,
       generateJson: async () => {
         throw new Error("boom");
       },
@@ -350,6 +380,7 @@ test("Shadow runner — failure isolation (V7 Phase 1 step 3)", async (t) => {
 
   await t.test("a failed ledger write skips without losing the pass", async () => {
     const outcome = await runShadowProposalForVenture(ctx, venture(), {
+      verifySources: offlineSources,
       generateJson: generatorReturning(modelReply()),
       recordEvent: async () => {
         throw new Error("ledger down");
@@ -365,6 +396,7 @@ test("Shadow runner — failure isolation (V7 Phase 1 step 3)", async (t) => {
     let call = 0;
     const events = [];
     const result = await runShadowScorePass(ctx, {
+      verifySources: offlineSources,
       listVentures: async () => [
         venture({ id: "v1" }),
         venture({ id: "v2" }),
@@ -388,6 +420,7 @@ test("Shadow runner — failure isolation (V7 Phase 1 step 3)", async (t) => {
     // Past `candidate` the owner has already ruled — there is no decision left
     // for a proposal to be compared against.
     const result = await runShadowScorePass(ctx, {
+      verifySources: offlineSources,
       listVentures: async () => [
         venture({ id: "v1", status: "candidate" }),
         venture({ id: "v2", status: "scored" }),
@@ -404,6 +437,7 @@ test("Shadow runner — failure isolation (V7 Phase 1 step 3)", async (t) => {
 
   await t.test("an unreadable venture list yields an empty pass, not a throw", async () => {
     const result = await runShadowScorePass(ctx, {
+      verifySources: offlineSources,
       listVentures: async () => {
         throw new Error("db down");
       },

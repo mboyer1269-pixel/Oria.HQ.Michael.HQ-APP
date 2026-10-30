@@ -112,6 +112,7 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
     paths: [
       "src/app/login/actions.ts",
       "src/features/cockpit/actions/cockpit-layout.ts",
+      "src/server/cockpit/layout-persistence.ts",
       "src/features/cockpit/events/event-client.ts",
       "src/features/cockpit/events/idea-capture-action.ts",
       "src/features/notes/note-action.ts",
@@ -615,6 +616,20 @@ export const RUNTIME_CAPABILITIES: readonly RuntimeCapability[] = [
         "The owner review service persists a bound per-call decision; the host consumes it once through the lifecycle service. Neither record proves tool execution.",
     },
     covers: ["src/server/missions/openhands-tool-decision-store.ts"],
+  },
+  {
+    id: "joris_atelier_reservation",
+    label: "Joris · réserver une préparation Atelier",
+    executorKey: "/api/joris/chat:atelier.reserve",
+    effect: "internal_write",
+    gate: "owner_confirmed",
+    detail: "Action typée réservée au propriétaire de l’espace et titulaire de l’abonnement, même origine et hash exact. Persistance de mission désactivée par défaut. Réserve un lien CAS seulement : aucun agent lancé, aucune approbation d’exécution accordée.",
+    evidence: {
+      path: "src/app/api/joris/chat/atelier-handlers.ts",
+      mustContain: "service.reserve(context, input, { expectedBindingHash:",
+      because: "The authenticated workspace owner/subscription holder submits an explicit reservation action bound to the canonical mission. The service cannot launch a runtime or approve execution.",
+    },
+    covers: ["src/server/missions/atelier-development-store.ts"],
   },
   {
     id: "openhands_launch_claim",

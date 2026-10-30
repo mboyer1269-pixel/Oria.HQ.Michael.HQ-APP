@@ -607,6 +607,21 @@ export type SkillIOSpec = {
   note?: string;
 };
 
+/** Versioned advisory material, not an executor, permission or evaluation result. */
+export type SkillRecipeDescriptorV1 = Readonly<{
+  schemaVersion: 1;
+  version: string;
+  mode: "advisory";
+  sourceRef: string;
+  /** SHA-256 of the exact UTF-8 recipe content, not of a path or label. */
+  contentHash: string;
+  provenance: "repo-owned";
+  contextRefs: readonly string[];
+  requiredToolIds: readonly string[];
+  /** Test references only; their presence never asserts that tests passed. */
+  evaluationRefs: readonly string[];
+}>;
+
 export type SkillProfile = {
   id: string;
   label: string;
@@ -635,6 +650,8 @@ export type SkillProfile = {
   testsRequired: string[];
   /** Hard output constraint — what this skill never produces. */
   outputConstraint?: string;
+  /** Optional advisory recipe; does not change status, assignments or authority. */
+  recipe?: SkillRecipeDescriptorV1;
 };
 
 // --- Contact domain (relocated from features/contact/types) ------------------

@@ -1,4 +1,5 @@
 import type { SkillProfile } from "./types";
+import { SPEC_DRAFT_RECIPE } from "@/core/skills/spec-draft-recipe";
 
 export const skillsCatalog: SkillProfile[] = [
   // ── Money ────────────────────────────────────────────────────────────────
@@ -243,6 +244,7 @@ export const skillsCatalog: SkillProfile[] = [
   // ── Dev / Code ───────────────────────────────────────────────────────────
   {
     id: "spec.draft",
+    recipe: SPEC_DRAFT_RECIPE,
     label: "Spec Draft",
     category: "dev-code",
     description: "Produit une spécification technique structurée pour un MVP ou une fonctionnalité.",

@@ -67,3 +67,49 @@ test('review filter preserves all policy reasons, not only needs_approval status
  const result=paginateLocalMissions(values,{page:1,q:'',status:'review'});
  assert.equal(result.filteredTotal,4);assert.equal(result.reviewTotal,4);assert.equal(result.summary.total,5);
 });
+/** Exercise actual query/result handling; only HTTP is replaced, never the reader. */
+function readFixture({dataStatus=200,body='[]',dataCount='0',headStatus=200,headCount='0'}={}) {
+ const calls=[];
+ const client=createClient('https://synthetic.invalid','fake-test-key',{auth:{persistSession:false},global:{fetch:async(url,init)=>{
+  calls.push({url:new URL(url),method:init.method});
+  const head=init.method==='HEAD';
+  return new Response(head?null:body,{status:head?headStatus:dataStatus,headers:{'content-type':'application/json','content-range':`*/${head?headCount:dataCount}`}});
+ }}});
+ return {client,calls};
+}
+test('a bodyless or malformed listing ACK is unavailable, never an empty mission list',async()=>{
+ const original=globalThis.fetch; let unexpected=0;
+ globalThis.fetch=async()=>{unexpected++;throw Error('unexpected network');};
+ try {
+  for(const fixture of [
+   {dataStatus:204,body:null}, {dataStatus:200,body:'null'},
+   {dataStatus:200,body:''}, {dataStatus:404,body:null}, {dataStatus:404,body:'[]'},
+   {dataStatus:200,body:'{}'}, {dataStatus:201,body:'[]'},
+  ]) {
+   const {client,calls}=readFixture(fixture);
+   await assert.rejects(listMissionPage({workspaceId:'a',modeId:'m'},{page:1,q:'',status:'all'},client),/unavailable/);
+   assert.equal(calls.length,9);
+   assert.ok(calls.every(call=>['GET','HEAD'].includes(call.method)));
+  }
+  assert.equal(unexpected,0);
+ } finally {globalThis.fetch=original;}
+});
+test('only valid successful count responses may become mission totals',async()=>{
+ for(const fixture of [
+  {headStatus:204}, {headStatus:201},
+  {dataCount:'NaN'}, {headCount:'NaN'}, {headCount:'-1'},
+  {dataCount:'9007199254740992'}, {headCount:'9007199254740992'},
+ ]) {
+  const {client}=readFixture(fixture);
+  await assert.rejects(listMissionPage({workspaceId:'a',modeId:'m'},{page:1,q:'',status:'all'},client),/unavailable/);
+ }
+});
+test('an explicit empty array and valid HEAD counts remain a confirmed empty listing',async()=>{
+ for(const status of [200,206]){
+  const {client,calls}=readFixture({dataStatus:status,headStatus:status});
+  const result=await listMissionPage({workspaceId:'a',modeId:'m'},{page:1,q:'',status:'all'},client);
+  assert.deepEqual(result.missions,[]);assert.equal(result.filteredTotal,0);
+  assert.equal(result.summary.total,0);assert.equal(result.reviewTotal,0);assert.equal(result.source,'supabase');
+  assert.equal(calls.length,9);
+ }
+});

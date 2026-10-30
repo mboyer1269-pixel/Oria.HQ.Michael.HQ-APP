@@ -12,6 +12,7 @@ import { type ReactNode, type CSSProperties, useCallback, useEffect, useRef, use
 import {
   DndContext,
   PointerSensor,
+  KeyboardSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -19,7 +20,7 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  arrayMove,
+  sortableKeyboardCoordinates,
   rectSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
@@ -42,9 +43,13 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import type { MichaelHqDatabase } from "@/server/db/types";
 import { IdeaIntakeForm } from "@/features/cockpit/components/idea-intake-form";
 import { DailyDirectionWidget } from "@/features/cockpit/components/daily-direction-widget";
-import { saveCockpitLayout } from "@/features/cockpit/actions/cockpit-layout";
+import { getCockpitLayout, saveCockpitLayout } from "@/features/cockpit/actions/cockpit-layout";
 import type { IdeaProjection } from "@/features/cockpit/events/idea-projection";
 import type { DailyDirectionProjection } from "@/features/cockpit/events/daily-direction-projection";
+import { cockpitReorderAnnouncements, getWidgetLabel, moveWidgetOrder } from "./cockpit-reorder";
+
+import type { CockpitLayoutRead } from "../cockpit-layout-contract";
+import { initialLayoutSession, canSaveCockpitLayout, beginLayoutSave, settleLayoutSave, settleLayoutReload, layoutStatusMessage } from "./cockpit-layout-session";
 
 // ─── Design tokens (mirrored from founder-zero-state) ────────────────────────
 
@@ -151,7 +156,8 @@ function WidgetShell({ accent, title, icon: Icon, badge, noPad = false, style, c
             display: "flex",
             alignItems: "center",
             gap: 9,
-            padding: c ? "18px 20px 0" : "16px 20px 0",
+            padding: c ? "18px 64px 0 20px" : "16px 64px 0 20px",
+            flexWrap: "wrap",
           }}
         >
           {Icon && (
@@ -385,14 +391,14 @@ const SPAN2 = new Set(["daily-direction", "modes"]);
 
 function SortableWidget({
   id,
-  index,
+  pending,
   children,
 }: {
   id: string;
-  index: number;
+  pending: boolean;
   children: ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: pending });
 
   const style: CSSProperties = {
     gridColumn: SPAN2.has(id) ? "span 2" : undefined,
@@ -400,8 +406,6 @@ function SortableWidget({
     transition,
     opacity: isDragging ? 0.45 : 1,
     position: "relative",
-    animation: "oria-fadein 0.38s var(--ease, cubic-bezier(.4,0,.2,1)) both",
-    animationDelay: `${index * 0.06}s`,
   };
 
   return (
@@ -409,30 +413,30 @@ function SortableWidget({
       {/* Drag handle */}
       <button
         type="button"
+        ref={setActivatorNodeRef}
         className="cockpit-drag-handle"
-        aria-label="Déplacer le widget"
+        aria-label={`Déplacer ${getWidgetLabel(id)}`}
         style={{
           position: "absolute",
-          top: 10,
-          right: 10,
+          top: 6,
+          right: 6,
           zIndex: 10,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 24,
-          height: 24,
+          width: 44,
+          height: 44,
           borderRadius: 6,
-          border: "1px solid rgba(255,255,255,.10)",
-          background: "rgba(0,0,0,.30)",
-          cursor: "grab",
-          opacity: 0,
-          transition: "opacity 0.15s ease",
+          border: "1px solid var(--fg-faint)",
+          background: "var(--ink-900)",
+          cursor: pending ? "wait" : "grab",
           touchAction: "none",
         }}
         {...attributes}
         {...listeners}
+        aria-disabled={pending}
       >
-        <GripVertical size={13} color="#8791b7" aria-hidden="true" />
+        <GripVertical size={16} color="var(--fg-muted)" aria-hidden="true" />
       </button>
       {children}
     </div>
@@ -726,15 +730,24 @@ export function CockpitInteractive({
   ideas,
   loadError,
   todayDirection,
-  initialOrder,
+  initialLayout,
 }: {
   ideas: IdeaProjection[];
   loadError: boolean;
   todayDirection: DailyDirectionProjection | null;
-  initialOrder: string[];
+  initialLayout: CockpitLayoutRead;
 }) {
-  const [order, setOrder] = useState<string[]>(initialOrder);
+  const [layout, setLayout] = useState(() => initialLayoutSession(initialLayout));
+  const { order } = layout;
   const [cmdOpen, setCmdOpen] = useState(false);
+  const savePending = useRef(false);
+  const mounted = useRef(false);
+  const [dragStartOrder, setDragStartOrder] = useState(order);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   // NEXT_PUBLIC_* is inlined by Next and safe for client-side feature gating.
   const hasSupabase = Boolean(
@@ -758,23 +771,41 @@ export function CockpitInteractive({
   // dnd-kit sensors
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      if (savePending.current) return;
       const { active, over } = event;
-      if (!over || active.id === over.id) return;
-      const oldIndex = order.indexOf(String(active.id));
-      const newIndex = order.indexOf(String(over.id));
-      if (oldIndex === -1 || newIndex === -1) return;
-      const newOrder = arrayMove(order, oldIndex, newIndex);
-      setOrder(newOrder);
-      void saveCockpitLayout(newOrder);
+      const newOrder = moveWidgetOrder(order, String(active.id), over ? String(over.id) : null);
+      if (!newOrder) return;
+      const next = beginLayoutSave(layout, newOrder);
+      if (!next) return;
+      savePending.current = true;
+      setLayout(next.state);
+      void Promise.resolve()
+        .then(() => saveCockpitLayout(next.request))
+        .then(
+          (result) => { if (mounted.current) setLayout((current) => settleLayoutSave(current, result)); },
+          () => { if (mounted.current) setLayout((current) => settleLayoutSave(current, { status: "unconfirmed" })); },
+        )
+        .finally(() => { savePending.current = false; });
     },
-    [order],
+    [layout, order],
   );
 
-  function renderWidget(id: string, index: number) {
+  function reloadLayout() {
+    if (savePending.current) return;
+    savePending.current = true;
+    setLayout((current) => ({ ...current, status: "reloading" }));
+    void getCockpitLayout().then(
+      (result) => { if (mounted.current) setLayout((current) => settleLayoutReload(current, result)); },
+      () => { if (mounted.current) setLayout((current) => settleLayoutReload(current, { status: "failed" })); },
+    ).finally(() => { savePending.current = false; });
+  }
+
+  function renderWidget(id: string) {
     let content: ReactNode;
     switch (id) {
       case "daily-direction":
@@ -793,7 +824,7 @@ export function CockpitInteractive({
           >
             {/* Marigold accent */}
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${TOY.marigold.core} 0%, rgba(245,158,11,.1) 100%)`, borderRadius: "14px 14px 0 0" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "18px 20px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 9, padding: "18px 64px 0 20px" }}>
               <span style={{ display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 8, background: "rgba(245,158,11,.12)", border: "1px solid rgba(245,158,11,.35)", flexShrink: 0 }}>
                 <Zap size={14} color={TOY.marigold.text} strokeWidth={2} aria-hidden="true" />
               </span>
@@ -855,7 +886,7 @@ export function CockpitInteractive({
     }
 
     return (
-      <SortableWidget key={id} id={id} index={index}>
+      <SortableWidget key={id} id={id} pending={!canSaveCockpitLayout(layout)}>
         {content}
       </SortableWidget>
     );
@@ -897,7 +928,19 @@ export function CockpitInteractive({
       <div className="cockpit-interactive-layout" style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
         {/* Widget grid */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={() => { setDragStartOrder([...order]); }}
+            onDragEnd={handleDragEnd}
+            accessibility={{
+              restoreFocus: true,
+              announcements: cockpitReorderAnnouncements(() => dragStartOrder, () => order),
+              screenReaderInstructions: {
+                draggable: "Pour déplacer ce widget, appuyez sur Espace, puis sur les flèches. Appuyez sur Espace pour déposer ou sur Échap pour annuler. Pendant la demande de sauvegarde, attendez avant un autre déplacement.",
+              },
+            }}
+          >
             <SortableContext items={order} strategy={rectSortingStrategy}>
               <div
                 className="cockpit-widget-grid"
@@ -907,10 +950,23 @@ export function CockpitInteractive({
                   gap: 14,
                 }}
               >
-                {order.map((id, i) => renderWidget(id, i))}
+                {order.map((id) => renderWidget(id))}
               </div>
             </SortableContext>
           </DndContext>
+          {layout.status !== "idle" && (
+            <div style={{ marginTop: 12, fontSize: 12, color: "var(--fg-muted)" }}>
+              <p role={["read_failed", "unconfirmed", "not_attempted", "conflict"].includes(layout.status) ? "alert" : "status"}>
+                {layoutStatusMessage(layout)}
+              </p>
+              {!["pending", "confirmed"].includes(layout.status) && (
+                <button type="button" className="cockpit-layout-reload" aria-disabled={layout.status === "reloading"} onClick={reloadLayout}
+                  style={{ minHeight: 44, marginTop: 8, padding: "10px 14px", border: "1px solid var(--fg-faint)", borderRadius: 8, background: "transparent", color: "var(--fg)", font: "inherit", cursor: layout.status === "reloading" ? "wait" : "pointer" }}>
+                  Recharger l’ordre enregistré
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Live feed panel */}
