@@ -72,11 +72,20 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
     return { ok: false, error: "Invalid n8n_webhook_trigger payload." };
   }
   const input = parsed.data;
+  // G1: the dedup key comes from the governed dispatch (stable per intent +
+  // approved payload). Never invent one: a random ref defeats n8n's dedup.
+  const actionRef = ctx.idempotencyKey;
+  if (typeof actionRef !== "string" || !/^oria1:[^\s]{1,400}$/.test(actionRef)) {
+    return { ok: false, error: "Missing idempotency key: n8n dispatch refused." };
+  }
 
   const deps = ctx.deps ?? {};
   const fetchImpl = deps.fetchImpl ?? fetch;
   const isAllowedImpl = deps.isAllowed ?? isAllowed;
   const now = deps.now ?? (() => Date.now());
+  // Env snapshot injected once by the caller (approve route defaultDeps);
+  // falls back to process.env for other callers.
+  const env = (deps.env ?? process.env) as NodeJS.ProcessEnv;
 
   // 1. Authorization -- agent+skill must be an approved binding.
   const binding = findApprovedWebhookBinding(input.agentId, input.skillId);
@@ -86,13 +95,13 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
 
   // 2. Destination and secrets. The registry is the single validator for URL,
   // hostname, protocol, production loopback, and required credentials.
-  const configuration = resolveWebhookConfigurationState(binding);
+  const configuration = resolveWebhookConfigurationState(binding, env);
   if (configuration !== "configured") {
     return { ok: false, error: CONFIGURATION_ERRORS[configuration] };
   }
-  const resolvedWebhook = resolveApprovedWebhook(input.agentId, input.skillId);
+  const resolvedWebhook = resolveApprovedWebhook(input.agentId, input.skillId, env);
   if (!resolvedWebhook) return { ok: false, error: "Approved webhook configuration changed." };
-  const staticSecret = process.env[N8N_STATIC_SECRET_ENV_KEY] as string;
+  const staticSecret = env[N8N_STATIC_SECRET_ENV_KEY] as string;
 
   // 3. Internal rate limit -- prevents a bug from bombing n8n.
   const rlKey = rateLimitKey(N8N_POLICY, `${ctx.workspaceId}:${input.agentId}`);
@@ -106,7 +115,8 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   }
 
   // 4. Build payload + headers.
-  const actionRef = `n8n_${now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // `actionRef` is the only field the workflow dedups on; dispatchedAt and the
+  // signature headers vary per call by design and are not part of the dedup.
   const body = JSON.stringify({
     actionRef,
     agentId: input.agentId,
@@ -124,10 +134,11 @@ async function triggerN8nWebhook(rawInput: unknown, ctx: McpToolContext): Promis
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "x-webhook-secret": staticSecret,
+    "Idempotency-Key": actionRef,
   };
 
   if (binding.requiresSignature) {
-    const signingSecret = process.env[AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY] as string;
+    const signingSecret = env[AGENT_WEBHOOK_SIGNING_SECRET_ENV_KEY] as string;
     const timestamp = String(now());
     const signature = crypto
       .createHmac("sha256", signingSecret)

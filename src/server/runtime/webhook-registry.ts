@@ -188,12 +188,16 @@ export function resolveWebhookConfigurationState(
  * Resolves an approved webhook destination for a given agent and skill, or null
  * when the binding is undeclared or its configuration is incomplete.
  */
-export function resolveApprovedWebhook(agentId: string, skillId: string): ResolvedWebhook | null {
+export function resolveApprovedWebhook(
+  agentId: string,
+  skillId: string,
+  env: NodeJS.ProcessEnv | Readonly<Record<string, string | undefined>> = process.env,
+): ResolvedWebhook | null {
   const binding = findApprovedWebhookBinding(agentId, skillId);
   if (!binding) return null;
 
-  if (resolveWebhookConfigurationState(binding) !== "configured") return null;
+  if (resolveWebhookConfigurationState(binding, env as NodeJS.ProcessEnv) !== "configured") return null;
 
   // Safe: "configured" implies the variable is present and parses.
-  return { url: process.env[binding.destinationEnvKey] as string, binding };
+  return { url: env[binding.destinationEnvKey] as string, binding };
 }

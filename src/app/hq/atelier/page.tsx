@@ -11,6 +11,7 @@ import { OwnerAccessDenied } from "@/features/hq/components/owner-access-denied"
 import { requireOwnerAccess } from "@/server/auth/owner";
 import { getActiveWorkspaceContext } from "@/core/workspace-context";
 import { createDevelopmentStore } from "@/server/missions/development-mission";
+import { readOwnerSpecEvidence } from "@/server/missions/atelier-owner-spec-read";
 import { AtelierLocalMissions } from "@/features/atelier/components/atelier-local-missions";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,9 @@ export default async function AtelierPage({ searchParams }: { searchParams: Prom
       }
     } catch { readUnavailable = true; }
   }
-  const output = mission ? missionReportedOutput(mission) : null;
+  const output = mission ? missionReportedOutput(mission, readOwnerSpecEvidence(mission, {
+    workspaceId: activeWorkspace.id, modeId: activeMode.id, actorId: access.user.id,
+  })) : null;
   const receipt = output?.receipt ?? null;
 
   return (
@@ -47,13 +50,13 @@ export default async function AtelierPage({ searchParams }: { searchParams: Prom
         icon={FileText}
         tone="amber"
         title="Résultat de mission"
-        description="Surface de lecture du résultat agent. Elle ouvre le reçu persistant de la mission sans relancer OpenHands ni valider le livrable à la place du propriétaire."
+        description="Surface de lecture du résultat agent. Elle ouvre le reçu persistant de la mission sans relancer un agent ni valider le livrable à la place du propriétaire."
       >
         <HqSummaryRail>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Preuve</p>
           <div className="mt-3 grid gap-2">
             <HqMetric label="Mission" value={readUnavailable ? "lecture indisponible" : mission ? "trouvée" : "absente"} tone={mission ? "emerald" : "amber"} />
-            <HqMetric label="Résultat" value={readUnavailable ? "inconnu" : receipt ? receipt.report.executionState : output?.state === "reported" ? "compte rendu" : "absent"} tone={receipt?.report.executionState === "agent_returned" ? "emerald" : "amber"} />
+            <HqMetric label="Résultat" value={readUnavailable ? "inconnu" : output?.atelierSpec?.state === "recorded" ? "reçu Atelier" : output?.atelierSpec?.state === "unverified" ? "non vérifié" : output?.atelierSpec?.state === "awaiting_result" ? "en attente" : receipt ? receipt.report.executionState : output?.state === "reported" ? "compte rendu" : "absent"} tone={receipt?.report.executionState === "agent_returned" ? "emerald" : "amber"} />
             <HqMetric label="Validation indépendante" value={receipt?.report.independentValidationPassed ? "oui" : "non"} />
           </div>
         </HqSummaryRail>
@@ -77,7 +80,7 @@ export default async function AtelierPage({ searchParams }: { searchParams: Prom
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Dossier de résultat</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">{mission.title}</h2>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{mission.objective}</p>
-          {!receipt && <p className="mt-3 text-sm text-neutral-400">Aucun reçu OpenHands lié et terminé n’est enregistré pour cette mission. Un compte rendu éventuel reste consultable ci-dessous, sans attester une exécution.</p>}
+          {!receipt && (!output?.atelierSpec || output.atelierSpec.state === "absent") && <p className="mt-3 text-sm text-neutral-400">Aucun reçu OpenHands lié et terminé n’est enregistré pour cette mission. Un compte rendu éventuel reste consultable ci-dessous, sans attester une exécution.</p>}
           <MissionResultPanel output={output!} source="supabase" showAtelierLink={false} />
           <Link href={`/hq/missions?mission=${mission.id}#requested-mission` as Route} className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-neutral-700 px-4 text-sm font-semibold text-amber-200 transition hover:bg-neutral-900 focus-visible:outline-2 focus-visible:outline-amber-300">
             Revenir au dossier mission

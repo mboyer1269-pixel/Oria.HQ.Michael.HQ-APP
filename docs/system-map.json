@@ -1,9 +1,9 @@
 {
   "generatedBy": "scripts/architecture/system-map.mjs",
   "totals": {
-    "sourceFiles": 691,
-    "live": 639,
-    "testOnly": 8,
+    "sourceFiles": 703,
+    "live": 645,
+    "testOnly": 14,
     "incubation": 44
   },
   "incubationByArea": {
@@ -242,6 +242,7 @@
     "src/features/memory/components/memex-review-panel.tsx",
     "src/features/memory/components/memory-vault-explorer.tsx",
     "src/features/memory/components/memory-write-panel.tsx",
+    "src/features/missions/atelier-owner-spec-result.ts",
     "src/features/missions/atelier-reservation-session.ts",
     "src/features/missions/components/atelier-reservation-panel.tsx",
     "src/features/missions/components/development-mission-form.tsx",
@@ -390,6 +391,7 @@
     "src/server/agents/agent-council-run-contract.ts",
     "src/server/agents/agent-execution-license.ts",
     "src/server/agents/agent-profile-contract.ts",
+    "src/server/agents/approval-decision-repository.ts",
     "src/server/agents/autonomy-tier.ts",
     "src/server/agents/booster-contract.ts",
     "src/server/agents/context/verified-lessons-context.ts",
@@ -397,6 +399,7 @@
     "src/server/agents/engineering-package-store.ts",
     "src/server/agents/evidence/memory-evidence-pack.ts",
     "src/server/agents/execution-intent-approval-service.ts",
+    "src/server/agents/execution-intent-approve-handler.ts",
     "src/server/agents/execution-intent-payload-hash.ts",
     "src/server/agents/execution-intent-repository.ts",
     "src/server/agents/models/account-identity-repository.ts",
@@ -563,6 +566,9 @@
     "src/server/missions/atelier-development-contract.ts",
     "src/server/missions/atelier-development-service.ts",
     "src/server/missions/atelier-development-store.ts",
+    "src/server/missions/atelier-execution-contract.ts",
+    "src/server/missions/atelier-owner-spec-contract.ts",
+    "src/server/missions/atelier-owner-spec-read.ts",
     "src/server/missions/development-mission.ts",
     "src/server/missions/execution-attempt-boundary.ts",
     "src/server/missions/execution-attempt-store.ts",
@@ -666,9 +672,15 @@
     "src/server/ventures/venture-score-shadow-runner.ts"
   ],
   "testOnly": [
+    "src/server/agents/approval-decision-producer.ts",
     "src/server/agents/context/skill-recipe-context.ts",
     "src/server/ai/claude-json-launcher.ts",
+    "src/server/atelier/atelier-bound-spec.ts",
     "src/server/ledger/hash-chain-test-fixtures.ts",
+    "src/server/missions/atelier-execution-store.ts",
+    "src/server/missions/atelier-owner-spec-handler.ts",
+    "src/server/missions/atelier-owner-spec-service.ts",
+    "src/server/missions/atelier-owner-spec-store.ts",
     "src/server/missions/openhands-lifecycle.ts",
     "src/server/missions/openhands-pending-launches.ts",
     "src/server/outbound/outbound-executor-dry-run.ts",

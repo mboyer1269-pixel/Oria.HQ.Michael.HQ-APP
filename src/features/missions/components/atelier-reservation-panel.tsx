@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
+import type { Route } from "next";
 import type { Mission } from "@/core/types";
 import type { AtelierDevelopmentBinding } from "@/server/missions/atelier-development-contract";
 import { atelierModelProposalKey, createAtelierReservationSession, initialAtelierReservationState, loadAtelierModelProposals,
@@ -47,6 +49,7 @@ export function AtelierReservationOutcome({ result }: { result: AtelierReservati
   if (result.kind === "prepared") return <p>Dossier prêt à relire. Aucune réservation ni approbation d’exécution enregistrée à cette étape.</p>;
   if (result.kind === "reserved") return <div className="space-y-2">
     <p>Réservation {result.source === "created" ? "enregistrée" : "retrouvée"}. Aucun agent lancé ; ce reçu n’est pas une approbation d’exécution.</p>
+    <Link href={`/hq/atelier?mission=${encodeURIComponent(result.claim.binding.missionId)}#atelier-owner-spec` as Route} className={`${button} inline-flex items-center`}>Suivre cette réservation dans Atelier</Link>
     <details><summary className={`${button} cursor-pointer`}>Référence de réservation</summary>
       <p className="mt-3 break-all font-mono text-xs">Référence : {result.claim.runId}</p>
       <p className="mt-2 text-[var(--fg-muted)]">Le runtime, le dépôt et le modèle restent à qualifier avant toute exécution distincte.</p>

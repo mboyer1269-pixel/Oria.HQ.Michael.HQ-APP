@@ -45,9 +45,16 @@ const jiti = createJiti(import.meta.url, {
 const createRoute = await jiti.import(
   path.join(projectRoot, "src/app/api/agents/[agentId]/execution-intents/route.ts"),
 );
-const approveRoute = await jiti.import(
+// G1b: approvals carry a valid decision (in-memory store injected through the
+// public createApproveHandler/consumeDecision seams). SIMULATED (no database).
+const support = await import(path.join(projectRoot, "proofs/approval-decision-test-support.mjs"));
+const decisions = support.createDecisionStore();
+const decisionIds = new Map();
+const __routeModule = await jiti.import(
   path.join(projectRoot, "src/app/api/agents/execution-intents/[intentId]/approve/route.ts"),
 );
+void __routeModule;
+const approveRoute = { POST: await support.buildApproveHandler(jiti, projectRoot, { store: decisions }) };
 const { listExecutionCorridors } = await jiti.import("@/server/runtime/execution-corridors");
 const repo = await jiti.import("@/server/agents/execution-intent-repository");
 const { stableStringify } = await jiti.import("@/server/ledger/hash-chain-canonicalizer");
@@ -104,6 +111,13 @@ async function storedHash(workspaceId, intentId) {
 }
 
 async function approve(intentId, body) {
+  if (body && typeof body === "object" && body.decisionId === undefined) {
+    const stored = await repo.getAgentExecutionIntent("michael-hq", intentId);
+    if (stored) {
+      if (!decisionIds.has(intentId)) decisionIds.set(intentId, decisions.issue("michael-hq", intentId, hashOf(stored.payload)));
+      body = { ...body, decisionId: decisionIds.get(intentId) };
+    }
+  }
   const response = await approveRoute.POST(
     new Request(`http://localhost/api/agents/execution-intents/${intentId}/approve`, {
       method: "POST",
@@ -178,13 +192,24 @@ test("G2 — approval is bound to the reviewed payload hash", async (t) => {
     const foreign = { ...original, intentId: `${id}-b`, workspaceId: "workspace-b" };
     await repo.createAgentExecutionIntent("workspace-b", "owner-b", foreign);
     const spy = installFetchSpy();
+    const consumesBefore = decisions.calls.length;
+    const ledgerBefore = listLocalActionLedgerEntries().length;
     try {
+      const missingDecision = await approve(foreign.intentId, {
+        expectedPayloadHash: hashOf(foreign.payload), workspaceId: "workspace-b",
+      });
+      assert.equal(missingDecision.status, 409);
+      assert.equal(missingDecision.body.code, "approval_required");
       const res = await approve(foreign.intentId, {
         expectedPayloadHash: hashOf(foreign.payload),
         workspaceId: "workspace-b",
+        // A well-formed, unissued decision passes input validation, not authorization.
+        decisionId: "99999999-9999-4999-8999-999999999999",
       });
       assert.equal(res.status, 404);
       assert.equal(spy.calls.length, 0);
+      assert.equal(decisions.calls.length, consumesBefore);
+      assert.equal(listLocalActionLedgerEntries().length, ledgerBefore);
       assert.equal(
         (await repo.getAgentExecutionIntent("workspace-b", foreign.intentId)).status,
         "pending",

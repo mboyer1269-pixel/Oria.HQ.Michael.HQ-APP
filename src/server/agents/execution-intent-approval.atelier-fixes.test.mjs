@@ -7,14 +7,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   WS, repo, rateLimit, service, logger, createIntent, getIntent, approve,
-  installN8n, clearHook, ledgerFor,
+  installN8n, clearHook, ledgerFor, injectLedgerRepository,
 } from "../../../proofs/approval-route-harness.mjs";
 
 function spyLoggerError() {
   const original = logger.error;
   const events = [];
-  logger.error = (event, ...rest) => { events.push(event); return original.call(logger, event, ...rest); };
-  return { events, restore: () => { logger.error = original; } };
+  const calls = [];
+  logger.error = (event, ...rest) => {
+    events.push(event); calls.push({ event, meta: rest[0] });
+    return original.call(logger, event, ...rest);
+  };
+  return { events, calls, restore: () => { logger.error = original; } };
 }
 const baseDeps = (over = {}) => ({
   evaluate: () => ({ outcome: "ALLOW", reason: "ok" }),
@@ -53,11 +57,67 @@ test("fix2: a transient (non-conflict) error in the route maps to 503, not a gen
     if (intentId === id && patch.toStatus === "executing") throw new Error("db connection reset");
   });
   const n8n = installN8n();
+  const spy = spyLoggerError();
   try {
     const r = await approve(id);
     assert.equal(r.status, 503);
     assert.equal(n8n.calls.length, 0);
-  } finally { clearHook(); n8n.restore(); }
+    const failed = spy.calls.find((c) => c.event === "agent.execution-intent.approve.failed");
+    assert.ok(failed, "the 503 catch must log approve.failed");
+    assert.equal(failed.meta?.alert, true, "the 503 catch must raise alert:true");
+  } finally { spy.restore(); clearHook(); n8n.restore(); }
+});
+
+test("A: revert_conflict whose status re-read fails reports 'unknown' (never a guessed status)", async () => {
+  const spy = spyLoggerError();
+  try {
+    const res = await service.approveAndDispatchExecutionIntent(baseDeps({
+      recordAttempt: async () => { throw new Error("ledger down"); },
+      revertClaim: async () => { throw new Error("0 rows"); },
+      readStatus: async () => { throw new Error("db read failed"); },
+    }));
+    assert.equal(res.ok, false);
+    assert.equal(res.revert, "revert_conflict");
+    assert.equal(res.status, "unknown");
+    const failed = spy.calls.find((c) => c.event.endsWith("reread_status.failed"));
+    assert.ok(failed, "a failed re-read must be logged");
+    assert.equal(failed.meta?.alert, true);
+  } finally { spy.restore(); }
+});
+
+test("A: route `revert` field = 'reverted' when an injected ledger fails and the claim revert lands", async () => {
+  rateLimit.__resetRateLimitersForTests();
+  const id = await createIntent("atelier-ledger-revert-ok");
+  injectLedgerRepository(() => { throw new Error("ledger unavailable (injected)"); });
+  const n8n = installN8n();
+  try {
+    const r = await approve(id);
+    assert.equal(r.status, 500, JSON.stringify(r.body));
+    assert.equal(r.body.reason, "ledger_unavailable");
+    assert.equal(r.body.revert, "reverted");
+    assert.equal((await getIntent(id)).status, "pending");
+    assert.equal(n8n.calls.length, 0, "no dispatch without a ledger attempt row");
+  } finally { injectLedgerRepository(null); n8n.restore(); }
+});
+
+test("A: route `revert` field = 'revert_conflict' (+ real status) when the injected ledger fails and the revert loses", async () => {
+  rateLimit.__resetRateLimitersForTests();
+  const id = await createIntent("atelier-ledger-revert-conflict");
+  injectLedgerRepository(() => { throw new Error("ledger unavailable (injected)"); });
+  repo.__setBeforeLocalTransitionHookForTests((ws, intentId, patch) => {
+    if (intentId !== id || patch.toStatus !== "pending") return;
+    repo.__setBeforeLocalTransitionHookForTests(null);
+    // A concurrent writer settles the row first; the revert must then match 0 rows.
+    repo.__forceAgentExecutionIntentRowForTests(ws, intentId, { status: "failed" });
+  });
+  const n8n = installN8n();
+  try {
+    const r = await approve(id);
+    assert.equal(r.status, 500, JSON.stringify(r.body));
+    assert.equal(r.body.revert, "revert_conflict");
+    assert.equal(r.body.status, "failed");
+    assert.equal(n8n.calls.length, 0);
+  } finally { injectLedgerRepository(null); clearHook(); n8n.restore(); }
 });
 
 test("fix3: markExecuted fails after dispatch → uncertain/dispatched response, stays executing, alert, no resend", async () => {

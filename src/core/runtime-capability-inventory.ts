@@ -102,6 +102,19 @@ export const OUT_OF_SCOPE_SURFACES: readonly {
   paths: readonly string[];
 }[] = [
   {
+    reason: "Producteur de décision candidat dormant : create_approval_decision persiste une décision humaine, sans consommation ni dispatch. Aucun import applicatif autorisé ; classement read-only distinct de création, SQL draft non activé. Le tripwire AST impose une reclassification et des preuves de gate avant tout branchement.",
+    paths: ["src/server/agents/approval-decision-producer.ts"],
+  },
+  {
+    reason: "Candidat owner-spec v2 non monté : handler vérifie session workspace owner + titulaire ; confirmation explicite hashée produit/consomme G1 et ledger atomiquement. Store/service candidat vérifié par DI ; preuves DB jetable à exécuter ; aucun caller public, aucune licence agent. Tripwire AST garde le graphe fermé.",
+    paths: ["src/server/missions/atelier-owner-spec-store.ts"],
+  },
+  {
+    reason:
+      "Frontière Atelier dormante : RPC transactionnel consume G1 + claim + ledger, sans route/import applicatif ni exécuteur. Dépend du SQL draft atelier_execution_boundary et de PR457 non fusionnée ; aucune activation ou permission autonome. Le tripwire AST interdit tout nouveau caller avant reclassification et preuve DB.",
+    paths: ["src/server/missions/atelier-execution-store.ts"],
+  },
+  {
     reason:
       "Le journal d'audit lui-même. Chaque capacité écrit à travers lui ; le compter comme un exécuteur le ferait apparaître une fois par capacité.",
     paths: ["src/server/actions/action-ledger-repository.ts"],
@@ -164,6 +177,10 @@ export const OUT_OF_SCOPE_EFFECT_SURFACES: readonly {
   reason: string;
   paths: readonly string[];
 }[] = [
+  {
+    reason: "Engine owner-spec candidat non monté : provider null par défaut, port de processus fake explicite pour preuves isolées. Les commandes git locales sont bornées ; aucune connexion fournisseur réelle ni activation. Une future qualification live exige une revue distincte.",
+    paths: ["src/server/atelier/atelier-bound-spec.ts", "src/server/atelier/atelier-bound-spec.test-fixture.mjs"],
+  },
   {
     reason:
       "Générateur cash conservé comme utilitaire de smoke manuel revenue-readiness ; aucune page servie ne le déclenche au rendu.",

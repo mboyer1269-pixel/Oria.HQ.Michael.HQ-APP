@@ -26,13 +26,24 @@ export type AtelierStep = {
   commitSha: string | null;
 };
 export type AtelierLock = { runnerPid: number; runnerStart?: string | null; childPid: number | null; childStart?: string | null; token?: string; stepId: string; since: string };
+/** Bound owner-spec runs cannot use legacy execution, commit, or cleanup paths. */
+export type AtelierBoundSpecPolicy = {
+  version: 2; missionId: string; runId: string; installationId: string; attemptId: string;
+  decisionId: string; payloadHash: string; bindingHash: string; instructionHash: string;
+  automaticCommitAllowed: false; maxNewSteps: 1; output: "SPEC.md";
+};
 export type AtelierMission = {
   contract: typeof ATELIER_CONTRACT; id: string; workspaceId: string; createdBy: string | null;
   title: string; need: string; createdAt: string; updatedAt: string; status: MissionStatus;
   runtime: { runtimeId: RuntimeId; consumptionMode: "subscription"; authMode: "chatgpt_session" | "claude_ai_session"; requestedModelId: string };
   repo: { path: string; /** SENT-412-20: dedicated git worktree of this mission (absent on legacy missions) */ worktree?: string; baseBranch: string; branch: string; baseSha: string; headSha: string };
   sessionId: string | null; lock: AtelierLock | null; steps: AtelierStep[]; artifacts: AtelierArtifact[];
+  boundSpec?: AtelierBoundSpecPolicy;
 };
+function refuseBoundLegacyOperation(m: AtelierMission) {
+  // Presence, not truthiness: malformed/null persisted policies must also fail closed.
+  if ("boundSpec" in m) throw new Error("bound_spec_requires_governed_engine");
+}
 export type AtelierEvent = { seq: number; at: string; type: string; stepId?: string; data?: Record<string, unknown> };
 
 export const LEGACY_WORKSPACE = "michael-hq";
@@ -262,7 +273,7 @@ export function createMission(input: { title: string; need: string; repoPath: st
  * prune. The branch and the quarantine refs stay in the repo.
  */
 export function closeMission(id: string, root = atelierRoot()) {
-  const m = loadMission(id, root); if (!m.repo.worktree) return m;
+  const m = loadMission(id, root); refuseBoundLegacyOperation(m); if (!m.repo.worktree) return m;
   // P3: the mission lock is TAKEN (not just checked) for the whole close: no step can start meanwhile.
   const { lockFile } = acquire(m, randomUUID(), false, root);
   try {
@@ -583,6 +594,7 @@ export function secretFindings(diff: string): string[] {
   return SECRET_PATTERNS.filter(([, re]) => re.test(added)).map(([k]) => k);
 }
 export function commitIfChanged(m: AtelierMission, step: AtelierStep, root: string) {
+  refuseBoundLegacyOperation(m);
   const repo = workPath(m);
   assertRepoHead(m);
   git(repo, ["add", "-A"]);
@@ -607,6 +619,7 @@ export function commitIfChanged(m: AtelierMission, step: AtelierStep, root: stri
  * that ref name goes in step.quarantineRef.
  */
 export function quarantine(m: AtelierMission, s: Pick<AtelierStep, "id" | "quarantineRef">) {
+  refuseBoundLegacyOperation(m);
   s.quarantineRef = null; const dir = workPath(m);
   if (!git(dir, ["status", "--porcelain"])) return;
   // 412-34: snapshot with `git stash create` (no refs/stash, shared by all worktrees), pinned under a named ref,
@@ -631,6 +644,7 @@ export const INIT_TIMEOUT_MS = 30_000;
 export function startAgentStep(id: string, kind: AgentStepKind | null, prompt: string, opts: { resume?: boolean; timeoutMs?: number; initTimeoutMs?: number; root?: string } = {}): StartedStep {
   const root = opts.root ?? atelierRoot();
   let m = loadMission(id, root);
+  refuseBoundLegacyOperation(m);
   assertSubscriptionOnly(m.runtime.runtimeId, process.env, spawnSync); // diagnostic (412-31); real guard = init stream
   const lastAgent = [...m.steps].reverse().find(s => s.executor !== "runner");
   const stepKind: AgentStepKind = kind ?? (opts.resume && lastAgent && lastAgent.kind !== "test" && lastAgent.kind !== "preview" ? lastAgent.kind : "code");
@@ -748,6 +762,7 @@ c.on("exit", (code, sig) => { clearTimeout(t); kill(); if (process.exitCode !== 
 export function runCommandStep(id: string, kind: "test" | "preview", command: string[], opts: { root?: string; previewFile?: string; timeoutMs?: number; approveHarnessChange?: { by: string }; approveUnsandboxed?: { by: string } } = {}): AtelierMission {
   const root = opts.root ?? atelierRoot();
   const m = loadMission(id, root);
+  refuseBoundLegacyOperation(m);
   const step: AtelierStep = { id: randomUUID(), kind, status: "running", startedAt: now(), endedAt: null, executor: "runner", sessionId: null, resumedFrom: null,
     requestedModelId: null, observedModelId: null, exitCode: null, reason: null, commitSha: m.repo.headSha };
   const { lockFile } = acquire(m, step.id, false, root);

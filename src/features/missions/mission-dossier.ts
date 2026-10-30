@@ -1,4 +1,5 @@
 import type { Mission } from "@/core/types";
+import type { AtelierOwnerSpecEvidence } from "./atelier-owner-spec-result";
 import { evaluateMissionApproval } from "../../server/missions/approval-service";
 import { missionDossierHref } from "./development-mission-handoff";
 import { openHandsResultReceiptSchema, type OpenHandsResultReceipt } from "../../core/openhands-result-contract";
@@ -21,10 +22,11 @@ export type MissionReportedOutput = {
   sourceField: "mission.result.summary";
   process: { exitCode: number; deadlineExceeded: boolean } | null;
   receipt: OpenHandsResultReceipt | null;
+  atelierSpec?: AtelierOwnerSpecEvidence;
 };
 /** Only project fields that already exist in the persisted mission contract.
  * A stopped process, including exit 0, is not validation of its deliverable. */
-export function missionReportedOutput(mission: Mission): MissionReportedOutput {
+export function missionReportedOutput(mission: Mission, atelierSpec?: AtelierOwnerSpecEvidence): MissionReportedOutput {
   const summary = mission.result?.summary;
   const text = typeof summary === "string" && summary.trim() ? summary : null;
   const raw = mission.input?._openhandsLaunch;
@@ -49,6 +51,7 @@ export function missionReportedOutput(mission: Mission): MissionReportedOutput {
     truncated: text !== null && text.length > MAX_REPORTED_TEXT,
     independentlyValidated: false,
     sourceField: "mission.result.summary",
+    atelierSpec,
     receipt: receiptBound ? receipt : null,
     process: bound && process?.containerStopped === true && Number.isSafeInteger(process.exitCode)
       && typeof process.deadlineExceeded === "boolean"

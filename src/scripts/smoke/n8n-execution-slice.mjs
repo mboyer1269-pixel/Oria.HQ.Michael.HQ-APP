@@ -154,7 +154,12 @@ const result = await approveAndDispatchExecutionIntent({
   markExecuting: () =>
     transitionAgentExecutionIntent(WORKSPACE, intentId, { toStatus: "executing", updatedAt: new Date().toISOString() }),
   recordAttempt: async () => void ledger.push("attempt"),
-  dispatch: () => n8nWebhookTriggerTool.handler(stored.payload, { workspaceId: WORKSPACE, agentId: "hermes" }),
+  dispatch: () => n8nWebhookTriggerTool.handler(stored.payload, {
+    workspaceId: WORKSPACE,
+    agentId: "hermes",
+    // G1: stable key (the approve route derives it from intent + payload hash).
+    idempotencyKey: `oria1:${WORKSPACE}:${intentId}:smoke`,
+  }),
   recordResult: async (_ok, phase) => void ledger.push(`result:${phase}`),
   markExecuted: (ref) =>
     transitionAgentExecutionIntent(WORKSPACE, intentId, {

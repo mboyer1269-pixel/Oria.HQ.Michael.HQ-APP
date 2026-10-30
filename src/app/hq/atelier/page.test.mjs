@@ -27,7 +27,7 @@ test("Atelier reads and opens the existing scoped durable result without executi
   writeFileSync(boundary, `
     export const state = { calls: [], gate: null, load: null, unavailable: false };
     export async function requireOwnerAccess(route) { state.calls.push(['owner', route]); return await state.gate(); }
-    export function getActiveWorkspaceContext() { state.calls.push(['workspace']); return {activeWorkspace:{id:'fixture-workspace'},activeMode:{id:'fixture-mode'}}; }
+    export function getActiveWorkspaceContext() { state.calls.push(['workspace']); return {activeWorkspace:{id:state.scope?.workspaceId??'fixture-workspace'},activeMode:{id:state.scope?.modeId??'fixture-mode'}}; }
     export function createDevelopmentStore() { state.calls.push(['store']); return state.unavailable ? null : {load:async(...args)=>{state.calls.push(['load',...args]);return await state.load();}}; }
     export function CockpitShell({children}) { return children; }
     export function AtelierLocalMissions({workspaceId}) { state.calls.push(['local-read',workspaceId]);return null; }
@@ -43,7 +43,7 @@ test("Atelier reads and opens the existing scoped durable result without executi
       alias: { ...Object.fromEntries(aliases.map(key => [key, boundary])), "server-only": path.join(process.cwd(), "src/scripts/smoke/server-only-stub.mjs"), "@": path.join(process.cwd(), "src") } });
     const { default: AtelierPage } = await jiti.import("./page.tsx");
     const call = (params = { mission: missionId }) => AtelierPage({ searchParams: Promise.resolve(params) });
-    const reset = () => { state.calls.length = 0; state.unavailable = false; state.gate = () => ({ status: "authorized", user: { id: "fixture-owner" } }); state.load = missionFixture; };
+    const reset = () => { state.calls.length = 0; state.scope = null; state.unavailable = false; state.gate = () => ({ status: "authorized", user: { id: "fixture-owner" } }); state.load = missionFixture; };
     const render = async (params) => renderToStaticMarkup(await call(params));
 
     await t.test("pending and denied owner gates perform zero data reads", async () => {
@@ -70,6 +70,20 @@ test("Atelier reads and opens the existing scoped durable result without executi
       assert.match(html, /Validation indépendante non reliée/); assert.match(html, /Aucune différence de contenu/);
       assert.doesNotMatch(html, /<script|<iframe|Ouvrir le résultat dans Atelier|Mission approuvée visible/);
       assert.deepEqual(state.calls, [["owner", "/hq/atelier"], ["workspace"], ["store"], ["load", "fixture-workspace", missionId], ["local-read", "fixture-workspace"]]);
+    });
+    await t.test("canonical owner-spec is read through the existing validator and foreign or torn evidence is withheld", async () => {
+      const {fixture,result}=await import("../../../server/missions/test-fixtures/atelier-owner-spec.mjs");
+      const f=await fixture(),observed=result(f,"# Durable SPEC <script>inert</script>");
+      f.mission.input._atelierOwnerSpecV2={review:f.review,admission:f.receipt,result:observed};
+      f.mission.result={atelierOwnerSpecV2:structuredClone(observed)};
+      reset();state.scope=f.context;state.gate=()=>({status:"authorized",user:{id:f.context.actorId}});state.load=()=>f.mission;
+      const html=await render({mission:f.mission.id});assert.match(html,/Spécification Atelier enregistrée/);
+      assert.match(html,/Durable SPEC &lt;script&gt;inert/);assert.match(html,/Télécharger SPEC.md/);
+      assert.doesNotMatch(html,/Aucun reçu OpenHands|<script/);
+      delete f.mission.result.atelierOwnerSpecV2;
+      const torn=await render({mission:f.mission.id});assert.match(torn,/liaison à cette mission n’a pas pu être vérifiée/);assert.match(torn,/non vérifié/);
+      assert.doesNotMatch(torn,/Durable SPEC|Télécharger SPEC/);
+      assert.ok(state.calls.every(([name])=>['owner','workspace','store','load','local-read'].includes(name)));
     });
     await t.test("plain mission summary is usable even without a bound executor receipt", async () => {
       reset(); state.load = () => ({ ...missionFixture(), input: {}, result: { summary: "Compte rendu sans preuve d’exécution" } });

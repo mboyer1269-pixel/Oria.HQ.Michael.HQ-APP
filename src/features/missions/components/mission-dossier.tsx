@@ -12,10 +12,11 @@ import { MissionTransfer } from "./mission-transfer";
 import { OpenHandsToolReview } from "./openhands-tool-review";
 import { OpenHandsLaunch } from "./openhands-launch";
 import { AtelierReservationPanel } from "./atelier-reservation-panel";
+import type { AtelierOwnerSpecEvidence } from "../atelier-owner-spec-result";
 
-type Props = { initialSelectedId?: string; missions: Mission[]; source: "supabase" | "local" | "mock"; transferEnabled?: boolean; paginated?: boolean; openHandsEnabled?: boolean; toolReviewEnabled?:boolean; launchEnabled?:boolean };
+type Props = { ownerSpecEvidence?: Record<string, AtelierOwnerSpecEvidence>; initialSelectedId?: string; missions: Mission[]; source: "supabase" | "local" | "mock"; transferEnabled?: boolean; paginated?: boolean; openHandsEnabled?: boolean; toolReviewEnabled?:boolean; launchEnabled?:boolean };
 
-export function MissionDossier({ missions, source, transferEnabled = false, paginated = false, openHandsEnabled = false, toolReviewEnabled=false, launchEnabled=false, initialSelectedId }: Props) {
+export function MissionDossier({ missions, source, transferEnabled = false, paginated = false, openHandsEnabled = false, toolReviewEnabled=false, launchEnabled=false, initialSelectedId, ownerSpecEvidence }: Props) {
   const [selectedId, setSelectedId] = useState(missions.find(mission => mission.id === initialSelectedId)?.id ?? missions[0]?.id ?? "");
   const selectorId = useId();
   const searchId = useId();
@@ -66,7 +67,7 @@ export function MissionDossier({ missions, source, transferEnabled = false, pagi
           <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{selected.objective}</p>
 
           <h4 className="mt-6 text-sm font-semibold text-white">Résultat attendu</h4><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-300">{selected.expectedOutput}</p>
-          <MissionResultPanel key={`result:${selected.id}`} output={missionReportedOutput(selected)} source={source} />
+          <MissionResultPanel key={`result:${selected.id}`} output={missionReportedOutput(selected, ownerSpecEvidence?.[selected.id])} source={source} />
           <details className="mt-5 border-t border-neutral-800 pt-2">
             <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-neutral-300 focus-visible:outline-2 focus-visible:outline-amber-300">Cadre de la mission</summary>
           <dl className="mt-5 grid gap-4 sm:grid-cols-2">

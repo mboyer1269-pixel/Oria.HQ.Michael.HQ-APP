@@ -1,6 +1,7 @@
 import { DevelopmentMissionForm } from "@/features/missions/components/development-mission-form";
 import { missionDossierId } from "@/features/missions/development-mission-handoff";
 import { createDevelopmentStore } from "@/server/missions/development-mission";
+import { readOwnerSpecEvidence, ownerSpecMissionForClient } from "@/server/missions/atelier-owner-spec-read";
 import { listMissionsForWorkspace } from "@/server/missions";
 import { evaluateMissionApproval } from "@/server/missions/approval-service";
 import type { Mission } from "@/core/types";
@@ -74,8 +75,13 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
   // creates a second independent set of reservation/launch controls.
   const dossierMissions = requestedMission
     ? [requestedMission, ...missions.filter(mission => mission.id !== requestedMission.id)] : missions;
+  const ownerSpecEvidence = source === "supabase" ? Object.fromEntries(dossierMissions.map(mission => [mission.id,
+    readOwnerSpecEvidence(mission, { workspaceId: activeWorkspace.id, modeId: activeMode.id, actorId: access.user.id })])) : undefined;
   const reviewMissions = (filter.status === "review" ? dossierMissions : requestedMission ? [requestedMission] : [])
     .filter(mission => evaluateMissionApproval(mission).required);
+  const clientDossierMissions = dossierMissions.map(ownerSpecMissionForClient);
+  const clientReviewMissions = reviewMissions.map(ownerSpecMissionForClient);
+  const clientPageMissions = missions.map(ownerSpecMissionForClient);
   const pages = Math.max(1, Math.ceil(filteredTotal / MISSION_PAGE_SIZE));
   const transferEnabled = source === "supabase" && resolvePaperclipBinding({ enabled: serverEnv.paperclipDispatchEnabled,
     baseUrl: serverEnv.paperclipBaseUrl, token: serverEnv.paperclipBoardToken, workspaceId: serverEnv.paperclipWorkspaceId,
@@ -130,20 +136,20 @@ export default async function MissionsPage({ searchParams }: { searchParams: Pro
       {dossierMissions.length === 0 && <DevelopmentMissionForm key="development-form" workspaceId={activeWorkspace.id} />}
       <section key="selected-dossier" id="requested-mission" aria-label="Mission sélectionnée">
         {params.mission !== undefined && !requestedMission && <p role="status" className="mb-4 rounded-xl border border-amber-500/30 p-4 text-sm text-amber-200">{requestedReadFailed ? "Lecture de cette mission indisponible. Actualise pour réessayer." : "Cette mission est introuvable dans le projet et le mode actifs."}</p>}
-        <MissionDossier key={`${missionPageHref(filter)}:${requestedId ?? ""}`} missions={dossierMissions} initialSelectedId={requestedMission?.id} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
+        <MissionDossier key={`${missionPageHref(filter)}:${requestedId ?? ""}`} missions={clientDossierMissions} ownerSpecEvidence={ownerSpecEvidence} initialSelectedId={requestedMission?.id} source={source} transferEnabled={transferEnabled} openHandsEnabled={process.env.ORIA_ENABLE_OPENHANDS_CONFIRMATION === "1"} toolReviewEnabled={process.env.ORIA_ENABLE_OPENHANDS_TOOL_REVIEW === "1"} launchEnabled={process.env.ORIA_ENABLE_OPENHANDS_LAUNCH === "1"} paginated />
       </section>
       {dossierMissions.length > 0 && <DevelopmentMissionForm key="development-form" workspaceId={activeWorkspace.id} />}
 
       {reviewMissions.length > 0 && <section id="mission-approval" aria-label="Décisions des missions affichées">
         <HqWidget title="Approbations — dossier et page affichés" eyebrow="Human gate" icon={ShieldAlert}>
-          <MissionApprovalPanel missions={reviewMissions} />
+          <MissionApprovalPanel missions={clientReviewMissions} />
         </HqWidget>
       </section>}
 
       <details className="rounded-2xl border border-[var(--border)] p-4"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-[var(--fg)] focus-visible:outline-2 focus-visible:outline-amber-300">Vue Kanban</summary>
       <HqWidget title="Kanban — résultats de cette page" eyebrow="Pipeline" icon={LayoutDashboard}>
         {hasMissions ? (
-          <MissionKanbanBoard missions={missions} />
+          <MissionKanbanBoard missions={clientPageMissions} />
         ) : (
           <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-neutral-800 bg-neutral-950/40 px-4 py-24 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-900 shadow-inner">

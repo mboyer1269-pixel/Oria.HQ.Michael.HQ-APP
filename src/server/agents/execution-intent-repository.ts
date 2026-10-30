@@ -249,7 +249,8 @@ export async function listPendingAgentExecutionIntents(
 export type ExecutionIntentTransitionPatch = {
   toStatus: AgentExecutionIntentStatus;
   updatedAt: string;
-  actionRef?: string;
+  // `null` clears the column (e.g. the attempt token on a revert to pending).
+  actionRef?: string | null;
   failureCode?: string;
   // The status the CALLER validated its decision against. When set, the
   // transition only applies while the row is STILL in that exact status; a
@@ -263,6 +264,10 @@ export type ExecutionIntentTransitionPatch = {
   // STILL equal to this snapshot (jsonb equality in Postgres; canonical JSON
   // equality in the local fallback). A mismatch raises a concurrency error.
   expectedPayload?: AgentExecutionIntentPayload;
+  // G1 attemptId: when set, the transition only applies while action_ref is
+  // STILL this attempt token (compare-and-set). A late tail from a previous
+  // attempt matches 0 rows and raises a concurrency error.
+  expectedActionRef?: string;
 };
 
 /**
@@ -270,16 +275,32 @@ export type ExecutionIntentTransitionPatch = {
  * if the intent is absent and AgentExecutionIntentTransitionError if the jump is
  * not in the legal-transition table.
  */
+export type BeforeLocalTransitionHook = (
+  workspaceId: string,
+  intentId: string,
+  patch: ExecutionIntentTransitionPatch,
+) => void;
+
+export type ExecutionIntentTransitionDeps = {
+  /** Called at the start of each local-fallback transition. Default: none. */
+  beforeLocalTransition?: BeforeLocalTransitionHook;
+};
+
+// Default dependencies used when a caller passes none. Real implementation:
+// no hook. Only the legacy shim below writes it.
+let defaultTransitionDeps: ExecutionIntentTransitionDeps = {};
+
 export async function transitionAgentExecutionIntent(
   workspaceId: string,
   intentId: string,
   patch: ExecutionIntentTransitionPatch,
+  deps: ExecutionIntentTransitionDeps = defaultTransitionDeps,
 ): Promise<AgentExecutionIntent> {
   const db = getSupabaseClient();
 
   if (!db) {
     assertLocalFallbackAvailable();
-    beforeLocalTransitionForTests?.(workspaceId, intentId, patch);
+    deps.beforeLocalTransition?.(workspaceId, intentId, patch);
     const row = localIntents.find(
       (r) => r.workspace_id === workspaceId && r.intent_id === intentId,
     );
@@ -296,6 +317,9 @@ export async function transitionAgentExecutionIntent(
       stableStringify(row.payload as CanonicalJson) !==
         stableStringify(patch.expectedPayload as unknown as CanonicalJson)
     ) {
+      throw new AgentExecutionIntentConcurrencyError(from, patch.toStatus);
+    }
+    if (patch.expectedActionRef !== undefined && (row.action_ref ?? null) !== patch.expectedActionRef) {
       throw new AgentExecutionIntentConcurrencyError(from, patch.toStatus);
     }
     if (!canTransitionExecutionIntent(from, patch.toStatus)) {
@@ -342,6 +366,10 @@ export async function transitionAgentExecutionIntent(
     // caller verified (key order is irrelevant to jsonb equality).
     query = query.eq("payload", JSON.stringify(patch.expectedPayload));
   }
+  if (patch.expectedActionRef !== undefined) {
+    // Same atomic UPDATE: only the attempt that holds the claim token may settle it.
+    query = query.eq("action_ref", patch.expectedActionRef);
+  }
   const { data, error } = await query.select();
   if (error) {
     throw new AgentExecutionIntentRepositoryError("transition");
@@ -354,7 +382,7 @@ export async function transitionAgentExecutionIntent(
     ...current,
     status: patch.toStatus,
     updatedAt: patch.updatedAt,
-    ...(patch.actionRef !== undefined ? { actionRef: patch.actionRef } : {}),
+    ...(patch.actionRef !== undefined ? { actionRef: patch.actionRef ?? undefined } : {}),
     ...(patch.failureCode !== undefined ? { failureCode: patch.failureCode } : {}),
   };
 }
@@ -388,13 +416,30 @@ export function __mutateAgentExecutionIntentPayloadForTests(
   ) as unknown as AgentExecutionIntentRow["payload"];
 }
 
-let beforeLocalTransitionForTests:
-  | ((workspaceId: string, intentId: string, patch: ExecutionIntentTransitionPatch) => void)
-  | undefined;
-
-/** Test-only: run a callback at the start of each local-fallback transition. */
-export function __setBeforeLocalTransitionHookForTests(
-  hook: typeof beforeLocalTransitionForTests,
+/**
+ * Test-only: simulate an out-of-band writer (e.g. a concurrent attempt) by
+ * overwriting status and/or action_ref of a local-fallback row directly.
+ */
+export function __forceAgentExecutionIntentRowForTests(
+  workspaceId: string,
+  intentId: string,
+  patch: { status?: AgentExecutionIntentStatus; actionRef?: string | null },
 ): void {
-  beforeLocalTransitionForTests = hook;
+  const row = localIntents.find((r) => r.workspace_id === workspaceId && r.intent_id === intentId);
+  if (!row) throw new AgentExecutionIntentNotFoundError(intentId);
+  if (patch.status !== undefined) row.status = patch.status;
+  if (patch.actionRef !== undefined) row.action_ref = patch.actionRef;
+}
+
+/**
+ * Legacy shim kept so existing callers keep working: sets the DEFAULT
+ * `beforeLocalTransition` dependency of transitionAgentExecutionIntent. New
+ * code should pass `deps` explicitly. Only ever affects the local in-memory
+ * fallback (no-op when Postgres is configured).
+ * @deprecated pass `{ beforeLocalTransition }` as the 4th argument instead.
+ */
+export function __setBeforeLocalTransitionHookForTests(
+  hook: BeforeLocalTransitionHook | null | undefined,
+): void {
+  defaultTransitionDeps = hook ? { beforeLocalTransition: hook } : {};
 }

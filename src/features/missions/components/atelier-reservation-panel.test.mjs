@@ -36,7 +36,8 @@ test("review renders exact parameters and escapes source text without exposing a
   assert.match(html, /min-h-11/); assert.match(html, /focus-visible:outline/);
 });
 test("reserved receipt says reserved, not approved, connected, validated or running", () => {
-  const html = render(AtelierReservationOutcome, { result: { kind: "reserved", source: "recovered", claim: { runId: "receipt-reference" } } });
+  const html = render(AtelierReservationOutcome, { result: { kind: "reserved", source: "recovered", claim: { runId: "receipt-reference", binding } } });
+  assert.match(html, new RegExp(`/hq/atelier\\?mission=${mission.id}#atelier-owner-spec`));
   assert.match(html, /Réservation retrouvée/); assert.match(html, /receipt-reference/); assert.match(html, /Aucun agent lancé/); assert.match(html, /n’est pas une approbation/);
   assert.doesNotMatch(html, /<button|Lancer|Reprendre l’exécution|Mission terminée/);
 });

@@ -12,8 +12,8 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..");
@@ -70,6 +70,10 @@ const SERVER_ACTION = /^\s*["']use server["']/m;
 function mutationKinds(source) {
   const kinds = [];
   if (SUPABASE_MUTATION.test(source)) kinds.push("Supabase mutation");
+  // Named SQL mutation boundary; lookup_atelier_execution is read-only.
+  if (/\.rpc\(\s*["'`]claim_atelier_execution["'`]/.test(source)) kinds.push("Atelier transaction RPC");
+  if (/\brpc\(\s*["\'`](prepare_atelier_owner_spec_v2|admit_atelier_owner_spec_v2|record_atelier_owner_spec_result_v2)["\'`]/.test(source)) kinds.push("Owner spec v2 transaction RPC");
+  if (/\brpc\(\s*["'`]create_approval_decision["'`]/.test(source)) kinds.push("Approval decision creation RPC");
   if (SERVER_ACTION.test(source)) kinds.push("server action");
   return kinds;
 }
@@ -377,6 +381,53 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     }
   });
 
+  await t.test("approval decision producer stays dormant and its create RPC is classified", async () => {
+    const target = "src/server/agents/approval-decision-producer.ts";
+    assert.deepEqual(mutationKinds('client.rpc("create_approval_decision", input)'), ["Approval decision creation RPC"]);
+    assert.deepEqual(mutationKinds('client.rpc("classify_approval_decision", input)'), []);
+    assert.ok(outOfScopeFiles.has(target), "the dormant producer mutation must be explicitly classified");
+    assert.ok(!capabilityFiles.has(target), "the unmounted producer must not be presented as a live capability");
+    const files = await sourceFiles();
+    const knownFiles = new Set(files.map(file => toPosix(path.relative(projectRoot, file))));
+    assert.ok(knownFiles.has(target), "the classified producer must exist");
+    const checkImports = (rel, source) => {
+      const specifiers = [];
+      const addLiteral = expression => {
+        while (expression && ts.isParenthesizedExpression(expression)) expression = expression.expression;
+        if (expression && ts.isStringLiteralLike(expression)) specifiers.push(expression.text);
+      };
+      const visit = node => {
+        if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) addLiteral(node.moduleSpecifier);
+        if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) addLiteral(node.moduleReference.expression);
+        if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) addLiteral(node.argument.literal);
+        if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === "require"))) addLiteral(node.arguments[0]);
+        ts.forEachChild(node, visit);
+      };
+      visit(ts.createSourceFile(rel, source, ts.ScriptTarget.Latest, true));
+      for (const specifier of specifiers) assert.notEqual(resolveSourceSpecifier(rel, specifier, knownFiles), target,
+        `${rel} imports the dormant approval decision producer — declare and test its authenticated entrypoint before wiring`);
+    };
+    for (const file of files) {
+      const rel = toPosix(path.relative(projectRoot, file));
+      checkImports(rel, await read(rel));
+    }
+    for (const source of [
+      'import { producer } from "@/server/agents/approval-decision-producer";',
+      'import type { Producer } from "@/server/agents/approval-decision-producer";',
+      'export { producer } from "@/server/agents/approval-decision-producer";',
+      'export type { Producer } from "@/server/agents/approval-decision-producer";',
+      'await import("@/server/agents/approval-decision-producer.ts");',
+      'await import(`@/server/agents/approval-decision-producer`);',
+      'await import(/* producer */ "@/server/agents/approval-decision-producer");',
+      'type T = import("@/server/agents/approval-decision-producer").Producer;',
+      'import producer = require("@/server/agents/approval-decision-producer");',
+      'require("@/server/agents/approval-decision-producer");',
+    ]) for (const rel of ["src/app/api/other/route.ts", "src/features/agents/future.ts", "src/server/agents/future.ts"]) {
+      assert.throws(() => checkImports(rel, source), /before wiring/);
+    }
+    assert.throws(() => checkImports("src/server/agents/future.ts", 'import "./approval-decision-producer";'), /before wiring/);
+  });
+
   await t.test("Claude JSON launcher has no importer yet (SENT-418-2)", async () => {
     const files = await sourceFiles();
     const target = "src/server/ai/claude-json-launcher.ts";
@@ -399,12 +450,21 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     ]);
     const caller = "src/app/api/joris/chat/atelier-handlers.ts";
     const entrypoint = "src/app/api/joris/chat/route.ts";
-    // These two browser modules share wire types only; they may not load server code.
+    // These consumers share erased wire types only; they may not load the contract at runtime.
     const wireTypeConsumers = new Set([
       "src/features/missions/atelier-reservation-session.ts",
       "src/features/missions/components/atelier-reservation-panel.tsx",
+      "src/server/missions/atelier-execution-store.ts",
     ]);
     const wireContract = "src/server/missions/atelier-development-contract.ts";
+    // Exact shared-contract edges do not authorize a dormant service or engine caller.
+    const internalEdges = {
+      "src/server/missions/atelier-development-store.ts": [wireContract],
+      "src/server/missions/atelier-development-service.ts": [wireContract, "src/server/missions/atelier-development-store.ts"],
+      "src/server/missions/atelier-execution-contract.ts": [wireContract],
+      "src/server/missions/atelier-owner-spec-contract.ts": [wireContract],
+      "src/server/missions/atelier-owner-spec-read.ts": [wireContract],
+    };
     const callerTargets = new Set([
       "src/server/missions/atelier-development-contract.ts",
       "src/server/missions/atelier-development-service.ts",
@@ -434,7 +494,7 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       for (const { specifier, declaredTypeOnly } of specifiers) {
         const target = resolveSourceSpecifier(rel, specifier, knownFiles);
         const erasedWireType = declaredTypeOnly && target === wireContract && wireTypeConsumers.has(rel);
-        assert.ok(!modules.has(target) || modules.has(rel) || (rel === caller && callerTargets.has(target)) || erasedWireType,
+        assert.ok(!modules.has(target) || (internalEdges[rel] ?? []).includes(target) || (rel === caller && callerTargets.has(target)) || erasedWireType,
           `${rel} imports ${target} — only the exact protected Joris handler is allowed; declare and test another gate before wiring`);
         assert.ok(target !== caller || rel === entrypoint,
           `${rel} imports the identity-accepting Atelier handler — only the authenticated Joris route is allowed before wiring another entrypoint`);
@@ -442,6 +502,13 @@ test("Capability inventory — no live executor escapes it", async (t) => {
     };
     for (const target of modules) assert.ok(knownFiles.has(target), `missing reservation module: ${target}`);
     assert.ok(knownFiles.has(caller), "declared application caller must exist");
+    for (const rel of Object.keys(internalEdges)) {
+      for (const target of modules) {
+        const source = `import { probe } from "@/${target.slice(4)}";`;
+        if (internalEdges[rel].includes(target)) assert.doesNotThrow(() => checkImports(rel, source));
+        else assert.throws(() => checkImports(rel, source), /before wiring/);
+      }
+    }
     for (const file of files) {
       const rel = toPosix(path.relative(projectRoot, file));
       checkImports(rel, await read(rel));
@@ -489,6 +556,119 @@ test("Capability inventory — no live executor escapes it", async (t) => {
       'require("@/app/api/joris/chat/atelier-handlers");',
       'import "../joris/chat/atelier-handlers";',
     ]) assert.throws(() => checkImports("src/app/api/other/route.ts", source), /before wiring/);
+  });
+
+  await t.test("Atelier execution boundary stays dormant until its real capability and gates are declared", async () => {
+    const files = await sourceFiles(); // Test files are excluded; no production consumer is exempt.
+    // The pure reader is guarded too: only the two owner-gated pages may import it.
+    const reader = "src/server/missions/atelier-owner-spec-read.ts";
+    const ownerPages = ["src/app/hq/missions/page.tsx", "src/app/hq/atelier/page.tsx"];
+    const dormant = new Set([
+      reader,
+      "src/server/missions/atelier-development-contract.ts",
+      "src/server/missions/atelier-execution-store.ts",
+      "src/server/missions/atelier-execution-contract.ts",
+      "src/server/missions/atelier-owner-spec-contract.ts",
+      "src/server/missions/atelier-owner-spec-store.ts",
+      "src/server/missions/atelier-owner-spec-service.ts",
+      "src/server/missions/atelier-owner-spec-handler.ts",
+      "src/server/atelier/atelier-bound-spec.ts",
+      "src/server/atelier/atelier-bound-spec.test-fixture.mjs",
+    ]);
+    const edges = {
+      [reader]: ["atelier-development-contract.ts", "atelier-owner-spec-contract.ts"],
+      "src/app/hq/missions/page.tsx": ["atelier-owner-spec-read.ts"],
+      "src/app/hq/atelier/page.tsx": ["atelier-owner-spec-read.ts"],
+      "src/server/missions/atelier-owner-spec-contract.ts": ["atelier-development-contract.ts", "atelier-execution-contract.ts"],
+      "src/server/missions/atelier-owner-spec-store.ts": ["atelier-owner-spec-contract.ts"],
+      "src/server/missions/atelier-owner-spec-service.ts": ["atelier-owner-spec-contract.ts", "atelier-owner-spec-store.ts"],
+      "src/server/missions/atelier-owner-spec-handler.ts": ["atelier-owner-spec-contract.ts", "atelier-owner-spec-service.ts"],
+      "src/server/atelier/atelier-bound-spec.ts": ["atelier-owner-spec-contract.ts"],
+    };
+    edges["src/server/missions/atelier-execution-contract.ts"] = ["atelier-development-contract.ts"];
+    edges["src/server/missions/atelier-execution-store.ts"] = ["atelier-execution-contract.ts"];
+    edges["src/server/missions/atelier-development-store.ts"] = ["atelier-development-contract.ts"];
+    edges["src/server/missions/atelier-development-service.ts"] = ["atelier-development-contract.ts"];
+    edges["src/app/api/joris/chat/atelier-handlers.ts"] = ["atelier-development-contract.ts"];
+    const wireTypeConsumers = new Set([
+      "src/features/missions/atelier-reservation-session.ts",
+      "src/features/missions/components/atelier-reservation-panel.tsx",
+      "src/server/missions/atelier-execution-store.ts",
+    ]);
+    const knownFiles = new Set(files.map((file) => toPosix(path.relative(projectRoot, file))));
+    const checkImports = (rel, source) => {
+      const specifiers = [];
+      const addLiteral = (expression, declaredTypeOnly = false) => {
+        while (expression && ts.isParenthesizedExpression(expression)) expression = expression.expression;
+        if (expression && ts.isStringLiteralLike(expression)) specifiers.push({ specifier: expression.text, declaredTypeOnly });
+      };
+      const visit = node => {
+        if (ts.isImportDeclaration(node)) addLiteral(node.moduleSpecifier, node.importClause?.isTypeOnly === true);
+        if (ts.isExportDeclaration(node)) addLiteral(node.moduleSpecifier);
+        if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) addLiteral(node.moduleReference.expression);
+        if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) addLiteral(node.argument.literal);
+        if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === "require"))) addLiteral(node.arguments[0]);
+        ts.forEachChild(node, visit);
+      };
+      // Parse literal module specifiers, including comments/templates. Computed imports still need review.
+      visit(ts.createSourceFile(rel, source, ts.ScriptTarget.Latest, true));
+      for (const { specifier, declaredTypeOnly } of specifiers) {
+        const target = resolveSourceSpecifier(rel, specifier, knownFiles);
+        const erasedWireType = declaredTypeOnly && target === "src/server/missions/atelier-development-contract.ts" && wireTypeConsumers.has(rel);
+        assert.ok(!dormant.has(target) || erasedWireType || (edges[rel] ?? []).some(name => target === `src/server/missions/${name}`), `${rel} imports ${target} — remove the dormant-store exclusion and declare the actual runtime capability and authorization gates before wiring`);
+      }
+    };
+    for (const target of dormant) assert.ok(knownFiles.has(target), `missing dormant module: ${target}`);
+    for (const page of ownerPages) assert.doesNotThrow(() => checkImports(page, 'import { readOwnerSpecEvidence } from "@/server/missions/atelier-owner-spec-read";'));
+    for (const source of [
+      'import { readOwnerSpecEvidence } from "@/server/missions/atelier-owner-spec-read";',
+      'import type { Evidence } from "@/server/missions/atelier-owner-spec-read";',
+      'export { readOwnerSpecEvidence } from "@/server/missions/atelier-owner-spec-read";',
+      'await import("@/server/missions/atelier-owner-spec-read");',
+      'await import(`@/server/missions/atelier-owner-spec-read`);',
+      'require("@/server/missions/atelier-owner-spec-read");',
+    ]) {
+      assert.throws(() => checkImports("src/app/api/other/route.ts", source), /before wiring/);
+      assert.throws(() => checkImports("src/features/missions/owner-spec-future.ts", source), /before wiring/);
+    }
+    for (const target of [
+      "src/server/missions/atelier-owner-spec-store.ts",
+      "src/server/missions/atelier-owner-spec-service.ts",
+      "src/server/missions/atelier-owner-spec-handler.ts",
+      "src/server/missions/atelier-execution-store.ts",
+      "src/server/atelier/atelier-bound-spec.ts",
+    ]) for (const rel of [reader, ...ownerPages, "src/app/api/other/route.ts"]) {
+      assert.throws(() => checkImports(rel, `import { probe } from "@/${target.slice(4)}";`), /before wiring/);
+    }
+    for (const rel of [...Object.keys(edges), ...wireTypeConsumers]) {
+      for (const target of dormant) {
+        const source = `import { probe } from "@/${target.slice(4)}";`;
+        if ((edges[rel] ?? []).some(name => target === `src/server/missions/${name}`)) {
+          assert.doesNotThrow(() => checkImports(rel, source));
+        } else {
+          assert.throws(() => checkImports(rel, source), /before wiring/);
+        }
+      }
+    }
+    for (const file of files) {
+      const rel = toPosix(path.relative(projectRoot, file));
+      checkImports(rel, await read(rel));
+    }
+    // Negative controls: static, type, re-export, dynamic, relative and CommonJS imports all trip the gate.
+    for (const source of [
+      'import { createOwnerSpecHandler } from "@/server/missions/atelier-owner-spec-handler";',
+      'await import("@/server/atelier/atelier-bound-spec");',
+      'import { reserve } from "@/server/missions/atelier-execution-contract";',
+      'import type { Binding } from "@/server/missions/atelier-development-contract";',
+      'export { Store } from "@/server/missions/atelier-execution-store";',
+      'await import("@/server/missions/atelier-execution-contract.ts");',
+      'await import(`@/server/missions/atelier-execution-contract`);',
+      'await import(/* module */ "@/server/missions/atelier-execution-contract");',
+      'type T = import("@/server/missions/atelier-development-contract").Binding;',
+      'import store = require("@/server/missions/atelier-execution-store");',
+      'import "./atelier-development-contract";',
+      'require("@/server/missions/atelier-execution-store");',
+    ]) assert.throws(() => checkImports("src/server/missions/future-consumer.ts", source), /before wiring/);
   });
 
   await t.test("every built-in skill handler is inventoried", async () => {

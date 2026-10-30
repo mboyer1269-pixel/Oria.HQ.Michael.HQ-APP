@@ -27,7 +27,7 @@ test("mission receipt navigation keeps one scoped dossier and an exact review de
   writeFileSync(file, `
     export const state={calls:[],gate:null,page:null,load:null,local:[],unavailable:false};
     export async function requireOwnerAccess(route){state.calls.push(['owner',route]);return await state.gate();}
-    export function getActiveWorkspaceContext(){state.calls.push(['scope']);return {activeWorkspace:{id:'fixture-workspace'},activeMode:{id:'fixture-mode'}};}
+    export function getActiveWorkspaceContext(){state.calls.push(['scope']);return {activeWorkspace:{id:state.scope?.workspaceId??'fixture-workspace'},activeMode:{id:state.scope?.modeId??'fixture-mode'}};}
     export async function listMissionPage(scope,filter){state.calls.push(['page',scope,filter]);if(state.page instanceof Error)throw state.page;return state.page;}
     export function createDevelopmentStore(){state.calls.push(['store']);return state.unavailable?null:{load:async(...args)=>{state.calls.push(['load',...args]);return await state.load();}};}
     export async function listMissionsForWorkspace(scope){state.calls.push(['local',scope]);return {missions:state.local};}
@@ -51,11 +51,12 @@ test("mission receipt navigation keeps one scoped dossier and an exact review de
     const jiti = createJiti(import.meta.url, { jsx: { runtime: "automatic" }, fsCache: false, alias: {
       ...Object.fromEntries(aliases.map(key => [key, file])), "@/server/missions/mission-page": pageBoundary,
       "@/server/missions/approval-service": path.join(process.cwd(), "src/server/missions/approval-service.ts"),
+      "@/server/missions/atelier-owner-spec-read": path.join(process.cwd(), "src/server/missions/atelier-owner-spec-read.ts"),
       "server-only": path.join(process.cwd(), "src/scripts/smoke/server-only-stub.mjs"), "@": path.join(process.cwd(), "src"),
     }});
     const { default: MissionsPage } = await jiti.import("./page.tsx");
     function reset() {
-      state.calls.length = 0; state.unavailable = false; state.local = [];
+      state.calls.length = 0; state.scope = null; state.unavailable = false; state.local = [];
       state.gate = () => ({ status: "authorized", user: { id: "fixture-owner" } });
       state.load = () => mission(requestedId, { status: "needs_approval" });
       state.page = {missions:[mission("paged")],source:"supabase",summary:{total:26,running:0,needs_approval:1,completed:0,failed:0,draft:25,queued:0,cancelled:0},filteredTotal:26,reviewTotal:1,pageNumber:1};
@@ -128,6 +129,32 @@ test("mission receipt navigation keeps one scoped dossier and an exact review de
         assert.deepEqual(byName(tree,'MissionApprovalPanel')[0].props.missions.map(m=>m.id),['paged']);
         assert.equal(byName(tree,'MissionDossier').length,1);
       }
+    });
+    await t.test("only server-scoped owner-spec evidence is passed into the selected dossier", async () => {
+      const {fixture,result}=await import("../../../server/missions/test-fixtures/atelier-owner-spec.mjs");
+      const f=await fixture(),observed=result(f,'# SPEC\nPRIVATE_OWNER_SPEC_SENTINEL\n');f.mission.input._atelierOwnerSpecV2={review:f.review,admission:f.receipt,result:observed};
+      f.mission.result={atelierOwnerSpecV2:structuredClone(observed)};
+      f.mission.requiresApproval=true;
+      reset();state.scope=f.context;state.gate=()=>({status:"authorized",user:{id:f.context.actorId}});
+      state.page.missions=[f.mission];state.load=()=>f.mission;
+      const approvedTree=await call({mission:f.mission.id}),dossier=byName(approvedTree,'MissionDossier')[0];
+      assert.equal(dossier.props.ownerSpecEvidence[f.mission.id].artifact.text,observed.evidence.specText);
+      const consumers=tree=>['MissionDossier','MissionKanbanBoard','MissionApprovalPanel'].flatMap(name=>byName(tree,name));
+      assert.equal(consumers(approvedTree).length,3);
+      for(const consumer of consumers(approvedTree)) for(const m of consumer.props.missions){
+        assert.equal(Object.hasOwn(m.input,'_atelierOwnerSpecV2'),false,consumer.type.name);
+        assert.equal(Object.hasOwn(m.result??{},'atelierOwnerSpecV2'),false,consumer.type.name);
+        assert.deepEqual(m.input._atelierRun,f.mission.input._atelierRun);
+      }
+      state.gate=()=>({status:"authorized",user:{id:'99999999-9999-4999-8999-999999999999'}});
+      const foreignTree=await call({mission:f.mission.id}),foreign=byName(foreignTree,'MissionDossier')[0];
+      assert.equal(foreign.props.ownerSpecEvidence[f.mission.id].state,'unverified');
+      assert.doesNotMatch(JSON.stringify(consumers(foreignTree).map(n=>n.props)),/PRIVATE_OWNER_SPEC_SENTINEL|payloadJson/);
+      state.gate=()=>({status:"authorized",user:{id:f.context.actorId}});
+      f.mission.result.atelierOwnerSpecV2.evidence.specText+='tampered';
+      const tamperedTree=await call({mission:f.mission.id});
+      assert.doesNotMatch(JSON.stringify(consumers(tamperedTree).map(n=>n.props)),/PRIVATE_OWNER_SPEC_SENTINEL|payloadJson/);
+      assert.equal(f.mission.input._atelierOwnerSpecV2.result.evidence.specText,observed.evidence.specText,'server source remains intact');
     });
     await t.test("the selected dossier comes before creation and secondary views stay disclosed", async () => {
       reset(); const tree=await call(); const nodes=allNodes(tree);
