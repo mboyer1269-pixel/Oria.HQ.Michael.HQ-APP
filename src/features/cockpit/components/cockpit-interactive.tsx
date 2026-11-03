@@ -409,7 +409,7 @@ function SortableWidget({
       {/* Drag handle */}
       <button
         type="button"
-        className="cockpit-drag-handle"
+        className="cockpit-drag-handle opacity-0 transition-opacity duration-150 ease-in-out focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-1 focus-visible:ring-offset-[#141415]"
         aria-label="Déplacer le widget"
         style={{
           position: "absolute",
@@ -425,8 +425,6 @@ function SortableWidget({
           border: "1px solid rgba(255,255,255,.10)",
           background: "rgba(0,0,0,.30)",
           cursor: "grab",
-          opacity: 0,
-          transition: "opacity 0.15s ease",
           touchAction: "none",
         }}
         {...attributes}
