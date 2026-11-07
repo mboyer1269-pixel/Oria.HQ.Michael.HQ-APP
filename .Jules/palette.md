@@ -1,0 +1,4 @@
+## 2024-05-18 - Initialize Palette Journal\n**Learning:** Started tracking UX/a11y insights.\n**Action:** Keep updating this file with critical UX learnings.
+## 2024-05-18 - Drag Handle Accessibility
+**Learning:** Interactive elements visually hidden by default (e.g., using `opacity: 0` for hover-based visibility, like drag handles) must explicitly set `focus-visible:opacity-100` alongside standard focus rings to remain accessible for keyboard navigation. Inline styles override Tailwind pseudo-classes, so properties like `opacity` and `transition` must be moved to Tailwind utility classes.
+**Action:** Always ensure visually hidden buttons are revealed on focus by migrating inline styles to classes (`opacity-0 transition-opacity`) and adding `focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50`.
