@@ -1,0 +1,3 @@
+## 2024-11-08 - Keyboard accessible drag handles
+**Learning:** Interactive elements visually hidden by default using inline opacity (like cockpit drag handles) remain inaccessible to keyboard users because they can't be seen when tabbed to, even with focus rings.
+**Action:** When creating visually hidden interactive elements, ensure they become fully visible on focus by applying `focus-visible:opacity-100` alongside standard focus styles. For elements styled with inline CSS opacity, it's necessary to move the opacity properties to utility classes to prevent the inline style from overriding the pseudo-class.
